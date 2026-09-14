@@ -2,6 +2,7 @@ services:
   - type: web
     name: sokoni-api
     env: node
+    nodeVersion: 20
     rootDir: api
     buildCommand: npm install && npm run build
     startCommand: npm start
