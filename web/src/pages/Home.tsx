@@ -31,12 +31,12 @@ export default function Home() {
       <section className="hero">
         <div className="container hero-inner">
           <div>
-            <div className="eyebrow" style={{ color: 'var(--gold)' }}>For African traders &amp; service pros</div>
-            <h1>Your shop deserves more than a <em>24-hour status</em>.</h1>
+            <span className="hero-tag">● {stats.vendors || 'Dozens of'} stores already verified</span>
+            <h1>A proper storefront, not another status update.</h1>
             <p className="lede">
               List your food stuff, your braiding chair, your camera, your edit suite — once. Buyers
               search, find you, and order with cash on delivery or a one-tap WhatsApp message. Every
-              seller is verified by our team before a single item goes live.
+              seller is checked by a real person before a single item goes live.
             </p>
             <form className="searchbar" onSubmit={search}>
               <input
@@ -59,14 +59,16 @@ export default function Home() {
               <div><strong>{stats.cities}</strong><span>Cities</span></div>
             </div>
           </div>
-          <div className="hero-img"><img src="/img/hero.jpg" alt="Vendor at her food stall" /></div>
+          <div className="hero-img-wrap">
+            <div className="hero-pin" />
+            <div className="hero-img"><img src="/img/hero.jpg" alt="Vendor at her food stall" /></div>
+          </div>
         </div>
       </section>
 
       <section className="section">
         <div className="container">
           <div className="section-head">
-            <div className="eyebrow">Browse</div>
             <h2>What are you shopping for?</h2>
             <p>Food stuff by the kg, litre or bag — and the service people who keep your life moving.</p>
           </div>
@@ -80,25 +82,24 @@ export default function Home() {
 
       <section className="section" style={{ background: '#fff', borderTop: '1px solid var(--line)', borderBottom: '1px solid var(--line)' }}>
         <div className="container">
-          <div className="section-head">
-            <div className="eyebrow">How it works</div>
-            <h2>Three steps, no website needed</h2>
-          </div>
-          <div className="grid grid-3">
-            {[
-              { n: '1', t: 'Register your business', d: 'Create an account, add your business name, city, WhatsApp number and an ID document.' },
-              { n: '2', t: 'Get verified by admin', d: 'Our team reviews every store. Verification protects buyers and keeps prohibited goods off the platform.' },
-              { n: '3', t: 'Post & get orders', d: 'Upload products with price, quantity, weight or litres — or list a service. Orders arrive by cash on delivery or WhatsApp.' },
-            ].map((s) => (
-              <div key={s.n} className="card card-pad">
-                <div className="badge badge-terra" style={{ marginBottom: 10 }}>Step {s.n}</div>
-                <h3>{s.t}</h3>
-                <p style={{ margin: 0, color: 'var(--muted)' }}>{s.d}</p>
-              </div>
-            ))}
-          </div>
-          <div className="center mt-4">
-            <Link to="/sell" className="btn btn-primary btn-lg">Start selling — it's free</Link>
+          <div className="row-between" style={{ alignItems: 'flex-start', gap: 48, flexWrap: 'wrap' }}>
+            <div className="section-head" style={{ marginBottom: 0, flex: '1 1 260px' }}>
+              <h2>Three steps, no website needed</h2>
+              <p>Everything below happens from a phone — nothing to build or host yourself.</p>
+              <Link to="/sell" className="btn btn-primary btn-lg mt-3">Start selling — it's free</Link>
+            </div>
+            <div className="ledger" style={{ flex: '1 1 360px' }}>
+              {[
+                { n: '01', t: 'Register your business', d: 'Create an account, add your business name, city, WhatsApp number and an ID document.' },
+                { n: '02', t: 'Get checked by admin', d: 'A real person reviews every store. This protects buyers and keeps prohibited goods off the platform.' },
+                { n: '03', t: 'Post & get orders', d: 'Upload products with price, quantity, weight or litres — or list a service. Orders arrive by cash on delivery or WhatsApp.' },
+              ].map((s) => (
+                <div key={s.n} className="ledger-step">
+                  <span className="ledger-num">{s.n}</span>
+                  <div><h3>{s.t}</h3><p>{s.d}</p></div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -108,7 +109,7 @@ export default function Home() {
           <div className="container">
             <div className="row-between mb-3">
               <h2 style={{ margin: 0 }}>Freshly listed</h2>
-              <Link to="/browse">View all →</Link>
+              <Link to="/browse">View all</Link>
             </div>
             <div className="grid grid-4">{latest.map((l) => <ListingCard key={l.id} l={l} />)}</div>
           </div>
@@ -120,23 +121,24 @@ export default function Home() {
           <div className="container">
             <div className="row-between mb-3">
               <h2 style={{ margin: 0 }}>Popular services</h2>
-              <Link to="/browse?kind=service">View all →</Link>
+              <Link to="/browse?kind=service">View all</Link>
             </div>
             <div className="grid grid-4">{services.map((l) => <ListingCard key={l.id} l={l} />)}</div>
           </div>
         </section>
       )}
 
-      <section className="section" style={{ background: 'var(--green)', color: '#fff' }}>
+      <section className="section" style={{ background: 'var(--ink-deep)', color: '#fff' }}>
         <div className="container" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 30, alignItems: 'center' }}>
           <div>
+            <span className="stamp" style={{ borderColor: 'var(--gold)', color: 'var(--gold)', background: 'rgba(217,142,43,.14)', marginBottom: 12 }}>Policy</span>
             <h2 style={{ color: '#fff' }}>Selling cosmetics or medicine?</h2>
-            <p style={{ color: 'rgba(255,255,255,.85)', margin: 0 }}>
-              Those categories are not permitted on Sokoni Hub. Listings are screened automatically
+            <p style={{ color: 'rgba(255,255,255,.75)', margin: 0 }}>
+              Those categories aren't permitted on Sokoni Hub. Listings are screened automatically
               and by our admin team — read the policy before you register.
             </p>
           </div>
-          <Link to="/policy" className="btn btn-outline">Read the policy</Link>
+          <Link to="/policy" className="btn btn-outline" style={{ background: 'transparent', borderColor: 'rgba(255,255,255,.35)', color: '#fff' }}>Read the policy</Link>
         </div>
       </section>
     </>
