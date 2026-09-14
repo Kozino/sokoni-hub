@@ -1,8 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2021",
-    "module": "commonjs",
-    "moduleResolution": "node",
+    // "node16" works on TypeScript 5 AND 7. The old "commonjs"/"node" pair maps to
+    // moduleResolution "node10", which TypeScript 7 removed (error TS5108).
+    // This still emits CommonJS, which is what `node dist/server.js` expects.
+    "module": "node16",
+    "moduleResolution": "node16",
     "lib": ["ES2021"],
     "outDir": "dist",
     "rootDir": "src",
