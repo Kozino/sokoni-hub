@@ -8,7 +8,7 @@ import { api } from '../../lib/api';
 import { money, num, dateTime } from '../../lib/format';
 import { Empty, Spinner, Stat, StatusBadge } from '../../components/ui';
 
-const COLORS = ['#C8562B', '#14653C', '#E0A32E', '#1565C0', '#8A7F78'];
+const COLORS = ['#2E3B6E', '#3D7A4E', '#D98E2B', '#2B5F8A', '#8B84A0'];
 
 export default function VendorOverview() {
   const [d, setD] = useState<any>(null);
@@ -50,15 +50,15 @@ export default function VendorOverview() {
                 <AreaChart data={trend}>
                   <defs>
                     <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#C8562B" stopOpacity={0.45} />
-                      <stop offset="100%" stopColor="#C8562B" stopOpacity={0.02} />
+                      <stop offset="0%" stopColor="#2E3B6E" stopOpacity={0.45} />
+                      <stop offset="100%" stopColor="#2E3B6E" stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E9E2DC" vertical={false} />
-                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#8A7F78' }} interval={4} />
-                  <YAxis tick={{ fontSize: 11, fill: '#8A7F78' }} width={48} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E6DFCD" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#8B84A0' }} interval={4} />
+                  <YAxis tick={{ fontSize: 11, fill: '#8B84A0' }} width={48} />
                   <Tooltip formatter={(v: any) => money(v, cur)} />
-                  <Area type="monotone" dataKey="revenue" stroke="#C8562B" strokeWidth={2} fill="url(#rev)" />
+                  <Area type="monotone" dataKey="revenue" stroke="#2E3B6E" strokeWidth={2} fill="url(#rev)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -97,11 +97,11 @@ export default function VendorOverview() {
               <div className="chart-box-sm">
                 <ResponsiveContainer>
                   <BarChart data={d.topListings.slice(0, 6).map((t: any) => ({ ...t, short: t.title.slice(0, 14) }))}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E9E2DC" vertical={false} />
-                    <XAxis dataKey="short" tick={{ fontSize: 11, fill: '#8A7F78' }} />
-                    <YAxis tick={{ fontSize: 11, fill: '#8A7F78' }} width={40} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E6DFCD" vertical={false} />
+                    <XAxis dataKey="short" tick={{ fontSize: 11, fill: '#8B84A0' }} />
+                    <YAxis tick={{ fontSize: 11, fill: '#8B84A0' }} width={40} />
                     <Tooltip />
-                    <Bar dataKey="views" fill="#14653C" radius={[6, 6, 0, 0]} name="Views" />
+                    <Bar dataKey="views" fill="#3D7A4E" radius={[6, 6, 0, 0]} name="Views" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
