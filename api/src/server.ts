@@ -72,6 +72,15 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
     return res.status(err.status).json({ error: err.message, details: err.details });
   if (err?.code === '23505') return res.status(409).json({ error: 'That record already exists' });
   if (err?.code === '23503') return res.status(400).json({ error: 'Related record not found' });
+  if (err?.message?.includes('does not support SSL')) {
+    console.error('[db] SSL mismatch: the database is not accepting SSL connections. Set PGSSL=false for a local/non-SSL database, or PGSSL=true for a hosted one.');
+  } else if (err?.code === '28P01' || err?.code === '28000') {
+    console.error('[db] Authentication failed — check the username/password in DATABASE_URL.');
+  } else if (err?.code === 'ECONNREFUSED' || err?.code === 'ENOTFOUND' || err?.code === 'ENETUNREACH') {
+    console.error('[db] Could not reach the database — check DATABASE_URL host/port and that the DB is running/reachable from here.');
+  } else if (err?.code === '42P01') {
+    console.error('[db] A table is missing — has db/schema.sql been run against this database?');
+  }
   console.error('[error]', err);
   res.status(500).json({ error: 'Internal server error' });
 });
