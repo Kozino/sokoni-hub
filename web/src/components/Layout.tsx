@@ -86,7 +86,7 @@ export function Footer() {
         </div>
         <div className="footer-bottom">
           <span>© {new Date().getFullYear()} Sokoni Hub. All rights reserved.</span>
-          <span>Cash on delivery · WhatsApp checkout · Admin-verified vendors</span>
+          <span>Pay on delivery. Checkout on WhatsApp. Every store is checked before it goes live.</span>
         </div>
       </div>
     </footer>
