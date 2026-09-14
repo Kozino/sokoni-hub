@@ -7,11 +7,19 @@ const req = (k: string, fallback?: string): string => {
   return v;
 };
 
+const databaseUrl = req('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/postgres');
+
+// Default SSL to on for remote hosts (Supabase, Render, etc.) and off for a local database,
+// since local Postgres installs (Docker, Homebrew, the Windows installer) almost never have
+// SSL enabled out of the box. PGSSL, if set explicitly, always wins.
+const isLocalDb = /(localhost|127\.0\.0\.1)/.test(databaseUrl);
+const pgSsl = process.env.PGSSL !== undefined ? process.env.PGSSL === 'true' : !isLocalDb;
+
 export const config = {
   port: Number(process.env.PORT || 4000),
   env: process.env.NODE_ENV || 'development',
-  databaseUrl: req('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/postgres'),
-  pgSsl: (process.env.PGSSL || 'true') === 'true',
+  databaseUrl,
+  pgSsl,
   jwtSecret: req('JWT_SECRET', 'dev-insecure-secret-change-me'),
   jwtExpires: process.env.JWT_EXPIRES || '7d',
   corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:5173')
