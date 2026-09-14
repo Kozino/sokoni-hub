@@ -1,7 +1,58 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../state/AuthContext';
 import { useCart } from '../state/CartContext';
+import { ThemeToggle } from '../state/ThemeContext';
+
+/** Avatar + dropdown for the signed-in user. Keyboard and click-away aware. */
+function ProfileMenu({ onNavigate }: { onNavigate: () => void }) {
+  const { user, vendor, logout } = useAuth();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const nav = useNavigate();
+
+  useEffect(() => {
+    if (!open) return;
+    const click = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const key = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('mousedown', click);
+    document.addEventListener('keydown', key);
+    return () => { document.removeEventListener('mousedown', click); document.removeEventListener('keydown', key); };
+  }, [open]);
+
+  if (!user) return null;
+  const initials = (user.full_name || '?').split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
+  const go = (to: string) => { setOpen(false); onNavigate(); nav(to); };
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        type="button"
+        className="icon-btn"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="Account menu"
+        style={{ width: 34, height: 34 }}
+      >
+        <span className="avatar" style={{ width: 30, height: 30, fontSize: 12 }}>{initials}</span>
+      </button>
+      {open && (
+        <div className="menu menu-right" role="menu">
+          <div className="menu-label">{user.full_name}</div>
+          {user.role === 'admin' && <button className="menu-item" role="menuitem" onClick={() => go('/admin')}>Admin dashboard</button>}
+          {user.role === 'vendor' && vendor && <button className="menu-item" role="menuitem" onClick={() => go('/vendor')}>My store</button>}
+          {user.role === 'vendor' && !vendor && <button className="menu-item" role="menuitem" onClick={() => go('/vendor/onboard')}>Finish setup</button>}
+          {user.role === 'vendor' && vendor && <button className="menu-item" role="menuitem" onClick={() => go('/vendor/profile')}>Store profile</button>}
+          {user.role === 'buyer' && <button className="menu-item" role="menuitem" onClick={() => go('/account')}>My account</button>}
+          <button className="menu-item" role="menuitem" onClick={() => go('/support')}>Support</button>
+          <div className="menu-sep" />
+          <button className="menu-item danger" role="menuitem" onClick={() => { logout(); setOpen(false); onNavigate(); nav('/'); }}>Sign out</button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function Header() {
   const { user, vendor, logout } = useAuth();
@@ -43,9 +94,11 @@ export function Header() {
               {user.role === 'vendor' && vendor && <NavLink to="/vendor" onClick={close}>My store</NavLink>}
               {user.role === 'vendor' && !vendor && <NavLink to="/vendor/onboard" onClick={close}>Finish setup</NavLink>}
               {user.role === 'buyer' && <NavLink to="/account" onClick={close}>Account</NavLink>}
-              <button className="linkish" onClick={() => { logout(); close(); nav('/'); }}>Logout</button>
+              <ThemeToggle />
+              <ProfileMenu onNavigate={close} />
             </>
           )}
+          {!user && <ThemeToggle />}
         </nav>
       </div>
     </header>

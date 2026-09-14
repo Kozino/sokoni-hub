@@ -1,4 +1,13 @@
 import { ReactNode, useEffect } from 'react';
+import { IconBox, IconReceipt, IconChart, IconCheck, IconInbox, IconAlert, IconSearch } from './icons';
+
+/* Pages pass an emoji to <Empty icon="..."/>. Rather than edit every call site,
+   emoji are mapped to the line-icon set here so empty states match the rest of
+   the UI; anything unmapped falls through and renders as given. */
+const EMPTY_ICONS: Record<string, ReactNode> = {
+  '📦': IconBox, '🧾': IconReceipt, '📈': IconChart, '📊': IconChart,
+  '✅': IconCheck, '📭': IconInbox, '⚠️': IconAlert, '🔍': IconSearch,
+};
 
 export const Spinner = () => <div className="spinner" />;
 
@@ -23,9 +32,10 @@ export const StatusBadge = ({ status }: { status: string }) => (
 );
 
 export function Empty({ icon = '📭', title, text, action }: { icon?: string; title: string; text?: string; action?: ReactNode }) {
+  const mapped = EMPTY_ICONS[icon];
   return (
     <div className="empty">
-      <div className="ico">{icon}</div>
+      <div className="ico">{mapped ?? icon}</div>
       <h3>{title}</h3>
       {text && <p>{text}</p>}
       {action}
