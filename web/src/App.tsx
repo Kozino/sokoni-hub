@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { AuthProvider } from './state/AuthContext';
 import { CartProvider } from './state/CartContext';
 import { ToastProvider } from './state/ToastContext';
+import { ThemeProvider } from './state/ThemeContext';
 import Layout, { BareLayout } from './components/Layout';
 import { RequireAuth, RequireVendor } from './components/Guards';
 
@@ -39,6 +40,7 @@ function ScrollTop() {
 export default function App() {
   return (
     <BrowserRouter>
+      <ThemeProvider>
       <ToastProvider>
         <AuthProvider>
           <CartProvider>
@@ -95,6 +97,7 @@ export default function App() {
           </CartProvider>
         </AuthProvider>
       </ToastProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }
