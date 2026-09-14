@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 import { Header } from '../../components/Layout';
+import DashShell, { DashLink } from '../../components/DashShell';
 import { useAuth } from '../../state/AuthContext';
 import { api } from '../../lib/api';
+import { IconChart, IconShield, IconBox, IconAlert, IconReceipt, IconUsers, IconFolder, IconHistory } from '../../components/icons';
 
 export default function AdminLayout() {
   const { user } = useAuth();
@@ -17,37 +19,36 @@ export default function AdminLayout() {
     return () => clearInterval(t);
   }, []);
 
-  const links = [
-    { to: '/admin', end: true, ico: '📈', label: 'Overview' },
-    { to: '/admin/vendors', ico: '🛡️', label: 'Verification', pill: counts.vendors_pending },
-    { to: '/admin/listings', ico: '📦', label: 'Listings' },
-    { to: '/admin/orders', ico: '🧾', label: 'Orders' },
-    { to: '/admin/complaints', ico: '⚠️', label: 'Complaints', pill: counts.complaints_open },
-    { to: '/admin/users', ico: '👥', label: 'Users' },
-    { to: '/admin/categories', ico: '🗂️', label: 'Categories' },
-    { to: '/admin/audit', ico: '🕘', label: 'Activity log' },
+  const links: DashLink[] = [
+    { to: '/admin', end: true, ico: IconChart, label: 'Overview', group: 'Analytics' },
+    { to: '/admin/vendors', ico: IconShield, label: 'Verification', pill: counts.vendors_pending, group: 'Moderation' },
+    { to: '/admin/listings', ico: IconBox, label: 'Listings', group: 'Moderation' },
+    { to: '/admin/complaints', ico: IconAlert, label: 'Complaints', pill: counts.complaints_open, group: 'Moderation' },
+    { to: '/admin/orders', ico: IconReceipt, label: 'Orders', group: 'Commerce' },
+    { to: '/admin/users', ico: IconUsers, label: 'Users', group: 'Commerce' },
+    { to: '/admin/categories', ico: IconFolder, label: 'Categories', group: 'Configuration' },
+    { to: '/admin/audit', ico: IconHistory, label: 'Activity log', group: 'Configuration' },
   ];
+
+  const initials = (user?.full_name || 'A').split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
 
   return (
     <div className="app">
       <Header />
-      <div className="dash">
-        <aside className="dash-side">
-          <div className="who">
-            <strong>{user?.full_name}</strong>
-            <span>Administrator</span>
-          </div>
-          <nav className="dash-nav">
-            {links.map((l) => (
-              <NavLink key={l.to} to={l.to} end={l.end}>
-                <span className="ico">{l.ico}</span>{l.label}
-                {!!l.pill && l.pill > 0 && <span className="pill">{l.pill}</span>}
-              </NavLink>
-            ))}
-          </nav>
-        </aside>
-        <main className="dash-main"><Outlet /></main>
-      </div>
+      <DashShell
+        links={links}
+        who={
+          <>
+            <span className="avatar" aria-hidden="true">{initials}</span>
+            <span className="who-text" style={{ minWidth: 0 }}>
+              <strong>{user?.full_name}</strong>
+              <span>Administrator</span>
+            </span>
+          </>
+        }
+      >
+        <Outlet />
+      </DashShell>
     </div>
   );
 }
