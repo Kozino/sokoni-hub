@@ -22,7 +22,7 @@ export function Badge({ tone = 'grey', children }: { tone?: 'grey' | 'green' | '
 
 const STATUS_TONES: Record<string, 'grey' | 'green' | 'gold' | 'red' | 'blue' | 'terra'> = {
   pending: 'gold', verified: 'green', rejected: 'red', suspended: 'red',
-  active: 'green', paused: 'gold', draft: 'grey', removed: 'red',
+  active: 'green', paused: 'gold', draft: 'grey', removed: 'red', pending_review: 'gold',
   confirmed: 'blue', dispatched: 'terra', delivered: 'green', cancelled: 'red',
   open: 'red', investigating: 'gold', resolved: 'green', dismissed: 'grey',
 };
