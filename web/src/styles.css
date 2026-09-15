@@ -1001,9 +1001,11 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 /* Listing detail — two columns on desktop, single column (buy box unstuck) on mobile. */
 .ld-layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: var(--s-8); align-items: start; }
 .ld-buybox { position: sticky; top: 86px; min-width: 0; }
+
 .cart-layout { display: grid; grid-template-columns: minmax(0,2fr) minmax(0,1fr); gap: var(--s-6); align-items: start; }
 .checkout-layout { display: grid; grid-template-columns: minmax(0,1.4fr) minmax(0,1fr); gap: var(--s-6); align-items: start; }
 .cart-summary, .checkout-summary { position: sticky; top: 86px; min-width: 0; }
+
 .cart-line { display: flex; gap: var(--s-3); align-items: center; flex-wrap: wrap; padding: var(--s-2) 0; border-bottom: 1px solid var(--border); }
 .cart-line:last-child { border-bottom: none; }
 .cart-line-info { flex: 1 1 160px; min-width: 0; }
@@ -1054,6 +1056,23 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 .list-item:hover { background: var(--surface-2); }
 .list-item .title { font-weight: 550; color: var(--text); font-size: var(--fs-md); }
 .list-item .meta { font-size: var(--fs-xs); color: var(--text-muted); }
+
+/* Complaint conversation thread — vendor ↔ admin, chat-bubble style.
+   .mine/.theirs are relative to whoever is viewing (vendor page marks its
+   own vendor messages .mine; admin page marks its own admin messages .mine),
+   so the same markup flips sides correctly for each audience. */
+.complaint-thread { display: flex; flex-direction: column; gap: var(--s-2); margin: var(--s-3) 0; }
+.complaint-msg { max-width: 82%; padding: var(--s-2) var(--s-3); border-radius: var(--r-lg); font-size: var(--fs-sm); line-height: 1.45; }
+.complaint-msg-meta { display: flex; gap: var(--s-2); align-items: baseline; font-size: var(--fs-xs); font-weight: 650; margin-bottom: 2px; }
+.complaint-msg-meta time { font-weight: 400; color: var(--text-muted); }
+.complaint-msg-body { white-space: pre-wrap; overflow-wrap: anywhere; }
+.complaint-msg.mine { align-self: flex-end; background: var(--accent-soft); color: var(--accent-text); border-bottom-right-radius: var(--r-xs); }
+.complaint-msg.mine .complaint-msg-meta { color: var(--accent-text); }
+.complaint-msg.theirs { align-self: flex-start; background: var(--surface-2); border: 1px solid var(--border); border-bottom-left-radius: var(--r-xs); }
+.complaint-msg.theirs .complaint-msg-meta { color: var(--text-2); }
+.complaint-reply { display: flex; gap: var(--s-2); align-items: flex-end; }
+.complaint-reply textarea { flex: 1; min-height: 44px; max-height: 140px; resize: vertical; }
+.complaint-reply .btn { flex-shrink: 0; }
 
 /* ---------------------------------------------------------------------------
    19. MARKETING / LANDING SURFACES
@@ -1215,7 +1234,7 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
   .section { padding: var(--s-12) 0; }
   .ld-layout { grid-template-columns: minmax(0, 1fr); gap: var(--s-5); }
   .ld-buybox { position: static; top: auto; }
-     .cart-layout, .checkout-layout { grid-template-columns: minmax(0, 1fr); gap: var(--s-5); }
+  .cart-layout, .checkout-layout { grid-template-columns: minmax(0, 1fr); gap: var(--s-5); }
   .cart-summary, .checkout-summary { position: static; top: auto; }
 }
 
@@ -1294,7 +1313,8 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
   .icon-btn, .burger { width: 42px; height: 42px; }
   .tabs button { min-height: 44px; }
   input, select, textarea { min-height: 44px; font-size: 16px; } /* 16px stops iOS zoom */
-     /* Cart lines: name/price get the full row, controls drop to their own row
+
+  /* Cart lines: name/price get the full row, controls drop to their own row
      below (qty on the left, total + remove on the right) instead of
      squeezing everything onto one cramped line. */
   .cart-line-info { flex: 1 1 100%; }
@@ -1347,6 +1367,10 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 
   .card-head { flex-wrap: wrap; }
   .card-head .btn { flex: 1 1 auto; }
+
+  .complaint-msg { max-width: 92%; }
+  .complaint-reply { flex-direction: column; align-items: stretch; }
+  .complaint-reply .btn { width: 100%; }
 }
 
 /* 480px and below — the tightest layouts. */

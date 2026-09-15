@@ -50,12 +50,17 @@ export interface Order {
   whatsapp_url?: string; vendor?: { business_name: string; whatsapp: string };
 }
 
+export interface ComplaintMessage {
+  id: string; complaint_id: string; author_role: 'vendor' | 'admin';
+  author_name: string | null; body: string; created_at: string;
+}
+
 export interface Complaint {
   id: string; code: string; subject: string; body: string; status: ComplaintStatus;
   admin_note: string | null; created_at: string; resolved_at: string | null;
   reporter_name: string | null; reporter_phone: string | null;
   business_name?: string; listing_title?: string; order_code_ref?: string;
-  vendor_id?: string | null;
+  vendor_id?: string | null; messages?: ComplaintMessage[];
 }
 
 export interface CartItem {
