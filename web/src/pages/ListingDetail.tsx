@@ -49,7 +49,7 @@ export default function ListingDetail() {
         <Link to="/browse">Browse</Link> / <Link to={`/browse?category=${l.category_slug}`}>{l.category_name}</Link>
       </p>
 
-      <div className="grid" style={{ gridTemplateColumns: 'minmax(0,1.1fr) minmax(0,.9fr)', gap: 32, alignItems: 'start' }}>
+      <div className="ld-layout">
         <div>
           <div className="card" style={{ overflow: 'hidden' }}>
             <div style={{ aspectRatio: '4/3', background: 'linear-gradient(135deg,#F2EDE8,#E7DFD8)', display: 'grid', placeItems: 'center' }}>
@@ -91,7 +91,7 @@ export default function ListingDetail() {
           </div>
         </div>
 
-        <div style={{ position: 'sticky', top: 86 }}>
+        <div className="ld-buybox">
           <div className="card card-pad">
             <Badge tone={l.kind === 'service' ? 'blue' : 'terra'}>{l.kind}</Badge>
             <h1 style={{ fontSize: '1.5rem', marginTop: 10 }}>{l.title}</h1>
@@ -104,7 +104,7 @@ export default function ListingDetail() {
 
             {!outOfStock && (
               <>
-                <div className="row mt-2" style={{ gap: 8 }}>
+                <div className="row wrap mt-2" style={{ gap: 8 }}>
                   <label style={{ fontSize: '.85rem', fontWeight: 700 }}>Qty</label>
                   <input
                     type="number" min={1} max={l.kind === 'product' ? l.quantity ?? 99 : 99}
