@@ -706,10 +706,18 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 }
 .dash-bar .grow { min-width: 0; }
 
-.breadcrumb { display: flex; align-items: center; gap: var(--s-2); font-size: var(--fs-sm); color: var(--text-muted); min-width: 0; }
+.breadcrumb { display: flex; align-items: center; gap: var(--s-2); font-size: var(--fs-sm); color: var(--text-muted); min-width: 0; flex: 0 0 auto; }
 .breadcrumb a { color: var(--text-muted); font-weight: 500; }
 .breadcrumb a:hover { color: var(--text); text-decoration: none; }
 .breadcrumb .sep { opacity: .5; }
+
+/* dashboard topbar quick-search: filters the sidebar's own nav items, no server round-trip */
+.dash-search { position: relative; display: flex; align-items: center; max-width: 320px; min-width: 0; }
+.dash-search svg { position: absolute; left: 10px; width: 15px; height: 15px; color: var(--text-muted); pointer-events: none; }
+.dash-search input { padding-left: 32px; height: 34px; font-size: .84rem; background: var(--surface-2); border-color: transparent; }
+.dash-search input:focus { background: var(--surface); border-color: var(--accent); }
+.dash-search .menu { margin-top: var(--s-1); max-height: 260px; overflow: auto; }
+@media (max-width: 860px) { .dash-search { display: none; } }
 .breadcrumb .current { color: var(--text); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* page heading block */
@@ -990,6 +998,10 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 }
 .dropzone:hover { border-color: var(--accent); background: var(--accent-softer); color: var(--accent-text); }
 
+/* Listing detail — two columns on desktop, single column (buy box unstuck) on mobile. */
+.ld-layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: var(--s-8); align-items: start; }
+.ld-buybox { position: sticky; top: 86px; min-width: 0; }
+
 .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: var(--s-2); }
 .gallery .g-item { position: relative; aspect-ratio: 1; border-radius: var(--r-sm); overflow: hidden; border: 1px solid var(--border); }
 .gallery .g-item img { width: 100%; height: 100%; object-fit: cover; }
@@ -1183,6 +1195,8 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
   .hero-stats { gap: var(--s-6); }
   .footer-grid { grid-template-columns: 1fr 1fr; }
   .section { padding: var(--s-12) 0; }
+  .ld-layout { grid-template-columns: minmax(0, 1fr); gap: var(--s-5); }
+  .ld-buybox { position: static; top: auto; }
 }
 
 /* 768px — tablet portrait: sidebar leaves the flow and becomes a drawer. */
