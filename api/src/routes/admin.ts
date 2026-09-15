@@ -25,6 +25,7 @@ adminRouter.get('/overview', async (_req, res, next) => {
         (select count(*) from vendors where status = 'rejected')                 as vendors_rejected,
         (select count(*) from vendors where status = 'suspended')                as vendors_suspended,
         (select count(*) from listings where status = 'active')                  as listings_active,
+        (select count(*) from listings where status = 'pending_review')         as listings_pending,
         (select count(*) from listings where kind='product' and status='active') as products_active,
         (select count(*) from listings where kind='service' and status='active') as services_active,
         (select count(*) from orders)                                            as orders_total,
@@ -169,8 +170,32 @@ adminRouter.get('/listings', async (req, res, next) => {
       from listings l join vendors v on v.id = l.vendor_id join categories c on c.id = l.category_id
       where ($1 = '' or l.title ilike '%'||$1||'%' or v.business_name ilike '%'||$1||'%')
         and ($2 = '' or l.status::text = $2)
-      order by l.created_at desc limit 300`, [q, status]);
+      order by case l.status when 'pending_review' then 0 else 1 end, l.created_at desc limit 300`, [q, status]);
     res.json({ listings: rows });
+  } catch (e) { next(e); }
+});
+
+adminRouter.post('/listings/:id/approve', async (req, res, next) => {
+  try {
+    const l = await one<any>(
+      `update listings set status='active', rejection_reason=null, reviewed_by=$2,
+         first_approved_at = coalesce(first_approved_at, now())
+       where id=$1 returning *`, [req.params.id, req.user!.id]);
+    if (!l) throw new HttpError(404, 'Listing not found');
+    await audit(req.user!.id, 'listing.approve', 'listing', l.id, { title: l.title });
+    res.json({ listing: l });
+  } catch (e) { next(e); }
+});
+
+adminRouter.post('/listings/:id/reject', async (req, res, next) => {
+  try {
+    const b = z.object({ reason: z.string().min(3).max(500) }).parse(req.body);
+    const l = await one<any>(
+      `update listings set status='rejected', rejection_reason=$2, reviewed_by=$3 where id=$1 returning *`,
+      [req.params.id, b.reason, req.user!.id]);
+    if (!l) throw new HttpError(404, 'Listing not found');
+    await audit(req.user!.id, 'listing.reject', 'listing', l.id, { reason: b.reason });
+    res.json({ listing: l });
   } catch (e) { next(e); }
 });
 

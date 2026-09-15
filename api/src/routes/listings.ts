@@ -145,18 +145,23 @@ listingRouter.post('/', requireAuth('vendor'), loadVendor, requireVerifiedVendor
     if (await one('select id from listings where vendor_id=$1 and slug=$2', [req.vendor!.id, slug]))
       slug = `${slug}-${Date.now().toString(36).slice(-4)}`;
 
+    // A brand-new listing has never been reviewed. If the vendor wants it published
+    // ('active') or omits status entirely, it goes to the admin queue instead of live —
+    // only 'draft' and 'paused' are honoured as-is.
+    const initialStatus = (b.status && b.status !== 'active') ? b.status : 'pending_review';
+
     const l = await one<any>(
       `insert into listings (vendor_id, category_id, kind, title, slug, description, price, currency,
          quantity, unit, weight_kg, volume_l, duration_mins, service_area, price_type, images, status)
        values ($1,$2,$3::listing_kind,$4,$5,$6,$7,coalesce($8,'USD'),$9,$10,$11,$12,$13,$14,coalesce($15,'fixed'),
-               coalesce($16,'[]')::jsonb, coalesce($17::listing_status,'active'))
+               coalesce($16,'[]')::jsonb, $17::listing_status)
        returning *`,
       [req.vendor!.id, b.category_id, b.kind, b.title.trim(), slug, b.description || null, b.price,
        b.currency ?? null, b.kind === 'product' ? b.quantity ?? 0 : null, b.unit ?? null,
        b.weight_kg ?? null, b.volume_l ?? null, b.kind === 'service' ? b.duration_mins ?? null : null,
-       b.service_area ?? null, b.price_type ?? null, JSON.stringify(b.images ?? []), b.status ?? null]
+       b.service_area ?? null, b.price_type ?? null, JSON.stringify(b.images ?? []), initialStatus]
     );
-    await audit(req.user!.id, 'listing.create', 'listing', l.id, { title: l.title });
+    await audit(req.user!.id, 'listing.create', 'listing', l.id, { title: l.title, status: l.status });
     res.status(201).json({ listing: l });
   } catch (e) {
     next(e);
@@ -166,7 +171,7 @@ listingRouter.post('/', requireAuth('vendor'), loadVendor, requireVerifiedVendor
 listingRouter.patch('/:id', requireAuth('vendor'), loadVendor, requireVerifiedVendor, async (req, res, next) => {
   try {
     const b = listingSchema.partial().parse(req.body);
-    const owned = await one('select id from listings where id=$1 and vendor_id=$2', [req.params.id, req.vendor!.id]);
+    const owned = await one<any>('select id, status, first_approved_at from listings where id=$1 and vendor_id=$2', [req.params.id, req.vendor!.id]);
     if (!owned) throw new HttpError(404, 'Listing not found');
     const bad = await screenProhibited(b.title, b.description);
     if (bad) throw new HttpError(422, `Prohibited item detected ("${bad}").`);
@@ -174,6 +179,13 @@ listingRouter.patch('/:id', requireAuth('vendor'), loadVendor, requireVerifiedVe
       const cat = await one<any>('select * from categories where id=$1', [b.category_id]);
       if (!cat || cat.is_banned) throw new HttpError(422, 'Invalid or prohibited category');
     }
+
+    // A vendor can freely toggle between active/paused once a listing has been
+    // approved at least once. Trying to (re)publish a listing that has never been
+    // approved — or was rejected — sends it back to the admin queue instead.
+    let nextStatus: string | undefined = b.status;
+    if (b.status === 'active' && !owned.first_approved_at) nextStatus = 'pending_review';
+
     const l = await one<any>(
       `update listings set
         category_id = coalesce($3, category_id), title = coalesce($4, title),
@@ -182,14 +194,15 @@ listingRouter.patch('/:id', requireAuth('vendor'), loadVendor, requireVerifiedVe
         unit = coalesce($9, unit), weight_kg = coalesce($10, weight_kg),
         volume_l = coalesce($11, volume_l), duration_mins = coalesce($12, duration_mins),
         service_area = coalesce($13, service_area), price_type = coalesce($14, price_type),
-        images = coalesce($15::jsonb, images), status = coalesce($16::listing_status, status)
+        images = coalesce($15::jsonb, images), status = coalesce($16::listing_status, status),
+        rejection_reason = case when $16::listing_status = 'pending_review' then null else rejection_reason end
        where id = $1 and vendor_id = $2 returning *`,
       [req.params.id, req.vendor!.id, b.category_id ?? null, b.title ?? null, b.description ?? null,
        b.price ?? null, b.currency ?? null, b.quantity ?? null, b.unit ?? null, b.weight_kg ?? null,
        b.volume_l ?? null, b.duration_mins ?? null, b.service_area ?? null, b.price_type ?? null,
-       b.images ? JSON.stringify(b.images) : null, b.status ?? null]
+       b.images ? JSON.stringify(b.images) : null, nextStatus ?? null]
     );
-    await audit(req.user!.id, 'listing.update', 'listing', l.id);
+    await audit(req.user!.id, 'listing.update', 'listing', l.id, { status: l.status });
     res.json({ listing: l });
   } catch (e) {
     next(e);
