@@ -185,6 +185,20 @@ create table if not exists complaints (
   resolved_at  timestamptz
 );
 
+-- Conversation thread on a complaint: the vendor states their side, the
+-- admin can ask follow-ups, before the admin records a final ruling via
+-- complaints.status + complaints.admin_note above.
+create table if not exists complaint_messages (
+  id           uuid primary key default gen_random_uuid(),
+  complaint_id uuid not null references complaints(id) on delete cascade,
+  author_role  text not null check (author_role in ('vendor','admin')),
+  author_id    uuid references users(id) on delete set null,
+  author_name  text,
+  body         text not null,
+  created_at   timestamptz not null default now()
+);
+create index if not exists complaint_messages_complaint_idx on complaint_messages(complaint_id, created_at);
+
 -- ---------- reviews ----------
 create table if not exists reviews (
   id         uuid primary key default gen_random_uuid(),
