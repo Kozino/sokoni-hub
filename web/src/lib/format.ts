@@ -1,4 +1,4 @@
-export const money = (v: string | number | null | undefined, currency = 'USD') => {
+export const money = (v: string | number | null | undefined, currency = 'QAR') => {
   const n = Number(v ?? 0);
   try {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 2 }).format(n);
