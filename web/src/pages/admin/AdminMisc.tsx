@@ -8,11 +8,22 @@ import { useToast } from '../../state/ToastContext';
 import type { Complaint, Listing, Order, User, Category } from '../../types';
 
 /* ================= Listings moderation ================= */
+const LTABS = [
+  { id: 'pending_review', label: 'Pending' }, { id: 'active', label: 'Active' },
+  { id: 'rejected', label: 'Rejected' }, { id: 'paused', label: 'Paused' },
+  { id: 'removed', label: 'Removed' }, { id: '', label: 'All' },
+];
+
 export function AdminListings() {
+  const [params, setParams] = useSearchParams();
+  const status = params.get('status') ?? 'pending_review';
   const [items, setItems] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
-  const [status, setStatus] = useState('');
   const [q, setQ] = useState('');
+  const [reviewing, setReviewing] = useState<Listing | null>(null);
+  const [rejecting, setRejecting] = useState(false);
+  const [reason, setReason] = useState('');
+  const [err, setErr] = useState('');
   const { push } = useToast();
   const { confirm, dialog } = useConfirm();
 
@@ -22,6 +33,19 @@ export function AdminListings() {
       .then((r) => setItems(r.listings)).catch(() => setItems([])).finally(() => setLoading(false));
   };
   useEffect(load, [status]);
+
+  const closeReview = () => { setReviewing(null); setRejecting(false); setReason(''); setErr(''); };
+
+  const approve = async (l: Listing) => {
+    try { await api.post(`/admin/listings/${l.id}/approve`); push('Listing approved — now visible to buyers', 'success'); closeReview(); load(); }
+    catch (e) { setErr(e instanceof ApiError ? e.message : 'Failed'); }
+  };
+
+  const reject = async (l: Listing) => {
+    if (reason.trim().length < 3) return;
+    try { await api.post(`/admin/listings/${l.id}/reject`, { reason }); push('Listing rejected', 'success'); closeReview(); load(); }
+    catch (e) { setErr(e instanceof ApiError ? e.message : 'Failed'); }
+  };
 
   const act = async (l: Listing, path: 'remove' | 'restore') => {
     if (path === 'remove') {
@@ -37,6 +61,11 @@ export function AdminListings() {
     if (!ok) return;
     await Promise.all(rows.map((l) => api.post(`/admin/listings/${l.id}/remove`, { reason: 'Admin moderation' }).catch(() => null)));
     push(`Removed ${rows.length} listing${rows.length === 1 ? '' : 's'}`, 'success'); load();
+  };
+
+  const bulkApprove = async (rows: Listing[]) => {
+    await Promise.all(rows.map((l) => api.post(`/admin/listings/${l.id}/approve`).catch(() => null)));
+    push(`Approved ${rows.length} listing${rows.length === 1 ? '' : 's'}`, 'success'); load();
   };
 
   const columns: DTColumn<Listing>[] = [
@@ -55,13 +84,11 @@ export function AdminListings() {
 
   return (
     <>
-      <div className="dash-title"><h1>Listing moderation</h1><p>Remove prohibited or misleading listings.</p></div>
+      <div className="dash-title"><h1>Listing moderation</h1><p>Every new or resubmitted listing waits here until you approve it — nothing goes live without your say-so.</p></div>
+      <Tabs value={status} onChange={(v) => setParams(v ? { status: v } : {})} tabs={LTABS as any} />
+
       <form className="filters" onSubmit={(e) => { e.preventDefault(); load(); }}>
         <input className="grow" placeholder="Search title or store…" value={q} onChange={(e) => setQ(e.target.value)} style={{ minWidth: 250 }} />
-        <select value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="">All statuses</option><option value="active">Active</option>
-          <option value="paused">Paused</option><option value="draft">Draft</option><option value="removed">Removed</option>
-        </select>
         <button className="btn btn-primary btn-sm">Search</button>
       </form>
 
@@ -70,18 +97,70 @@ export function AdminListings() {
         rows={items}
         rowKey={(l) => l.id}
         loading={loading}
-        emptyIcon="📦"
-        emptyTitle="No listings found"
+        emptyIcon={status === 'pending_review' ? '✅' : '📦'}
+        emptyTitle={status === 'pending_review' ? 'Nothing waiting for review' : 'No listings found'}
         selectable
         storageKey="admin-listings"
         exportFilename="listings"
-        bulkActions={[{ label: 'Remove', tone: 'danger', onClick: bulkRemove }]}
+        bulkActions={status === 'pending_review'
+          ? [{ label: 'Approve', tone: 'primary', onClick: bulkApprove }, { label: 'Remove', tone: 'danger', onClick: bulkRemove }]
+          : [{ label: 'Remove', tone: 'danger', onClick: bulkRemove }]}
         rowActions={(l) => (
-          l.status === 'removed'
-            ? <button className="btn btn-outline btn-sm" onClick={() => act(l, 'restore')}>Restore</button>
-            : <button className="btn btn-danger btn-sm" onClick={() => act(l, 'remove')}>Remove</button>
+          l.status === 'pending_review' ? (
+            <div className="row" style={{ gap: 4 }}>
+              <button className="btn btn-outline btn-sm" onClick={() => setReviewing(l)}>Review</button>
+              <button className="btn btn-primary btn-sm" onClick={() => approve(l)}>Approve</button>
+            </div>
+          ) : l.status === 'removed' ? (
+            <button className="btn btn-outline btn-sm" onClick={() => act(l, 'restore')}>Restore</button>
+          ) : (
+            <div className="row" style={{ gap: 4 }}>
+              <button className="btn btn-outline btn-sm" onClick={() => setReviewing(l)}>View</button>
+              <button className="btn btn-danger btn-sm" onClick={() => act(l, 'remove')}>Remove</button>
+            </div>
+          )
         )}
       />
+
+      <Modal open={!!reviewing} title={reviewing?.title ?? ''} onClose={closeReview}
+        footer={reviewing && !rejecting ? (
+          <>
+            {reviewing.status !== 'active' && <button className="btn btn-primary" onClick={() => approve(reviewing)}>✓ Approve</button>}
+            {reviewing.status !== 'rejected' && reviewing.status !== 'removed' && <button className="btn btn-outline" onClick={() => setRejecting(true)}>Reject</button>}
+          </>
+        ) : reviewing ? (
+          <>
+            <button className="btn btn-ghost" onClick={() => setRejecting(false)}>Back</button>
+            <button className="btn btn-danger" disabled={reason.trim().length < 3} onClick={() => reject(reviewing)}>Confirm reject</button>
+          </>
+        ) : null}>
+        {reviewing && (
+          <>
+            <Alert kind="error">{err}</Alert>
+            {rejecting ? (
+              <div className="field">
+                <label>Reason *</label>
+                <textarea value={reason} onChange={(e) => setReason(e.target.value)}
+                  placeholder="e.g. Photos don't match the description — please re-upload." />
+                <div className="hint">The vendor sees this on their dashboard and can edit and resubmit.</div>
+              </div>
+            ) : (
+              <>
+                <div className="row-between mb-2"><StatusBadge status={reviewing.status} /><span style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>Added {dateTime(reviewing.created_at)}</span></div>
+                {reviewing.images?.[0] && <img src={reviewing.images[0]} alt="" style={{ width: '100%', maxHeight: 260, objectFit: 'cover', borderRadius: 10, marginBottom: 10 }} />}
+                <dl className="kv">
+                  <dt>Store</dt><dd>{reviewing.business_name}</dd>
+                  <dt>Category</dt><dd>{reviewing.category_name}</dd>
+                  <dt>Price</dt><dd>{money(reviewing.price, reviewing.currency)}</dd>
+                  {reviewing.kind === 'product' && <><dt>Stock</dt><dd>{reviewing.quantity ?? 0} {reviewing.unit || ''}</dd></>}
+                  <dt>Description</dt><dd>{reviewing.description || '—'}</dd>
+                </dl>
+                {reviewing.rejection_reason && <Alert kind="warn"><strong>Previous note:</strong> {reviewing.rejection_reason}</Alert>}
+              </>
+            )}
+          </>
+        )}
+      </Modal>
       {dialog}
     </>
   );

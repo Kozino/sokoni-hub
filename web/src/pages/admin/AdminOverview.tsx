@@ -28,6 +28,12 @@ export default function AdminOverview() {
           <Link to="/admin/vendors?status=pending" className="btn btn-primary btn-sm">Review now</Link>
         </div>
       )}
+      {Number(s.listings_pending) > 0 && (
+        <div className="alert alert-warn row-between">
+          <span><strong>{s.listings_pending} listing{Number(s.listings_pending) === 1 ? '' : 's'}</strong> waiting for approval before they go live.</span>
+          <Link to="/admin/listings?status=pending_review" className="btn btn-primary btn-sm">Review now</Link>
+        </div>
+      )}
       {Number(s.complaints_open) > 0 && (
         <div className="alert alert-error row-between">
           <span><strong>{s.complaints_open} open complaint{Number(s.complaints_open) === 1 ? '' : 's'}</strong> need attention.</span>
@@ -40,6 +46,7 @@ export default function AdminOverview() {
         <Stat accent="green" label="Verified vendors" value={num(s.vendors_verified)} sub={`${s.vendors_total} registered total`} />
         <Stat accent="gold" label="Pending verification" value={num(s.vendors_pending)} sub={`${s.vendors_rejected} rejected · ${s.vendors_suspended} suspended`} />
         <Stat accent="blue" label="Active listings" value={num(s.listings_active)} sub={`${s.products_active} products · ${s.services_active} services`} />
+        <Stat accent="gold" label="Pending listings" value={num(s.listings_pending)} sub="Awaiting your approval" />
         <Stat accent="terra" label="Orders" value={num(s.orders_total)} sub={`${s.orders_7d} in the last 7 days`} />
         <Stat accent="green" label="GMV" value={money(s.gmv)} sub="Excluding cancelled orders" />
         <Stat accent={Number(s.complaints_open) > 0 ? 'red' : 'green'} label="Open complaints" value={num(s.complaints_open)} sub={`${s.complaints_total} filed all-time`} />
