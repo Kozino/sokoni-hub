@@ -57,7 +57,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       items, add, setQty, remove, clear,
       count: items.reduce((s, i) => s + i.qty, 0),
       subtotal,
-      currency: items[0]?.currency || 'USD',
+      currency: items[0]?.currency || 'QAR',
       byVendor: [...groups.values()],
     };
   }, [items]);
