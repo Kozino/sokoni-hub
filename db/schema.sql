@@ -28,6 +28,12 @@ exception when duplicate_object then null; end $$;
 alter type listing_status add value if not exists 'pending_review';
 alter type listing_status add value if not exists 'rejected';
 
+-- Postgres will not let a brand-new enum value be referenced in the same transaction
+-- that added it ("unsafe use of new value ... must be committed before they can be
+-- used"). The Supabase/psql editor runs a pasted multi-statement script as one implicit
+-- transaction, so force a commit here before 'pending_review'/'rejected' are used below.
+commit;
+
 do $$ begin
   create type order_status as enum ('pending','confirmed','dispatched','delivered','cancelled');
 exception when duplicate_object then null; end $$;
