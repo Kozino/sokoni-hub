@@ -23,6 +23,11 @@ do $$ begin
   create type listing_status as enum ('draft','active','paused','removed');
 exception when duplicate_object then null; end $$;
 
+-- New listings require admin review before they go live. Added as extra enum
+-- values so this migrates cleanly on top of an existing 'draft/active/paused/removed' column.
+alter type listing_status add value if not exists 'pending_review';
+alter type listing_status add value if not exists 'rejected';
+
 do $$ begin
   create type order_status as enum ('pending','confirmed','dispatched','delivered','cancelled');
 exception when duplicate_object then null; end $$;
@@ -102,12 +107,19 @@ create table if not exists listings (
   service_area   text,
   price_type     text not null default 'fixed',         -- fixed | from | hourly | per_kg
   images         jsonb not null default '[]'::jsonb,
-  status         listing_status not null default 'active',
+  status         listing_status not null default 'pending_review',
+  rejection_reason text,                                -- set by admin on reject
+  first_approved_at timestamptz,                        -- set the first time an admin approves; re-publishing after that is self-serve
+  reviewed_by    uuid references users(id),
   views          int not null default 0,
   created_at     timestamptz not null default now(),
   updated_at     timestamptz not null default now(),
   unique (vendor_id, slug)
 );
+alter table listings add column if not exists rejection_reason text;
+alter table listings add column if not exists first_approved_at timestamptz;
+alter table listings add column if not exists reviewed_by uuid references users(id);
+alter table listings alter column status set default 'pending_review';
 create index if not exists listings_vendor_idx  on listings(vendor_id);
 create index if not exists listings_cat_idx     on listings(category_id);
 create index if not exists listings_status_idx  on listings(status);
