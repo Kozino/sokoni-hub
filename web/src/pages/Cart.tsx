@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../state/CartContext';
 import { money } from '../lib/format';
-import { Empty } from '../components/ui';
+import { Empty, QtyInput } from '../components/ui';
 
 export default function Cart() {
   const { items, byVendor, subtotal, currency, setQty, remove, clear } = useCart();
@@ -33,16 +33,17 @@ export default function Cart() {
                 {g.items.map((i) => (
                   <div key={i.listing_id} className="cart-line">
                     {i.image ? <img className="thumb" src={i.image} alt="" /> : <div className="thumb" style={{ display: 'grid', placeItems: 'center' }}>{i.kind === 'service' ? '💇' : '🛍️'}</div>}
-                    <div className="grow">
-                      <Link to={`/listing/${i.listing_id}`} style={{ fontWeight: 700, color: 'var(--ink)' }}>{i.title}</Link>
-                      <div style={{ fontSize: '.82rem', color: 'var(--muted)' }}>
+                    <div className="cart-line-info">
+                      <Link to={`/listing/${i.listing_id}`} className="cart-line-title">{i.title}</Link>
+                      <div className="cart-line-price">
                         {money(i.price, i.currency)}{i.unit ? ` / ${i.unit}` : ''}
                       </div>
                     </div>
-                    <input type="number" min={1} max={i.max ?? 999} value={i.qty}
-                      onChange={(e) => setQty(i.listing_id, Number(e.target.value))} style={{ width: 76 }} />
-                    <strong style={{ minWidth: 84, textAlign: 'right' }}>{money(i.price * i.qty, i.currency)}</strong>
-                    <button className="btn btn-ghost btn-sm" onClick={() => remove(i.listing_id)}>✕</button>
+                    <div className="cart-line-controls">
+                      <QtyInput value={i.qty} min={1} max={i.max ?? 999} onChange={(n) => setQty(i.listing_id, n)} />
+                      <strong className="cart-line-total">{money(i.price * i.qty, i.currency)}</strong>
+                      <button className="btn btn-ghost btn-sm" onClick={() => remove(i.listing_id)}>✕</button>
+                    </div>
                   </div>
                 ))}
               </div>
