@@ -1004,7 +1004,21 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 .cart-layout { display: grid; grid-template-columns: minmax(0,2fr) minmax(0,1fr); gap: var(--s-6); align-items: start; }
 .checkout-layout { display: grid; grid-template-columns: minmax(0,1.4fr) minmax(0,1fr); gap: var(--s-6); align-items: start; }
 .cart-summary, .checkout-summary { position: sticky; top: 86px; min-width: 0; }
-.cart-line { display: flex; gap: var(--s-3); align-items: center; flex-wrap: wrap; }
+.cart-line { display: flex; gap: var(--s-3); align-items: center; flex-wrap: wrap; padding: var(--s-2) 0; border-bottom: 1px solid var(--border); }
+.cart-line:last-child { border-bottom: none; }
+.cart-line-info { flex: 1 1 160px; min-width: 0; }
+.cart-line-title { display: block; font-weight: 700; color: var(--ink); overflow-wrap: anywhere; }
+.cart-line-price { font-size: .82rem; color: var(--muted); margin-top: 2px; }
+.cart-line-controls { display: flex; align-items: center; gap: var(--s-3); flex-shrink: 0; margin-left: auto; }
+.cart-line-total { min-width: 72px; text-align: right; }
+
+.qty-stepper { display: inline-flex; align-items: stretch; border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden; flex-shrink: 0; }
+.qty-btn { width: 30px; border: none; background: var(--surface-2); color: var(--ink); font-size: 1rem; line-height: 1; cursor: pointer; }
+.qty-btn:hover { background: var(--surface-3); }
+.qty-input {
+  width: 38px; border: none; border-left: 1px solid var(--border); border-right: 1px solid var(--border);
+  text-align: center; padding: 0; -moz-appearance: textfield;
+}
 
 .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: var(--s-2); }
 .gallery .g-item { position: relative; aspect-ratio: 1; border-radius: var(--r-sm); overflow: hidden; border: 1px solid var(--border); }
@@ -1280,6 +1294,13 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
   .icon-btn, .burger { width: 42px; height: 42px; }
   .tabs button { min-height: 44px; }
   input, select, textarea { min-height: 44px; font-size: 16px; } /* 16px stops iOS zoom */
+     /* Cart lines: name/price get the full row, controls drop to their own row
+     below (qty on the left, total + remove on the right) instead of
+     squeezing everything onto one cramped line. */
+  .cart-line-info { flex: 1 1 100%; }
+  .cart-line-controls { flex: 1 1 100%; justify-content: space-between; margin-left: 0; }
+  .qty-btn, .qty-input { min-height: 44px; }
+  .qty-btn { width: 44px; }
 
   /* Filters become a single-column stack that reads like a mobile sheet. */
   .filters { flex-direction: column; align-items: stretch; gap: var(--s-2); padding: var(--s-3); }
