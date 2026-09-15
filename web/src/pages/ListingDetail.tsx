@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import type { Listing } from '../types';
 import { money, priceLabel, waLink, date } from '../lib/format';
-import { Badge, Spinner, Empty, Alert } from '../components/ui';
+import { Badge, Spinner, Empty, Alert, QtyInput } from '../components/ui';
 import { useCart } from '../state/CartContext';
 import { useToast } from '../state/ToastContext';
 import ListingCard from '../components/ListingCard';
@@ -106,11 +106,7 @@ export default function ListingDetail() {
               <>
                 <div className="row wrap mt-2" style={{ gap: 8 }}>
                   <label style={{ fontSize: '.85rem', fontWeight: 700 }}>Qty</label>
-                  <input
-                    type="number" min={1} max={l.kind === 'product' ? l.quantity ?? 99 : 99}
-                    value={qty} onChange={(e) => setQty(Math.max(1, Number(e.target.value)))}
-                    style={{ maxWidth: 90 }}
-                  />
+                <QtyInput value={qty} min={1} max={l.kind === 'product' ? l.quantity ?? 99 : 99} onChange={setQty} />
                   <span style={{ color: 'var(--muted)', fontSize: '.85rem' }}>= {money(Number(l.price) * qty, l.currency)}</span>
                 </div>
                 <button className="btn btn-primary btn-block mt-2" onClick={addToCart}>Add to cart</button>
