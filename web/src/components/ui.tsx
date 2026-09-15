@@ -148,3 +148,34 @@ export function useConfirm() {
   const dialog = <ConfirmDialog state={state} onCancel={() => close(false)} onConfirm={() => close(true)} />;
   return { confirm, dialog };
 }
+
+/* Quantity stepper: type freely (the field is allowed to go blank mid-edit)
+   and only clamps to [min,max] on blur/Enter/±click — a plain controlled
+   <input type="number"> that clamps on every keystroke can never be emptied
+   out to retype, since the re-render snaps it straight back to the old value. */
+export function QtyInput({
+  value, onChange, min = 1, max,
+}: { value: number; onChange: (n: number) => void; min?: number; max?: number }) {
+  const [raw, setRaw] = useState(String(value));
+
+  useEffect(() => { setRaw(String(value)); }, [value]);
+
+  const clamp = (n: number) => Math.min(Math.max(n, min), max ?? Infinity);
+  const commit = (n: number) => { const c = clamp(isNaN(n) ? min : n); onChange(c); setRaw(String(c)); };
+
+  return (
+    <div className="qty-stepper">
+      <button type="button" className="qty-btn" aria-label="Decrease quantity"
+        onClick={() => commit((raw === '' ? value : Number(raw)) - 1)}>−</button>
+      <input
+        type="text" inputMode="numeric" pattern="[0-9]*" className="qty-input"
+        value={raw}
+        onChange={(e) => { const v = e.target.value; if (/^\d*$/.test(v)) setRaw(v); }}
+        onBlur={() => commit(raw === '' ? min : Number(raw))}
+        onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+      />
+      <button type="button" className="qty-btn" aria-label="Increase quantity"
+        onClick={() => commit((raw === '' ? value : Number(raw)) + 1)}>+</button>
+    </div>
+  );
+}
