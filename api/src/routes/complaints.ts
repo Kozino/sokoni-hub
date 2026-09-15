@@ -49,11 +49,45 @@ complaintRouter.get('/track/:code', async (req, res, next) => {
 /** Complaints filed against the logged-in vendor. */
 complaintRouter.get('/vendor', requireAuth('vendor'), loadVendor, async (req, res, next) => {
   try {
-    const rows = await query(
-      `select code, subject, body, status, admin_note, created_at, resolved_at
+    const complaints = await query<any>(
+      `select id, code, subject, body, status, admin_note, created_at, resolved_at
        from complaints where vendor_id = $1 order by created_at desc`,
       [req.vendor!.id]
     );
-    res.json({ complaints: rows });
+    if (complaints.length) {
+      const ids = complaints.map((c) => c.id);
+      const messages = await query<any>(
+        `select id, complaint_id, author_role, author_name, body, created_at
+         from complaint_messages where complaint_id = any($1::uuid[]) order by created_at asc`,
+        [ids]
+      );
+      for (const c of complaints) c.messages = messages.filter((m) => m.complaint_id === c.id);
+    }
+    res.json({ complaints });
+  } catch (e) { next(e); }
+});
+
+const messageSchema = z.object({ body: z.string().min(2).max(2000) });
+
+/** The vendor states their side on a complaint filed against their own store. */
+complaintRouter.post('/:id/messages', requireAuth('vendor'), loadVendor, async (req, res, next) => {
+  try {
+    const b = messageSchema.parse(req.body);
+    const c = await one<any>('select id, vendor_id, status from complaints where id = $1', [req.params.id]);
+    if (!c || c.vendor_id !== req.vendor!.id) throw new HttpError(404, 'Complaint not found');
+
+    const m = await one<any>(
+      `insert into complaint_messages (complaint_id, author_role, author_id, author_name, body)
+       values ($1,'vendor',$2,$3,$4) returning id, complaint_id, author_role, author_name, body, created_at`,
+      [c.id, req.user!.id, req.vendor!.business_name, b.body]
+    );
+    // A vendor reply means the case is actively being looked into — reflect that automatically.
+    let status = c.status;
+    if (status === 'open') {
+      await one('update complaints set status = $2 where id = $1', [c.id, 'investigating']);
+      status = 'investigating';
+    }
+    await audit(req.user!.id, 'complaint.vendor_reply', 'complaint', c.id);
+    res.status(201).json({ message: m, status });
   } catch (e) { next(e); }
 });

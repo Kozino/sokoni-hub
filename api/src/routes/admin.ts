@@ -224,7 +224,7 @@ adminRouter.post('/listings/:id/restore', async (req, res, next) => {
 adminRouter.get('/complaints', async (req, res, next) => {
   try {
     const status = String(req.query.status || '');
-    const rows = await query(`
+    const rows = await query<any>(`
       select c.*, v.business_name, l.title as listing_title, o.code as order_code_ref
       from complaints c
       left join vendors v on v.id = c.vendor_id
@@ -233,6 +233,15 @@ adminRouter.get('/complaints', async (req, res, next) => {
       where ($1 = '' or c.status::text = $1)
       order by case c.status when 'open' then 0 when 'investigating' then 1 else 2 end, c.created_at desc
       limit 300`, [status]);
+    if (rows.length) {
+      const ids = rows.map((c) => c.id);
+      const messages = await query<any>(
+        `select id, complaint_id, author_role, author_name, body, created_at
+         from complaint_messages where complaint_id = any($1::uuid[]) order by created_at asc`,
+        [ids]
+      );
+      for (const c of rows) c.messages = messages.filter((m) => m.complaint_id === c.id);
+    }
     res.json({ complaints: rows });
   } catch (e) { next(e); }
 });
@@ -250,6 +259,22 @@ adminRouter.patch('/complaints/:id', async (req, res, next) => {
     if (!c) throw new HttpError(404, 'Complaint not found');
     await audit(req.user!.id, 'complaint.update', 'complaint', req.params.id, { status: b.status });
     res.json({ complaint: c });
+  } catch (e) { next(e); }
+});
+
+/** Admin replies on the same thread the vendor sees — for follow-up questions before ruling. */
+adminRouter.post('/complaints/:id/messages', async (req, res, next) => {
+  try {
+    const b = z.object({ body: z.string().min(2).max(2000) }).parse(req.body);
+    const c = await one<any>('select id from complaints where id = $1', [req.params.id]);
+    if (!c) throw new HttpError(404, 'Complaint not found');
+    const m = await one(
+      `insert into complaint_messages (complaint_id, author_role, author_id, author_name, body)
+       values ($1,'admin',$2,$3,$4) returning id, complaint_id, author_role, author_name, body, created_at`,
+      [c.id, req.user!.id, req.user!.full_name, b.body]
+    );
+    await audit(req.user!.id, 'complaint.admin_reply', 'complaint', c.id);
+    res.status(201).json({ message: m });
   } catch (e) { next(e); }
 });
 
