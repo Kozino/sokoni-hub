@@ -8,7 +8,7 @@ import { useToast } from '../../state/ToastContext';
 import type { Category, Listing, ListingKind } from '../../types';
 
 const UNITS = ['kg', 'litre', 'piece', 'bag', 'pack', 'carton', 'bundle', 'crate', 'tuber', 'paint'];
-const CURRENCIES = ['USD', 'NGN', 'GHS', 'KES', 'ZAR', 'XOF', 'XAF', 'UGX', 'TZS', 'RWF', 'QAR'];
+const CURRENCIES = ['QAR', 'USD', 'NGN', 'GHS', 'KES', 'ZAR', 'XOF', 'XAF', 'UGX', 'TZS', 'RWF'];
 
 export default function ListingForm() {
   const { id } = useParams();
@@ -25,7 +25,7 @@ export default function ListingForm() {
   const [existing, setExisting] = useState<Listing | null>(null);
   const [f, setF] = useState({
     kind: 'product' as ListingKind, category_id: '', title: '', description: '',
-    price: '', currency: 'USD', price_type: 'fixed',
+   price: '', currency: 'QAR', price_type: 'fixed',
     quantity: '', unit: 'kg', weight_kg: '', volume_l: '',
     duration_mins: '', service_area: '', status: 'active' as 'active' | 'draft' | 'paused',
   });
