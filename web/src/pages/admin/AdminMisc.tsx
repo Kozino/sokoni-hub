@@ -5,7 +5,7 @@ import { money, date, dateTime, timeAgo } from '../../lib/format';
 import { Alert, Empty, Field, Modal, StatusBadge, Tabs, useConfirm } from '../../components/ui';
 import { DataTable, DTColumn } from '../../components/DataTable';
 import { useToast } from '../../state/ToastContext';
-import type { Complaint, Listing, Order, User, Category } from '../../types';
+import type { Complaint, ComplaintMessage, Listing, Order, User, Category } from '../../types';
 
 /* ================= Listings moderation ================= */
 const LTABS = [
@@ -178,6 +178,9 @@ export function AdminComplaints() {
   const [note, setNote] = useState('');
   const [next, setNext] = useState<Complaint['status']>('investigating');
   const [err, setErr] = useState('');
+  const [reply, setReply] = useState('');
+  const [replyErr, setReplyErr] = useState('');
+  const [sendingReply, setSendingReply] = useState(false);
   const { push } = useToast();
 
   const load = () => {
@@ -195,9 +198,33 @@ export function AdminComplaints() {
     } catch (e) { setErr(e instanceof ApiError ? e.message : 'Failed'); }
   };
 
+  const sendReply = async () => {
+    if (!sel || reply.trim().length < 2) return;
+    setSendingReply(true); setReplyErr('');
+    try {
+      const r = await api.post<{ message: ComplaintMessage }>(`/admin/complaints/${sel.id}/messages`, { body: reply.trim() });
+      setSel((s) => s ? { ...s, messages: [...(s.messages || []), r.message] } : s);
+      setItems((prev) => prev.map((c) => c.id === sel.id ? { ...c, messages: [...(c.messages || []), r.message] } : c));
+      setReply('');
+    } catch (e) { setReplyErr(e instanceof ApiError ? e.message : 'Could not send your reply'); }
+    finally { setSendingReply(false); }
+  };
+
   const columns: DTColumn<Complaint>[] = [
     { key: 'ref', header: 'Ref', alwaysVisible: true, render: (c) => <span className="td-mono">{c.code}</span> },
-    { key: 'subject', header: 'Subject', sortAccessor: (c) => c.subject, render: (c) => <span className="td-strong">{c.subject}</span> },
+    {
+      key: 'subject', header: 'Subject', sortAccessor: (c) => c.subject,
+      render: (c) => (
+        <span className="td-strong">
+          {c.subject}
+          {!!c.messages?.length && (
+            <span className="badge badge-blue" style={{ marginLeft: 6, fontSize: '.68rem' }}>
+              💬 {c.messages.length}
+            </span>
+          )}
+        </span>
+      ),
+    },
     { key: 'against', header: 'Against', render: (c) => <>{c.business_name || '—'}{c.listing_title && <div style={{ fontSize: '.75rem', color: 'var(--text-muted)' }}>{c.listing_title}</div>}</> },
     { key: 'reporter', header: 'Reporter', defaultHidden: true, render: (c) => <>{c.reporter_name || 'Anonymous'}<div style={{ fontSize: '.75rem', color: 'var(--text-muted)' }}>{c.reporter_phone}</div></> },
     { key: 'status', header: 'Status', sortAccessor: (c) => c.status, render: (c) => <StatusBadge status={c.status} /> },
@@ -219,7 +246,7 @@ export function AdminComplaints() {
         emptyText="Nothing needs your attention."
         exportFilename="complaints"
         storageKey="admin-complaints"
-        rowActions={(c) => <button className="btn btn-outline btn-sm" onClick={() => { setSel(c); setNote(c.admin_note || ''); setNext(c.status); setErr(''); }}>Handle</button>}
+        rowActions={(c) => <button className="btn btn-outline btn-sm" onClick={() => { setSel(c); setNote(c.admin_note || ''); setNext(c.status); setErr(''); setReply(''); setReplyErr(''); }}>Handle</button>}
       />
 
       <Modal open={!!sel} title={`Complaint ${sel?.code ?? ''}`} onClose={() => setSel(null)}
@@ -236,6 +263,33 @@ export function AdminComplaints() {
               <dt>Reporter</dt><dd>{sel.reporter_name || 'Anonymous'} · {sel.reporter_phone || '—'}</dd>
               <dt>Filed</dt><dd>{dateTime(sel.created_at)}</dd>
             </dl>
+
+            <h4 className="mt-2">Conversation with vendor</h4>
+            {sel.messages?.length ? (
+              <div className="complaint-thread">
+                {sel.messages.map((m) => (
+                  <div key={m.id} className={`complaint-msg ${m.author_role === 'admin' ? 'mine' : 'theirs'}`}>
+                    <div className="complaint-msg-meta">
+                      <span>{m.author_role === 'admin' ? (m.author_name || 'You') : (m.author_name || 'Vendor')}</span>
+                      <time>{dateTime(m.created_at)}</time>
+                    </div>
+                    <div className="complaint-msg-body">{m.body}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="hint" style={{ fontSize: '.83rem', color: 'var(--muted)' }}>The vendor hasn't replied yet.</p>
+            )}
+            {replyErr && <Alert kind="error">{replyErr}</Alert>}
+            <div className="complaint-reply mb-3">
+              <textarea placeholder="Ask the vendor a follow-up question…" value={reply}
+                onChange={(e) => setReply(e.target.value)} />
+              <button className="btn btn-outline" disabled={sendingReply || reply.trim().length < 2} onClick={sendReply}>
+                {sendingReply ? 'Sending…' : 'Send'}
+              </button>
+            </div>
+
+            <h4>Your ruling</h4>
             <Field label="Set status">
               <select value={next} onChange={(e) => setNext(e.target.value as any)}>
                 <option value="open">Open</option><option value="investigating">Investigating</option>
