@@ -21,7 +21,7 @@ export default function Cart() {
         <button className="btn btn-ghost btn-sm" onClick={clear}>Clear cart</button>
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: 'minmax(0,2fr) minmax(0,1fr)', gap: 24, alignItems: 'start' }}>
+      <div className="cart-layout">
         <div className="col">
           {byVendor.map((g) => (
             <div key={g.vendor_id} className="card">
@@ -31,7 +31,7 @@ export default function Cart() {
               </div>
               <div className="card-body col">
                 {g.items.map((i) => (
-                  <div key={i.listing_id} className="row" style={{ alignItems: 'flex-start' }}>
+                  <div key={i.listing_id} className="cart-line">
                     {i.image ? <img className="thumb" src={i.image} alt="" /> : <div className="thumb" style={{ display: 'grid', placeItems: 'center' }}>{i.kind === 'service' ? '💇' : '🛍️'}</div>}
                     <div className="grow">
                       <Link to={`/listing/${i.listing_id}`} style={{ fontWeight: 700, color: 'var(--ink)' }}>{i.title}</Link>
@@ -56,7 +56,7 @@ export default function Cart() {
           )}
         </div>
 
-        <div className="card card-pad" style={{ position: 'sticky', top: 86 }}>
+        <div className="card card-pad cart-summary">
           <h3>Summary</h3>
           <div className="row-between"><span>Items</span><strong>{items.reduce((s, i) => s + i.qty, 0)}</strong></div>
           <div className="row-between"><span>Subtotal</span><strong>{money(subtotal, currency)}</strong></div>
