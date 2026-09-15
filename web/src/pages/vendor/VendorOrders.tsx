@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '../../lib/api';
 import { money, dateTime, waLink } from '../../lib/format';
-import { Empty, Spinner, StatusBadge, Tabs, Modal } from '../../components/ui';
+import { StatusBadge, Tabs, Modal } from '../../components/ui';
+import { DataTable, DTColumn } from '../../components/DataTable';
 import { useToast } from '../../state/ToastContext';
 import { useAuth } from '../../state/AuthContext';
 import type { Order, OrderStatus } from '../../types';
@@ -41,35 +42,34 @@ export default function VendorOrders() {
     } catch (e) { push(e instanceof ApiError ? e.message : 'Failed', 'error'); }
   };
 
+  const columns: DTColumn<Order>[] = [
+    { key: 'code', header: 'Code', alwaysVisible: true, sortAccessor: (o) => o.code, render: (o) => <span className="td-mono td-strong">{o.code}</span> },
+    { key: 'buyer', header: 'Buyer', sortAccessor: (o) => o.contact_name, render: (o) => <>{o.contact_name}<div style={{ fontSize: '.76rem', color: 'var(--text-muted)' }}>{o.contact_phone}</div></> },
+    { key: 'items', header: 'Items', align: 'right', sortAccessor: (o) => o.items?.length ?? 0, render: (o) => o.items?.length ?? 0 },
+    { key: 'total', header: 'Total', align: 'right', sortAccessor: (o) => Number(o.total), render: (o) => <span className="td-strong">{money(o.total, o.currency)}</span> },
+    { key: 'payment', header: 'Payment', defaultHidden: true, render: (o) => <span style={{ fontSize: '.8rem', textTransform: 'capitalize' }}>{o.payment_method.replace(/_/g, ' ')}</span> },
+    { key: 'delivery', header: 'Delivery', defaultHidden: true, sortAccessor: (o) => o.city, render: (o) => <span style={{ fontSize: '.8rem' }}>{o.city}</span> },
+    { key: 'status', header: 'Status', sortAccessor: (o) => o.status, render: (o) => <StatusBadge status={o.status} /> },
+    { key: 'placed', header: 'Placed', sortAccessor: (o) => o.created_at, render: (o) => <span style={{ fontSize: '.8rem' }}>{dateTime(o.created_at)}</span> },
+  ];
+
   return (
     <>
       <div className="dash-title"><h1>Orders</h1><p>Confirm, dispatch and complete buyer orders.</p></div>
       <Tabs value={tab} onChange={setTab} tabs={TABS as any} />
 
-      {loading ? <Spinner /> : orders.length === 0 ? (
-        <Empty icon="🧾" title="No orders here" text="When buyers check out, their orders appear here instantly." />
-      ) : (
-        <div className="card table-wrap">
-          <table className="tbl">
-            <thead><tr><th>Code</th><th>Buyer</th><th>Items</th><th>Total</th><th>Payment</th><th>Delivery</th><th>Status</th><th>Placed</th><th></th></tr></thead>
-            <tbody>
-              {orders.map((o) => (
-                <tr key={o.id}>
-                  <td className="td-mono td-strong">{o.code}</td>
-                  <td>{o.contact_name}<div style={{ fontSize: '.76rem', color: 'var(--muted)' }}>{o.contact_phone}</div></td>
-                  <td>{o.items?.length ?? 0}</td>
-                  <td className="td-strong">{money(o.total, o.currency)}</td>
-                  <td style={{ fontSize: '.8rem', textTransform: 'capitalize' }}>{o.payment_method.replace(/_/g, ' ')}</td>
-                  <td style={{ fontSize: '.8rem' }}>{o.city}</td>
-                  <td><StatusBadge status={o.status} /></td>
-                  <td style={{ fontSize: '.8rem' }}>{dateTime(o.created_at)}</td>
-                  <td><button className="btn btn-outline btn-sm" onClick={() => setDetail(o)}>View</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataTable
+        columns={columns}
+        rows={orders}
+        rowKey={(o) => o.id}
+        loading={loading}
+        emptyIcon="🧾"
+        emptyTitle="No orders here"
+        emptyText="When buyers check out, their orders appear here instantly."
+        exportFilename="orders"
+        storageKey="vendor-orders"
+        rowActions={(o) => <button className="btn btn-outline btn-sm" onClick={() => setDetail(o)}>View</button>}
+      />
 
       <Modal open={!!detail} title={`Order ${detail?.code ?? ''}`} onClose={() => setDetail(null)}
         footer={
@@ -80,7 +80,7 @@ export default function VendorOrders() {
                   Mark {s}
                 </button>
               ))}
-              {NEXT[detail.status]?.length === 0 && <span style={{ color: 'var(--muted)', fontSize: '.85rem' }}>No further action</span>}
+              {NEXT[detail.status]?.length === 0 && <span style={{ color: 'var(--text-muted)', fontSize: '.85rem' }}>No further action</span>}
             </>
           ) : null
         }>
@@ -88,7 +88,7 @@ export default function VendorOrders() {
           <>
             <div className="row-between mb-2">
               <StatusBadge status={detail.status} />
-              <strong style={{ color: 'var(--terra-dark)' }}>{money(detail.total, detail.currency)}</strong>
+              <strong style={{ color: 'var(--accent-hover)' }}>{money(detail.total, detail.currency)}</strong>
             </div>
             <table className="tbl mb-2">
               <thead><tr><th>Item</th><th>Qty</th><th>Unit price</th><th>Line</th></tr></thead>
