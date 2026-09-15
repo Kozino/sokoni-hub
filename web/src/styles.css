@@ -1001,6 +1001,10 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 /* Listing detail — two columns on desktop, single column (buy box unstuck) on mobile. */
 .ld-layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: var(--s-8); align-items: start; }
 .ld-buybox { position: sticky; top: 86px; min-width: 0; }
+.cart-layout { display: grid; grid-template-columns: minmax(0,2fr) minmax(0,1fr); gap: var(--s-6); align-items: start; }
+.checkout-layout { display: grid; grid-template-columns: minmax(0,1.4fr) minmax(0,1fr); gap: var(--s-6); align-items: start; }
+.cart-summary, .checkout-summary { position: sticky; top: 86px; min-width: 0; }
+.cart-line { display: flex; gap: var(--s-3); align-items: center; flex-wrap: wrap; }
 
 .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: var(--s-2); }
 .gallery .g-item { position: relative; aspect-ratio: 1; border-radius: var(--r-sm); overflow: hidden; border: 1px solid var(--border); }
@@ -1197,6 +1201,8 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
   .section { padding: var(--s-12) 0; }
   .ld-layout { grid-template-columns: minmax(0, 1fr); gap: var(--s-5); }
   .ld-buybox { position: static; top: auto; }
+     .cart-layout, .checkout-layout { grid-template-columns: minmax(0, 1fr); gap: var(--s-5); }
+  .cart-summary, .checkout-summary { position: static; top: auto; }
 }
 
 /* 768px — tablet portrait: sidebar leaves the flow and becomes a drawer. */
