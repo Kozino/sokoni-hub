@@ -1,4 +1,4 @@
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { IconBox, IconReceipt, IconChart, IconCheck, IconInbox, IconAlert, IconSearch } from './icons';
 
 /* Pages pass an emoji to <Empty icon="..."/>. Rather than edit every call site,
@@ -98,4 +98,53 @@ export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: { id: 
       ))}
     </div>
   );
+}
+
+/** Styled stand-in for window.confirm() for destructive actions. Renders nothing until asked. */
+export function ConfirmDialog({ state, onCancel, onConfirm }: {
+  state: { title: string; body: ReactNode; confirmLabel?: string; danger?: boolean } | null;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <Modal
+      open={!!state}
+      title={state?.title ?? ''}
+      onClose={onCancel}
+      footer={
+        <>
+          <button className="btn btn-ghost" onClick={onCancel}>Cancel</button>
+          <button className={`btn ${state?.danger === false ? 'btn-primary' : 'btn-danger'}`} onClick={onConfirm}>
+            {state?.confirmLabel ?? 'Confirm'}
+          </button>
+        </>
+      }
+    >
+      {state?.body}
+    </Modal>
+  );
+}
+
+/**
+ * Replaces window.confirm() for destructive actions with the app's own modal.
+ * Usage: const confirm = useConfirm(); const ok = await confirm({ title, body }); if (!ok) return;
+ */
+export function useConfirm() {
+  const [state, setState] = useState<{ title: string; body: ReactNode; confirmLabel?: string; danger?: boolean } | null>(null);
+  const [resolver, setResolver] = useState<((v: boolean) => void) | null>(null);
+
+  const confirm = (opts: { title: string; body: ReactNode; confirmLabel?: string; danger?: boolean }) =>
+    new Promise<boolean>((resolve) => {
+      setState(opts);
+      setResolver(() => resolve);
+    });
+
+  const close = (result: boolean) => {
+    resolver?.(result);
+    setState(null);
+    setResolver(null);
+  };
+
+  const dialog = <ConfirmDialog state={state} onCancel={() => close(false)} onConfirm={() => close(true)} />;
+  return { confirm, dialog };
 }

@@ -25,3 +25,10 @@ export const IconGrid      = wrap(<><rect x="3" y="3" width="7.5" height="7.5" r
 export const IconInbox     = wrap(<><path d="M3 12h5l1.5 2.5h5L16 12h5" /><path d="M4.6 5.5L3 12v6a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-6l-1.6-6.5A2 2 0 0 0 17.5 4h-11a2 2 0 0 0-1.9 1.5z" /></>);
 export const IconCheck     = wrap(<><path d="M20 6L9 17l-5-5" /></>);
 export const IconSearch    = wrap(<><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></>);
+export const IconBell      = wrap(<><path d="M6 8a6 6 0 1 1 12 0c0 4.2 1.4 5.6 2 6.2H4c.6-.6 2-2 2-6.2z" /><path d="M9.5 20a2.5 2.5 0 0 0 5 0" /></>);
+export const IconSettings  = wrap(<><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.9 2.9l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.9-2.9l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.9-2.9l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.6V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.9 2.9l-.1.1a1.7 1.7 0 0 0-.3 1.9V9c.1.7.6 1.3 1.6 1.6h.1a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.6 1z" /></>);
+export const IconChevronUp   = wrap(<path d="M6 15l6-6 6 6" />);
+export const IconChevronDown = wrap(<path d="M6 9l6 6 6-6" />);
+export const IconColumns   = wrap(<><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16M15 4v16" /></>);
+export const IconDownload  = wrap(<><path d="M12 3v12" /><path d="M7 10l5 5 5-5" /><path d="M4 19h16" /></>);
+export const IconX         = wrap(<path d="M18 6L6 18M6 6l12 12" />);
