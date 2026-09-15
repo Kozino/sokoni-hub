@@ -57,18 +57,39 @@ check "vendor appears in pending queue" "$(curl -s "$API/api/admin/vendors?statu
 check "admin verifies vendor" "$(code -X POST $API/api/admin/vendors/$VID/verify -H "Authorization: Bearer $ADMIN_T")" 200
 check "non-admin blocked from admin API" "$(code $API/api/admin/overview -H "Authorization: Bearer $VEND_T")" 403
 
-echo "=== 7. Listings ==="
-check "product published after verification" "$(code -X POST $API/api/listings -H "Authorization: Bearer $VEND_T" -H 'Content-Type: application/json' \
+echo "=== 7. Listings (admin approval gate) ==="
+check "product created pending review" "$(code -X POST $API/api/listings -H "Authorization: Bearer $VEND_T" -H 'Content-Type: application/json' \
   -d "{\"category_id\":\"$CAT\",\"kind\":\"product\",\"title\":\"Premium long grain rice 50kg\",\"description\":\"Bulk bag\",\"price\":420,\"currency\":\"USD\",\"quantity\":10,\"unit\":\"bag\",\"weight_kg\":50}")" 201
+PID=$(cat /tmp/body | J "['listing']['id']")
+check "new listing status is pending_review, not active" "$(cat /tmp/body | J "['listing']['status']")" pending_review
 check "medicine listing blocked" "$(code -X POST $API/api/listings -H "Authorization: Bearer $VEND_T" -H 'Content-Type: application/json' \
   -d "{\"category_id\":\"$CAT\",\"kind\":\"product\",\"title\":\"Paracetamol tablets\",\"price\":5,\"quantity\":100,\"unit\":\"pack\"}")" 422
 SCAT=$(curl -s $API/api/meta/categories | python3 -c "import sys,json;print([c['id'] for c in json.load(sys.stdin)['categories'] if c['slug']=='hair-styling'][0])")
-check "service published" "$(code -X POST $API/api/listings -H "Authorization: Bearer $VEND_T" -H 'Content-Type: application/json' \
+check "service created pending review" "$(code -X POST $API/api/listings -H "Authorization: Bearer $VEND_T" -H 'Content-Type: application/json' \
   -d "{\"category_id\":\"$SCAT\",\"kind\":\"service\",\"title\":\"Knotless braids medium\",\"price\":60,\"currency\":\"USD\",\"duration_mins\":180,\"service_area\":\"Lekki\"}")" 201
+SID=$(cat /tmp/body | J "['listing']['id']")
 check "kind/category mismatch rejected" "$(code -X POST $API/api/listings -H "Authorization: Bearer $VEND_T" -H 'Content-Type: application/json' \
   -d "{\"category_id\":\"$SCAT\",\"kind\":\"product\",\"title\":\"Wrong kind\",\"price\":10,\"quantity\":1}")" 400
+check "unapproved listings hidden from public browse" "$(curl -s $API/api/listings | J "['total']")" 0
+check "listings appear in admin pending queue" "$(curl -s "$API/api/admin/listings?status=pending_review" -H "Authorization: Bearer $ADMIN_T" | J "['listings'].__len__()")" 2
+
+echo "=== 7b. Reject + resubmit does not bypass review ==="
+check "throwaway listing created" "$(code -X POST $API/api/listings -H "Authorization: Bearer $VEND_T" -H 'Content-Type: application/json' \
+  -d "{\"category_id\":\"$CAT\",\"kind\":\"product\",\"title\":\"Blurry photo yam\",\"price\":15,\"quantity\":5,\"unit\":\"tuber\"}")" 201
+RID=$(cat /tmp/body | J "['listing']['id']")
+check "admin rejects listing with reason" "$(code -X POST $API/api/admin/listings/$RID/reject -H "Authorization: Bearer $ADMIN_T" -H 'Content-Type: application/json' -d '{"reason":"Photos are unclear"}')" 200
+check "rejected listing carries reason" "$(curl -s "$API/api/admin/listings?status=rejected" -H "Authorization: Bearer $ADMIN_T" | J "['listings'][0]['rejection_reason']")" "Photos are unclear"
+check "vendor resubmit goes back to pending_review, not active" "$(curl -s -X PATCH $API/api/listings/$RID -H "Authorization: Bearer $VEND_T" -H 'Content-Type: application/json' -d '{"status":"active"}' | J "['listing']['status']")" pending_review
+check "admin removes throwaway listing" "$(code -X POST $API/api/admin/listings/$RID/remove -H "Authorization: Bearer $ADMIN_T" -H 'Content-Type: application/json' -d '{}')" 200
+
+echo "=== 7c. Admin approves ==="
+check "admin approves product listing" "$(code -X POST $API/api/admin/listings/$PID/approve -H "Authorization: Bearer $ADMIN_T")" 200
+check "admin approves service listing" "$(code -X POST $API/api/admin/listings/$SID/approve -H "Authorization: Bearer $ADMIN_T")" 200
+check "approved listing now active" "$(curl -s $API/api/listings/$PID | J "['listing']['status']")" active
 check "public browse shows 2 listings" "$(curl -s $API/api/listings | J "['total']")" 2
-LID=$(curl -s "$API/api/listings?kind=product" | J "['listings'][0]['id']")
+check "vendor can now pause/republish approved listing without review" "$(curl -s -X PATCH $API/api/listings/$PID -H "Authorization: Bearer $VEND_T" -H 'Content-Type: application/json' -d '{"status":"paused"}' | J "['listing']['status']")" paused
+check "re-publish after approval is immediate" "$(curl -s -X PATCH $API/api/listings/$PID -H "Authorization: Bearer $VEND_T" -H 'Content-Type: application/json' -d '{"status":"active"}' | J "['listing']['status']")" active
+LID=$PID
 
 echo "=== 8. Checkout (guest, cash on delivery) ==="
 ORD=$(curl -s -X POST $API/api/orders/checkout -H 'Content-Type: application/json' \
