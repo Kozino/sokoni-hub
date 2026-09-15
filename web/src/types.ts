@@ -1,7 +1,7 @@
 export type Role = 'buyer' | 'vendor' | 'admin';
 export type VendorStatus = 'pending' | 'verified' | 'rejected' | 'suspended';
 export type ListingKind = 'product' | 'service';
-export type ListingStatus = 'draft' | 'active' | 'paused' | 'removed';
+export type ListingStatus = 'draft' | 'pending_review' | 'active' | 'rejected' | 'paused' | 'removed';
 export type OrderStatus = 'pending' | 'confirmed' | 'dispatched' | 'delivered' | 'cancelled';
 export type PaymentMethod = 'cash_on_delivery' | 'whatsapp' | 'bank_transfer';
 export type ComplaintStatus = 'open' | 'investigating' | 'resolved' | 'dismissed';
@@ -31,6 +31,7 @@ export interface Listing {
   weight_kg: string | number | null; volume_l: string | number | null;
   duration_mins: number | null; service_area: string | null;
   price_type: string; images: string[]; status: ListingStatus;
+  rejection_reason?: string | null; first_approved_at?: string | null;
   views: number; created_at: string; updated_at?: string;
   category_name?: string; category_slug?: string;
   business_name?: string; vendor_slug?: string; vendor_city?: string;
