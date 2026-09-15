@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Header } from '../../components/Layout';
-import DashShell, { DashLink } from '../../components/DashShell';
+import DashShell, { DashLink, DashNotification } from '../../components/DashShell';
 import { useAuth } from '../../state/AuthContext';
 import { api } from '../../lib/api';
 import { IconChart, IconShield, IconBox, IconAlert, IconReceipt, IconUsers, IconFolder, IconHistory } from '../../components/icons';
@@ -32,11 +32,26 @@ export default function AdminLayout() {
 
   const initials = (user?.full_name || 'A').split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
 
+  const notifications: DashNotification[] = [
+    ...(counts.vendors_pending > 0 ? [{
+      id: 'vp', tone: 'gold' as const,
+      title: `${counts.vendors_pending} vendor${counts.vendors_pending === 1 ? '' : 's'} awaiting verification`,
+      text: 'Review documents and approve or reject.', to: '/admin/vendors',
+    }] : []),
+    ...(counts.complaints_open > 0 ? [{
+      id: 'co', tone: 'red' as const,
+      title: `${counts.complaints_open} open complaint${counts.complaints_open === 1 ? '' : 's'}`,
+      text: 'Buyers are waiting on a ruling.', to: '/admin/complaints',
+    }] : []),
+  ];
+
   return (
     <div className="app">
       <Header />
       <DashShell
         links={links}
+        notifications={notifications}
+        settingsTo="/admin/categories"
         who={
           <>
             <span className="avatar" aria-hidden="true">{initials}</span>

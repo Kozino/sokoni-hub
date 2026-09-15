@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, ApiError, qs } from '../../lib/api';
 import { date, dateTime } from '../../lib/format';
-import { Alert, Empty, Modal, Spinner, StatusBadge, Tabs } from '../../components/ui';
+import { Alert, Modal, StatusBadge, Tabs } from '../../components/ui';
+import { DataTable, DTColumn } from '../../components/DataTable';
 import { useToast } from '../../state/ToastContext';
 import type { Vendor } from '../../types';
 
@@ -43,6 +44,30 @@ export default function AdminVendors() {
     } catch (e) { setErr(e instanceof ApiError ? e.message : 'Action failed'); }
   };
 
+  const columns: DTColumn<Vendor>[] = [
+    {
+      key: 'business', header: 'Business', alwaysVisible: true, sortAccessor: (v) => v.business_name,
+      render: (v) => (
+        <div className="row" style={{ gap: 9 }}>
+          <div className="avatar" style={{ width: 34, height: 34, fontSize: '.9rem' }}>
+            {v.logo_url ? <img src={v.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} /> : v.business_name[0]}
+          </div>
+          <span className="td-strong">{v.business_name}</span>
+        </div>
+      ),
+    },
+    { key: 'owner', header: 'Owner', render: (v) => <>{v.owner_name}<div style={{ fontSize: '.76rem', color: 'var(--text-muted)' }}>{v.owner_phone}</div></> },
+    { key: 'location', header: 'Location', defaultHidden: true, sortAccessor: (v) => v.city, render: (v) => `${v.city}, ${v.country}` },
+    { key: 'whatsapp', header: 'WhatsApp', defaultHidden: true, render: (v) => <span className="td-mono" style={{ fontSize: '.8rem' }}>{v.whatsapp}</span> },
+    { key: 'listings', header: 'Listings', align: 'right', sortAccessor: (v) => Number(v.listings as number) || 0, render: (v) => v.listings as number },
+    {
+      key: 'complaints', header: 'Complaints', align: 'right', sortAccessor: (v) => v.open_complaints ?? 0,
+      render: (v) => <span style={{ color: (v.open_complaints ?? 0) > 0 ? 'var(--danger)' : undefined, fontWeight: (v.open_complaints ?? 0) > 0 ? 700 : 400 }}>{v.open_complaints}</span>,
+    },
+    { key: 'status', header: 'Status', sortAccessor: (v) => v.status, render: (v) => <StatusBadge status={v.status} /> },
+    { key: 'applied', header: 'Applied', defaultHidden: true, sortAccessor: (v) => v.created_at, render: (v) => <span style={{ fontSize: '.8rem' }}>{date(v.created_at)}</span> },
+  ];
+
   return (
     <>
       <div className="dash-title"><h1>Vendor verification</h1><p>Approve, reject or suspend stores. Nothing goes live without your approval.</p></div>
@@ -50,41 +75,22 @@ export default function AdminVendors() {
       <Tabs value={status} onChange={(v) => setParams(v ? { status: v } : {})} tabs={TABS as any} />
 
       <form className="filters" onSubmit={(e) => { e.preventDefault(); load(); }}>
-        <input placeholder="Search business, owner or phone…" value={q} onChange={(e) => setQ(e.target.value)} style={{ minWidth: 260 }} />
+        <input className="grow" placeholder="Search business, owner or phone…" value={q} onChange={(e) => setQ(e.target.value)} style={{ minWidth: 260 }} />
         <button className="btn btn-primary btn-sm">Search</button>
       </form>
 
-      {loading ? <Spinner /> : vendors.length === 0 ? (
-        <Empty icon="🛡️" title={`No ${status || ''} vendors`} text="Nothing to review right now." />
-      ) : (
-        <div className="card table-wrap">
-          <table className="tbl">
-            <thead><tr><th>Business</th><th>Owner</th><th>Location</th><th>WhatsApp</th><th>Listings</th><th>Complaints</th><th>Status</th><th>Applied</th><th></th></tr></thead>
-            <tbody>
-              {vendors.map((v) => (
-                <tr key={v.id}>
-                  <td>
-                    <div className="row" style={{ gap: 9 }}>
-                      <div className="avatar" style={{ width: 34, height: 34, fontSize: '.9rem' }}>
-                        {v.logo_url ? <img src={v.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} /> : v.business_name[0]}
-                      </div>
-                      <span className="td-strong">{v.business_name}</span>
-                    </div>
-                  </td>
-                  <td>{v.owner_name}<div style={{ fontSize: '.76rem', color: 'var(--muted)' }}>{v.owner_phone}</div></td>
-                  <td>{v.city}, {v.country}</td>
-                  <td className="td-mono" style={{ fontSize: '.8rem' }}>{v.whatsapp}</td>
-                  <td>{v.listings as number}</td>
-                  <td style={{ color: (v.open_complaints ?? 0) > 0 ? 'var(--danger)' : undefined, fontWeight: (v.open_complaints ?? 0) > 0 ? 700 : 400 }}>{v.open_complaints}</td>
-                  <td><StatusBadge status={v.status} /></td>
-                  <td style={{ fontSize: '.8rem' }}>{date(v.created_at)}</td>
-                  <td><button className="btn btn-outline btn-sm" onClick={() => open(v.id)}>Review</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataTable
+        columns={columns}
+        rows={vendors}
+        rowKey={(v) => v.id}
+        loading={loading}
+        emptyIcon="🛡️"
+        emptyTitle={`No ${status || ''} vendors`}
+        emptyText="Nothing to review right now."
+        exportFilename="vendors"
+        storageKey="admin-vendors"
+        rowActions={(v) => <button className="btn btn-outline btn-sm" onClick={() => open(v.id)}>Review</button>}
+      />
 
       <Modal open={!!detail} title={detail?.business_name ?? ''} onClose={() => { setDetail(null); setAction(null); }}
         footer={detail && !action ? (
@@ -114,7 +120,7 @@ export default function AdminVendors() {
               </div>
             ) : (
               <>
-                <div className="row-between mb-2"><StatusBadge status={detail.status} /><span style={{ fontSize: '.8rem', color: 'var(--muted)' }}>Applied {dateTime(detail.created_at)}</span></div>
+                <div className="row-between mb-2"><StatusBadge status={detail.status} /><span style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>Applied {dateTime(detail.created_at)}</span></div>
                 <dl className="kv">
                   <dt>Owner</dt><dd>{detail.owner_name}</dd>
                   <dt>Phone</dt><dd>{detail.owner_phone}</dd>
@@ -135,7 +141,7 @@ export default function AdminVendors() {
                       ? <a className="btn btn-outline btn-sm" href={detail.id_document_url} target="_blank" rel="noreferrer">Open ID (PDF)</a>
                       : <div className="g-item"><a href={detail.id_document_url} target="_blank" rel="noreferrer"><img src={detail.id_document_url} alt="ID" /></a></div>
                   )}
-                  {!detail.logo_url && !detail.id_document_url && <span style={{ color: 'var(--muted)', fontSize: '.85rem' }}>No documents uploaded</span>}
+                  {!detail.logo_url && !detail.id_document_url && <span style={{ color: 'var(--text-muted)', fontSize: '.85rem' }}>No documents uploaded</span>}
                 </div>
                 {detail.listings.length > 0 && (
                   <>
