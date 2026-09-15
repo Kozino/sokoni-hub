@@ -22,7 +22,7 @@ export default function VendorOverview() {
   if (!d) return <Empty icon="📊" title="Could not load dashboard" text="Please refresh the page." />;
 
   const s = d.stats;
-  const cur = 'USD';
+ const cur = 'QAR';
   const trend = d.salesTrend.map((t: any) => ({ ...t, label: t.day.slice(5) }));
 
   return (
