@@ -77,7 +77,7 @@ export default function Checkout() {
   return (
     <div className="container">
       <h1>Checkout</h1>
-      <div className="grid" style={{ gridTemplateColumns: 'minmax(0,1.4fr) minmax(0,1fr)', gap: 24, alignItems: 'start' }}>
+      <div className="checkout-layout">
         <form className="card card-pad" onSubmit={submit}>
           <Alert kind="error">{err}</Alert>
 
@@ -114,7 +114,7 @@ export default function Checkout() {
           </button>
         </form>
 
-        <div className="card card-pad" style={{ position: 'sticky', top: 86 }}>
+        <div className="card card-pad checkout-summary">
           <h3>Your order</h3>
           {byVendor.map((g) => (
             <div key={g.vendor_id} className="mb-2">
