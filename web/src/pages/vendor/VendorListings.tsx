@@ -26,13 +26,19 @@ export default function VendorListings() {
   useEffect(load, []);
 
   const setStatus = async (l: Listing, status: Listing['status']) => {
-    try { await api.patch(`/listings/${l.id}`, { status }); load(); }
-    catch (e) { push(e instanceof ApiError ? e.message : 'Failed', 'error'); }
+    try {
+      const r = await api.patch<{ listing: Listing }>(`/listings/${l.id}`, { status });
+      push(
+        r.listing.status === 'pending_review' ? 'Submitted for admin approval'
+          : r.listing.status === 'paused' ? 'Listing paused'
+          : r.listing.status === 'active' ? 'Listing published'
+          : 'Listing updated',
+        'success'
+      );
+      load();
+    } catch (e) { push(e instanceof ApiError ? e.message : 'Failed', 'error'); }
   };
-  const toggle = async (l: Listing) => {
-    await setStatus(l, l.status === 'active' ? 'paused' : 'active');
-    push(l.status === 'active' ? 'Listing paused' : 'Listing published', 'success');
-  };
+  const toggle = (l: Listing) => setStatus(l, l.status === 'active' ? 'paused' : 'active');
 
   const remove = async (l: Listing) => {
     const ok = await confirm({ title: 'Delete listing', body: <>Delete <strong>“{l.title}”</strong>? This cannot be undone.</>, confirmLabel: 'Delete' });
@@ -97,7 +103,17 @@ export default function VendorListings() {
     },
     { key: 'weight', header: 'Weight / Vol.', defaultHidden: true, render: (l) => l.weight_kg ? `${Number(l.weight_kg)} kg` : l.volume_l ? `${Number(l.volume_l)} L` : '—' },
     { key: 'views', header: 'Views', align: 'right', sortAccessor: (l) => l.views, render: (l) => num(l.views) },
-    { key: 'status', header: 'Status', sortAccessor: (l) => l.status, render: (l) => <StatusBadge status={l.status} /> },
+    {
+      key: 'status', header: 'Status', sortAccessor: (l) => l.status,
+      render: (l) => (
+        <>
+          <StatusBadge status={l.status} />
+          {l.status === 'rejected' && l.rejection_reason && (
+            <div style={{ fontSize: '.72rem', color: 'var(--danger)', maxWidth: 220 }}>{l.rejection_reason}</div>
+          )}
+        </>
+      ),
+    },
     { key: 'added', header: 'Added', defaultHidden: true, sortAccessor: (l) => l.created_at, render: (l) => <span style={{ fontSize: '.8rem' }}>{date(l.created_at)}</span> },
   ];
 
@@ -107,6 +123,17 @@ export default function VendorListings() {
         <div><h1>Products &amp; services</h1><p>{items.length} listing{items.length === 1 ? '' : 's'} in your store</p></div>
         <Link to="/vendor/listings/new" className="btn btn-primary">➕ Add listing</Link>
       </div>
+
+      {items.some((l) => l.status === 'pending_review') && (
+        <Alert kind="warn">
+          {items.filter((l) => l.status === 'pending_review').length} listing{items.filter((l) => l.status === 'pending_review').length === 1 ? ' is' : 's are'} waiting for admin approval before {items.filter((l) => l.status === 'pending_review').length === 1 ? 'it' : 'they'} become visible to buyers.
+        </Alert>
+      )}
+      {items.some((l) => l.status === 'rejected') && (
+        <Alert kind="error">
+          {items.filter((l) => l.status === 'rejected').length} listing{items.filter((l) => l.status === 'rejected').length === 1 ? '' : 's'} were rejected — check the reason in the Status column, edit, and resubmit.
+        </Alert>
+      )}
 
       <Tabs
         value={tab} onChange={setTab}
@@ -146,9 +173,15 @@ export default function VendorListings() {
                   onClick={() => { setStockFor(l); setStockVal(l.quantity ?? 0); setErr(''); }}>📊</button>
               )}
               <Link to={`/vendor/listings/${l.id}/edit`} className="btn btn-ghost btn-sm" title="Edit">✏️</Link>
-              <button className="btn btn-ghost btn-sm" title={l.status === 'active' ? 'Pause' : 'Publish'} onClick={() => toggle(l)}>
-                {l.status === 'active' ? '⏸' : '▶️'}
-              </button>
+              {l.status !== 'pending_review' && (
+                <button
+                  className="btn btn-ghost btn-sm"
+                  title={l.status === 'active' ? 'Pause' : l.status === 'rejected' ? 'Resubmit for review' : 'Publish'}
+                  onClick={() => toggle(l)}
+                >
+                  {l.status === 'active' ? '⏸' : '▶️'}
+                </button>
+              )}
               <button className="btn btn-ghost btn-sm" title="Delete" onClick={() => remove(l)}>🗑</button>
             </div>
           )}

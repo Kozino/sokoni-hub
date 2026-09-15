@@ -22,6 +22,7 @@ export default function ListingForm() {
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [images, setImages] = useState<string[]>([]);
+  const [existing, setExisting] = useState<Listing | null>(null);
   const [f, setF] = useState({
     kind: 'product' as ListingKind, category_id: '', title: '', description: '',
     price: '', currency: 'USD', price_type: 'fixed',
@@ -38,6 +39,7 @@ export default function ListingForm() {
     api.get<{ listings: Listing[] }>('/listings/mine/all').then((r) => {
       const l = r.listings.find((x) => x.id === id);
       if (!l) { setErr('Listing not found'); return; }
+      setExisting(l);
       setF({
         kind: l.kind, category_id: l.category_id, title: l.title, description: l.description || '',
         price: String(l.price), currency: l.currency, price_type: l.price_type,
@@ -45,7 +47,8 @@ export default function ListingForm() {
         weight_kg: l.weight_kg != null ? String(l.weight_kg) : '',
         volume_l: l.volume_l != null ? String(l.volume_l) : '',
         duration_mins: l.duration_mins != null ? String(l.duration_mins) : '',
-        service_area: l.service_area || '', status: (l.status === 'removed' ? 'paused' : l.status) as any,
+        service_area: l.service_area || '',
+        status: (l.status === 'removed' ? 'paused' : l.status === 'pending_review' || l.status === 'rejected' ? 'active' : l.status) as any,
       });
       setImages(Array.isArray(l.images) ? l.images : []);
     }).finally(() => setLoading(false));
@@ -70,9 +73,15 @@ export default function ListingForm() {
       if (f.service_area) payload.service_area = f.service_area;
     }
     try {
-      if (editing) await api.patch(`/listings/${id}`, payload);
-      else await api.post('/listings', payload);
-      push(editing ? 'Listing updated' : 'Listing published', 'success');
+      const r = editing
+        ? await api.patch<{ listing: Listing }>(`/listings/${id}`, payload)
+        : await api.post<{ listing: Listing }>('/listings', payload);
+      push(
+        r.listing.status === 'pending_review' ? 'Submitted for admin approval — you\u2019ll be notified once it\u2019s reviewed'
+          : editing ? 'Listing updated'
+          : 'Listing published',
+        'success'
+      );
       nav('/vendor/listings');
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : 'Could not save listing');
