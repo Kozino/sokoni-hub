@@ -9,6 +9,160 @@
   background: linear-gradient(135deg, #F2EDE8, #E7DFD8);
   display: grid;
   place-items: center;
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+  touch-action: pan-y;
+}
+
+/* Prev/next arrows over the main image */
+.listing-detail-page .ld-main-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(0, 0, 0, .45);
+  color: #fff;
+  font-size: 1.4rem;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.listing-detail-page .ld-main-nav:hover { background: rgba(0, 0, 0, .65); }
+.listing-detail-page .ld-main-nav.prev { left: var(--s-3); }
+.listing-detail-page .ld-main-nav.next { right: var(--s-3); }
+
+.listing-detail-page .ld-main-count {
+  position: absolute;
+  bottom: var(--s-2);
+  right: var(--s-3);
+  background: rgba(0, 0, 0, .55);
+  color: #fff;
+  font-size: .75rem;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 999px;
+}
+.listing-detail-page .ld-zoom-hint {
+  position: absolute;
+  bottom: var(--s-2);
+  left: var(--s-3);
+  background: rgba(0, 0, 0, .55);
+  color: #fff;
+  font-size: .72rem;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+/* Horizontally scrollable thumbnail strip — swipe/scroll to see all photos */
+.listing-detail-page .ld-thumbs {
+  display: flex;
+  gap: var(--s-2);
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  padding-bottom: 2px;
+  -webkit-overflow-scrolling: touch;
+}
+.listing-detail-page .ld-thumb {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  width: 74px;
+  height: 74px;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  border: 2px solid transparent;
+  padding: 0;
+  cursor: pointer;
+  background: var(--surface-2);
+}
+.listing-detail-page .ld-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.listing-detail-page .ld-thumb.active { border-color: var(--terra); }
+
+/* Full-screen zoom lightbox */
+.listing-detail-page .ld-lightbox-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(10, 8, 6, .92);
+  display: grid;
+  place-items: center;
+}
+.listing-detail-page .ld-lightbox-stage {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  padding: var(--s-5);
+}
+.listing-detail-page .ld-lightbox-img {
+  max-width: 100%;
+  max-height: 85vh;
+  object-fit: contain;
+  cursor: zoom-in;
+  transition: transform .2s var(--ease-out);
+  touch-action: pan-x pan-y;
+}
+.listing-detail-page .ld-lightbox-img.zoomed {
+  max-width: none;
+  max-height: none;
+  width: auto;
+  height: auto;
+  transform: scale(2);
+  cursor: zoom-out;
+}
+.listing-detail-page .ld-lightbox-close {
+  position: absolute;
+  top: var(--s-4);
+  right: var(--s-4);
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255, 255, 255, .12);
+  color: #fff;
+  font-size: 1.1rem;
+  cursor: pointer;
+  z-index: 2;
+}
+.listing-detail-page .ld-lightbox-close:hover { background: rgba(255, 255, 255, .22); }
+.listing-detail-page .ld-lightbox-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255, 255, 255, .12);
+  color: #fff;
+  font-size: 1.8rem;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  z-index: 2;
+}
+.listing-detail-page .ld-lightbox-nav:hover { background: rgba(255, 255, 255, .22); }
+.listing-detail-page .ld-lightbox-nav.prev { left: var(--s-4); }
+.listing-detail-page .ld-lightbox-nav.next { right: var(--s-4); }
+.listing-detail-page .ld-lightbox-counter {
+  position: absolute;
+  bottom: var(--s-4);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, .12);
+  color: #fff;
+  font-size: .8rem;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 999px;
 }
 
 .listing-detail-page .ld-related-grid {
@@ -23,4 +177,8 @@
 @media (max-width: 640px) {
   .listing-detail-page .ld-main-img { height: 240px; }
   .listing-detail-page .ld-related-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--s-3); }
+  .listing-detail-page .ld-thumb { width: 60px; height: 60px; }
+  .listing-detail-page .ld-lightbox-nav { width: 40px; height: 40px; font-size: 1.4rem; }
+  .listing-detail-page .ld-lightbox-nav.prev { left: var(--s-2); }
+  .listing-detail-page .ld-lightbox-nav.next { right: var(--s-2); }
 }
