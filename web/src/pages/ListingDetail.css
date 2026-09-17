@@ -1,0 +1,26 @@
+/* ============================================================================
+   LISTING DETAIL PAGE ONLY
+   Scoped under .listing-detail-page so nothing else changes.
+   ========================================================================= */
+
+.listing-detail-page .ld-main-img {
+  height: 360px;
+  width: 100%;
+  background: linear-gradient(135deg, #F2EDE8, #E7DFD8);
+  display: grid;
+  place-items: center;
+}
+
+.listing-detail-page .ld-related-grid {
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: var(--s-4);
+}
+.listing-detail-page .ld-related-grid .lcard-img { aspect-ratio: 5/4; }
+
+@media (max-width: 900px) {
+  .listing-detail-page .ld-main-img { height: 300px; }
+}
+@media (max-width: 640px) {
+  .listing-detail-page .ld-main-img { height: 240px; }
+  .listing-detail-page .ld-related-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--s-3); }
+}
