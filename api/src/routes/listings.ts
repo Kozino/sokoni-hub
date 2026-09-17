@@ -84,12 +84,36 @@ listingRouter.get('/:id', async (req, res, next) => {
     );
     if (!l) throw new HttpError(404, 'Listing not found');
     await query('update listings set views = views + 1 where id = $1', [l.id]);
+
+    // "Recommended for you" — same category, excluding this listing and this vendor's
+    // own items (those get their own "More from this vendor" rail below).
     const related = await query(
-      `select l.id, l.title, l.price, l.currency, l.images, l.kind
-       from listings l where l.category_id = $1 and l.id <> $2 and l.status='active' limit 6`,
-      [l.category_id, l.id]
+      `select l.id, l.title, l.price, l.currency, l.images, l.kind,
+              c.name as category_name, v.business_name, v.city as vendor_city
+       from listings l
+       join categories c on c.id = l.category_id
+       join vendors v on v.id = l.vendor_id
+       where l.category_id = $1 and l.id <> $2 and l.vendor_id <> $3
+         and l.status = 'active' and v.status = 'verified'
+       order by l.views desc, l.created_at desc
+       limit 8`,
+      [l.category_id, l.id, l.vendor_id]
     );
-    res.json({ listing: l, related });
+
+    // Other active listings from the same vendor.
+    const vendorItems = await query(
+      `select l.id, l.title, l.price, l.currency, l.images, l.kind,
+              c.name as category_name, v.business_name, v.city as vendor_city
+       from listings l
+       join categories c on c.id = l.category_id
+       join vendors v on v.id = l.vendor_id
+       where l.vendor_id = $1 and l.id <> $2 and l.status = 'active'
+       order by l.created_at desc
+       limit 8`,
+      [l.vendor_id, l.id]
+    );
+
+    res.json({ listing: l, related, vendorItems });
   } catch (e) {
     next(e);
   }
