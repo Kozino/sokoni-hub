@@ -15,8 +15,8 @@ export default function Home() {
 
   useEffect(() => {
     api.get<{ stats: typeof stats }>('/meta/stats').then((r) => setStats(r.stats)).catch(() => {});
-    api.get<{ listings: Listing[] }>('/listings?limit=8&sort=newest').then((r) => setLatest(r.listings)).catch(() => {});
-    api.get<{ listings: Listing[] }>('/listings?limit=4&kind=service&sort=popular').then((r) => setServices(r.listings)).catch(() => {});
+    api.get<{ listings: Listing[] }>('/listings?limit=12&sort=newest').then((r) => setLatest(r.listings)).catch(() => {});
+    api.get<{ listings: Listing[] }>('/listings?limit=6&kind=service&sort=popular').then((r) => setServices(r.listings)).catch(() => {});
   }, []);
 
   const search = (e: React.FormEvent) => {
@@ -153,7 +153,7 @@ export default function Home() {
               </div>
               <Link to="/browse">View all</Link>
             </div>
-            <div className="grid grid-4">{latest.map((l) => <ListingCard key={l.id} l={l} />)}</div>
+            <div className="grid lp-listing-grid">{latest.map((l) => <ListingCard key={l.id} l={l} />)}</div>
           </div>
         </section>
       )}
@@ -186,7 +186,7 @@ export default function Home() {
               </div>
               <Link to="/browse?kind=service">View all</Link>
             </div>
-            <div className="grid grid-4">{services.map((l) => <ListingCard key={l.id} l={l} />)}</div>
+            <div className="grid lp-listing-grid">{services.map((l) => <ListingCard key={l.id} l={l} />)}</div>
           </div>
         </section>
       )}
