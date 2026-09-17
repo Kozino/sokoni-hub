@@ -7,6 +7,7 @@ import { Badge, Spinner, Empty, Alert, QtyInput } from '../components/ui';
 import { useCart } from '../state/CartContext';
 import { useToast } from '../state/ToastContext';
 import ListingCard from '../components/ListingCard';
+import './ListingDetail.css';
 
 export default function ListingDetail() {
   const { id } = useParams();
@@ -44,7 +45,7 @@ export default function ListingDetail() {
   const waText = `Hello ${l.business_name}, I saw "${l.title}" (${priceLabel(l)}) on Sokoni Hub. Is it available?`;
 
   return (
-    <div className="container">
+    <div className="container listing-detail-page">
       <p style={{ fontSize: '.85rem' }}>
         <Link to="/browse">Browse</Link> / <Link to={`/browse?category=${l.category_slug}`}>{l.category_name}</Link>
       </p>
@@ -52,7 +53,7 @@ export default function ListingDetail() {
       <div className="ld-layout">
         <div>
           <div className="card" style={{ overflow: 'hidden' }}>
-            <div style={{ aspectRatio: '4/3', background: 'linear-gradient(135deg,#F2EDE8,#E7DFD8)', display: 'grid', placeItems: 'center' }}>
+            <div className="ld-main-img">
               {images[active]
                 ? <img src={images[active]} alt={l.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 : <span style={{ fontSize: '4rem', opacity: .35 }}>{l.kind === 'service' ? '💇' : '🛍️'}</span>}
@@ -149,7 +150,7 @@ export default function ListingDetail() {
       {related.length > 0 && (
         <div className="mt-4">
           <h2>Similar listings</h2>
-          <div className="grid grid-4">{related.map((r) => <ListingCard key={r.id} l={r} />)}</div>
+          <div className="grid ld-related-grid">{related.map((r) => <ListingCard key={r.id} l={r} />)}</div>
         </div>
       )}
     </div>
