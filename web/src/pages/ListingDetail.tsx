@@ -101,7 +101,7 @@ export default function ListingDetail() {
               style={{ cursor: images.length ? 'zoom-in' : 'default' }}
             >
               {images[active]
-                ? <img src={images[active]} alt={l.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ? <img src={images[active]} alt={l.title} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 : <span style={{ fontSize: '4rem', opacity: .35 }}>{l.kind === 'service' ? '💇' : '🛍️'}</span>}
               {images.length > 1 && (
                 <>
