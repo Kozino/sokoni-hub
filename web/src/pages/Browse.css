@@ -1,0 +1,22 @@
+/* ============================================================================
+   BROWSE (LISTING) PAGE ONLY
+   Scoped under .browse-page so StorePage, ListingDetail's "related" grid
+   and the landing page keep their existing card sizing untouched.
+   ========================================================================= */
+
+.browse-grid {
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: var(--s-4);
+}
+
+/* Shrink the oversized 4:3 photo down to a tighter, more listing-like frame */
+.browse-page .lcard-img { aspect-ratio: 5/4; }
+
+/* Slightly tighten body padding/type now that cards are smaller */
+.browse-page .lcard-body { padding: var(--s-2) var(--s-3) var(--s-3); }
+.browse-page .lcard-title { font-size: var(--fs-sm); }
+.browse-page .lcard-price { font-size: var(--fs-base); }
+
+@media (max-width: 640px) {
+  .browse-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--s-3); }
+}
