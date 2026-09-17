@@ -4,6 +4,7 @@ import { api, qs } from '../lib/api';
 import type { Listing, Category } from '../types';
 import ListingCard from '../components/ListingCard';
 import { Empty, Spinner } from '../components/ui';
+import './Browse.css';
 
 export default function Browse() {
   const [params, setParams] = useSearchParams();
@@ -47,7 +48,7 @@ export default function Browse() {
   const offset = Number(get('offset') || 0);
 
   return (
-    <div className="container">
+    <div className="container browse-page">
       <h1>{kind === 'service' ? 'Services' : kind === 'product' ? 'Food stuff & products' : 'Browse everything'}</h1>
       <p style={{ color: 'var(--muted)' }}>{total} listing{total === 1 ? '' : 's'} from verified stores</p>
 
@@ -89,7 +90,7 @@ export default function Browse() {
         <Empty icon="🔍" title="Nothing matches that search" text="Try a different keyword, category or city." />
       ) : (
         <>
-          <div className="grid grid-4">{listings.map((l) => <ListingCard key={l.id} l={l} />)}</div>
+          <div className="grid browse-grid">{listings.map((l) => <ListingCard key={l.id} l={l} />)}</div>
           {total > 24 && (
             <div className="row mt-4" style={{ justifyContent: 'center' }}>
               <button className="btn btn-outline" disabled={offset === 0} onClick={() => set('offset', String(Math.max(0, offset - 24)))}>← Previous</button>
