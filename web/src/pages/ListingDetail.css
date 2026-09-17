@@ -4,7 +4,7 @@
    ========================================================================= */
 
 .listing-detail-page .ld-main-img {
-  height: 360px;
+  height: 420px;
   width: 100%;
   background: linear-gradient(135deg, #F2EDE8, #E7DFD8);
   display: grid;
@@ -172,7 +172,7 @@
 .listing-detail-page .ld-related-grid .lcard-img { aspect-ratio: 5/4; }
 
 @media (max-width: 900px) {
-  .listing-detail-page .ld-main-img { height: 300px; }
+  .listing-detail-page .ld-main-img { height: 340px; }
 }
 @media (max-width: 640px) {
   .listing-detail-page .ld-main-img { height: 240px; }
