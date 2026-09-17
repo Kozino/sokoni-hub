@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import type { Listing } from '../types';
@@ -13,24 +13,64 @@ export default function ListingDetail() {
   const { id } = useParams();
   const [l, setL] = useState<Listing | null>(null);
   const [related, setRelated] = useState<Listing[]>([]);
+  const [vendorItems, setVendorItems] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [qty, setQty] = useState(1);
   const [active, setActive] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [zoomed, setZoomed] = useState(false);
+  const touchStartX = useRef<number | null>(null);
   const { add } = useCart();
   const { push } = useToast();
 
   useEffect(() => {
     setLoading(true);
-    api.get<{ listing: Listing; related: Listing[] }>(`/listings/${id}`)
-      .then((r) => { setL(r.listing); setRelated(r.related); })
+    setActive(0);
+    api.get<{ listing: Listing; related: Listing[]; vendorItems: Listing[] }>(`/listings/${id}`)
+      .then((r) => { setL(r.listing); setRelated(r.related); setVendorItems(r.vendorItems || []); })
       .catch(() => setL(null))
       .finally(() => setLoading(false));
   }, [id]);
 
+  const images = Array.isArray(l?.images) ? l!.images : [];
+
+  const showImg = (i: number) => setActive((images.length + i) % images.length);
+  const nextImg = () => showImg(active + 1);
+  const prevImg = () => showImg(active - 1);
+
+  const openLightbox = (i: number) => {
+    if (!images.length) return;
+    setActive(i);
+    setZoomed(false);
+    setLightboxOpen(true);
+  };
+  const closeLightbox = () => { setLightboxOpen(false); setZoomed(false); };
+
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeLightbox();
+      else if (e.key === 'ArrowRight') nextImg();
+      else if (e.key === 'ArrowLeft') prevImg();
+    };
+    window.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lightboxOpen, active]);
+
+  const onTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX; };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || zoomed) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    if (dx > 50) prevImg();
+    else if (dx < -50) nextImg();
+    touchStartX.current = null;
+  };
+
   if (loading) return <div className="container"><Spinner /></div>;
   if (!l) return <div className="container"><Empty icon="🚫" title="Listing not found" text="It may have been removed or the store unverified." action={<Link to="/browse" className="btn btn-primary">Back to browse</Link>} /></div>;
 
-  const images = Array.isArray(l.images) ? l.images : [];
   const outOfStock = l.kind === 'product' && (l.quantity ?? 0) <= 0;
 
   const addToCart = () => {
@@ -53,18 +93,47 @@ export default function ListingDetail() {
       <div className="ld-layout">
         <div>
           <div className="card" style={{ overflow: 'hidden' }}>
-            <div className="ld-main-img">
+            <div
+              className="ld-main-img"
+              onClick={() => openLightbox(active)}
+              onTouchStart={onTouchStart}
+              onTouchEnd={onTouchEnd}
+              style={{ cursor: images.length ? 'zoom-in' : 'default' }}
+            >
               {images[active]
                 ? <img src={images[active]} alt={l.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 : <span style={{ fontSize: '4rem', opacity: .35 }}>{l.kind === 'service' ? '💇' : '🛍️'}</span>}
+              {images.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    className="ld-main-nav prev"
+                    onClick={(e) => { e.stopPropagation(); prevImg(); }}
+                    aria-label="Previous photo"
+                  >‹</button>
+                  <button
+                    type="button"
+                    className="ld-main-nav next"
+                    onClick={(e) => { e.stopPropagation(); nextImg(); }}
+                    aria-label="Next photo"
+                  >›</button>
+                  <span className="ld-main-count">{active + 1} / {images.length}</span>
+                </>
+              )}
+              {images.length > 0 && <span className="ld-zoom-hint">🔍 Tap to zoom</span>}
             </div>
           </div>
           {images.length > 1 && (
-            <div className="gallery mt-2">
+            <div className="ld-thumbs mt-2">
               {images.map((src, i) => (
-                <div key={i} className="g-item" style={{ cursor: 'pointer', outline: i === active ? '2px solid var(--terra)' : 'none' }} onClick={() => setActive(i)}>
+                <button
+                  type="button"
+                  key={i}
+                  className={`ld-thumb${i === active ? ' active' : ''}`}
+                  onClick={() => setActive(i)}
+                >
                   <img src={src} alt={`${l.title} ${i + 1}`} />
-                </div>
+                </button>
               ))}
             </div>
           )}
@@ -147,10 +216,53 @@ export default function ListingDetail() {
         </div>
       </div>
 
+      {vendorItems.length > 0 && (
+        <div className="mt-4">
+          <h2>More from {l.business_name}</h2>
+          <div className="grid ld-related-grid">{vendorItems.map((r) => <ListingCard key={r.id} l={r} />)}</div>
+        </div>
+      )}
+
       {related.length > 0 && (
         <div className="mt-4">
-          <h2>Similar listings</h2>
+          <h2>Recommended for you</h2>
           <div className="grid ld-related-grid">{related.map((r) => <ListingCard key={r.id} l={r} />)}</div>
+        </div>
+      )}
+
+      {lightboxOpen && images.length > 0 && (
+        <div className="ld-lightbox-backdrop" onClick={closeLightbox}>
+          <button type="button" className="ld-lightbox-close" onClick={closeLightbox} aria-label="Close">✕</button>
+          {images.length > 1 && (
+            <button
+              type="button"
+              className="ld-lightbox-nav prev"
+              onClick={(e) => { e.stopPropagation(); prevImg(); setZoomed(false); }}
+              aria-label="Previous photo"
+            >‹</button>
+          )}
+          <div
+            className="ld-lightbox-stage"
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={onTouchStart}
+            onTouchEnd={onTouchEnd}
+          >
+            <img
+              src={images[active]}
+              alt={`${l.title} ${active + 1}`}
+              className={`ld-lightbox-img${zoomed ? ' zoomed' : ''}`}
+              onClick={() => setZoomed((z) => !z)}
+            />
+          </div>
+          {images.length > 1 && (
+            <button
+              type="button"
+              className="ld-lightbox-nav next"
+              onClick={(e) => { e.stopPropagation(); nextImg(); setZoomed(false); }}
+              aria-label="Next photo"
+            >›</button>
+          )}
+          {images.length > 1 && <div className="ld-lightbox-counter">{active + 1} / {images.length}</div>}
         </div>
       )}
     </div>
