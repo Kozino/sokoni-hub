@@ -1,20 +1,45 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
-import type { Listing } from '../types';
+import type { Listing, Category } from '../types';
 import ListingCard from '../components/ListingCard';
 import './Home.css';
+
+/* Category wall icons — keyed on the real category slugs from db/schema.sql. */
+const CAT_ICONS: Record<string, string> = {
+  'grains-cereals': '🌾', 'tubers-flour': '🥔', 'oils-condiments': '🫒',
+  'spices-seasoning': '🌶️', 'frozen-protein': '🍗', 'fruits-vegetables': '🥦',
+  'snacks-drinks': '🥤', 'hair-styling': '💇', 'nails': '💅', 'makeup': '💄',
+  'photography': '📷', 'video-editing': '🎬', 'graphics-design': '🎨',
+  'tailoring': '✂️', 'catering': '🍱', 'events': '🎉', 'cleaning': '🧼',
+};
+const catIcon = (c: Category) => CAT_ICONS[c.slug] || (c.kind === 'service' ? '💼' : '🛍️');
+
+/* Quick "popular searches" chips shown under the hero search box. */
+const QUICK = [
+  { label: 'Rice & grains', to: '/browse?category=grains-cereals' },
+  { label: 'Braids', to: '/browse?category=hair-styling' },
+  { label: 'Catering', to: '/browse?category=catering' },
+  { label: 'Photography', to: '/browse?category=photography' },
+  { label: 'Spices', to: '/browse?category=spices-seasoning' },
+];
+
+interface Stats { vendors: number; listings: number; services: number; cities: number }
 
 export default function Home() {
   const nav = useNavigate();
   const [q, setQ] = useState('');
   const [kind, setKind] = useState('');
-  const [stats, setStats] = useState({ vendors: 0, listings: 0, services: 0, cities: 0 });
+  const [stats, setStats] = useState<Stats>({ vendors: 0, listings: 0, services: 0, cities: 0 });
+  const [cats, setCats] = useState<Category[]>([]);
+  const [trending, setTrending] = useState<Listing[]>([]);
   const [latest, setLatest] = useState<Listing[]>([]);
   const [services, setServices] = useState<Listing[]>([]);
 
   useEffect(() => {
-    api.get<{ stats: typeof stats }>('/meta/stats').then((r) => setStats(r.stats)).catch(() => {});
+    api.get<{ stats: Stats }>('/meta/stats').then((r) => setStats(r.stats)).catch(() => {});
+    api.get<{ categories: Category[] }>('/meta/categories').then((r) => setCats(r.categories)).catch(() => {});
+    api.get<{ listings: Listing[] }>('/listings?limit=8&sort=popular').then((r) => setTrending(r.listings)).catch(() => {});
     api.get<{ listings: Listing[] }>('/listings?limit=12&sort=newest').then((r) => setLatest(r.listings)).catch(() => {});
     api.get<{ listings: Listing[] }>('/listings?limit=6&kind=service&sort=popular').then((r) => setServices(r.listings)).catch(() => {});
   }, []);
@@ -29,19 +54,18 @@ export default function Home() {
 
   return (
     <div className="lp">
-      {/* ---------------------------------------------------------------- HERO */}
+      {/* ============================================================ HERO */}
       <section className="lp-hero">
         <div className="lp-dotgrid" />
         <div className="lp-blob lp-blob-1" />
         <div className="lp-blob lp-blob-2" />
         <div className="container lp-hero-inner">
-          <div>
-            <span className="lp-hero-tag"><span className="dot" /> {stats.vendors || 'Dozens of'} stores already verified</span>
-            <h1>A proper storefront, <span className="accent">not another status update.</span></h1>
+          <div className="lp-hero-copy">
+            <span className="lp-hero-tag"><span className="dot" /> {stats.vendors || 'Dozens of'} verified stores</span>
+            <h1>Shop your market, <span className="accent">all in one place.</span></h1>
             <p className="lede">
-              List your food stuff, your braiding chair, your camera, your edit suite — once. Buyers
-              search, find you, and order with cash on delivery or a one-tap WhatsApp message. Every
-              seller is checked by a real person before a single item goes live.
+              Food stuff by the kg and the services that keep life moving — from sellers near you.
+              Search, compare and order with cash on delivery or a single tap on WhatsApp.
             </p>
             <form className="lp-searchbar" onSubmit={search}>
               <input
@@ -51,16 +75,21 @@ export default function Home() {
                 onChange={(e) => setQ(e.target.value)}
               />
               <select value={kind} onChange={(e) => setKind(e.target.value)}>
-                <option value="">Everything</option>
-                <option value="product">Food stuff</option>
+                <option value="">All</option>
+                <option value="product">Products</option>
                 <option value="service">Services</option>
               </select>
               <button className="btn btn-primary" type="submit">Search</button>
             </form>
+            <div className="lp-hero-chips">
+              <span className="lp-hero-chips-label">Popular:</span>
+              {QUICK.map((c) => (
+                <button key={c.to} type="button" className="lp-chip" onClick={() => nav(c.to)}>{c.label}</button>
+              ))}
+            </div>
             <div className="lp-hero-stats">
-              <div><strong>{stats.vendors}</strong><span>Verified stores</span></div>
               <div><strong>{stats.listings}</strong><span>Live listings</span></div>
-              <div><strong>{stats.services}</strong><span>Services</span></div>
+              <div><strong>{stats.vendors}</strong><span>Verified stores</span></div>
               <div><strong>{stats.cities}</strong><span>Cities</span></div>
             </div>
           </div>
@@ -74,82 +103,58 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ---------------------------------------------------------------- TRUST STRIP */}
-      <section className="lp-trust">
-        <div className="container lp-trust-row">
-          <div className="lp-trust-item"><span className="ic">🛡️</span><div><strong>Verified sellers only</strong><span>Manually checked, not just self-signed</span></div></div>
-          <div className="lp-trust-item"><span className="ic">💵</span><div><strong>Cash on delivery</strong><span>Pay when it arrives, no risk upfront</span></div></div>
-          <div className="lp-trust-item"><span className="ic">💬</span><div><strong>WhatsApp checkout</strong><span>Order with a single tap, no app to learn</span></div></div>
-          <div className="lp-trust-item"><span className="ic">🚫</span><div><strong>No listing fees</strong><span>Free to register and start selling</span></div></div>
+      {/* ============================================================ BENEFITS STRIP */}
+      <section className="lp-benefits">
+        <div className="container lp-benefits-row">
+          <div className="lp-benefit"><span className="ic">🛡️</span><div><strong>Verified sellers</strong><span>Checked by a real person</span></div></div>
+          <div className="lp-benefit"><span className="ic">💵</span><div><strong>Cash on delivery</strong><span>Pay when it arrives</span></div></div>
+          <div className="lp-benefit"><span className="ic">💬</span><div><strong>WhatsApp checkout</strong><span>Order in one tap</span></div></div>
+          <div className="lp-benefit"><span className="ic">🚫</span><div><strong>No listing fees</strong><span>Free to start selling</span></div></div>
         </div>
       </section>
 
-      {/* ---------------------------------------------------------------- CATEGORIES */}
-      <section className="lp-section">
+      {/* ============================================================ SHOP BY CATEGORY */}
+      <section className="lp-section lp-cat-section">
         <div className="container">
           <div className="lp-section-head">
-            <span className="lp-eyebrow">Shop by category</span>
-            <h2>What are you shopping for?</h2>
-            <p>Food stuff by the kg, litre or bag — and the service people who keep your life moving.</p>
+            <span className="lp-eyebrow">Browse the market</span>
+            <h2>Shop by category</h2>
           </div>
-          <div className="grid grid-3">
-            <Link to="/browse?kind=product" className="lp-cat-tile">
-              <img src="/img/cat-food.jpg" alt="Food stuff" />
-              <span>Food stuff &amp; provisions<small>Rice, oils, spices &amp; more</small></span>
-            </Link>
-            <Link to="/browse?category=hair-styling" className="lp-cat-tile">
-              <img src="/img/cat-beauty.jpg" alt="Beauty services" />
-              <span>Hair, nails &amp; makeup<small>Book a verified stylist</small></span>
-            </Link>
-            <Link to="/browse?category=photography" className="lp-cat-tile">
-              <img src="/img/cat-media.jpg" alt="Photo and video" />
-              <span>Photo, video &amp; design<small>Studios &amp; freelance creatives</small></span>
-            </Link>
+          <div className="lp-cat-wall">
+            {cats.map((c) => (
+              <Link key={c.id} to={`/browse?category=${c.slug}`} className="lp-cat-chip">
+                <span className="lp-cat-ico">{catIcon(c)}</span>
+                <span className="lp-cat-label">{c.name}</span>
+              </Link>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* ---------------------------------------------------------------- HOW IT WORKS */}
-      <section className="lp-section" style={{ paddingTop: 0 }}>
-        <div className="container">
-          <div className="lp-steps-wrap">
-            <div className="lp-blob lp-blob-1" />
-            <div className="lp-blob lp-blob-2" />
-            <div style={{ position: 'relative', zIndex: 1 }}>
-              <div className="lp-section-head center">
-                <span className="lp-eyebrow">Getting started</span>
-                <h2>Three steps, no website needed</h2>
-                <p>Everything below happens from a phone — nothing to build or host yourself.</p>
+      {/* ============================================================ TRENDING DEALS */}
+      {trending.length > 0 && (
+        <section className="lp-section" style={{ paddingTop: 0 }}>
+          <div className="container">
+            <div className="row-between mb-3">
+              <div>
+                <span className="lp-eyebrow">🔥 Hot right now</span>
+                <h2 style={{ margin: 0, fontFamily: 'var(--display)' }}>Trending deals</h2>
               </div>
-              <div className="lp-steps">
-                {[
-                  { n: '01', t: 'Register your business', d: 'Create an account, add your business name, city, WhatsApp number and an ID document.' },
-                  { n: '02', t: 'Get checked by admin', d: 'A real person reviews every store. This protects buyers and keeps prohibited goods off the platform.' },
-                  { n: '03', t: 'Post & get orders', d: 'Upload products with price, quantity, weight or litres — or list a service. Orders arrive by cash on delivery or WhatsApp.' },
-                ].map((s) => (
-                  <div key={s.n} className="lp-step">
-                    <span className="lp-step-num">{s.n}</span>
-                    <h3>{s.t}</h3>
-                    <p>{s.d}</p>
-                  </div>
-                ))}
-              </div>
-              <div style={{ textAlign: 'center', marginTop: 'var(--s-8)' }}>
-                <Link to="/sell" className="btn btn-primary btn-lg" style={{ background: 'var(--lp-orange)' }}>Start selling — it's free</Link>
-              </div>
+              <Link to="/browse?sort=popular">View all</Link>
             </div>
+            <div className="grid lp-listing-grid">{trending.map((l) => <ListingCard key={l.id} l={l} />)}</div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
-      {/* ---------------------------------------------------------------- FRESHLY LISTED */}
+      {/* ============================================================ NEW ARRIVALS */}
       {latest.length > 0 && (
         <section className="lp-section" style={{ paddingTop: 0 }}>
           <div className="container">
             <div className="row-between mb-3">
               <div>
-                <span className="lp-eyebrow">Just landed</span>
-                <h2 style={{ margin: 0, fontFamily: 'var(--display)' }}>Freshly listed</h2>
+                <span className="lp-eyebrow">Just in</span>
+                <h2 style={{ margin: 0, fontFamily: 'var(--display)' }}>New arrivals</h2>
               </div>
               <Link to="/browse">View all</Link>
             </div>
@@ -158,24 +163,7 @@ export default function Home() {
         </section>
       )}
 
-      {/* ---------------------------------------------------------------- WHY SOKONI HUB */}
-      <section className="lp-section" style={{ paddingTop: 0 }}>
-        <div className="container">
-          <div className="lp-section-head">
-            <span className="lp-eyebrow">Why Sokoni Hub</span>
-            <h2>Built for how you already sell</h2>
-            <p>No storefront to design, no ads to run — just the tools that turn a WhatsApp status into a real business.</p>
-          </div>
-          <div className="grid grid-4">
-            <div className="lp-feature"><span className="ic">🔍</span><h3>Discoverable</h3><p>Buyers search by keyword, category and city — not just people who already have your number.</p></div>
-            <div className="lp-feature"><span className="ic">📦</span><h3>Stock aware</h3><p>Track quantity, weight and litres per listing so you never sell what you don't have.</p></div>
-            <div className="lp-feature"><span className="ic">📊</span><h3>Real dashboard</h3><p>Revenue, orders and views at a glance — the numbers your business status update never showed.</p></div>
-            <div className="lp-feature"><span className="ic">🤝</span><h3>Buyer trust</h3><p>Verification and public reviews mean buyers order with confidence, not a leap of faith.</p></div>
-          </div>
-        </div>
-      </section>
-
-      {/* ---------------------------------------------------------------- POPULAR SERVICES */}
+      {/* ============================================================ POPULAR SERVICES */}
       {services.length > 0 && (
         <section className="lp-section" style={{ paddingTop: 0 }}>
           <div className="container">
@@ -191,31 +179,18 @@ export default function Home() {
         </section>
       )}
 
-      {/* ---------------------------------------------------------------- POLICY BANNER */}
-      <section className="lp-policy lp-section">
-        <div className="lp-dotgrid" />
-        <div className="lp-blob lp-blob-1" />
-        <div className="container lp-policy-inner">
-          <div>
-            <span className="lp-stamp">Policy</span>
-            <h2 style={{ color: '#fff' }}>Selling cosmetics or medicine?</h2>
-            <p style={{ color: 'rgba(255,255,255,.78)', margin: 0, maxWidth: '52ch' }}>
-              Those categories aren't permitted on Sokoni Hub. Listings are screened automatically
-              and by our admin team — read the policy before you register.
-            </p>
-          </div>
-          <Link to="/policy" className="btn btn-outline" style={{ background: 'rgba(255,255,255,.06)', borderColor: 'rgba(255,255,255,.35)', color: '#fff' }}>Read the policy</Link>
-        </div>
-      </section>
-
-      {/* ---------------------------------------------------------------- FINAL CTA */}
+      {/* ============================================================ SELL CTA */}
       <section className="lp-section">
         <div className="container">
-          <div className="lp-cta">
+          <div className="lp-sell">
             <div className="lp-dotgrid" />
-            <div style={{ position: 'relative', zIndex: 1 }}>
-              <h2>Ready to sell beyond WhatsApp status?</h2>
-              <p>Register today, get verified, and start taking real orders — no website, no ads, no fees to list.</p>
+            <div className="lp-blob lp-blob-1" />
+            <div className="lp-sell-inner" style={{ position: 'relative', zIndex: 1 }}>
+              <div>
+                <span className="lp-stamp">For sellers</span>
+                <h2>Ready to sell beyond WhatsApp status?</h2>
+                <p>Register today, get verified, and start taking real orders — no website, no ads, no fees to list.</p>
+              </div>
               <Link to="/sell" className="btn btn-primary btn-lg">Start selling — it's free</Link>
             </div>
           </div>
