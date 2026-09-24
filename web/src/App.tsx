@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { useEffect } from 'react';
 import { AuthProvider } from './state/AuthContext';
 import { CartProvider } from './state/CartContext';
+import { LocationProvider } from './state/LocationContext';
 import { ToastProvider } from './state/ToastContext';
 import { ThemeProvider } from './state/ThemeContext';
 import Layout, { BareLayout } from './components/Layout';
@@ -44,6 +45,7 @@ export default function App() {
       <ToastProvider>
         <AuthProvider>
           <CartProvider>
+          <LocationProvider>
             <ScrollTop />
             <Routes>
               {/* public — hero landing uses a padding-free shell */}
@@ -94,6 +96,7 @@ export default function App() {
                 <Route path="*" element={<Navigate to="/admin" replace />} />
               </Route>
             </Routes>
+          </LocationProvider>
           </CartProvider>
         </AuthProvider>
       </ToastProvider>
