@@ -1,7 +1,7 @@
 export type Role = 'buyer' | 'vendor' | 'admin';
 export type VendorStatus = 'pending' | 'verified' | 'rejected' | 'suspended';
 export type ListingKind = 'product' | 'service';
-export type ListingStatus = 'draft' | 'active' | 'paused' | 'removed';
+export type ListingStatus = 'draft' | 'pending_review' | 'active' | 'paused' | 'rejected' | 'removed';
 export type OrderStatus = 'pending' | 'confirmed' | 'dispatched' | 'delivered' | 'cancelled';
 export type PaymentMethod = 'cash_on_delivery' | 'whatsapp' | 'bank_transfer';
 export type FulfilmentMode = 'pickup' | 'delivery';
@@ -38,6 +38,8 @@ export interface Listing {
   weight_kg: string | number | null; volume_l: string | number | null;
   duration_mins: number | null; service_area: string | null;
   price_type: string; images: string[]; status: ListingStatus;
+  /** Set by an admin when a listing is rejected during review. */
+  rejection_reason?: string | null;
   views: number; created_at: string; updated_at?: string;
   category_name?: string; category_slug?: string;
   business_name?: string; vendor_slug?: string; vendor_city?: string;
@@ -57,12 +59,22 @@ export interface Order {
   whatsapp_url?: string; vendor?: { business_name: string; whatsapp: string };
 }
 
+/** One message in a complaint thread. Adjust field names to match your API. */
+export interface ComplaintMessage {
+  id: string;
+  complaint_id?: string;
+  sender_role: 'buyer' | 'vendor' | 'admin';
+  body: string;
+  created_at: string;
+}
+
 export interface Complaint {
   id: string; code: string; subject: string; body: string; status: ComplaintStatus;
   admin_note: string | null; created_at: string; resolved_at: string | null;
   reporter_name: string | null; reporter_phone: string | null;
   business_name?: string; listing_title?: string; order_code_ref?: string;
   vendor_id?: string | null;
+  messages?: ComplaintMessage[];
 }
 
 export interface CartItem {
