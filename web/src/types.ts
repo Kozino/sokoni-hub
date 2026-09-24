@@ -59,11 +59,12 @@ export interface Order {
   whatsapp_url?: string; vendor?: { business_name: string; whatsapp: string };
 }
 
-/** One message in a complaint thread. Adjust field names to match your API. */
+/** One message in the admin <-> vendor thread on a complaint. */
 export interface ComplaintMessage {
   id: string;
   complaint_id?: string;
-  sender_role: 'buyer' | 'vendor' | 'admin';
+  author_role: 'admin' | 'vendor';
+  author_name?: string | null;
   body: string;
   created_at: string;
 }
