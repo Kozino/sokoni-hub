@@ -6,6 +6,7 @@ import { Alert, Field, Spinner, StatusBadge } from '../../components/ui';
 import ImageUploader from '../../components/ImageUploader';
 import { useToast } from '../../state/ToastContext';
 import { date } from '../../lib/format';
+import DeliverySettings from './DeliverySettings';
 
 export default function VendorProfile() {
   const { vendor, refresh } = useAuth();
@@ -71,6 +72,10 @@ export default function VendorProfile() {
         {vendor.status === 'rejected' && <Alert kind="warn">Saving changes resubmits your store for verification.</Alert>}
         <button className="btn btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</button>
       </form>
+
+      <div className="mt-3" style={{ maxWidth: 780 }}>
+        <DeliverySettings />
+      </div>
     </>
   );
 }
