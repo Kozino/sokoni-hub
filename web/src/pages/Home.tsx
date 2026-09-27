@@ -112,7 +112,36 @@ export default function Home() {
           <div className="lp-benefit"><span className="ic">🚫</span><div><strong>No listing fees</strong><span>Free to start selling</span></div></div>
         </div>
       </section>
-
+{/* ============================================================ HOW IT WORKS */}
+<section className="lp-section lp-how">
+  <div className="container">
+    <div className="lp-section-head" style={{ margin: '0 auto var(--s-7)', textAlign: 'center' }}>
+      <span className="lp-eyebrow">Simple by design</span>
+      <h2>How ordering works</h2>
+    </div>
+    <div className="lp-how-grid">
+      <div className="lp-how-step">
+        <span className="lp-how-num">1</span>
+        <span className="ic">🔍</span>
+        <strong>Search & compare</strong>
+        <p>Filter by city, category or price — no account needed to browse.</p>
+      </div>
+      <div className="lp-how-step">
+        <span className="lp-how-num">2</span>
+        <span className="ic">🛒</span>
+        <strong>Order your way</strong>
+        <p>Checkout as a guest with cash on delivery, or message the seller directly on WhatsApp.</p>
+      </div>
+      <div className="lp-how-step">
+        <span className="lp-how-num">3</span>
+        <span className="ic">📦</span>
+        <strong>Track & receive</strong>
+        <p>Follow your order code from confirmed to delivered — pay only when it arrives.</p>
+      </div>
+    </div>
+  </div>
+</section>
+      
       {/* ============================================================ SHOP BY CATEGORY */}
       <section className="lp-section lp-cat-section">
         <div className="container">
