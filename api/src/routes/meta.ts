@@ -18,7 +18,8 @@ metaRouter.get('/stats', async (_req, res, next) => {
       select (select count(*) from vendors where status='verified')::int as vendors,
              (select count(*) from listings where status='active')::int  as listings,
              (select count(*) from listings where kind='service' and status='active')::int as services,
-             (select count(distinct city) from vendors where status='verified')::int as cities`);
+             (select count(distinct city) from vendors where status='verified')::int as cities,
+            (select count(*) from orders where status='delivered')::int as orders_delivered`);
     res.json({ stats: row });
   } catch (e) { next(e); }
 });
