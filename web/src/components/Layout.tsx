@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../state/AuthContext';
 import { useCart } from '../state/CartContext';
 import { ThemeToggle } from '../state/ThemeContext';
+import { api } from '../lib/api';
 
 /** Avatar + dropdown for the signed-in user. Keyboard and click-away aware. */
 function ProfileMenu({ onNavigate }: { onNavigate: () => void }) {
@@ -106,6 +107,11 @@ export function Header() {
 }
 
 export function Footer() {
+  const [payment, setPayment] = useState<string[]>([]);
+  useEffect(() => { api.get<{ payment_methods: string[] }>('/meta/policy').then((r) => setPayment(r.payment_methods)).catch(() => {}); }, []);
+  const label: Record<string, string> = { cash_on_delivery: '💵 Cash on delivery', whatsapp: '💬 WhatsApp', bank_transfer: '🏦 Bank transfer' };
+  const SUPPORT_WHATSAPP = '97466046431'; // no + or spaces — wa.me format
+
   return (
     <footer className="footer">
       <div className="container">
@@ -135,14 +141,23 @@ export function Footer() {
             <Link to="/support">File a complaint</Link>
             <Link to="/support#track">Track complaint</Link>
             <Link to="/policy">Prohibited items</Link>
+            <a href={`https://wa.me/${SUPPORT_WHATSAPP}`} target="_blank" rel="noopener noreferrer">
+              💬 Chat with support
+            </a>
           </div>
         </div>
+
+        <div className="footer-payments">
+          {payment.map((p) => <span key={p} className="footer-pay-badge">{label[p] || p}</span>)}
+        </div>
+
         <div className="footer-bottom">
           <span>© {new Date().getFullYear()} Sokoni Hub. All rights reserved.</span>
           <span>Pay on delivery. Checkout on WhatsApp. Every store is checked before it goes live.</span>
         </div>
       </div>
     </footer>
+
   );
 }
 
