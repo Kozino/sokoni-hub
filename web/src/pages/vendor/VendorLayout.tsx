@@ -51,6 +51,7 @@ export default function VendorLayout() {
     { to: '/vendor/listings/new', ico: IconPlus, label: 'Add listing', group: 'Catalogue' },
     { to: '/vendor/orders', ico: IconReceipt, label: 'Orders', group: 'Sales' },
     { to: '/vendor/complaints', ico: IconAlert, label: 'Complaints', pill: alerts.open_complaints, group: 'Sales' },
+    { to: '/vendor/statements', ico: IconReceipt, label: 'Statements', group: 'Sales' },
     { to: '/vendor/profile', ico: IconStore, label: 'Store profile', group: 'Settings' },
   ];
 
