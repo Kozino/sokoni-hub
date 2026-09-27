@@ -3,6 +3,7 @@ import { api, ApiError, getToken } from '../../lib/api';
 import { money, date, titleCase } from '../../lib/format';
 import { Alert, Spinner, Empty, Field, Modal, Stat, Badge, Tabs, useConfirm } from '../../components/ui';
 import { useToast } from '../../state/ToastContext';
+import ImageUploader from '../../components/ImageUploader';
 
 /* ------------------------------------------------------------------ */
 /* Documents are HTML behind an Authorization header, so a plain <a> will
@@ -44,6 +45,7 @@ interface Settings {
   commission_rate: number; currency: string; business_name: string;
   business_address: string | null; business_email: string | null; business_phone: string | null;
   cr_number: string | null; tax_number: string | null; invoice_footer: string | null;
+  logo_url: string | null;
 }
 
 const lastMonth = () => {
@@ -449,6 +451,7 @@ function BillingSettings() {
     try {
       const r = await api.patch<{ settings: Settings }>('/billing/settings', {
         ...s,
+        logo_url: s.logo_url ?? '',
         commission_rate: Number(ratePct) / 100,
       });
       setS(r.settings);
@@ -468,6 +471,19 @@ function BillingSettings() {
       </Field>
 
       <h3 style={{ marginBottom: 4 }}>Appears on every invoice and receipt</h3>
+
+      <Field
+        label="Logo"
+        hint="Shown at the top of every receipt and statement. Emailed documents load it from this URL, so it must be publicly reachable — uploading here handles that. Around 400×160px works well; wider logos are scaled to fit 220×60."
+      >
+        <ImageUploader
+          value={s.logo_url ? [s.logo_url] : []}
+          onChange={(urls) => setS({ ...s, logo_url: urls[0] ?? '' })}
+          max={1}
+          label="Upload logo"
+        />
+      </Field>
+
       <div className="form-row">
         <Field label="Business name"><input value={s.business_name || ''} onChange={set('business_name')} /></Field>
         <Field label="Commercial registration (CR)"><input value={s.cr_number || ''} onChange={set('cr_number')} /></Field>
