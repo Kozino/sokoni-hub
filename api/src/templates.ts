@@ -45,6 +45,7 @@ function shell(title: string, body: string) {
          border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.1)}
   .head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;
         border-bottom:3px solid ${INDIGO};padding-bottom:20px;margin-bottom:24px}
+  .logo{max-height:60px;max-width:220px;width:auto;height:auto;display:block;margin-bottom:10px}
   .brand{font-size:22px;font-weight:700;color:${INDIGO};margin:0}
   .muted{color:#6B7280;font-size:13px}
   .doctype{text-align:right}
@@ -86,7 +87,9 @@ function shell(title: string, body: string) {
 function header(s: PlatformSettings, docType: string, docNumber: string, extra = '') {
   return `<div class="head">
     <div>
-      ${s.logo_url ? `<img src="${esc(s.logo_url)}" alt="" style="max-height:52px;margin-bottom:8px">` : ''}
+      ${s.logo_url
+        ? `<img class="logo" src="${esc(s.logo_url)}" alt="${esc(s.business_name)}">`
+        : ''}
       <p class="brand">${esc(s.business_name)}</p>
       <div class="muted">
         ${s.business_address ? esc(s.business_address) + '<br>' : ''}
