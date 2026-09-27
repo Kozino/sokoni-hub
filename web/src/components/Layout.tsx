@@ -161,6 +161,16 @@ export function Footer() {
   );
 }
 
+export default function Layout() {
+  return (
+    <div className="app">
+      <Header />
+      <main className="page"><Outlet /></main>
+      <Footer />
+    </div>
+  );
+}
+
 /** Layout without the page padding (for the hero landing page). */
 export function BareLayout() {
   return (
