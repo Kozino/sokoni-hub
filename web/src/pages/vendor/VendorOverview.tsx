@@ -37,7 +37,14 @@ export default function VendorOverview() {
         <Stat accent="green" label="Revenue (delivered)" value={money(s.revenue_delivered, cur)} sub={`${money(s.revenue_pipeline, cur)} incl. in-progress`} />
         <Stat accent="blue" label="Orders" value={num(s.orders_total)} sub={`${s.orders_pending} pending · ${s.orders_delivered} delivered`} />
         <Stat accent="gold" label="Total views" value={num(s.total_views)} sub="Across all your listings" />
-        <Stat accent={Number(s.out_of_stock) > 0 ? 'red' : 'green'} label="Stock alerts" value={`${s.out_of_stock} / ${s.low_stock}`} sub="Out of stock / low (≤5)" />
+        {/* Products only, and only when there are products to count. A services
+            vendor has no stock, so a card reading 0 / 0 is pure noise. The
+            threshold is now per-vendor, so the old "(≤5)" caption would lie. */}
+        {Number(s.products_tracked ?? 0) > 0 && (
+          <Stat accent={Number(s.out_of_stock) > 0 ? 'red' : Number(s.low_stock) > 0 ? 'gold' : 'green'}
+            label="Stock alerts" value={`${s.out_of_stock} / ${s.low_stock}`}
+            sub="Out of stock / at reorder point" />
+        )}
         <Stat accent={Number(s.open_complaints) > 0 ? 'red' : 'green'} label="Open complaints" value={num(s.open_complaints)} sub="Filed against your store" />
       </div>
 

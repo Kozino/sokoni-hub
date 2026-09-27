@@ -12,7 +12,7 @@ export default function VendorLayout() {
   const name = vendor?.business_name || user?.full_name || 'V';
   const initials = name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
 
-  const [alerts, setAlerts] = useState({ out_of_stock: 0, low_stock: 0, open_complaints: 0, new_bookings: 0 });
+  const [alerts, setAlerts] = useState({ out_of_stock: 0, low_stock: 0, open_complaints: 0, new_bookings: 0, sells_products: false });
   useEffect(() => {
     if (!vendor) return;
     // Sequential, not Promise.all: two concurrent polls every 60s doubles the
@@ -30,6 +30,11 @@ export default function VendorLayout() {
         low_stock: Number(r.stats.low_stock || 0),
         open_complaints: Number(r.stats.open_complaints || 0),
         new_bookings: Number(bk.new || 0),
+        // Drives whether inventory exists for this vendor at all. A hair salon
+        // or a nail tech has no stock, so they get no Inventory tab and no
+        // stock warnings — not a tab reading zero, which teaches them to
+        // ignore the one alert that would matter if they ever sold a product.
+        sells_products: Number(r.stats.products_tracked || 0) > 0,
       }))
       .catch(() => {});
     load();
@@ -40,13 +45,15 @@ export default function VendorLayout() {
   const notifications: DashNotification[] = [
     ...(alerts.out_of_stock > 0 ? [{
       id: 'oos', tone: 'red' as const,
-      title: `${alerts.out_of_stock} listing${alerts.out_of_stock === 1 ? '' : 's'} out of stock`,
-      text: 'Restock or pause to keep your storefront accurate.', to: '/vendor/listings',
+      title: `${alerts.out_of_stock} product${alerts.out_of_stock === 1 ? '' : 's'} out of stock`,
+      text: 'Buyers can see them but cannot order. Restock or pause.', to: '/vendor/inventory',
     }] : []),
     ...(alerts.low_stock > 0 ? [{
       id: 'low', tone: 'gold' as const,
-      title: `${alerts.low_stock} listing${alerts.low_stock === 1 ? '' : 's'} running low`,
-      text: '5 or fewer units left.', to: '/vendor/listings',
+      title: `${alerts.low_stock} product${alerts.low_stock === 1 ? '' : 's'} running low`,
+      // No hardcoded "5" any more: the trigger is the vendor's own reorder
+      // point, which they can set per product.
+      text: 'At or below your reorder point.', to: '/vendor/inventory',
     }] : []),
     ...(alerts.open_complaints > 0 ? [{
       id: 'cx', tone: 'red' as const,
@@ -64,6 +71,11 @@ export default function VendorLayout() {
     { to: '/vendor', end: true, ico: IconChart, label: 'Overview', group: 'Store' },
     { to: '/vendor/listings', ico: IconBox, label: 'Products & services', pill: alerts.out_of_stock, group: 'Catalogue' },
     { to: '/vendor/listings/new', ico: IconPlus, label: 'Add listing', group: 'Catalogue' },
+    // Products only. Hidden outright for a services-only vendor.
+    ...(alerts.sells_products
+      ? [{ to: '/vendor/inventory', ico: IconBox, label: 'Inventory',
+           pill: alerts.out_of_stock + alerts.low_stock, group: 'Catalogue' as const }]
+      : []),
     { to: '/vendor/orders', ico: IconReceipt, label: 'Orders', group: 'Sales' },
     { to: '/vendor/bookings', ico: IconHistory, label: 'Bookings', pill: alerts.new_bookings, group: 'Sales' },
     { to: '/vendor/complaints', ico: IconAlert, label: 'Complaints', pill: alerts.open_complaints, group: 'Sales' },
