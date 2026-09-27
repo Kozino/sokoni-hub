@@ -1172,6 +1172,8 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 .footer {
   background: var(--ink-deep); color: rgba(255,255,255,.62);
   padding: var(--s-16) 0 var(--s-6); font-size: var(--fs-md); margin-top: auto;
+   .footer-payments { display: flex; flex-wrap: wrap; gap: var(--s-2); padding: var(--s-4) 0; border-top: 1px solid var(--border-subtle); margin-top: var(--s-4); }
+.footer-pay-badge { font-size: var(--fs-xs); font-weight: 600; color: var(--text-muted); background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-full); padding: 4px var(--s-3); }
 }
 .footer h4 { color: #fff; font-family: var(--sans); font-weight: 600; font-size: var(--fs-sm); margin-bottom: var(--s-3); letter-spacing: .02em; }
 .footer p { color: rgba(255,255,255,.55); }
