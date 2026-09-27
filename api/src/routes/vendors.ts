@@ -119,6 +119,34 @@ vendorRouter.get('/me/delivery', requireAuth('vendor'), loadVendor, async (req, 
   } catch (e) { next(e); }
 });
 
+/**
+ * Payout details. Kept apart from /me so a profile edit cannot wipe bank
+ * data, and so this endpoint can be audited on its own.
+ */
+vendorRouter.put('/me/payout', requireAuth('vendor'), loadVendor, async (req, res, next) => {
+  try {
+    const b = z.object({
+      bank_name:         z.string().max(120).nullable().optional(),
+      bank_account_name: z.string().max(120).nullable().optional(),
+      bank_iban:         z.string().max(60).nullable().optional(),
+      payout_notes:      z.string().max(300).nullable().optional(),
+    }).parse(req.body);
+    const vendor = await one<any>(
+      `update vendors set
+         bank_name         = coalesce($2, bank_name),
+         bank_account_name = coalesce($3, bank_account_name),
+         bank_iban         = coalesce($4, bank_iban),
+         payout_notes      = coalesce($5, payout_notes)
+       where id = $1
+       returning id, bank_name, bank_account_name, bank_iban, payout_notes`,
+      [req.vendor!.id, b.bank_name ?? null, b.bank_account_name ?? null,
+       b.bank_iban ?? null, b.payout_notes ?? null]
+    );
+    await audit(req.user!.id, 'vendor.payout.update', 'vendor', req.vendor!.id);
+    res.json({ payout: vendor });
+  } catch (e) { next(e); }
+});
+
 vendorRouter.put('/me/delivery', requireAuth('vendor'), loadVendor, async (req, res, next) => {
   try {
     const b = deliverySchema.parse(req.body);

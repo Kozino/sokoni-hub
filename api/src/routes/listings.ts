@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { one, query } from '../db';
 import { requireAuth, loadVendor, requireVerifiedVendor } from '../auth';
 import { HttpError, audit, slugify, screenProhibited } from '../utils';
+import { config } from '../config';
 
 export const listingRouter = Router();
 
@@ -177,13 +178,14 @@ listingRouter.post('/', requireAuth('vendor'), loadVendor, requireVerifiedVendor
     const l = await one<any>(
       `insert into listings (vendor_id, category_id, kind, title, slug, description, price, currency,
          quantity, unit, weight_kg, volume_l, duration_mins, service_area, price_type, images, status)
-       values ($1,$2,$3::listing_kind,$4,$5,$6,$7,coalesce($8,'USD'),$9,$10,$11,$12,$13,$14,coalesce($15,'fixed'),
+       values ($1,$2,$3::listing_kind,$4,$5,$6,$7,coalesce($8,$18),$9,$10,$11,$12,$13,$14,coalesce($15,'fixed'),
                coalesce($16,'[]')::jsonb, $17::listing_status)
        returning *`,
       [req.vendor!.id, b.category_id, b.kind, b.title.trim(), slug, b.description || null, b.price,
        b.currency ?? null, b.kind === 'product' ? b.quantity ?? 0 : null, b.unit ?? null,
        b.weight_kg ?? null, b.volume_l ?? null, b.kind === 'service' ? b.duration_mins ?? null : null,
-       b.service_area ?? null, b.price_type ?? null, JSON.stringify(b.images ?? []), initialStatus]
+       b.service_area ?? null, b.price_type ?? null, JSON.stringify(b.images ?? []), initialStatus,
+       config.defaultCurrency]
     );
     await audit(req.user!.id, 'listing.create', 'listing', l.id, { title: l.title, status: l.status });
     res.status(201).json({ listing: l });

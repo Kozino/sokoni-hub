@@ -3,8 +3,10 @@ import { z } from 'zod';
 import { one, query, tx } from '../db';
 import { requireAuth, optionalAuth, loadVendor } from '../auth';
 import { HttpError, audit, randomCode, waLink } from '../utils';
+import { sendMailAsync } from '../mailer';
+import { receiptHtml } from '../templates';
 import {
-  quoteVendorOrder, cartTotals, round2,
+  quoteVendorOrder, cartTotals, round2, DEFAULT_CURRENCY,
   type FulfilmentMode, type VendorDeliverySettings,
 } from '../delivery';
 
@@ -93,7 +95,7 @@ function priceCart(byVendor: Map<string, any[]>, items: { listing_id: string; qt
       vendor_id: vendorId,
       vendor_name: vItems[0].business_name,
       subtotal,
-      currency: vItems[0].currency || 'USD',
+      currency: vItems[0].currency || DEFAULT_CURRENCY,
       mode: allServices ? 'pickup' : mode,
       settings: settingsOf(vItems[0]),
     });
@@ -233,10 +235,56 @@ orderRouter.get('/vendor', requireAuth('vendor'), loadVendor, async (req, res, n
 orderRouter.patch('/vendor/:id/status', requireAuth('vendor'), loadVendor, async (req, res, next) => {
   try {
     const b = z.object({ status: z.enum(['pending', 'confirmed', 'dispatched', 'delivered', 'cancelled']) }).parse(req.body);
-    const o = await one('update orders set status=$3::order_status where id=$1 and vendor_id=$2 returning *',
+    const o = await one<any>('update orders set status=$3::order_status where id=$1 and vendor_id=$2 returning *',
       [req.params.id, req.vendor!.id, b.status]);
     if (!o) throw new HttpError(404, 'Order not found');
     await audit(req.user!.id, 'order.status', 'order', req.params.id, { status: b.status });
+    if (b.status === 'delivered') void emailReceipt(o.id);
     res.json({ order: o });
   } catch (e) { next(e); }
 });
+
+
+/**
+ * Email the buyer their receipt once an order is delivered.
+ *
+ * Fire-and-forget and fully guarded: a guest checkout has no account and
+ * therefore no email, and a mail failure must never turn a successful status
+ * update into an error. Allocates the receipt number if it has not been
+ * issued yet, so the emailed document matches what the buyer later downloads.
+ */
+async function emailReceipt(orderId: string) {
+  try {
+    const cfg = await one<any>('select * from platform_settings where id = true');
+    if (!cfg) return;
+
+    const o = await one<any>(
+      `select o.*, v.business_name, v.whatsapp as vendor_whatsapp, s.pickup_address, u.email
+       from orders o
+       join vendors v on v.id = o.vendor_id
+       left join vendor_delivery_settings s on s.vendor_id = v.id
+       left join users u on u.id = o.buyer_id
+       where o.id = $1`, [orderId]);
+    if (!o?.email) return;   // guest checkout: nothing to send to
+
+    if (!o.receipt_number) {
+      const up = await one<any>(
+        `update orders set receipt_number = next_document_number('receipt', $2), receipt_issued_at = now()
+         where id = $1 and receipt_number is null returning receipt_number, receipt_issued_at`,
+        [orderId, cfg.receipt_prefix]);
+      Object.assign(o, up ?? await one<any>(
+        'select receipt_number, receipt_issued_at from orders where id=$1', [orderId]));
+    }
+    o.items = await query('select * from order_items where order_id = $1', [orderId]);
+
+    sendMailAsync({
+      to: o.email,
+      subject: `Your receipt ${o.receipt_number} — ${o.business_name}`,
+      html: receiptHtml(o, cfg),
+      kind: 'receipt',
+      entityId: orderId,
+    });
+  } catch (e) {
+    console.error('[receipt email]', (e as Error).message);
+  }
+}
