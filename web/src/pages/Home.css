@@ -278,3 +278,24 @@
   .lp-listing-grid { gap: var(--s-1); }
   .lp .lcard-body { padding: 6px; }
 }
+.lp-how { background: var(--lp-teal-tint); }
+.lp-how-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-6); }
+.lp-how-step {
+  position: relative; background: #fff; border: 1px solid var(--border); border-radius: var(--r-lg);
+  padding: var(--s-6) var(--s-5); text-align: center;
+}
+.lp-how-num {
+  position: absolute; top: var(--s-4); right: var(--s-4);
+  font-family: var(--display); font-size: var(--fs-xl); font-weight: 700; color: var(--lp-teal-tint);
+  -webkit-text-stroke: 1.5px var(--lp-teal);
+}
+.lp-how-step .ic {
+  width: 52px; height: 52px; border-radius: 999px; background: var(--lp-orange-tint);
+  display: grid; place-items: center; font-size: 1.4rem; margin: 0 auto var(--s-4);
+}
+.lp-how-step strong { display: block; font-size: var(--fs-base); margin-bottom: var(--s-2); }
+.lp-how-step p { font-size: var(--fs-sm); color: var(--text-muted); margin: 0; line-height: 1.5; }
+
+@media (max-width: 640px) {
+  .lp-how-grid { grid-template-columns: 1fr; gap: var(--s-4); }
+}
