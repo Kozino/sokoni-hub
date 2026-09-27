@@ -2,9 +2,14 @@
  * Vendor booking inbox.
  *
  * Bookings are leads, not orders: no money moves through the platform here.
- * The vendor's job is to contact the buyer, agree a time, and mark what
- * happened. Those status stamps are what later justify charging for the
- * service listing, so the UI nudges hard toward keeping them accurate.
+ * The vendor's job is to contact the buyer, agree a time, and record what
+ * happened. Those status stamps are what later justify charging for a service
+ * listing, so the UI pushes hard toward keeping them accurate.
+ *
+ * Layout is one DOM that changes shape (see .bk-list in styles.css): an aligned
+ * grid on desktop, a stacked card below 860px. Most of this vendor's traffic is
+ * a phone between appointments, so the phone layout is the one that has to be
+ * right — hence a full-width WhatsApp button per row rather than a table cell.
  */
 
 import { useEffect, useMemo, useState } from 'react';
@@ -92,30 +97,34 @@ export default function VendorBookings() {
     }
   };
 
-  if (rows === null) return <Spinner />;
-
   return (
     <div>
-      <h1 style={{ marginBottom: 4 }}>Bookings</h1>
-      <p style={{ color: 'var(--muted)', marginTop: 0 }}>
-        Requests for your services. Nothing is charged through Sokoni Hub — agree the
-        time and the price with the customer directly.
-      </p>
+      <div className="dash-title">
+        <div>
+          <h1 style={{ marginBottom: 4 }}>Bookings</h1>
+          <p style={{ color: 'var(--text-muted)', margin: 0 }}>
+            Requests for your services. Nothing is charged through Sokoni Hub — you agree
+            the time and the price with the customer directly.
+          </p>
+        </div>
+      </div>
 
-      <div className="row wrap mt-2" style={{ gap: 12 }}>
+      <div className="grid grid-stats bk-stats mt-2">
         <Stat label="All bookings" value={String(counts.total)} />
-        <Stat label="Awaiting your reply" value={String(counts.fresh)} />
+        <Stat label="Awaiting your reply" value={String(counts.fresh)} accent={counts.fresh ? 'gold' : undefined} />
         <Stat label="Upcoming" value={String(counts.upcoming)} />
       </div>
 
       {counts.fresh > 0 && (
-        <Alert kind="warn">
-          You have {counts.fresh} request{counts.fresh === 1 ? '' : 's'} you have not replied to yet.
-          Customers usually book elsewhere if they do not hear back the same day.
-        </Alert>
+        <div className="mt-2">
+          <Alert kind="warn">
+            You have {counts.fresh} request{counts.fresh === 1 ? '' : 's'} you have not replied to yet.
+            Customers usually book elsewhere if they do not hear back the same day.
+          </Alert>
+        </div>
       )}
 
-      <div className="row wrap mt-2" style={{ gap: 6 }}>
+      <div className="bk-filters mt-2">
         {FILTERS.map((f) => (
           <button key={f || 'all'}
             className={`btn btn-sm ${filter === f ? 'btn-primary' : ''}`}
@@ -125,52 +134,65 @@ export default function VendorBookings() {
         ))}
       </div>
 
-      {rows.length === 0 ? (
+      {rows === null ? <Spinner /> : rows.length === 0 ? (
         <Empty icon="📅" title="No bookings yet"
           text="When a customer requests one of your services it will appear here." />
       ) : (
-        <div className="table-wrap mt-2">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Reference</th><th>Service</th><th>Customer</th>
-                <th>Requested for</th><th>Status</th><th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((b) => (
-                <tr key={b.id} style={b.status === 'new' ? { fontWeight: 600 } : undefined}>
-                  <td>
-                    <div>{b.code}</div>
-                    <div className="hint">{timeAgo(b.created_at)}</div>
-                  </td>
-                  <td>
-                    {b.listing_title}
-                    {b.quoted_price && (
-                      <div className="hint">
-                        {money(Number(b.quoted_price), b.currency)}
-                        {b.quoted_price_type && b.quoted_price_type !== 'fixed' ? ` (${b.quoted_price_type})` : ''}
-                      </div>
-                    )}
-                  </td>
-                  <td>
-                    <div>{b.contact_name}</div>
-                    <a className="hint" href={waLink(b.contact_phone, `Hello ${b.contact_name}, about your booking ${b.code}`)}
-                      target="_blank" rel="noreferrer">{b.contact_phone}</a>
-                  </td>
-                  <td>
-                    {b.scheduled_at
-                      ? <><strong>{dateTime(b.scheduled_at)}</strong><div className="hint">agreed</div></>
-                      : b.preferred_at
-                        ? <>{dateTime(b.preferred_at)}<div className="hint">requested</div></>
-                        : <span className="hint">Flexible</span>}
-                  </td>
-                  <td><Badge tone={TONE[b.status] || 'grey'}>{titleCase(b.status.replace('_', ' '))}</Badge></td>
-                  <td><button className="btn btn-sm" onClick={() => open(b)}>Manage</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="bk-list mt-2">
+          <div className="bk-head" role="presentation">
+            <div>Reference</div>
+            <div>Service</div>
+            <div>Customer</div>
+            <div>Requested for</div>
+            <div>Status</div>
+            <div />
+          </div>
+
+          {rows.map((b) => (
+            <div key={b.id} className={`bk-item${b.status === 'new' ? ' is-new' : ''}`}>
+              <div className="bk-c-ref">
+                <div className="bk-ref">{b.code}</div>
+                <div className="bk-sub">{timeAgo(b.created_at)}</div>
+              </div>
+
+              <div className="bk-c-service">
+                <span className="bk-label">Service</span>
+                {b.listing_title}
+                {b.quoted_price && (
+                  <div className="bk-sub">
+                    {money(Number(b.quoted_price), b.currency)}
+                    {b.quoted_price_type && b.quoted_price_type !== 'fixed' ? ` (${b.quoted_price_type})` : ''}
+                  </div>
+                )}
+              </div>
+
+              <div className="bk-c-customer">
+                <span className="bk-label">Customer</span>
+                {b.contact_name}
+                <div className="bk-sub">
+                  <a href={waLink(b.contact_phone, `Hello ${b.contact_name}, about your booking ${b.code}`)}
+                    target="_blank" rel="noreferrer">{b.contact_phone}</a>
+                </div>
+              </div>
+
+              <div className="bk-c-when bk-when">
+                <span className="bk-label">Requested for</span>
+                {b.scheduled_at
+                  ? <><strong>{dateTime(b.scheduled_at)}</strong><div className="bk-sub">Agreed</div></>
+                  : b.preferred_at
+                    ? <>{dateTime(b.preferred_at)}<div className="bk-sub">Requested</div></>
+                    : <span className="bk-sub">Flexible — just call</span>}
+              </div>
+
+              <div className="bk-c-status">
+                <Badge tone={TONE[b.status] || 'grey'}>{titleCase(b.status.replace('_', ' '))}</Badge>
+              </div>
+
+              <div className="bk-c-action">
+                <button className="btn btn-sm" onClick={() => open(b)}>Manage</button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -190,19 +212,16 @@ export default function VendorBookings() {
       >
         {active && (
           <>
-            <p>
+            <p style={{ marginTop: 0 }}>
               <strong>{active.listing_title}</strong>
-              {active.duration_mins ? <span className="hint"> · about {active.duration_mins} minutes</span> : null}
+              {active.duration_mins ? <span className="bk-sub"> · about {active.duration_mins} minutes</span> : null}
             </p>
             <p>
               {active.contact_name} · {active.contact_phone}
               {active.contact_email ? ` · ${active.contact_email}` : ''}
             </p>
-            {active.preferred_note && (
-              <blockquote style={{ borderLeft: '3px solid var(--line)', paddingLeft: 12, margin: '12px 0', color: 'var(--muted)' }}>
-                {active.preferred_note}
-              </blockquote>
-            )}
+
+            {active.preferred_note && <blockquote className="bk-quote">{active.preferred_note}</blockquote>}
 
             <a className="btn btn-wa btn-block"
               href={waLink(active.contact_phone, `Hello ${active.contact_name}, about your booking ${active.code} for "${active.listing_title}".`)}
@@ -211,16 +230,18 @@ export default function VendorBookings() {
               Message on WhatsApp
             </a>
 
-            <Field label="Agreed date and time"
-              hint="Set this once the customer has actually agreed. Required before you can confirm.">
-              <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
-            </Field>
+            <div className="mt-2">
+              <Field label="Agreed date and time"
+                hint="Set this once the customer has actually agreed. Required before you can confirm.">
+                <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+              </Field>
 
-            <Field label="Private note" hint="Only you and the admin can see this.">
-              <textarea rows={2} value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} />
-            </Field>
+              <Field label="Private note" hint="Only you and the admin can see this.">
+                <textarea rows={2} value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} />
+              </Field>
+            </div>
 
-            <div className="row wrap mt-2" style={{ gap: 6 }}>
+            <div className="bk-actions mt-2">
               <button className="btn btn-sm" onClick={() => save('completed')} disabled={busy}>Mark completed</button>
               <button className="btn btn-sm" onClick={() => save('no_show')} disabled={busy}>No show</button>
               <button className="btn btn-sm btn-danger" onClick={() => save('cancelled')} disabled={busy}>Cancel</button>

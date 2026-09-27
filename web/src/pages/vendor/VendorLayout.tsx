@@ -15,12 +15,16 @@ export default function VendorLayout() {
   const [alerts, setAlerts] = useState({ out_of_stock: 0, low_stock: 0, open_complaints: 0, new_bookings: 0 });
   useEffect(() => {
     if (!vendor) return;
-    const load = () => Promise.all([
-      api.get<any>('/vendors/dashboard'),
-      // Separate call: a service-only vendor has no stock or orders, so their
-      // booking count must not depend on the commerce dashboard succeeding.
-      api.get<any>('/bookings/vendor/counts').catch(() => ({ new: 0 })),
-    ])
+    // Sequential, not Promise.all: two concurrent polls every 60s doubles the
+    // connection pressure on a small pool for no perceptible gain, and the
+    // booking count is not urgent enough to race the dashboard for a slot.
+    const load = () => api.get<any>('/vendors/dashboard')
+      .then(async (r) => [
+        r,
+        // A service-only vendor has no stock or orders, so their booking count
+        // must not disappear just because the commerce dashboard failed.
+        await api.get<any>('/bookings/vendor/counts').catch(() => ({ new: 0 })),
+      ] as const)
       .then(([r, bk]) => setAlerts({
         out_of_stock: Number(r.stats.out_of_stock || 0),
         low_stock: Number(r.stats.low_stock || 0),
