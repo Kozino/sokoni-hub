@@ -181,7 +181,18 @@ function resolvePeriod(b: z.infer<typeof periodSchema>) {
 async function settleableOrders(from: string, to: string, vendorId?: string) {
   const rows = await query<any>(
     `select o.id, o.vendor_id, o.subtotal, o.delivery_fee, o.total, o.currency,
-            o.funds_collected_by, v.business_name
+            o.funds_collected_by, v.business_name,
+            -- Commission base: product lines only. Service work is never
+            -- commissioned (service vendors pay a fee before approval), and
+            -- orders predating migration 005 can still contain service lines.
+            -- A NULL kind is a line whose listing was deleted before 007 could
+            -- record it; treated as a product, which is the behaviour that was
+            -- already in effect rather than a guess that cuts our own revenue.
+            coalesce((
+              select sum(oi.line_total) from order_items oi
+               where oi.order_id = o.id
+                 and (oi.kind is distinct from 'service')
+            ), 0) as goods_subtotal
      from orders o
      join vendors v on v.id = o.vendor_id
      left join statement_orders so on so.order_id = o.id
@@ -206,6 +217,7 @@ async function settleableOrders(from: string, to: string, vendorId?: string) {
       delivery_fee: Number(r.delivery_fee),
       total: Number(r.total),
       funds_collected_by: r.funds_collected_by,
+      goods_subtotal: Number(r.goods_subtotal),
     });
     byVendor.set(r.vendor_id, g);
   }

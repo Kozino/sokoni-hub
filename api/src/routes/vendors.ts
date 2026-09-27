@@ -187,8 +187,12 @@ vendorRouter.get('/dashboard', requireAuth('vendor'), loadVendor, async (req, re
          (select count(*) from listings where vendor_id = $1 and kind = 'product' and status='active') as products_active,
          (select count(*) from listings where vendor_id = $1 and kind = 'service' and status='active') as services_active,
          (select coalesce(sum(views),0) from listings where vendor_id = $1)                      as total_views,
-         (select count(*) from listings where vendor_id = $1 and kind='product' and coalesce(quantity,0) = 0 and status='active') as out_of_stock,
-         (select count(*) from listings where vendor_id = $1 and kind='product' and quantity between 1 and 5 and status='active') as low_stock,
+         -- Read from vendor_inventory, not a copy of the rule. The threshold is
+         -- per-vendor with a per-product override, so 'low' can no longer be
+         -- expressed as a literal here without drifting from the inventory page.
+         (select count(*) from vendor_inventory where vendor_id = $1 and stock_state = 'out') as out_of_stock,
+         (select count(*) from vendor_inventory where vendor_id = $1 and stock_state = 'low') as low_stock,
+         (select count(*) from vendor_inventory where vendor_id = $1)                         as products_tracked,
          (select count(*) from orders where vendor_id = $1)                                      as orders_total,
          (select count(*) from orders where vendor_id = $1 and status = 'pending')               as orders_pending,
          (select count(*) from orders where vendor_id = $1 and status = 'delivered')             as orders_delivered,

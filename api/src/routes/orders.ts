@@ -156,12 +156,35 @@ orderRouter.post('/checkout', optionalAuth, async (req, res, next) => {
         );
         for (const { r, qty, line } of lines) {
           await c.query(
-            `insert into order_items (order_id, listing_id, title, unit_price, qty, unit, line_total)
-             values ($1,$2,$3,$4,$5,$6,$7)`,
-            [order.id, r.id, r.title, r.price, qty, r.unit, line]
+            // kind is snapshotted like title and unit_price: it decides whether
+            // the line is commissionable, and must not change if the vendor
+            // later edits or deletes the listing.
+            `insert into order_items (order_id, listing_id, title, unit_price, qty, unit, line_total, kind)
+             values ($1,$2,$3,$4,$5,$6,$7,$8)`,
+            [order.id, r.id, r.title, r.price, qty, r.unit, line, r.kind]
           );
-          if (r.quantity !== null)
-            await c.query('update listings set quantity = greatest(quantity - $2, 0) where id = $1', [r.id, qty]);
+          if (r.quantity !== null) {
+            // returning: the ledger records the balance that was actually
+            // written, not one recomputed afterwards from a re-read that a
+            // concurrent sale could already have moved.
+            const upd = await c.query(
+              'update listings set quantity = greatest(quantity - $2, 0) where id = $1 returning quantity',
+              [r.id, qty]
+            );
+            const after = Number(upd.rows[0].quantity);
+            const moved = after - Number(r.quantity);
+            // greatest(...,0) can clamp, so the real movement may be smaller
+            // than qty; and if the product was already at 0 there is nothing to
+            // record, since a movement of 0 is not a movement.
+            if (moved !== 0) {
+              await c.query(
+                `insert into stock_movements
+                   (listing_id, vendor_id, delta, balance_after, reason, order_id, actor_id)
+                 values ($1,$2,$3,$4,'sale',$5,$6)`,
+                [r.id, quote.vendor_id, moved, after, order.id, req.user?.id ?? null]
+              );
+            }
+          }
         }
         const feeLine = quote.mode === 'pickup'
           ? 'Collection from store'
