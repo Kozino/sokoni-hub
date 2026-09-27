@@ -48,10 +48,15 @@ async function loadCart(items: { listing_id: string; qty: number }[]) {
   if (rows.length !== ids.length) throw new HttpError(400, 'One or more items are no longer available');
 
   for (const r of rows) {
+    // Services are booked through /bookings, not ordered. Rejecting them here
+    // is what keeps them out of the orders table, and therefore out of
+    // computeStatement() — service work is not commissioned.
+    if (r.kind === 'service')
+      throw new HttpError(422, `"${r.title}" is a service. Request a booking for it instead of adding it to your cart.`);
     if (r.status !== 'active' || r.vendor_status !== 'verified')
       throw new HttpError(400, `"${r.title}" is no longer available`);
     const want = items.find((i) => i.listing_id === r.id)!.qty;
-    if (r.kind === 'product' && r.quantity !== null && r.quantity < want)
+    if (r.quantity !== null && r.quantity < want)
       throw new HttpError(409, `Only ${r.quantity} left of "${r.title}"`);
   }
 
@@ -89,18 +94,16 @@ function priceCart(byVendor: Map<string, any[]>, items: { listing_id: string; qt
       subtotal = round2(subtotal + line);
       return { r, qty, line };
     });
-    // Services are performed or collected, never delivered.
-    const allServices = vItems.every((r) => r.kind === 'service');
+    // Every row here is a product: loadCart() rejects services outright, so the
+    // old "all services => force pickup, suppress the fee" special case is gone.
     const q = quoteVendorOrder({
       vendor_id: vendorId,
       vendor_name: vItems[0].business_name,
       subtotal,
       currency: vItems[0].currency || DEFAULT_CURRENCY,
-      mode: allServices ? 'pickup' : mode,
+      mode,
       settings: settingsOf(vItems[0]),
     });
-    if (allServices && mode === 'delivery' && !q.unavailable)
-      q.unavailable = 'Services are arranged directly with the provider — no delivery fee.';
     quotes.push({ quote: q, lines, vItems });
   }
   return quotes;
@@ -157,7 +160,7 @@ orderRouter.post('/checkout', optionalAuth, async (req, res, next) => {
              values ($1,$2,$3,$4,$5,$6,$7)`,
             [order.id, r.id, r.title, r.price, qty, r.unit, line]
           );
-          if (r.kind === 'product' && r.quantity !== null)
+          if (r.quantity !== null)
             await c.query('update listings set quantity = greatest(quantity - $2, 0) where id = $1', [r.id, qty]);
         }
         const feeLine = quote.mode === 'pickup'
