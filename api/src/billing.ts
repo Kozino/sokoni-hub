@@ -20,6 +20,16 @@ export interface SettleableOrder {
   delivery_fee: number;
   total: number;
   funds_collected_by: FundsHolder;
+  /**
+   * The part of `subtotal` that is product lines. Commission is charged on this,
+   * not on `subtotal`, because service work is never commissioned — service
+   * vendors pay a fee before approval instead.
+   *
+   * Equal to `subtotal` for every order written since migration 005, when
+   * services stopped being able to enter the cart at all. It differs only for
+   * historical orders placed before that.
+   */
+  goods_subtotal: number;
 }
 
 export interface StatementTotals {
@@ -39,22 +49,41 @@ export interface StatementTotals {
 }
 
 /**
- * Commission is charged on goods only, never on the delivery fee.
+ * Commission is charged on PRODUCT goods only — never on the delivery fee, and
+ * never on service work.
  *
- * The vendor performs the delivery and sets that fee themselves; it reimburses
+ * Delivery: the vendor performs it and sets the fee themselves; it reimburses
  * their fuel and time rather than representing margin the platform helped
- * create. Taking a cut of it would tax the vendor's costs and push them to
- * quote delivery off-platform.
+ * create. Taking a cut would tax the vendor's costs and push them to quote
+ * delivery off-platform.
+ *
+ * Services: the agreed monetisation is a flat fee charged before approval, not
+ * a cut of the work. Bookings never become orders, so new service work cannot
+ * reach this function at all; `goods_subtotal` is what excludes the historical
+ * orders placed before services left the cart.
+ *
+ * This is why `goods_subtotal` and `commission_base` are reported separately
+ * rather than being the same number: a vendor reading a statement can see the
+ * service revenue was counted as sales and then excluded from the charge.
  */
 export function computeStatement(orders: SettleableOrder[], commissionRate: number): StatementTotals {
   if (commissionRate < 0 || commissionRate > 1)
     throw new Error(`commission_rate must be between 0 and 1, got ${commissionRate}`);
 
-  let goods = 0, delivery = 0, gross = 0, byVendor = 0, byPlatform = 0;
+  let goods = 0, base = 0, delivery = 0, gross = 0, byVendor = 0, byPlatform = 0;
   const lines: StatementTotals['lines'] = [];
 
   for (const o of orders) {
+    // Defensive: a caller that has not been updated to supply goods_subtotal
+    // would otherwise silently commission nothing at all, which is a far worse
+    // failure than commissioning too much.
+    const commissionable = Number(o.goods_subtotal ?? o.subtotal);
+    if (commissionable < 0 || commissionable > Number(o.subtotal) + 0.005)
+      throw new Error(
+        `order ${o.id}: goods_subtotal ${commissionable} is not a valid part of subtotal ${o.subtotal}`);
+
     goods = round2(goods + Number(o.subtotal));
+    base = round2(base + commissionable);
     delivery = round2(delivery + Number(o.delivery_fee));
     gross = round2(gross + Number(o.total));
     if (o.funds_collected_by === 'platform') byPlatform = round2(byPlatform + Number(o.total));
@@ -64,7 +93,7 @@ export function computeStatement(orders: SettleableOrder[], commissionRate: numb
       order_id: o.id,
       gross: round2(Number(o.total)),
       // Rounded per line so the lines always re-add to the header total.
-      commission_amount: round2(Number(o.subtotal) * commissionRate),
+      commission_amount: round2(commissionable * commissionRate),
     });
   }
 
@@ -82,7 +111,7 @@ export function computeStatement(orders: SettleableOrder[], commissionRate: numb
     delivery_total: delivery,
     gross_sales: gross,
     commission_rate: commissionRate,
-    commission_base: goods,
+    commission_base: base,
     commission_amount: commission,
     collected_by_vendor: byVendor,
     collected_by_platform: byPlatform,

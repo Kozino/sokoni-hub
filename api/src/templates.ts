@@ -199,6 +199,13 @@ export interface StatementDoc {
 export function statementHtml(st: StatementDoc, s: PlatformSettings): string {
   const cur = st.currency || s.currency;
   const ratePct = (Number(st.commission_rate) * 100).toFixed(2).replace(/\.00$/, '');
+  // Goods the vendor sold that are NOT commissionable — service work from
+  // orders placed before services moved to bookings. Zero for every ordinary
+  // statement, in which case the extra rows are omitted entirely. Without them
+  // a mixed statement shows 'Goods 250' and 'Commission @ 10%  10.00', which
+  // reads as an arithmetic error rather than a deliberate exclusion.
+  const excludedServices =
+    Math.round((Number(st.goods_subtotal) - Number(st.commission_base)) * 100) / 100;
   const toPlatform = Number(st.net_due_to_platform) > 0;
   const toVendor = Number(st.net_due_to_vendor) > 0;
 
@@ -250,6 +257,9 @@ export function statementHtml(st: StatementDoc, s: PlatformSettings): string {
       <tr><td>Goods</td><td class="r">${esc(formatMoney(st.goods_subtotal, cur))}</td></tr>
       <tr><td>Delivery <span class="muted">(vendor's own)</span></td><td class="r">${esc(formatMoney(st.delivery_total, cur))}</td></tr>
       <tr><td>Gross sales</td><td class="r">${esc(formatMoney(st.gross_sales, cur))}</td></tr>
+      ${excludedServices > 0 ? `
+      <tr><td>Service work <span class="muted">(never commissioned)</span></td><td class="r">− ${esc(formatMoney(excludedServices, cur))}</td></tr>
+      <tr><td>Commission base</td><td class="r">${esc(formatMoney(st.commission_base, cur))}</td></tr>` : ''}
       <tr><td>Commission @ ${esc(ratePct)}%</td><td class="r">− ${esc(formatMoney(st.commission_amount, cur))}</td></tr>
       <tr><td>Collected by vendor</td><td class="r">${esc(formatMoney(st.collected_by_vendor, cur))}</td></tr>
       ${Number(st.collected_by_platform) > 0 ? `<tr><td>Collected by platform</td><td class="r">${esc(formatMoney(st.collected_by_platform, cur))}</td></tr>` : ''}

@@ -19,6 +19,7 @@ import { uploadRouter } from './routes/uploads';
 import { metaRouter } from './routes/meta';
 import { billingRouter } from './routes/billing';
 import { bookingRouter } from './routes/bookings';
+import { inventoryRouter } from './routes/inventory';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -65,6 +66,7 @@ app.use('/api/uploads', uploadRouter);
 app.use('/api/meta', metaRouter);
 app.use('/api/billing', billingRouter);
 app.use('/api/bookings', bookingRouter);
+app.use('/api/inventory', inventoryRouter);
 
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
 

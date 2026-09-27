@@ -20,7 +20,7 @@ declare global {
   namespace Express {
     interface Request {
       user?: AuthUser;
-      vendor?: { id: string; status: string; business_name: string };
+      vendor?: { id: string; status: string; business_name: string; low_stock_threshold: number };
     }
   }
 }
@@ -82,8 +82,8 @@ export function requireAuth(...roles: Role[]) {
 /** Must come after requireAuth('vendor'). Loads the vendor profile. */
 export async function loadVendor(req: Request, _res: Response, next: NextFunction) {
   try {
-    const v = await one<{ id: string; status: string; business_name: string }>(
-      'select id, status, business_name from vendors where user_id = $1',
+    const v = await one<{ id: string; status: string; business_name: string; low_stock_threshold: number }>(
+      'select id, status, business_name, low_stock_threshold from vendors where user_id = $1',
       [req.user!.id]
     );
     if (!v) throw new HttpError(404, 'Vendor profile not found. Complete onboarding first.');
