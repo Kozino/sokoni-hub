@@ -78,7 +78,7 @@ export function BookServiceModal({ open, onClose, listing }: Props) {
           Your booking reference is <strong>{done.code}</strong>. Keep it — you can use it
           with your phone number to check the status at any time.
         </p>
-        <p className="hint mt-1">
+        <p className="bk-sub mt-1">
           Nothing has been charged. {listing.business_name || 'The provider'} will confirm the
           time with you on WhatsApp, and payment is arranged directly with them.
         </p>
@@ -108,7 +108,7 @@ export function BookServiceModal({ open, onClose, listing }: Props) {
     >
       {err && <Alert kind="error">{err}</Alert>}
 
-      <p className="hint">
+      <p className="bk-sub">
         {listing.price_type && listing.price_type !== 'fixed'
           ? <>The advertised price is <strong>{money(Number(listing.price), listing.currency)}</strong> ({listing.price_type}). The final price is agreed with the provider.</>
           : <>Advertised at <strong>{money(Number(listing.price), listing.currency)}</strong>. Nothing is charged now.</>}
