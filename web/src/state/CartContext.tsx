@@ -20,13 +20,23 @@ export const useCart = () => useContext(Ctx);
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>(() => {
-    try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { return []; }
+    try {
+      // Services are booked, never bought. Drop any that a previous build of
+      // the app left in a returning visitor's saved cart, otherwise they would
+      // reach checkout and be charged for something that is arranged and paid
+      // for directly with the provider.
+      const saved: CartItem[] = JSON.parse(localStorage.getItem(KEY) || '[]');
+      return saved.filter((i) => i.kind !== 'service');
+    } catch { return []; }
   });
 
   useEffect(() => { localStorage.setItem(KEY, JSON.stringify(items)); }, [items]);
 
   const add: CartState['add'] = (i) =>
     setItems((prev) => {
+      // Guard rather than assert: a service reaching here is a bug in the
+      // caller, and silently ignoring it is safer than charging for it.
+      if (i.kind === 'service') return prev;
       const found = prev.find((p) => p.listing_id === i.listing_id);
       if (found)
         return prev.map((p) =>
