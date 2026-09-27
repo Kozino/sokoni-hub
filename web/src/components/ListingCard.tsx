@@ -5,6 +5,7 @@ import { Badge } from './ui';
 
 export default function ListingCard({ l }: { l: Listing }) {
   const img = Array.isArray(l.images) ? l.images[0] : undefined;
+  const hasRating = typeof l.rating_avg === 'number' && (l.rating_count ?? 0) > 0;
   return (
     <Link to={`/listing/${l.id}`} className="lcard">
       <div className="lcard-img">
@@ -16,6 +17,13 @@ export default function ListingCard({ l }: { l: Listing }) {
       <div className="lcard-body">
         <div className="lcard-title">{l.title}</div>
         <div className="lcard-meta">{l.category_name}</div>
+        {hasRating && (
+          <div className="lcard-rating">
+            <span className="stars">★</span>
+            <span className="score">{l.rating_avg!.toFixed(1)}</span>
+            <span className="count">({l.rating_count})</span>
+          </div>
+        )}
         <div className="lcard-price">{priceLabel(l)}</div>
         <div className="lcard-foot">
           <span>{l.business_name}</span>
