@@ -1,0 +1,598 @@
+diff --git a/api/src/auth.ts b/api/src/auth.ts
+index 54690cc..70a0bda 100644
+--- a/api/src/auth.ts
++++ b/api/src/auth.ts
+@@ -31,21 +31,36 @@ export const signToken = (userId: string, role: Role) =>
+ async function loadUser(req: Request): Promise<AuthUser | null> {
+   const header = req.headers.authorization;
+   if (!header?.startsWith('Bearer ')) return null;
++
++  // A bad, expired or forged token is genuinely "not authenticated".
++  let payload: { sub: string };
+   try {
+-    const payload = jwt.verify(header.slice(7), config.jwtSecret) as { sub: string };
+-    return await one<AuthUser>(
+-      'select id, role, full_name, phone, email, is_active from users where id = $1',
+-      [payload.sub]
+-    );
++    payload = jwt.verify(header.slice(7), config.jwtSecret) as { sub: string };
+   } catch {
+     return null;
+   }
++
++  // A database failure is NOT an authentication failure, and must not be
++  // swallowed into a null. The web client clears the stored token on any 401,
++  // so reporting a transient DB blip as 401 silently signs every active user
++  // out — exactly when the database is already struggling. Let it throw and
++  // surface as a 5xx the client will retry instead.
++  return await one<AuthUser>(
++    'select id, role, full_name, phone, email, is_active from users where id = $1',
++    [payload.sub]
++  );
+ }
+ 
+ /** Attaches req.user when a valid token is present, never fails. */
+ export async function optionalAuth(req: Request, _res: Response, next: NextFunction) {
+-  const u = await loadUser(req);
+-  if (u && u.is_active) req.user = u;
++  try {
++    const u = await loadUser(req);
++    if (u && u.is_active) req.user = u;
++  } catch {
++    // Public routes must stay up even if the user lookup fails; the request
++    // simply proceeds as anonymous. Routes that require a user call
++    // requireAuth, which re-runs the lookup and propagates the real error.
++  }
+   next();
+ }
+ 
+diff --git a/web/src/components/BookServiceModal.tsx b/web/src/components/BookServiceModal.tsx
+index 35582f8..1feecb6 100644
+--- a/web/src/components/BookServiceModal.tsx
++++ b/web/src/components/BookServiceModal.tsx
+@@ -78,7 +78,7 @@ export function BookServiceModal({ open, onClose, listing }: Props) {
+           Your booking reference is <strong>{done.code}</strong>. Keep it — you can use it
+           with your phone number to check the status at any time.
+         </p>
+-        <p className="hint mt-1">
++        <p className="bk-sub mt-1">
+           Nothing has been charged. {listing.business_name || 'The provider'} will confirm the
+           time with you on WhatsApp, and payment is arranged directly with them.
+         </p>
+@@ -108,7 +108,7 @@ export function BookServiceModal({ open, onClose, listing }: Props) {
+     >
+       {err && <Alert kind="error">{err}</Alert>}
+ 
+-      <p className="hint">
++      <p className="bk-sub">
+         {listing.price_type && listing.price_type !== 'fixed'
+           ? <>The advertised price is <strong>{money(Number(listing.price), listing.currency)}</strong> ({listing.price_type}). The final price is agreed with the provider.</>
+           : <>Advertised at <strong>{money(Number(listing.price), listing.currency)}</strong>. Nothing is charged now.</>}
+diff --git a/web/src/pages/admin/AdminBookings.tsx b/web/src/pages/admin/AdminBookings.tsx
+index c915848..9ffcbab 100644
+--- a/web/src/pages/admin/AdminBookings.tsx
++++ b/web/src/pages/admin/AdminBookings.tsx
+@@ -56,19 +56,19 @@ export default function AdminBookings() {
+ 
+   const bookingCols: DTColumn<Booking>[] = [
+     { key: 'code', header: 'Reference', alwaysVisible: true,
+-      render: (b) => <><div>{b.code}</div><div className="hint">{timeAgo(b.created_at)}</div></>,
++      render: (b) => <><div>{b.code}</div><div className="bk-sub">{timeAgo(b.created_at)}</div></>,
+       csvValue: (b) => b.code },
+     { key: 'listing_title', header: 'Service', render: (b) => b.listing_title },
+     { key: 'business_name', header: 'Provider',
+-      render: (b) => <><div>{b.business_name}</div>{b.vendor_city && <div className="hint">{b.vendor_city}</div>}</>,
++      render: (b) => <><div>{b.business_name}</div>{b.vendor_city && <div className="bk-sub">{b.vendor_city}</div>}</>,
+       csvValue: (b) => b.business_name },
+     { key: 'contact_name', header: 'Customer',
+-      render: (b) => <><div>{b.contact_name}</div><div className="hint">{b.contact_phone}</div></>,
++      render: (b) => <><div>{b.contact_name}</div><div className="bk-sub">{b.contact_phone}</div></>,
+       csvValue: (b) => `${b.contact_name} ${b.contact_phone}` },
+     { key: 'scheduled_at', header: 'When',
+       render: (b) => b.scheduled_at ? dateTime(b.scheduled_at)
+-        : b.preferred_at ? <span className="hint">{dateTime(b.preferred_at)} (requested)</span>
+-        : <span className="hint">Flexible</span>,
++        : b.preferred_at ? <span className="bk-sub">{dateTime(b.preferred_at)} (requested)</span>
++        : <span className="bk-sub">Flexible</span>,
+       sortAccessor: (b) => b.scheduled_at || b.preferred_at || '',
+       csvValue: (b) => b.scheduled_at || b.preferred_at || '' },
+     { key: 'quoted_price', header: 'Advertised', align: 'right',
+@@ -85,7 +85,7 @@ export default function AdminBookings() {
+ 
+   const statCols: DTColumn<VendorStat>[] = [
+     { key: 'business_name', header: 'Provider', alwaysVisible: true,
+-      render: (v) => <><div>{v.business_name}</div>{v.city && <div className="hint">{v.city}</div>}</>,
++      render: (v) => <><div>{v.business_name}</div>{v.city && <div className="bk-sub">{v.city}</div>}</>,
+       csvValue: (v) => v.business_name },
+     { key: 'bookings', header: 'Bookings sent', align: 'right',
+       render: (v) => num(Number(v.bookings)), sortAccessor: (v) => Number(v.bookings) },
+diff --git a/web/src/pages/vendor/VendorBookings.tsx b/web/src/pages/vendor/VendorBookings.tsx
+index 7f0172e..501097f 100644
+--- a/web/src/pages/vendor/VendorBookings.tsx
++++ b/web/src/pages/vendor/VendorBookings.tsx
+@@ -2,9 +2,14 @@
+  * Vendor booking inbox.
+  *
+  * Bookings are leads, not orders: no money moves through the platform here.
+- * The vendor's job is to contact the buyer, agree a time, and mark what
+- * happened. Those status stamps are what later justify charging for the
+- * service listing, so the UI nudges hard toward keeping them accurate.
++ * The vendor's job is to contact the buyer, agree a time, and record what
++ * happened. Those status stamps are what later justify charging for a service
++ * listing, so the UI pushes hard toward keeping them accurate.
++ *
++ * Layout is one DOM that changes shape (see .bk-list in styles.css): an aligned
++ * grid on desktop, a stacked card below 860px. Most of this vendor's traffic is
++ * a phone between appointments, so the phone layout is the one that has to be
++ * right — hence a full-width WhatsApp button per row rather than a table cell.
+  */
+ 
+ import { useEffect, useMemo, useState } from 'react';
+@@ -92,30 +97,34 @@ export default function VendorBookings() {
+     }
+   };
+ 
+-  if (rows === null) return <Spinner />;
+-
+   return (
+     <div>
+-      <h1 style={{ marginBottom: 4 }}>Bookings</h1>
+-      <p style={{ color: 'var(--muted)', marginTop: 0 }}>
+-        Requests for your services. Nothing is charged through Sokoni Hub — agree the
+-        time and the price with the customer directly.
+-      </p>
++      <div className="dash-title">
++        <div>
++          <h1 style={{ marginBottom: 4 }}>Bookings</h1>
++          <p style={{ color: 'var(--text-muted)', margin: 0 }}>
++            Requests for your services. Nothing is charged through Sokoni Hub — you agree
++            the time and the price with the customer directly.
++          </p>
++        </div>
++      </div>
+ 
+-      <div className="row wrap mt-2" style={{ gap: 12 }}>
++      <div className="grid grid-stats bk-stats mt-2">
+         <Stat label="All bookings" value={String(counts.total)} />
+-        <Stat label="Awaiting your reply" value={String(counts.fresh)} />
++        <Stat label="Awaiting your reply" value={String(counts.fresh)} accent={counts.fresh ? 'gold' : undefined} />
+         <Stat label="Upcoming" value={String(counts.upcoming)} />
+       </div>
+ 
+       {counts.fresh > 0 && (
+-        <Alert kind="warn">
+-          You have {counts.fresh} request{counts.fresh === 1 ? '' : 's'} you have not replied to yet.
+-          Customers usually book elsewhere if they do not hear back the same day.
+-        </Alert>
++        <div className="mt-2">
++          <Alert kind="warn">
++            You have {counts.fresh} request{counts.fresh === 1 ? '' : 's'} you have not replied to yet.
++            Customers usually book elsewhere if they do not hear back the same day.
++          </Alert>
++        </div>
+       )}
+ 
+-      <div className="row wrap mt-2" style={{ gap: 6 }}>
++      <div className="bk-filters mt-2">
+         {FILTERS.map((f) => (
+           <button key={f || 'all'}
+             className={`btn btn-sm ${filter === f ? 'btn-primary' : ''}`}
+@@ -125,52 +134,65 @@ export default function VendorBookings() {
+         ))}
+       </div>
+ 
+-      {rows.length === 0 ? (
++      {rows === null ? <Spinner /> : rows.length === 0 ? (
+         <Empty icon="📅" title="No bookings yet"
+           text="When a customer requests one of your services it will appear here." />
+       ) : (
+-        <div className="table-wrap mt-2">
+-          <table className="table">
+-            <thead>
+-              <tr>
+-                <th>Reference</th><th>Service</th><th>Customer</th>
+-                <th>Requested for</th><th>Status</th><th></th>
+-              </tr>
+-            </thead>
+-            <tbody>
+-              {rows.map((b) => (
+-                <tr key={b.id} style={b.status === 'new' ? { fontWeight: 600 } : undefined}>
+-                  <td>
+-                    <div>{b.code}</div>
+-                    <div className="hint">{timeAgo(b.created_at)}</div>
+-                  </td>
+-                  <td>
+-                    {b.listing_title}
+-                    {b.quoted_price && (
+-                      <div className="hint">
+-                        {money(Number(b.quoted_price), b.currency)}
+-                        {b.quoted_price_type && b.quoted_price_type !== 'fixed' ? ` (${b.quoted_price_type})` : ''}
+-                      </div>
+-                    )}
+-                  </td>
+-                  <td>
+-                    <div>{b.contact_name}</div>
+-                    <a className="hint" href={waLink(b.contact_phone, `Hello ${b.contact_name}, about your booking ${b.code}`)}
+-                      target="_blank" rel="noreferrer">{b.contact_phone}</a>
+-                  </td>
+-                  <td>
+-                    {b.scheduled_at
+-                      ? <><strong>{dateTime(b.scheduled_at)}</strong><div className="hint">agreed</div></>
+-                      : b.preferred_at
+-                        ? <>{dateTime(b.preferred_at)}<div className="hint">requested</div></>
+-                        : <span className="hint">Flexible</span>}
+-                  </td>
+-                  <td><Badge tone={TONE[b.status] || 'grey'}>{titleCase(b.status.replace('_', ' '))}</Badge></td>
+-                  <td><button className="btn btn-sm" onClick={() => open(b)}>Manage</button></td>
+-                </tr>
+-              ))}
+-            </tbody>
+-          </table>
++        <div className="bk-list mt-2">
++          <div className="bk-head" role="presentation">
++            <div>Reference</div>
++            <div>Service</div>
++            <div>Customer</div>
++            <div>Requested for</div>
++            <div>Status</div>
++            <div />
++          </div>
++
++          {rows.map((b) => (
++            <div key={b.id} className={`bk-item${b.status === 'new' ? ' is-new' : ''}`}>
++              <div className="bk-c-ref">
++                <div className="bk-ref">{b.code}</div>
++                <div className="bk-sub">{timeAgo(b.created_at)}</div>
++              </div>
++
++              <div className="bk-c-service">
++                <span className="bk-label">Service</span>
++                {b.listing_title}
++                {b.quoted_price && (
++                  <div className="bk-sub">
++                    {money(Number(b.quoted_price), b.currency)}
++                    {b.quoted_price_type && b.quoted_price_type !== 'fixed' ? ` (${b.quoted_price_type})` : ''}
++                  </div>
++                )}
++              </div>
++
++              <div className="bk-c-customer">
++                <span className="bk-label">Customer</span>
++                {b.contact_name}
++                <div className="bk-sub">
++                  <a href={waLink(b.contact_phone, `Hello ${b.contact_name}, about your booking ${b.code}`)}
++                    target="_blank" rel="noreferrer">{b.contact_phone}</a>
++                </div>
++              </div>
++
++              <div className="bk-c-when bk-when">
++                <span className="bk-label">Requested for</span>
++                {b.scheduled_at
++                  ? <><strong>{dateTime(b.scheduled_at)}</strong><div className="bk-sub">Agreed</div></>
++                  : b.preferred_at
++                    ? <>{dateTime(b.preferred_at)}<div className="bk-sub">Requested</div></>
++                    : <span className="bk-sub">Flexible — just call</span>}
++              </div>
++
++              <div className="bk-c-status">
++                <Badge tone={TONE[b.status] || 'grey'}>{titleCase(b.status.replace('_', ' '))}</Badge>
++              </div>
++
++              <div className="bk-c-action">
++                <button className="btn btn-sm" onClick={() => open(b)}>Manage</button>
++              </div>
++            </div>
++          ))}
+         </div>
+       )}
+ 
+@@ -190,19 +212,16 @@ export default function VendorBookings() {
+       >
+         {active && (
+           <>
+-            <p>
++            <p style={{ marginTop: 0 }}>
+               <strong>{active.listing_title}</strong>
+-              {active.duration_mins ? <span className="hint"> · about {active.duration_mins} minutes</span> : null}
++              {active.duration_mins ? <span className="bk-sub"> · about {active.duration_mins} minutes</span> : null}
+             </p>
+             <p>
+               {active.contact_name} · {active.contact_phone}
+               {active.contact_email ? ` · ${active.contact_email}` : ''}
+             </p>
+-            {active.preferred_note && (
+-              <blockquote style={{ borderLeft: '3px solid var(--line)', paddingLeft: 12, margin: '12px 0', color: 'var(--muted)' }}>
+-                {active.preferred_note}
+-              </blockquote>
+-            )}
++
++            {active.preferred_note && <blockquote className="bk-quote">{active.preferred_note}</blockquote>}
+ 
+             <a className="btn btn-wa btn-block"
+               href={waLink(active.contact_phone, `Hello ${active.contact_name}, about your booking ${active.code} for "${active.listing_title}".`)}
+@@ -211,16 +230,18 @@ export default function VendorBookings() {
+               Message on WhatsApp
+             </a>
+ 
+-            <Field label="Agreed date and time"
+-              hint="Set this once the customer has actually agreed. Required before you can confirm.">
+-              <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+-            </Field>
++            <div className="mt-2">
++              <Field label="Agreed date and time"
++                hint="Set this once the customer has actually agreed. Required before you can confirm.">
++                <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
++              </Field>
+ 
+-            <Field label="Private note" hint="Only you and the admin can see this.">
+-              <textarea rows={2} value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} />
+-            </Field>
++              <Field label="Private note" hint="Only you and the admin can see this.">
++                <textarea rows={2} value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} />
++              </Field>
++            </div>
+ 
+-            <div className="row wrap mt-2" style={{ gap: 6 }}>
++            <div className="bk-actions mt-2">
+               <button className="btn btn-sm" onClick={() => save('completed')} disabled={busy}>Mark completed</button>
+               <button className="btn btn-sm" onClick={() => save('no_show')} disabled={busy}>No show</button>
+               <button className="btn btn-sm btn-danger" onClick={() => save('cancelled')} disabled={busy}>Cancel</button>
+diff --git a/web/src/pages/vendor/VendorLayout.tsx b/web/src/pages/vendor/VendorLayout.tsx
+index ced63e8..d697738 100644
+--- a/web/src/pages/vendor/VendorLayout.tsx
++++ b/web/src/pages/vendor/VendorLayout.tsx
+@@ -15,12 +15,16 @@ export default function VendorLayout() {
+   const [alerts, setAlerts] = useState({ out_of_stock: 0, low_stock: 0, open_complaints: 0, new_bookings: 0 });
+   useEffect(() => {
+     if (!vendor) return;
+-    const load = () => Promise.all([
+-      api.get<any>('/vendors/dashboard'),
+-      // Separate call: a service-only vendor has no stock or orders, so their
+-      // booking count must not depend on the commerce dashboard succeeding.
+-      api.get<any>('/bookings/vendor/counts').catch(() => ({ new: 0 })),
+-    ])
++    // Sequential, not Promise.all: two concurrent polls every 60s doubles the
++    // connection pressure on a small pool for no perceptible gain, and the
++    // booking count is not urgent enough to race the dashboard for a slot.
++    const load = () => api.get<any>('/vendors/dashboard')
++      .then(async (r) => [
++        r,
++        // A service-only vendor has no stock or orders, so their booking count
++        // must not disappear just because the commerce dashboard failed.
++        await api.get<any>('/bookings/vendor/counts').catch(() => ({ new: 0 })),
++      ] as const)
+       .then(([r, bk]) => setAlerts({
+         out_of_stock: Number(r.stats.out_of_stock || 0),
+         low_stock: Number(r.stats.low_stock || 0),
+diff --git a/web/src/styles.css b/web/src/styles.css
+index 260e4aa..2475d1a 100644
+--- a/web/src/styles.css
++++ b/web/src/styles.css
+@@ -1181,6 +1181,227 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
+   font-size: var(--fs-xs); color: rgba(255,255,255,.45);
+ }
+ 
++/* ---------------------------------------------------------------------------
++   19b. BOOKINGS INBOX
++   
++   A booking is read, not scanned: the vendor needs the customer's name, the
++   time they asked for and a way to reply. A horizontally scrolling table is
++   the wrong shape for that on a phone, so this is one DOM that changes shape —
++   a dense aligned grid on desktop, a stacked card below 860px. No duplicated
++   markup, so there is only ever one thing to keep correct.
++   ------------------------------------------------------------------------ */
++
++.bk-list {
++  /* Shared by the header and every row, so the columns cannot drift apart. */
++  --bk-cols: 168px minmax(140px, 1.5fr) minmax(140px, 1.3fr) 158px 112px 104px;
++  border: 1px solid var(--border);
++  border-radius: var(--r-lg);
++  background: var(--surface);
++  overflow: hidden;
++  min-width: 0;
++}
++
++/* Every grid cell must be allowed to shrink, or a long service title or email
++   address widens the whole row and takes the page with it. */
++.bk-item > * { min-width: 0; }
++/* Long titles and emails may break anywhere; a booking code must not —
++   a reference split across two lines is hard to read out over the phone. */
++.bk-c-service, .bk-c-customer { overflow-wrap: anywhere; }
++.bk-ref { white-space: nowrap; }
++
++.bk-head,
++.bk-item {
++  display: grid;
++  grid-template-columns: var(--bk-cols);
++  gap: var(--s-3);
++  align-items: center;
++}
++
++.bk-head {
++  padding: var(--s-3) var(--s-5);
++  background: var(--surface-2);
++  border-bottom: 1px solid var(--border);
++  font-size: var(--fs-xs);
++  font-weight: 700;
++  text-transform: uppercase;
++  letter-spacing: .04em;
++  color: var(--text-muted);
++}
++
++.bk-item {
++  padding: var(--s-4) var(--s-5);
++  border-bottom: 1px solid var(--border);
++  transition: background var(--t-fast) var(--ease);
++}
++.bk-item:last-child { border-bottom: 0; }
++.bk-item:hover { background: var(--surface-2); }
++
++/* An unanswered request is the only thing on this page that is urgent. */
++.bk-item.is-new { box-shadow: inset 3px 0 0 var(--accent); }
++.bk-item.is-new .bk-ref { font-weight: 700; }
++
++.bk-ref { font-variant-numeric: tabular-nums; }
++.bk-sub {
++  font-size: var(--fs-xs);
++  color: var(--text-muted);
++  margin-top: 2px;
++  line-height: 1.45;
++}
++.bk-sub a { color: inherit; }
++
++/* Cell labels: dead weight on desktop where the header row explains the
++   columns, essential once the row becomes a stacked card. */
++.bk-label { display: none; }
++
++.bk-when strong { font-variant-numeric: tabular-nums; }
++
++/* Filter chips scroll sideways rather than wrapping into a tall block that
++   pushes the actual bookings off the screen. */
++.bk-filters {
++  display: flex;
++  gap: var(--s-2);
++  overflow-x: auto;
++  padding-bottom: var(--s-1);
++  scrollbar-width: none;
++  -ms-overflow-style: none;
++  /* A grid/flex child defaults to min-width:auto, so it refuses to shrink below
++     its content and the chips push the whole document sideways instead of
++     scrolling inside this strip. Both declarations are needed. */
++  min-width: 0;
++  max-width: 100%;
++}
++.bk-filters::-webkit-scrollbar { display: none; }
++.bk-filters .btn { flex: 0 0 auto; }
++
++/* The three counts are glanceable numbers, not cards worth a screen each.
++   Stacked full-width they push every actual booking below the fold on a phone,
++   so they stay three-up and shrink instead. */
++@media (max-width: 640px) {
++  /* .grid.bk-stats, not .bk-stats — the generic .grid-stats single-column rule
++     lives later in the responsive section and would otherwise win on order. */
++  .grid.bk-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-2); }
++  .grid.bk-stats .stat { padding: var(--s-3) var(--s-2); align-items: center; text-align: center; }
++  .grid.bk-stats .stat .label {
++    font-size: 10px; line-height: 1.3; justify-content: center; text-align: center;
++  }
++  .grid.bk-stats .stat .value { font-size: 1.35rem; margin-top: 2px; }
++}
++
++.bk-quote {
++  margin: var(--s-3) 0;
++  padding: var(--s-2) var(--s-4);
++  border-left: 3px solid var(--border);
++  color: var(--text-muted);
++  font-size: var(--fs-sm);
++  line-height: 1.6;
++}
++
++.bk-actions { display: flex; flex-wrap: wrap; gap: var(--s-2); }
++.bk-actions .btn { flex: 1 1 auto; }
++
++@media (max-width: 1100px) {
++  /* Reclaim the reference column before anything has to wrap. */
++  .bk-list { --bk-cols: 150px minmax(110px, 1.4fr) minmax(110px, 1.2fr) 132px 104px 92px; }
++  .bk-head, .bk-item { padding-left: var(--s-4); padding-right: var(--s-4); }
++}
++
++/* Below 860px the grid stops pretending to be a table. Reference and status
++   share the top line the way a subject and a flag would in a mail client;
++   everything else gets a full-width line of its own. */
++@media (max-width: 860px) {
++  .bk-head { display: none; }
++
++  /* Card mode is touch mode. The global 44px touch sizing stops at 640px, but
++     a 768px tablet is still a thumb — the filter chips and the Manage button
++     would otherwise stay at the 32px .btn-sm height. */
++  .bk-filters .btn,
++  .bk-c-action .btn { min-height: 44px; }
++
++  .bk-item {
++    grid-template-columns: minmax(0, 1fr) auto;
++    gap: var(--s-2) var(--s-3);
++    padding: var(--s-4);
++    align-items: start;
++  }
++
++  /* Row 1 is pinned explicitly. Grid auto-placement only ever moves forward,
++     so without this the status badge lands below the last stacked cell instead
++     of beside the reference. */
++  .bk-c-ref     { grid-row: 1; grid-column: 1; }
++  .bk-c-status  { grid-row: 1; grid-column: 2; justify-self: end; }
++  .bk-c-service,
++  .bk-c-customer,
++  .bk-c-when    { grid-column: 1 / -1; }
++  .bk-c-action  { grid-column: 1 / -1; margin-top: var(--s-1); }
++  .bk-c-action .btn { width: 100%; }
++
++  .bk-label {
++    display: block;
++    font-size: var(--fs-xs);
++    font-weight: 700;
++    text-transform: uppercase;
++    letter-spacing: .04em;
++    color: var(--text-muted);
++    margin-bottom: 2px;
++  }
++
++  .bk-c-service { font-weight: 600; }
++
++  /* The phone number is the primary action on a phone: make it a real target. */
++  .bk-c-customer .bk-sub a {
++    display: inline-block;
++    min-height: 32px;
++    line-height: 32px;
++    font-size: var(--fs-sm);
++  }
++}
++
++/* Tablet: too narrow for six aligned columns, far too wide for one card per
++   row — a single stacked card at 768px wastes half the screen. Two up. */
++@media (min-width: 641px) and (max-width: 860px) {
++  .bk-list {
++    display: grid;
++    grid-template-columns: repeat(2, minmax(0, 1fr));
++    gap: var(--s-3);
++    border: 0; background: transparent; overflow: visible;
++  }
++  .bk-item {
++    border: 1px solid var(--border);
++    border-radius: var(--r-lg);
++    background: var(--surface);
++    align-content: start;
++  }
++  .bk-item:last-child { border-bottom: 1px solid var(--border); }
++  .bk-item:hover { background: var(--surface); border-color: var(--border-strong); }
++}
++
++@media (max-width: 480px) {
++  .bk-item { padding: var(--s-3); }
++  .bk-list { border-radius: var(--r-md); }
++}
++
++/* ---------------------------------------------------------------------------
++   19c. DASHBOARD BREADCRUMB — shrink fix
++   
++   .breadcrumb is flex: 0 0 auto, so it cannot shrink and a long page name
++   pushes the whole document sideways. "Home / Vendor / Bookings" overflows a
++   390px phone by 6px; "Home / Vendor / Products & services" by 73px. This is
++   why several dashboard pages scroll horizontally on a phone.
++   
++   Below 640px the leading "Home /" is dropped — the burger and the back
++   gesture both already cover it — and the current page truncates instead of
++   pushing. Applies to every admin and vendor page, not just bookings.
++   ------------------------------------------------------------------------ */
++@media (max-width: 640px) {
++  .dash-bar { padding-left: var(--s-3); padding-right: var(--s-3); min-width: 0; }
++  .breadcrumb { flex: 0 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; }
++  .breadcrumb > a:first-child,
++  .breadcrumb > .sep:first-of-type { display: none; }
++  .breadcrumb .current {
++    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
++  }
++}
++
+ /* ---------------------------------------------------------------------------
+    20. RESPONSIVE — every breakpoint reasoned about, not just scaled down
+    ------------------------------------------------------------------------ */

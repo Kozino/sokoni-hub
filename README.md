@@ -1,175 +1,125 @@
-# Service bookings
+# Vendor bookings — mobile layout
 
-Services stop going through the cart. They become **bookings**: the buyer states a
-preferred time, the platform records it, and the conversation continues on WhatsApp
-carrying the booking reference.
-
-13 files, 1,055 insertions, 28 deletions. Verified against a clean clone of `main`
-at `ceef14f`.
+6 files, 357 insertions. Verified against a clean clone of `main` at `1a28b03`
+(which already carries the booking feature itself).
 
 ```bash
-git apply service-bookings.patch
-npm run migrate      # applies db/migrations/005_service_bookings.sql
+git apply bookings-mobile.patch
 ```
 
 ---
 
-## Why not checkout
+## The layout
 
-The code was already telling us this. `orders.ts` forced service orders into
-`pickup`, suppressed the delivery fee, and printed *"Services are arranged directly
-with the provider"* — on a checkout screen. Beyond that:
+**One DOM that changes shape.** No duplicated markup, so there is only ever one
+thing to keep correct.
 
-- `listings.price_type` can be `from`, `hourly` or `per_kg`. A "from QAR 150"
-  dreadlock job cannot produce an honest checkout total.
-- There was no date or time anywhere, so a "bought" haircut had no appointment.
-- Payment is cash regardless, so checkout moved no money — it just created a
-  `pending` order that sat there until someone talked on WhatsApp.
-
-## Why not plain WhatsApp either
-
-A `wa.me` link is a dead end. The platform sees a click and nothing after: no vendor
-record, no admin visibility, no dispute trail. That breaks the standing requirement
-that everything in the app reports back to admin and vendor.
-
-It also destroys the monetisation plan. The only thing that justifies charging a
-service vendor is *"we sent you 47 bookings last month."* WhatsApp-only gives you
-no evidence and no leverage at renewal.
-
-So: **record first, then hand off.**
-
----
-
-## The bug this fixed
-
-Services were being **silently commissioned**. `billing.ts` had no `kind` filter:
-
-```ts
-goods = round2(goods + Number(o.subtotal));          // every order, any kind
-commission_amount: round2(Number(o.subtotal) * commissionRate)
-```
-
-Every checked-out service order fed `commission_base` at the full rate. Under the
-flat-fee plan a service vendor would have paid the listing fee *and* commission on
-the same booking.
-
-This is now fixed **by construction, not by a filter**. Services can no longer
-become orders, so `computeStatement()` never sees them. There is no rule to
-forget later.
-
----
-
-## What was built
-
-### Database — `005_service_bookings.sql`
-
-`service_bookings` plus a `booking_status` enum
-(`new → contacted → confirmed → completed`, with `cancelled` and `no_show`).
-
-Two pairs of columns carry most of the design:
-
-| Pair | Why |
+| Width | Shape |
 |---|---|
-| `preferred_at` / `scheduled_at` | What the buyer asked for vs what the vendor actually agreed. Keeping them apart is what makes availability addable later without a rewrite. |
-| `quoted_price` / `quoted_price_type` | Price snapshot at booking time, so a later price edit cannot rewrite history. Indicative only — nothing is charged. |
+| ≥ 861px | Six aligned columns with a header row — table density for scanning |
+| 641–860px | Two cards side by side — a single stacked card at 768px wastes half the screen |
+| ≤ 640px | One stacked card, reference and status sharing the top line like a mail client |
 
-`first_viewed_at`, `contacted_at` and `completed_at` are stamped automatically.
-Those are the response-time metrics, and they exist because they are the commercial
-argument for the fee.
+Driven by a shared `--bk-cols` custom property so the header and every row cannot
+drift apart, and by `.bk-label` cells that are hidden when the header row explains
+the columns and revealed when it does not.
 
-Additive and idempotent.
+Other decisions worth knowing:
 
-### API — `bookings.ts`
+- **Filter chips scroll sideways** instead of wrapping into a block that pushes
+  bookings off the screen.
+- **Three stat cards stay three-up on mobile.** Stacked full-width they pushed
+  every actual booking below the fold.
+- **Row 1 is pinned explicitly** on mobile. Grid auto-placement only moves
+  forward, so without it the status badge landed below the last stacked cell.
+- **Tap targets are 44px in card mode**, not just below 640px — a 768px tablet is
+  still a thumb, and the chips would otherwise stay at the 32px `.btn-sm` height.
+- Long titles and emails may break anywhere; **a booking code may not** — a
+  reference split across two lines is hard to read out over the phone.
 
-| Route | Who | Purpose |
+---
+
+## Three bugs found on the way
+
+### 1. The page was rendering unstyled
+
+It used `className="table"`. The stylesheet's class is `.tbl`. `.table` does not
+exist, so that markup had no styling at all. Same for several bare `.hint` uses —
+`.hint` is only ever defined as `.field .hint`.
+
+### 2. Every dashboard page scrolled sideways on a phone
+
+`.breadcrumb` is `flex: 0 0 auto`, so it cannot shrink and a long page name pushes
+the whole document wider than the viewport. Measured at 390px:
+
+| Page | Overflow before | After |
 |---|---|---|
-| `POST /bookings` | anyone | Create. Returns the row plus a prefilled `wa.me` link. |
-| `GET /bookings/mine` | buyer | Own bookings. |
-| `GET /bookings/track?code=&phone=` | public | Mirrors order tracking. |
-| `POST /bookings/:id/cancel` | buyer | Before completion only. |
-| `GET /bookings/vendor` | vendor | Inbox, filterable. |
-| `GET /bookings/vendor/counts` | vendor | Drives the nav badge. |
-| `PATCH /bookings/:id` | vendor | Work the booking. |
-| `POST /bookings/:id/seen` | vendor | Stamps `first_viewed_at`. |
-| `GET /bookings/admin` | admin | Everything. |
-| `GET /bookings/admin/stats?days=` | admin | Demand and response time per provider. |
+| `/vendor/listings` | **73px** | 0 |
+| `/vendor/statements` | **20px** | 0 |
+| `/vendor/bookings` | 6px | 0 |
+| `/vendor/orders` | 0 | 0 |
 
-Guest booking is allowed, exactly as checkout is — forcing an account before a hair
-appointment loses the booking.
+Below 640px the leading "Home /" is dropped — the burger and the back gesture both
+already cover it — and the current page truncates instead of pushing. This fixes
+pages I was not asked to touch; `orders` was clean only because "Orders" is short.
 
-### Web
+### 3. A database blip signs every user out
 
-- **`BookServiceModal`** — name, WhatsApp, optional email, preferred date/time or
-  *"I'm flexible"*, and a note. On submit it writes the booking, then opens WhatsApp
-  inside the same click so the browser does not block the pop-up.
-- **`ListingDetail`** — services show **Request booking**; the qty stepper, cart
-  button and "cash on delivery" line are gone for them. Products are untouched.
-- **`CartContext`** — refuses a service in `add()`, and filters any left in a
-  returning visitor's `localStorage` by an older build.
-- **`VendorBookings`** — inbox with counts, a warning for unanswered requests, and
-  the WhatsApp button auto-marks `contacted`.
-- **`AdminBookings`** — *Bookings* tab for what is happening, *Providers* tab for
-  who receives demand and who ignores it.
+Not a styling bug, but it is what made the layout harness fail, so it is worth
+stating plainly. `loadUser()` in `api/src/auth.ts` wrapped the JWT check **and**
+the user lookup in one `try { … } catch { return null }`. A failed database query
+therefore became "not authenticated" → **401** → and `lib/api.ts` clears the
+stored token on any 401.
 
-### The guard that matters
+So a transient database problem does not degrade the app, it **logs out every
+active user** — precisely when the database is already struggling. With Supabase
+free-tier pausing in the picture, that is a realistic Monday morning.
 
-`orders.ts` `loadCart()` rejects `kind = 'service'` with a 422. Three layers block
-it — UI, cart state, API — but only the API layer is load-bearing.
+Now a bad, expired or forged token still returns `null`, but a database failure
+throws and surfaces as a 5xx the client will retry. `optionalAuth` keeps its
+"never fails" contract and proceeds anonymously.
+
+While there, `VendorLayout`'s two polls run sequentially rather than as a
+`Promise.all` — two concurrent requests every 60 seconds double the pool pressure
+for no perceptible gain.
 
 ---
 
-## Verification — 112 assertions, all passing
+## Verification
 
-| Suite | Result |
-|---|---|
-| Booking live flow (`t_bookings.sh`) | **41 / 41** |
-| `005` schema (`t_005.js`) | **36 / 36** |
-| Billing regression | 17 / 17 |
-| Order flow regression | 18 / 18 |
-| XSS | pass |
-| `004` schema | 10 / 10 |
+`shots.js` drives a real Chrome at five viewports and reports the **settled
+computed layout**, not a screenshot someone eyeballed:
 
-Notable assertions:
+```
+mobile-360    listCols=1 itemCols=2 header=hidden labels=shown tap=44px overflow=none
+mobile-390    listCols=1 itemCols=2 header=hidden labels=shown tap=44px overflow=none
+tablet-768    listCols=2 itemCols=2 header=hidden labels=shown tap=44px overflow=none
+tablet-900    listCols=1 itemCols=6 header=shown  labels=hidden tap=32px overflow=none
+desktop-1280  listCols=1 itemCols=6 header=shown  labels=hidden tap=32px overflow=none
 
-- Booking a **product** is rejected 422 and points to the cart.
-- Quoting **and** checking out a service are both rejected 422.
-- A product still checks out: 2 × 40 + 25 delivery = **105**. Displayed equals charged.
-- Cannot confirm without an agreed time; cannot schedule into the past.
-- `track` with the right code but the wrong phone returns 404 — a guessed code leaks nothing.
-- A buyer cannot PATCH a booking; a vendor cannot reach the admin view.
-- **The 150 service price appears nowhere in a statement run.**
+All viewports clean.
+```
+
+It fails the run on any horizontal overflow, or any sub-44px tap target on a touch
+viewport. Screenshots for all five are in this folder.
 
 `tsc --noEmit` clean on `api` and `web`; `vite build` succeeds.
 
-Two bugs were found and fixed during testing: the route checked `status = 'approved'`
-when the enum is `('draft','active','paused','removed')`, and Postgres could not infer
-the parameter type in the `scheduled_at` CASE without a `::text` cast.
+### Two measurement traps, in case you re-run it
+
+- **`fullPage: true` temporarily resizes the viewport.** Any `scrollWidth` read
+  after a screenshot is meaningless. Measure first, capture second.
+- **Animations must be killed before measuring**, or you catch the sidebar
+  transition mid-flight and chase a 6px ghost that is not there.
+
+Chrome needs libraries the sandbox lacks; `shots.js` assumes they are on
+`LD_LIBRARY_PATH`. On a normal machine it just runs.
 
 ---
 
-## On the fee
+## Not done
 
-Charging service vendors at approval is the right shape — there is no transaction to
-take a cut of. Two cautions:
-
-1. **A one-time approval fee earns nothing from a vendor who books 200 jobs a year.**
-   A recurring monthly listing fee tracks the value delivered. The `Providers` tab
-   gives you the per-vendor numbers to price it.
-2. **You do not need new billing machinery.** `004_payouts_email.sql` already has
-   `payout_batches` and statements; a flat vendor fee can ride on the existing
-   statement as a line item.
-
-## Not built, deliberately
-
-**Vendor availability** — working hours, time off, slot conflicts. It needs
-`vendor_hours` and `vendor_time_off` tables and a conflict check on insert, and
-`listings.duration_mins` already exists to act as the slot length. Building it now
-would mean guessing how these vendors work before a single booking has been taken.
-
-The `preferred_at` / `scheduled_at` split is the seam. When availability lands, the
-API validates `preferred_at` against it and auto-fills `scheduled_at` — nothing
-above needs to change.
-
-**No email on booking.** `mailer.ts` is wired and available, but `EMAIL_PROVIDER` is
-still `none` in production, so a notification would silently no-op. Worth adding once
-the key is set — see `EMAIL-SETUP.md`.
+The **admin** bookings page uses the shared `DataTable`, which already has its own
+responsive handling — horizontal scroll with a pinned first column. I left it
+alone. Admin work is overwhelmingly desktop, and changing `DataTable` would touch
+every admin table in the product. Say the word if you want admin on phones too.
