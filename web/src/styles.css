@@ -1182,6 +1182,227 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 }
 
 /* ---------------------------------------------------------------------------
+   19b. BOOKINGS INBOX
+   
+   A booking is read, not scanned: the vendor needs the customer's name, the
+   time they asked for and a way to reply. A horizontally scrolling table is
+   the wrong shape for that on a phone, so this is one DOM that changes shape —
+   a dense aligned grid on desktop, a stacked card below 860px. No duplicated
+   markup, so there is only ever one thing to keep correct.
+   ------------------------------------------------------------------------ */
+
+.bk-list {
+  /* Shared by the header and every row, so the columns cannot drift apart. */
+  --bk-cols: 168px minmax(140px, 1.5fr) minmax(140px, 1.3fr) 158px 112px 104px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* Every grid cell must be allowed to shrink, or a long service title or email
+   address widens the whole row and takes the page with it. */
+.bk-item > * { min-width: 0; }
+/* Long titles and emails may break anywhere; a booking code must not —
+   a reference split across two lines is hard to read out over the phone. */
+.bk-c-service, .bk-c-customer { overflow-wrap: anywhere; }
+.bk-ref { white-space: nowrap; }
+
+.bk-head,
+.bk-item {
+  display: grid;
+  grid-template-columns: var(--bk-cols);
+  gap: var(--s-3);
+  align-items: center;
+}
+
+.bk-head {
+  padding: var(--s-3) var(--s-5);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-muted);
+}
+
+.bk-item {
+  padding: var(--s-4) var(--s-5);
+  border-bottom: 1px solid var(--border);
+  transition: background var(--t-fast) var(--ease);
+}
+.bk-item:last-child { border-bottom: 0; }
+.bk-item:hover { background: var(--surface-2); }
+
+/* An unanswered request is the only thing on this page that is urgent. */
+.bk-item.is-new { box-shadow: inset 3px 0 0 var(--accent); }
+.bk-item.is-new .bk-ref { font-weight: 700; }
+
+.bk-ref { font-variant-numeric: tabular-nums; }
+.bk-sub {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+  line-height: 1.45;
+}
+.bk-sub a { color: inherit; }
+
+/* Cell labels: dead weight on desktop where the header row explains the
+   columns, essential once the row becomes a stacked card. */
+.bk-label { display: none; }
+
+.bk-when strong { font-variant-numeric: tabular-nums; }
+
+/* Filter chips scroll sideways rather than wrapping into a tall block that
+   pushes the actual bookings off the screen. */
+.bk-filters {
+  display: flex;
+  gap: var(--s-2);
+  overflow-x: auto;
+  padding-bottom: var(--s-1);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  /* A grid/flex child defaults to min-width:auto, so it refuses to shrink below
+     its content and the chips push the whole document sideways instead of
+     scrolling inside this strip. Both declarations are needed. */
+  min-width: 0;
+  max-width: 100%;
+}
+.bk-filters::-webkit-scrollbar { display: none; }
+.bk-filters .btn { flex: 0 0 auto; }
+
+/* The three counts are glanceable numbers, not cards worth a screen each.
+   Stacked full-width they push every actual booking below the fold on a phone,
+   so they stay three-up and shrink instead. */
+@media (max-width: 640px) {
+  /* .grid.bk-stats, not .bk-stats — the generic .grid-stats single-column rule
+     lives later in the responsive section and would otherwise win on order. */
+  .grid.bk-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-2); }
+  .grid.bk-stats .stat { padding: var(--s-3) var(--s-2); align-items: center; text-align: center; }
+  .grid.bk-stats .stat .label {
+    font-size: 10px; line-height: 1.3; justify-content: center; text-align: center;
+  }
+  .grid.bk-stats .stat .value { font-size: 1.35rem; margin-top: 2px; }
+}
+
+.bk-quote {
+  margin: var(--s-3) 0;
+  padding: var(--s-2) var(--s-4);
+  border-left: 3px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+}
+
+.bk-actions { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.bk-actions .btn { flex: 1 1 auto; }
+
+@media (max-width: 1100px) {
+  /* Reclaim the reference column before anything has to wrap. */
+  .bk-list { --bk-cols: 150px minmax(110px, 1.4fr) minmax(110px, 1.2fr) 132px 104px 92px; }
+  .bk-head, .bk-item { padding-left: var(--s-4); padding-right: var(--s-4); }
+}
+
+/* Below 860px the grid stops pretending to be a table. Reference and status
+   share the top line the way a subject and a flag would in a mail client;
+   everything else gets a full-width line of its own. */
+@media (max-width: 860px) {
+  .bk-head { display: none; }
+
+  /* Card mode is touch mode. The global 44px touch sizing stops at 640px, but
+     a 768px tablet is still a thumb — the filter chips and the Manage button
+     would otherwise stay at the 32px .btn-sm height. */
+  .bk-filters .btn,
+  .bk-c-action .btn { min-height: 44px; }
+
+  .bk-item {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--s-2) var(--s-3);
+    padding: var(--s-4);
+    align-items: start;
+  }
+
+  /* Row 1 is pinned explicitly. Grid auto-placement only ever moves forward,
+     so without this the status badge lands below the last stacked cell instead
+     of beside the reference. */
+  .bk-c-ref     { grid-row: 1; grid-column: 1; }
+  .bk-c-status  { grid-row: 1; grid-column: 2; justify-self: end; }
+  .bk-c-service,
+  .bk-c-customer,
+  .bk-c-when    { grid-column: 1 / -1; }
+  .bk-c-action  { grid-column: 1 / -1; margin-top: var(--s-1); }
+  .bk-c-action .btn { width: 100%; }
+
+  .bk-label {
+    display: block;
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+  }
+
+  .bk-c-service { font-weight: 600; }
+
+  /* The phone number is the primary action on a phone: make it a real target. */
+  .bk-c-customer .bk-sub a {
+    display: inline-block;
+    min-height: 32px;
+    line-height: 32px;
+    font-size: var(--fs-sm);
+  }
+}
+
+/* Tablet: too narrow for six aligned columns, far too wide for one card per
+   row — a single stacked card at 768px wastes half the screen. Two up. */
+@media (min-width: 641px) and (max-width: 860px) {
+  .bk-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s-3);
+    border: 0; background: transparent; overflow: visible;
+  }
+  .bk-item {
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    background: var(--surface);
+    align-content: start;
+  }
+  .bk-item:last-child { border-bottom: 1px solid var(--border); }
+  .bk-item:hover { background: var(--surface); border-color: var(--border-strong); }
+}
+
+@media (max-width: 480px) {
+  .bk-item { padding: var(--s-3); }
+  .bk-list { border-radius: var(--r-md); }
+}
+
+/* ---------------------------------------------------------------------------
+   19c. DASHBOARD BREADCRUMB — shrink fix
+   
+   .breadcrumb is flex: 0 0 auto, so it cannot shrink and a long page name
+   pushes the whole document sideways. "Home / Vendor / Bookings" overflows a
+   390px phone by 6px; "Home / Vendor / Products & services" by 73px. This is
+   why several dashboard pages scroll horizontally on a phone.
+   
+   Below 640px the leading "Home /" is dropped — the burger and the back
+   gesture both already cover it — and the current page truncates instead of
+   pushing. Applies to every admin and vendor page, not just bookings.
+   ------------------------------------------------------------------------ */
+@media (max-width: 640px) {
+  .dash-bar { padding-left: var(--s-3); padding-right: var(--s-3); min-width: 0; }
+  .breadcrumb { flex: 0 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; }
+  .breadcrumb > a:first-child,
+  .breadcrumb > .sep:first-of-type { display: none; }
+  .breadcrumb .current {
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+}
+
+/* ---------------------------------------------------------------------------
    20. RESPONSIVE — every breakpoint reasoned about, not just scaled down
    ------------------------------------------------------------------------ */
 
