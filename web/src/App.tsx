@@ -26,11 +26,13 @@ import ListingForm from './pages/vendor/ListingForm';
 import VendorOrders from './pages/vendor/VendorOrders';
 import VendorComplaints from './pages/vendor/VendorComplaints';
 import VendorProfile from './pages/vendor/VendorProfile';
+import VendorStatements from './pages/vendor/VendorStatements';
 
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminOverview from './pages/admin/AdminOverview';
 import AdminVendors from './pages/admin/AdminVendors';
 import { AdminListings, AdminComplaints, AdminOrders, AdminUsers, AdminCategories, AdminAudit } from './pages/admin/AdminMisc';
+import AdminBilling from './pages/admin/AdminBilling';
 
 function ScrollTop() {
   const { pathname } = useLocation();
@@ -79,6 +81,7 @@ export default function App() {
                 <Route path="listings/:id/edit" element={<ListingForm />} />
                 <Route path="orders" element={<VendorOrders />} />
                 <Route path="complaints" element={<VendorComplaints />} />
+                <Route path="statements" element={<VendorStatements />} />
                 <Route path="profile" element={<VendorProfile />} />
                 <Route path="*" element={<Navigate to="/vendor" replace />} />
               </Route>
@@ -91,6 +94,7 @@ export default function App() {
                 <Route path="orders" element={<AdminOrders />} />
                 <Route path="complaints" element={<AdminComplaints />} />
                 <Route path="users" element={<AdminUsers />} />
+                <Route path="billing" element={<AdminBilling />} />
                 <Route path="categories" element={<AdminCategories />} />
                 <Route path="audit" element={<AdminAudit />} />
                 <Route path="*" element={<Navigate to="/admin" replace />} />
