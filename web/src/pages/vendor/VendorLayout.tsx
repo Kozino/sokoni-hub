@@ -5,21 +5,27 @@ import DashShell, { DashLink, DashNotification } from '../../components/DashShel
 import { useAuth } from '../../state/AuthContext';
 import { StatusBadge, Alert } from '../../components/ui';
 import { api } from '../../lib/api';
-import { IconChart, IconBox, IconPlus, IconReceipt, IconAlert, IconStore } from '../../components/icons';
+import { IconChart, IconBox, IconPlus, IconReceipt, IconAlert, IconStore, IconHistory } from '../../components/icons';
 
 export default function VendorLayout() {
   const { user, vendor } = useAuth();
   const name = vendor?.business_name || user?.full_name || 'V';
   const initials = name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
 
-  const [alerts, setAlerts] = useState({ out_of_stock: 0, low_stock: 0, open_complaints: 0 });
+  const [alerts, setAlerts] = useState({ out_of_stock: 0, low_stock: 0, open_complaints: 0, new_bookings: 0 });
   useEffect(() => {
     if (!vendor) return;
-    const load = () => api.get<any>('/vendors/dashboard')
-      .then((r) => setAlerts({
+    const load = () => Promise.all([
+      api.get<any>('/vendors/dashboard'),
+      // Separate call: a service-only vendor has no stock or orders, so their
+      // booking count must not depend on the commerce dashboard succeeding.
+      api.get<any>('/bookings/vendor/counts').catch(() => ({ new: 0 })),
+    ])
+      .then(([r, bk]) => setAlerts({
         out_of_stock: Number(r.stats.out_of_stock || 0),
         low_stock: Number(r.stats.low_stock || 0),
         open_complaints: Number(r.stats.open_complaints || 0),
+        new_bookings: Number(bk.new || 0),
       }))
       .catch(() => {});
     load();
@@ -43,6 +49,11 @@ export default function VendorLayout() {
       title: `${alerts.open_complaints} open complaint${alerts.open_complaints === 1 ? '' : 's'}`,
       text: 'A buyer is waiting on a response.', to: '/vendor/complaints',
     }] : []),
+    ...(alerts.new_bookings > 0 ? [{
+      id: 'bk', tone: 'gold' as const,
+      title: `${alerts.new_bookings} new booking request${alerts.new_bookings === 1 ? '' : 's'}`,
+      text: 'A customer is waiting to agree a time with you.', to: '/vendor/bookings',
+    }] : []),
   ];
 
   const links: DashLink[] = [
@@ -50,6 +61,7 @@ export default function VendorLayout() {
     { to: '/vendor/listings', ico: IconBox, label: 'Products & services', pill: alerts.out_of_stock, group: 'Catalogue' },
     { to: '/vendor/listings/new', ico: IconPlus, label: 'Add listing', group: 'Catalogue' },
     { to: '/vendor/orders', ico: IconReceipt, label: 'Orders', group: 'Sales' },
+    { to: '/vendor/bookings', ico: IconHistory, label: 'Bookings', pill: alerts.new_bookings, group: 'Sales' },
     { to: '/vendor/complaints', ico: IconAlert, label: 'Complaints', pill: alerts.open_complaints, group: 'Sales' },
     { to: '/vendor/statements', ico: IconReceipt, label: 'Statements', group: 'Sales' },
     { to: '/vendor/profile', ico: IconStore, label: 'Store profile', group: 'Settings' },
