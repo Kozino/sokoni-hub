@@ -1,226 +1,176 @@
-# Sokoni Hub — multi-vendor marketplace for African food-stuff traders & service providers
+# Sokoni Hub — billing, documents, email and scheduling
 
-A production-ready marketplace that gives WhatsApp-only sellers a real, searchable storefront.
-**Vendors register → an admin verifies them → only then can they publish.** Buyers shop with
-**cash on delivery** or a one-tap **WhatsApp** handoff, with no account required.
+Everything from the four open items, plus the earlier currency fix.
 
-Built with **React + TypeScript (Vite)**, **Node/Express + TypeScript**, and **PostgreSQL (Supabase)**.
+**Two ways to apply.** Use the patch if your repo is on `main` (verified: it applies
+cleanly to a fresh clone). Otherwise copy the files — the folder structure mirrors the
+repo, so `api/src/...` and `web/src/...` drop straight in.
 
-```
-marketplace/
-├── api/      Express + TypeScript REST API      → deploy to Render
-├── web/      React + TypeScript (Vite) SPA      → deploy to Netlify
-└── db/
-    └── schema.sql   full PostgreSQL schema      → run once in Supabase
+```bash
+git apply billing-and-currency.patch
 ```
 
 ---
 
-## What's implemented
+## What is in here
 
-### Vendors
-- Self-registration, then a 3-step onboarding wizard (business details → logo + ID document → confirm).
-- **Cannot publish anything until an admin verifies the store.** Rejected vendors see the reason and
-  are auto-resubmitted when they edit their profile. Suspended vendors are frozen and their live
-  listings are pulled down automatically.
-- Dashboard (`/vendor`): revenue area chart (30 days), orders-by-status donut, top-listings bar chart,
-  stock alerts (out-of-stock / low ≤5), views, open complaints, recent orders.
-- Listings manager: products **and** services in one table, inline stock editing, pause/publish,
-  edit, delete, search and type tabs.
-- Product fields: name, description, price, currency, **quantity**, **unit** (kg/litre/bag/pack/…),
-  **weight in kg**, **volume in litres**, up to 6 photos.
-- Service fields: price type (fixed / from / hourly), session duration, service area, photos.
-- Order pipeline: `pending → confirmed → dispatched → delivered` (or cancelled), with a WhatsApp
-  button to message the buyer.
-- Complaints filed against the store, with the admin's ruling visible.
+### New files
 
-### Buyers (no dashboard — by design)
-- Browse and search with filters: keyword, product/service, category, city, price range, sort, paging.
-- Listing detail with gallery, full specs, stock state, related items, and a WhatsApp order button.
-- Cart that **splits a multi-vendor order into one order per vendor** automatically.
-- Guest checkout — name, phone, address, city, country + payment method
-  (**cash on delivery**, WhatsApp, bank transfer). Returns an order code per vendor.
-- Public order tracking by **order code + phone** (no login).
-- Public complaint filing and tracking by reference code.
-- Optional account for order history and profile/password management.
+| File | Purpose |
+|---|---|
+| `db/migrations/003_currency_billing.sql` | QAR defaults, settlement tables, receipt numbering |
+| `db/migrations/004_payouts_email.sql` | vendor bank details, email log, payout batches |
+| `api/src/billing.ts` | settlement maths, pure and testable |
+| `api/src/templates.ts` | printable receipt + statement HTML |
+| `api/src/routes/billing.ts` | all billing endpoints, incl. cron and payouts |
+| `api/src/mailer.ts` | email via Resend or Brevo — **no new npm dependency** |
+| `web/src/pages/admin/AdminBilling.tsx` | admin Billing page |
+| `web/src/pages/vendor/VendorStatements.tsx` | vendor Statements tab |
 
-### Admin
-- Overview: users, vendors by status, listings, orders, GMV, open complaints,
-  30-day signup and order/GMV trends, listings-by-category, top vendors, live activity feed.
-- **Verification queue** with document review, one-click verify, reject-with-reason, suspend, reinstate.
-- Listing moderation (remove / restore), order oversight, user management (enable/disable, create admins),
-  category management (including toggling a category to *prohibited*), and an immutable audit log.
+### Changed files
 
-### Prohibited-goods enforcement (cosmetics & medicine)
-Blocked at four layers:
-1. `categories.is_banned` — banned categories are never returned to vendors or buyers.
-2. A `banned_keywords` table screened against every business name, listing title and description.
-3. Admin can flag any category as prohibited at runtime, and remove individual listings.
-4. Public policy page plus explicit consent checkboxes at registration and onboarding.
+`api/src/config.ts`, `api/src/delivery.ts`, `api/src/server.ts`,
+`api/src/routes/{orders,listings,vendors}.ts`, `web/src/App.tsx`,
+`web/src/pages/Static.tsx`, `web/src/pages/admin/AdminLayout.tsx`,
+`web/src/pages/vendor/VendorLayout.tsx`.
 
 ---
 
-## Local development
+## 1. UI — done
 
-**Prerequisites:** Node 20+, and a PostgreSQL database (local or Supabase).
+**Admin → Billing** (`/admin/billing`), three tabs:
 
-### 1. Database
-Run `db/schema.sql` once against your database — in the Supabase SQL editor, or:
-```bash
-psql "$DATABASE_URL" -f db/schema.sql
+- **Statements** — filter by status; per row: View, Issue, Email, Mark paid, Void.
+  Balance is colour-coded and labelled "vendor owes you" or "you owe vendor" so the
+  direction is never ambiguous.
+- **Payouts** — totals both ways, bank-transfer CSV export, multi-select several
+  statements and settle them under one reference. Warns about vendors with no IBAN.
+- **Settings** — commission rate, and the business details printed on every document.
+
+"Generate statements" opens a month picker with a **Preview** step, so you see the
+figures before anything is written.
+
+**Vendor → Statements** (`/vendor/statements`) — their own statements, what they owe or
+are owed, a View/print button, and a payout bank-details form. Drafts are hidden from
+vendors; they only see a statement once you issue it.
+
+**Buyer** — a **Download receipt** button on the order tracking page, next to
+"Problem with this order?". Works for guests, since it authenticates on order code +
+phone exactly as tracking does.
+
+One implementation note: documents sit behind an `Authorization` header, so a plain
+`<a href>` cannot fetch them. The admin and vendor pages fetch with the token and open
+the result as a blob URL. The buyer receipt is public, so it is a normal link.
+
+## 2. Scheduled run — done
+
 ```
-It is idempotent: enums, tables, indexes, triggers, the 17 allowed categories, the 2 banned ones,
-and the keyword blocklist.
-
-In Supabase also create a public storage bucket for images:
-```sql
-insert into storage.buckets (id, name, public) values ('listings','listings', true)
-  on conflict do nothing;
+POST /api/billing/cron/run-statements
+     header: x-cron-secret: <CRON_SECRET>
+     body (optional): {"month":"2026-09","issue":true,"email":true}
 ```
 
-### 2. API
-```bash
-cd api
-cp .env.example .env      # fill in DATABASE_URL, JWT_SECRET, Supabase keys
-npm install
-npm run migrate           # optional: applies db/schema.sql for you
-npm run seed:admin        # interactive — creates your first admin account
-npm run dev               # http://localhost:4000
+With no body it settles **the month just ended**, so running it on the 1st does the
+right thing. It generates, issues and emails in one pass.
+
+Set `CRON_SECRET` in your environment, then point your existing cron service at it:
+
+```
+0 2 1 * *   POST https://sokoni-hub.onrender.com/api/billing/cron/run-statements
+            header  x-cron-secret: <your secret>
 ```
 
-### 3. Web
-```bash
-cd web
-npm install
-npm run dev               # http://localhost:5173
-```
-In development the Vite dev server proxies `/api` → `http://localhost:4000`, so no
-`VITE_API_URL` is needed locally.
+Safe to run repeatedly — a month already settled reports `generated: 0`.
 
-### 4. Tests
-An end-to-end suite covering **51 assertions** across the whole business flow —
-registration, prohibited-goods screening, verification gating, listings, checkout,
-stock decrement, overselling, order pipeline, dashboards, complaints, moderation,
-suspension cascade and auth guards:
-```bash
-cd api
-API=http://localhost:4000 ./test-e2e.sh
-# optional: reset the DB first so the run is repeatable
-RESET_DB_URL="$DATABASE_URL" API=http://localhost:4000 ./test-e2e.sh
+## 3. Email — done, and dependency-free
+
+`api/src/mailer.ts` talks to **Resend** or **Brevo** over HTTPS using the built-in
+`fetch`. No nodemailer, no SMTP, nothing added to `package.json`.
+
 ```
+EMAIL_PROVIDER=resend        # or brevo, or none (default)
+EMAIL_API_KEY=...
+EMAIL_FROM=billing@yourdomain.com
+EMAIL_FROM_NAME=Sokoni Hub
+EMAIL_REPLY_TO=support@yourdomain.com
+```
+
+**Default is `none`** — with nothing configured the app behaves exactly as before and
+sends are recorded as `skipped`, never throwing.
+
+What sends:
+- **Vendor statement** — the Email button, or automatically by the cron run.
+- **Buyer receipt** — automatically when a vendor marks an order `delivered`, if the
+  buyer has an account with an email. Guest checkouts are skipped silently.
+
+Every attempt is written to `email_log` (sent / failed / skipped, with the provider's
+id or the error), readable at `GET /api/billing/email-log`. A mail failure never rolls
+back the action that triggered it — an order is still delivered if the receipt bounces.
+
+## 4. Payouts — as automated as is possible without a payment rail
+
+Being straight with you: **money cannot move automatically.** There is no gateway
+connected, so no code here can push funds. Saying otherwise would be a lie.
+
+Everything *around* the transfer is now automated:
+
+- Vendors store bank name, account name and IBAN themselves
+- `GET /api/billing/payouts/outstanding` — who is owed what, both directions
+- `GET /api/billing/payouts/export.csv` — bank-ready bulk-transfer file
+- `POST /api/billing/payouts/batch` — settle many statements under one reference,
+  recorded as a `payout_batches` row so one bank transfer covering six vendors is
+  still traceable to each statement
+
+You make the transfer; the system does the arithmetic, the documents and the record.
+When you add SkipCash or Dibsy, set `orders.funds_collected_by = 'platform'` at
+checkout and the ledger reverses direction on its own — no settlement logic changes.
 
 ---
 
-## Deployment
+## Deploy
 
-### Supabase (database + file storage)
-1. Create a project, then run `db/schema.sql` in the SQL editor.
-2. Create the public `listings` storage bucket (SQL above).
-3. Copy the **connection string** (Settings → Database → URI — use the *pooler* URI, port 6543)
-   and the **service role key** (Settings → API).
-
-### Render (API)
-Create a **Web Service** from this repo:
-
-| Setting | Value |
-| --- | --- |
-| Root directory | `api` |
-| Build command | `npm install && npm run build` |
-| Start command | `npm start` |
-| Health check path | `/api/health` |
-
-Environment variables:
-```
-DATABASE_URL=<supabase pooler URI>
-PGSSL=true
-JWT_SECRET=<long random string>
-JWT_EXPIRES=7d
-CORS_ORIGINS=https://<your-site>.netlify.app
-SUPABASE_URL=https://<project>.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=<service role key>
-SUPABASE_BUCKET=listings
-NODE_ENV=production
-```
-After the first deploy, create your admin from the Render shell:
 ```bash
-ADMIN_NAME="Your Name" ADMIN_PHONE="234..." ADMIN_PASSWORD="..." npx tsx src/scripts/createAdmin.ts
+git apply billing-and-currency.patch
+cd api && npm run build
+psql "$DATABASE_URL" -f db/migrations/003_currency_billing.sql
+psql "$DATABASE_URL" -f db/migrations/004_payouts_email.sql
+cd ../web && npm run build
 ```
 
-### Netlify (web)
-| Setting | Value |
-| --- | --- |
-| Base directory | `web` |
-| Build command | `npm run build` |
-| Publish directory | `web/dist` |
-
-Environment variable:
-```
-VITE_API_URL=https://<your-api>.onrender.com
-```
-`netlify.toml` already contains the SPA redirect so deep links like `/vendor/listings` work.
-
-> Set `CORS_ORIGINS` on Render to your real Netlify URL once you know it. Any
-> `*.netlify.app` origin is also allowed by default to make first deploys painless.
+Both migrations are idempotent and safe to re-run. New environment variables:
+`CRON_SECRET`, and the `EMAIL_*` set if you want email. Everything works without them.
 
 ---
 
-## API reference
+## How this was verified
 
-`POST` bodies are JSON. Authenticated routes need `Authorization: Bearer <token>`.
+A real Postgres 18 (PGlite over the wire protocol) with your actual `schema.sql` and
+migrations 002–004, the **real Express API** connected to it, driven over HTTP.
 
-| Method | Path | Access | Purpose |
-| --- | --- | --- | --- |
-| GET | `/api/health` | public | Liveness + DB check |
-| POST | `/api/auth/register` | public | Create buyer or vendor account |
-| POST | `/api/auth/login` | public | Login with phone **or** email |
-| GET | `/api/auth/me` | auth | Current user + vendor profile |
-| PATCH | `/api/auth/me` | auth | Update profile |
-| POST | `/api/auth/change-password` | auth | Change password |
-| GET | `/api/meta/categories` | public | Allowed categories only |
-| GET | `/api/meta/stats` | public | Homepage counters |
-| GET | `/api/meta/policy` | public | Prohibited list, payment methods, units |
-| GET | `/api/listings` | public | Search/filter/sort/paginate |
-| GET | `/api/listings/cities` | public | Cities with verified vendors |
-| GET | `/api/listings/:id` | public | Detail + related (increments views) |
-| GET | `/api/listings/mine/all` | vendor | Own listings (any status) |
-| POST | `/api/listings` | vendor ✔ | Create (screens prohibited goods) |
-| PATCH | `/api/listings/:id` | vendor ✔ | Update |
-| PATCH | `/api/listings/:id/stock` | vendor ✔ | Quick stock update |
-| DELETE | `/api/listings/:id` | vendor | Soft-delete |
-| POST | `/api/vendors/onboard` | auth | Submit store for verification |
-| GET/PATCH | `/api/vendors/me` | vendor | Own store profile |
-| GET | `/api/vendors/dashboard` | vendor | Stats, trends, top listings, orders |
-| GET | `/api/vendors` | public | Verified store directory |
-| GET | `/api/vendors/:slug` | public | Public storefront |
-| POST | `/api/vendors/:id/reviews` | auth | Rate a store |
-| POST | `/api/orders/checkout` | public | Guest or logged-in; splits per vendor |
-| GET | `/api/orders/track` | public | By `?code=` + `?phone=` |
-| GET | `/api/orders/mine` | auth | Buyer order history |
-| GET | `/api/orders/vendor` | vendor | Incoming orders |
-| PATCH | `/api/orders/vendor/:id/status` | vendor | Advance the pipeline |
-| POST | `/api/complaints` | public | File a complaint |
-| GET | `/api/complaints/track/:code` | public | Track by reference |
-| GET | `/api/complaints/vendor` | vendor | Complaints against you |
-| POST | `/api/uploads` | auth | Multipart images/PDF → Supabase Storage |
-| GET | `/api/admin/overview` | admin | Full platform analytics |
-| GET | `/api/admin/vendors` | admin | Verification queue |
-| POST | `/api/admin/vendors/:id/verify\|reject\|suspend\|reinstate` | admin | Verification actions |
-| GET | `/api/admin/listings` | admin | Moderation list |
-| POST | `/api/admin/listings/:id/remove\|restore` | admin | Moderate a listing |
-| GET/PATCH | `/api/admin/complaints` | admin | Complaint management |
-| GET/PATCH/POST | `/api/admin/users` | admin | Manage users, create admins |
-| GET/POST/PATCH | `/api/admin/categories` | admin | Manage + prohibit categories |
-| GET | `/api/admin/orders` | admin | All orders |
-| GET | `/api/admin/audit` | admin | Audit log |
+**Live API, 17/17:** generate creates a draft · re-run cannot double-bill · vendor
+cannot see drafts · issued as `INV-2026-0001` · vendor then sees it · document renders
+correct figures · settings appear on the document · vendor can open their own ·
+unauthenticated rejected · email reports failure with no provider (502) · skip recorded
+in `email_log` · outstanding shows QAR 20 to collect · CSV exports · batch settles ·
+status becomes paid · paid cannot be voided.
 
-✔ = also requires the vendor to be **verified**.
+**Receipts and cron, 8/8:** receipt renders with a number · total matches (QAR 225) ·
+names the vendor · number stable across requests · wrong phone gets 404 · cron rejects
+bad and missing secrets · cron skips an already-settled month. Plus a fresh month:
+`generated: 1, issued: 1`, and an immediate re-run `generated: 0`.
 
----
+**Schema, 28/28** across migrations 003 and 004, including idempotency, the
+double-billing constraint and the two-directional-balance CHECK.
 
-## Security notes
-- Passwords hashed with bcrypt; stateless JWT auth; role checks enforced **server-side** on every route.
-- Zod validation on all request bodies; parameterised SQL everywhere (no string interpolation).
-- Helmet, CORS allowlist, and rate limiting (60 auth requests / 15 min, 300 API requests / min).
-- Uploads restricted to JPEG/PNG/WebP/PDF, 5 MB, max 6 files.
-- ID documents are only ever returned through admin-scoped endpoints.
-- Every sensitive action is written to `audit_log` with actor, entity and metadata.
+**Maths, 17/17** — all-cash, all-online, mixed, zero-rate, and a rounding case proving
+per-line commissions re-add exactly to the header total.
+
+End-to-end currency proof: a listing created through the API came back `QAR`, an order
+placed through checkout came back `QAR` with total 225, and commission computed to 20
+— 10% of the 200 in goods, with the 25 delivery fee correctly excluded.
+
+`tsc --noEmit` clean on both `api` and `web`; `vite build` succeeds.
+
+**Not verified:** nothing has run against your live Supabase or Render, and no email
+has actually been delivered — no provider key exists here, so only the `skipped` path
+was exercised. Send one real test email after you set `EMAIL_API_KEY`.

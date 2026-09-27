@@ -1,0 +1,2333 @@
+diff --git a/api/src/billing.ts b/api/src/billing.ts
+new file mode 100644
+index 0000000..bd3e53a
+--- /dev/null
++++ b/api/src/billing.ts
+@@ -0,0 +1,106 @@
++/**
++ * Settlement maths for vendor statements.
++ *
++ * Kept free of database and Express so it can be tested directly.
++ *
++ * The important modelling decision is DIRECTION. On a marketplace that holds
++ * the buyer's money, the platform owes the vendor (sales minus commission).
++ * Sokoni Hub today takes cash on delivery, WhatsApp and bank transfer, so the
++ * VENDOR holds the money and owes the platform commission. Both cases fall out
++ * of one calculation, so adding a payment gateway later changes no logic here.
++ */
++
++export const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
++
++export type FundsHolder = 'vendor' | 'platform';
++
++export interface SettleableOrder {
++  id: string;
++  subtotal: number;
++  delivery_fee: number;
++  total: number;
++  funds_collected_by: FundsHolder;
++}
++
++export interface StatementTotals {
++  order_count: number;
++  goods_subtotal: number;
++  delivery_total: number;
++  gross_sales: number;
++  commission_rate: number;
++  commission_base: number;
++  commission_amount: number;
++  collected_by_vendor: number;
++  collected_by_platform: number;
++  net_due_to_platform: number;
++  net_due_to_vendor: number;
++  /** Per-order commission, so a statement can show its workings line by line. */
++  lines: { order_id: string; gross: number; commission_amount: number }[];
++}
++
++/**
++ * Commission is charged on goods only, never on the delivery fee.
++ *
++ * The vendor performs the delivery and sets that fee themselves; it reimburses
++ * their fuel and time rather than representing margin the platform helped
++ * create. Taking a cut of it would tax the vendor's costs and push them to
++ * quote delivery off-platform.
++ */
++export function computeStatement(orders: SettleableOrder[], commissionRate: number): StatementTotals {
++  if (commissionRate < 0 || commissionRate > 1)
++    throw new Error(`commission_rate must be between 0 and 1, got ${commissionRate}`);
++
++  let goods = 0, delivery = 0, gross = 0, byVendor = 0, byPlatform = 0;
++  const lines: StatementTotals['lines'] = [];
++
++  for (const o of orders) {
++    goods = round2(goods + Number(o.subtotal));
++    delivery = round2(delivery + Number(o.delivery_fee));
++    gross = round2(gross + Number(o.total));
++    if (o.funds_collected_by === 'platform') byPlatform = round2(byPlatform + Number(o.total));
++    else byVendor = round2(byVendor + Number(o.total));
++
++    lines.push({
++      order_id: o.id,
++      gross: round2(Number(o.total)),
++      // Rounded per line so the lines always re-add to the header total.
++      commission_amount: round2(Number(o.subtotal) * commissionRate),
++    });
++  }
++
++  // Sum the rounded lines rather than rounding the sum, otherwise a statement
++  // can show lines that do not add up to its own total.
++  const commission = round2(lines.reduce((a, l) => a + l.commission_amount, 0));
++
++  // What the vendor has earned, less our cut, less what they already hold.
++  // Positive => we owe them. Negative => they owe us.
++  const balance = round2(round2(gross - commission) - byVendor);
++
++  return {
++    order_count: orders.length,
++    goods_subtotal: goods,
++    delivery_total: delivery,
++    gross_sales: gross,
++    commission_rate: commissionRate,
++    commission_base: goods,
++    commission_amount: commission,
++    collected_by_vendor: byVendor,
++    collected_by_platform: byPlatform,
++    net_due_to_platform: balance < 0 ? round2(-balance) : 0,
++    net_due_to_vendor: balance > 0 ? round2(balance) : 0,
++    lines,
++  };
++}
++
++/** First and last day of a month, as YYYY-MM-DD. */
++export function monthPeriod(year: number, month1to12: number) {
++  const pad = (n: number) => String(n).padStart(2, '0');
++  const last = new Date(Date.UTC(year, month1to12, 0)).getUTCDate();
++  return {
++    period_start: `${year}-${pad(month1to12)}-01`,
++    period_end: `${year}-${pad(month1to12)}-${pad(last)}`,
++  };
++}
++
++export const formatMoney = (amount: number | string, currency = 'QAR') =>
++  `${currency} ${Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+diff --git a/api/src/config.ts b/api/src/config.ts
+index 61fc9da..54f7c04 100644
+--- a/api/src/config.ts
++++ b/api/src/config.ts
+@@ -53,6 +53,6 @@ export const config = {
+   supabaseUrl: process.env.SUPABASE_URL || '',
+   supabaseKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+   supabaseBucket: process.env.SUPABASE_BUCKET || 'listings',
+-  defaultCurrency: process.env.DEFAULT_CURRENCY || 'USD',
++  defaultCurrency: process.env.DEFAULT_CURRENCY || 'QAR',
+   platformWhatsapp: process.env.PLATFORM_WHATSAPP || '',
+ };
+diff --git a/api/src/delivery.ts b/api/src/delivery.ts
+index a9f1d60..3c0fed2 100644
+--- a/api/src/delivery.ts
++++ b/api/src/delivery.ts
+@@ -22,6 +22,9 @@ export interface VendorDeliverySettings {
+ }
+ 
+ /** Money is 2dp. Avoids 0.1 + 0.2 drifting into the stored total. */
++/** Fallback when a cart somehow carries no currency. */
++export const DEFAULT_CURRENCY = 'QAR';
++
+ export const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+ 
+ const num = (v: number | string | null | undefined, fallback = 0): number => {
+@@ -144,7 +147,7 @@ export function cartTotals(quotes: VendorQuote[]) {
+     subtotal: round2(quotes.reduce((s, q) => s + q.subtotal, 0)),
+     delivery_fee: round2(quotes.reduce((s, q) => s + q.delivery_fee, 0)),
+     total: round2(quotes.reduce((s, q) => s + q.total, 0)),
+-    currency: quotes[0]?.currency || 'USD',
++    currency: quotes[0]?.currency || DEFAULT_CURRENCY,
+   };
+ }
+ 
+diff --git a/api/src/mailer.ts b/api/src/mailer.ts
+new file mode 100644
+index 0000000..07a6387
+--- /dev/null
++++ b/api/src/mailer.ts
+@@ -0,0 +1,123 @@
++/**
++ * Outbound email.
++ *
++ * Deliberately dependency-free: it talks to Resend or Brevo over their HTTP
++ * APIs using global fetch (Node 18+). No nodemailer, no SMTP socket handling,
++ * nothing new in package.json.
++ *
++ * Default is 'none'. With no provider configured the app runs exactly as
++ * before — sends are recorded as 'skipped' rather than throwing — so email is
++ * strictly opt-in via environment variables.
++ *
++ *   EMAIL_PROVIDER=resend|brevo|none      (default none)
++ *   EMAIL_API_KEY=...
++ *   EMAIL_FROM=billing@yourdomain.com     (must be a verified sender)
++ *   EMAIL_FROM_NAME=Sokoni Hub
++ *   EMAIL_REPLY_TO=support@yourdomain.com (optional)
++ */
++
++import { query } from './db';
++
++const provider = (process.env.EMAIL_PROVIDER || 'none').toLowerCase();
++const apiKey = process.env.EMAIL_API_KEY || '';
++const from = process.env.EMAIL_FROM || '';
++const fromName = process.env.EMAIL_FROM_NAME || 'Sokoni Hub';
++const replyTo = process.env.EMAIL_REPLY_TO || '';
++
++export const emailEnabled = provider !== 'none' && !!apiKey && !!from;
++
++export interface SendArgs {
++  to: string;
++  subject: string;
++  html: string;
++  /** For the email_log row, so failures can be traced to a document. */
++  kind: string;
++  entityId?: string | null;
++}
++
++export interface SendResult {
++  ok: boolean;
++  status: 'sent' | 'failed' | 'skipped';
++  providerId?: string;
++  error?: string;
++}
++
++async function record(a: SendArgs, r: SendResult) {
++  try {
++    await query(
++      `insert into email_log (to_address, subject, kind, entity_id, status, provider, provider_id, error)
++       values ($1,$2,$3,$4,$5::email_status,$6,$7,$8)`,
++      [a.to, a.subject, a.kind, a.entityId ?? null, r.status, provider, r.providerId ?? null, r.error ?? null]
++    );
++  } catch (e) {
++    console.error('[mail] could not write email_log:', (e as Error).message);
++  }
++}
++
++async function viaResend(a: SendArgs): Promise<SendResult> {
++  const res = await fetch('https://api.resend.com/emails', {
++    method: 'POST',
++    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
++    body: JSON.stringify({
++      from: `${fromName} <${from}>`,
++      to: [a.to],
++      subject: a.subject,
++      html: a.html,
++      ...(replyTo ? { reply_to: replyTo } : {}),
++    }),
++  });
++  const body: any = await res.json().catch(() => ({}));
++  return res.ok
++    ? { ok: true, status: 'sent', providerId: body?.id }
++    : { ok: false, status: 'failed', error: body?.message || `Resend returned ${res.status}` };
++}
++
++async function viaBrevo(a: SendArgs): Promise<SendResult> {
++  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
++    method: 'POST',
++    headers: { 'api-key': apiKey, 'Content-Type': 'application/json', accept: 'application/json' },
++    body: JSON.stringify({
++      sender: { email: from, name: fromName },
++      to: [{ email: a.to }],
++      subject: a.subject,
++      htmlContent: a.html,
++      ...(replyTo ? { replyTo: { email: replyTo } } : {}),
++    }),
++  });
++  const body: any = await res.json().catch(() => ({}));
++  return res.ok
++    ? { ok: true, status: 'sent', providerId: body?.messageId }
++    : { ok: false, status: 'failed', error: body?.message || `Brevo returned ${res.status}` };
++}
++
++/**
++ * Never throws. A failed send is logged and reported, but must not roll back
++ * the business action that triggered it — an order is still delivered even if
++ * the receipt email bounces.
++ */
++export async function sendMail(a: SendArgs): Promise<SendResult> {
++  if (!a.to || !/.+@.+\..+/.test(a.to)) {
++    const r: SendResult = { ok: false, status: 'skipped', error: 'no valid recipient address' };
++    await record(a, r);
++    return r;
++  }
++  if (!emailEnabled) {
++    const r: SendResult = { ok: false, status: 'skipped', error: 'email provider not configured' };
++    await record(a, r);
++    return r;
++  }
++  let r: SendResult;
++  try {
++    r = provider === 'brevo' ? await viaBrevo(a) : await viaResend(a);
++  } catch (e) {
++    r = { ok: false, status: 'failed', error: (e as Error).message };
++  }
++  if (!r.ok) console.error(`[mail] ${a.kind} to ${a.to} failed: ${r.error}`);
++  await record(a, r);
++  return r;
++}
++
++/** Fire-and-forget: use where the send must never delay or break the response. */
++export function sendMailAsync(a: SendArgs) {
++  void sendMail(a).catch((e) => console.error('[mail] unexpected', e));
++}
+diff --git a/api/src/routes/billing.ts b/api/src/routes/billing.ts
+new file mode 100644
+index 0000000..c9237ac
+--- /dev/null
++++ b/api/src/routes/billing.ts
+@@ -0,0 +1,629 @@
++import { Router } from 'express';
++import { z } from 'zod';
++import { one, query, tx } from '../db';
++import { requireAuth, loadVendor } from '../auth';
++import { HttpError, audit } from '../utils';
++import { computeStatement, monthPeriod, formatMoney, type SettleableOrder } from '../billing';
++import { receiptHtml, statementHtml, type PlatformSettings } from '../templates';
++import { sendMail, emailEnabled } from '../mailer';
++
++export const billingRouter = Router();
++
++/** Prefixes drive document numbering; the templates never need them. */
++type Settings = PlatformSettings & {
++  commission_rate: number;
++  invoice_prefix: string;
++  receipt_prefix: string;
++};
++
++/** Singleton settings row, created by migration 003. */
++async function settings(): Promise<Settings> {
++  const s = await one<any>('select * from platform_settings where id = true');
++  if (!s) throw new HttpError(500, 'Platform settings row is missing — run migration 003');
++  return { ...s, commission_rate: Number(s.commission_rate) };
++}
++
++const html = (res: any, body: string) => res.type('html').send(body);
++
++/* ============================ settings ============================ */
++
++billingRouter.get('/settings', requireAuth('admin'), async (_req, res, next) => {
++  try {
++    res.json({ settings: await settings() });
++  } catch (e) { next(e); }
++});
++
++billingRouter.patch('/settings', requireAuth('admin'), async (req, res, next) => {
++  try {
++    const b = z.object({
++      commission_rate: z.number().min(0).max(1).optional(),
++      currency: z.string().length(3).optional(),
++      business_name: z.string().min(1).max(120).optional(),
++      business_address: z.string().max(300).nullable().optional(),
++      business_email: z.string().email().nullable().optional(),
++      business_phone: z.string().max(40).nullable().optional(),
++      cr_number: z.string().max(60).nullable().optional(),
++      tax_number: z.string().max(60).nullable().optional(),
++      logo_url: z.string().url().nullable().optional(),
++      invoice_prefix: z.string().min(1).max(8).optional(),
++      receipt_prefix: z.string().min(1).max(8).optional(),
++      invoice_footer: z.string().max(500).nullable().optional(),
++    }).parse(req.body);
++
++    const s = await one<any>(
++      `update platform_settings set
++         commission_rate  = coalesce($1, commission_rate),
++         currency         = coalesce($2, currency),
++         business_name    = coalesce($3, business_name),
++         business_address = coalesce($4, business_address),
++         business_email   = coalesce($5, business_email),
++         business_phone   = coalesce($6, business_phone),
++         cr_number        = coalesce($7, cr_number),
++         tax_number       = coalesce($8, tax_number),
++         logo_url         = coalesce($9, logo_url),
++         invoice_prefix   = coalesce($10, invoice_prefix),
++         receipt_prefix   = coalesce($11, receipt_prefix),
++         invoice_footer   = coalesce($12, invoice_footer),
++         updated_at = now()
++       where id = true returning *`,
++      [b.commission_rate ?? null, b.currency ?? null, b.business_name ?? null,
++       b.business_address ?? null, b.business_email ?? null, b.business_phone ?? null,
++       b.cr_number ?? null, b.tax_number ?? null, b.logo_url ?? null,
++       b.invoice_prefix ?? null, b.receipt_prefix ?? null, b.invoice_footer ?? null]
++    );
++    await audit(req.user!.id, 'billing.settings', 'platform_settings', null, b as any);
++    res.json({ settings: s });
++  } catch (e) { next(e); }
++});
++
++/* ======================= statement generation ===================== */
++
++const periodSchema = z.object({
++  period_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
++  period_end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
++  month: z.string().regex(/^\d{4}-\d{2}$/).optional(),
++  vendor_id: z.string().uuid().optional(),
++}).refine((v) => v.month || (v.period_start && v.period_end),
++  { message: 'Provide either month=YYYY-MM or both period_start and period_end' });
++
++/**
++ * Preview what a statement run would produce, without writing anything.
++ * Lets an admin sanity-check figures before committing them.
++ */
++billingRouter.post('/statements/preview', requireAuth('admin'), async (req, res, next) => {
++  try {
++    const b = periodSchema.parse(req.body);
++    const { period_start, period_end } = resolvePeriod(b);
++    const rate = (await settings()).commission_rate;
++    const groups = await settleableOrders(period_start, period_end, b.vendor_id);
++    res.json({
++      period_start, period_end, commission_rate: rate,
++      vendors: groups.map((g) => ({
++        vendor_id: g.vendor_id, business_name: g.business_name,
++        ...computeStatement(g.orders, rate),
++      })),
++    });
++  } catch (e) { next(e); }
++});
++
++/**
++ * Generate draft statements for a period.
++ *
++ * Only DELIVERED orders are settled — an order still in flight, or cancelled,
++ * has not earned anything yet. Orders already attached to a statement are
++ * skipped via the unique constraint on statement_orders.order_id, so running
++ * this twice cannot double-bill.
++ */
++billingRouter.post('/statements/generate', requireAuth('admin'), async (req, res, next) => {
++  try {
++    const b = periodSchema.parse(req.body);
++    const { period_start, period_end } = resolvePeriod(b);
++    const cfg = await settings();
++    const groups = await settleableOrders(period_start, period_end, b.vendor_id);
++    if (!groups.length) throw new HttpError(404, 'No settleable orders found for that period');
++
++    const created = await tx(async (c) => {
++      const out: any[] = [];
++      for (const g of groups) {
++        const t = computeStatement(g.orders, cfg.commission_rate);
++        const { rows: [st] } = await c.query(
++          `insert into vendor_statements
++             (vendor_id, period_start, period_end, currency, order_count,
++              goods_subtotal, delivery_total, gross_sales,
++              commission_rate, commission_base, commission_amount,
++              collected_by_vendor, collected_by_platform,
++              net_due_to_platform, net_due_to_vendor, created_by)
++           values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) returning *`,
++          [g.vendor_id, period_start, period_end, g.currency, t.order_count,
++           t.goods_subtotal, t.delivery_total, t.gross_sales,
++           t.commission_rate, t.commission_base, t.commission_amount,
++           t.collected_by_vendor, t.collected_by_platform,
++           t.net_due_to_platform, t.net_due_to_vendor, req.user!.id]
++        );
++        for (const l of t.lines) {
++          await c.query(
++            `insert into statement_orders (statement_id, order_id, gross, commission_amount)
++             values ($1,$2,$3,$4)`,
++            [st.id, l.order_id, l.gross, l.commission_amount]
++          );
++        }
++        out.push({ ...st, business_name: g.business_name });
++      }
++      return out;
++    });
++
++    await audit(req.user!.id, 'billing.statements.generate', 'vendor_statement',
++      created.map((s) => s.id).join(','), { period_start, period_end, count: created.length });
++    res.status(201).json({ statements: created });
++  } catch (e) {
++    // The partial unique index fires when a live statement already covers the period.
++    if ((e as any)?.code === '23505')
++      return next(new HttpError(409,
++        'A statement already exists for that vendor and period. Void it first to regenerate.'));
++    next(e);
++  }
++});
++
++function resolvePeriod(b: z.infer<typeof periodSchema>) {
++  if (b.month) {
++    const [y, m] = b.month.split('-').map(Number);
++    return monthPeriod(y, m);
++  }
++  return { period_start: b.period_start!, period_end: b.period_end! };
++}
++
++/** Delivered, not-yet-settled orders in a period, grouped by vendor. */
++async function settleableOrders(from: string, to: string, vendorId?: string) {
++  const rows = await query<any>(
++    `select o.id, o.vendor_id, o.subtotal, o.delivery_fee, o.total, o.currency,
++            o.funds_collected_by, v.business_name
++     from orders o
++     join vendors v on v.id = o.vendor_id
++     left join statement_orders so on so.order_id = o.id
++     where o.status = 'delivered'
++       and so.order_id is null
++       and o.created_at >= $1::date
++       and o.created_at < ($2::date + interval '1 day')
++       and ($3::uuid is null or o.vendor_id = $3::uuid)
++     order by v.business_name, o.created_at`,
++    [from, to, vendorId ?? null]
++  );
++
++  type Group = { vendor_id: string; business_name: string; currency: string; orders: SettleableOrder[] };
++  const byVendor = new Map<string, Group>();
++  for (const r of rows) {
++    const g: Group = byVendor.get(r.vendor_id) ?? {
++      vendor_id: r.vendor_id, business_name: r.business_name, currency: r.currency || 'QAR', orders: [],
++    };
++    g.orders.push({
++      id: r.id,
++      subtotal: Number(r.subtotal),
++      delivery_fee: Number(r.delivery_fee),
++      total: Number(r.total),
++      funds_collected_by: r.funds_collected_by,
++    });
++    byVendor.set(r.vendor_id, g);
++  }
++  return [...byVendor.values()];
++}
++
++/* ========================= statement listing ====================== */
++
++billingRouter.get('/statements', requireAuth('admin'), async (req, res, next) => {
++  try {
++    const status = String(req.query.status || '');
++    const vendorId = String(req.query.vendor_id || '');
++    const rows = await query(
++      `select s.*, v.business_name from vendor_statements s
++       join vendors v on v.id = s.vendor_id
++       where ($1 = '' or s.status::text = $1)
++         and ($2 = '' or s.vendor_id = $2::uuid)
++       order by s.period_start desc, v.business_name limit 200`,
++      [status, vendorId]
++    );
++    res.json({ statements: rows });
++  } catch (e) { next(e); }
++});
++
++/** A vendor's own statements. */
++billingRouter.get('/my/statements', requireAuth('vendor'), loadVendor, async (req, res, next) => {
++  try {
++    const rows = await query(
++      `select * from vendor_statements
++       where vendor_id = $1 and status <> 'draft'
++       order by period_start desc`,
++      [req.vendor!.id]
++    );
++    res.json({ statements: rows });
++  } catch (e) { next(e); }
++});
++
++/** Full statement with its order lines. Admin, or the vendor it belongs to. */
++async function loadStatement(id: string) {
++  const st = await one<any>(
++    `select s.*, v.business_name, v.city as vendor_city, v.whatsapp as vendor_whatsapp, v.user_id
++     from vendor_statements s join vendors v on v.id = s.vendor_id where s.id = $1`,
++    [id]
++  );
++  if (!st) throw new HttpError(404, 'Statement not found');
++  st.orders = await query(
++    `select o.code, o.created_at, so.gross as total, so.commission_amount
++     from statement_orders so join orders o on o.id = so.order_id
++     where so.statement_id = $1 order by o.created_at`,
++    [id]
++  );
++  return st;
++}
++
++function assertCanView(st: any, user: { id: string; role: string }) {
++  if (user.role === 'admin') return;
++  if (user.role === 'vendor' && st.user_id === user.id && st.status !== 'draft') return;
++  throw new HttpError(403, 'Not allowed to view this statement');
++}
++
++billingRouter.get('/statements/:id', requireAuth(), async (req, res, next) => {
++  try {
++    const st = await loadStatement(req.params.id);
++    assertCanView(st, req.user!);
++    res.json({ statement: st });
++  } catch (e) { next(e); }
++});
++
++billingRouter.get('/statements/:id/document', requireAuth(), async (req, res, next) => {
++  try {
++    const st = await loadStatement(req.params.id);
++    assertCanView(st, req.user!);
++    html(res, statementHtml(st, await settings()));
++  } catch (e) { next(e); }
++});
++
++/* ====================== statement state changes =================== */
++
++billingRouter.post('/statements/:id/issue', requireAuth('admin'), async (req, res, next) => {
++  try {
++    const cfg = await settings();
++    const st = await tx(async (c) => {
++      const { rows: [cur] } = await c.query('select * from vendor_statements where id=$1 for update', [req.params.id]);
++      if (!cur) throw new HttpError(404, 'Statement not found');
++      if (cur.status !== 'draft') throw new HttpError(409, `Statement is already ${cur.status}`);
++      const { rows: [num] } = await c.query('select next_document_number($1,$2) as n', ['invoice', cfg.invoice_prefix]);
++      const { rows: [updated] } = await c.query(
++        `update vendor_statements set status='issued', number=$2, issued_at=now(), updated_at=now()
++         where id=$1 returning *`,
++        [req.params.id, num.n]
++      );
++      return updated;
++    });
++    await audit(req.user!.id, 'billing.statement.issue', 'vendor_statement', st.id, { number: st.number });
++    res.json({ statement: st });
++  } catch (e) { next(e); }
++});
++
++billingRouter.post('/statements/:id/pay', requireAuth('admin'), async (req, res, next) => {
++  try {
++    const b = z.object({
++      payment_reference: z.string().min(1).max(120),
++      paid_at: z.string().datetime().optional(),
++    }).parse(req.body);
++
++    const st = await one<any>(
++      `update vendor_statements
++         set status='paid', payment_reference=$2, paid_at=coalesce($3::timestamptz, now()), updated_at=now()
++       where id=$1 and status='issued' returning *`,
++      [req.params.id, b.payment_reference, b.paid_at ?? null]
++    );
++    if (!st) throw new HttpError(409, 'Statement not found, or not in the issued state');
++    await audit(req.user!.id, 'billing.statement.pay', 'vendor_statement', st.id, b as any);
++    res.json({ statement: st });
++  } catch (e) { next(e); }
++});
++
++/**
++ * Void a statement and release its orders so the period can be regenerated.
++ * Paid statements are never voided — reverse them with an adjusting entry
++ * instead, so the audit trail stays intact.
++ */
++billingRouter.post('/statements/:id/void', requireAuth('admin'), async (req, res, next) => {
++  try {
++    const b = z.object({ reason: z.string().max(300).optional() }).parse(req.body ?? {});
++    const st = await tx(async (c) => {
++      const { rows: [cur] } = await c.query('select * from vendor_statements where id=$1 for update', [req.params.id]);
++      if (!cur) throw new HttpError(404, 'Statement not found');
++      if (cur.status === 'paid') throw new HttpError(409, 'A paid statement cannot be voided');
++      await c.query('delete from statement_orders where statement_id=$1', [req.params.id]);
++      const { rows: [updated] } = await c.query(
++        `update vendor_statements set status='void', notes=coalesce($2, notes), order_count=0, updated_at=now()
++         where id=$1 returning *`,
++        [req.params.id, b.reason ?? null]
++      );
++      return updated;
++    });
++    await audit(req.user!.id, 'billing.statement.void', 'vendor_statement', st.id, b as any);
++    res.json({ statement: st });
++  } catch (e) { next(e); }
++});
++
++/* ============================= receipts =========================== */
++
++/**
++ * Buyer receipt, looked up the same way as order tracking: code + phone.
++ * Buyers have no dashboard, so this must work for guests. The receipt number
++ * is allocated on first view and then never changes.
++ */
++billingRouter.get('/receipt', async (req, res, next) => {
++  try {
++    const code = String(req.query.code || '');
++    const phone = String(req.query.phone || '');
++    if (!code || !phone) throw new HttpError(400, 'code and phone are required');
++
++    const o = await one<any>(
++      `select o.*, v.business_name, v.whatsapp as vendor_whatsapp, s.pickup_address
++       from orders o
++       join vendors v on v.id = o.vendor_id
++       left join vendor_delivery_settings s on s.vendor_id = v.id
++       where o.code = $1
++         and regexp_replace(o.contact_phone,'\\D','','g') = regexp_replace($2,'\\D','','g')`,
++      [code, phone]
++    );
++    if (!o) throw new HttpError(404, 'No order found with that code and phone number');
++
++    if (!o.receipt_number) {
++      const cfg = await settings();
++      const updated = await one<any>(
++        `update orders
++           set receipt_number = next_document_number('receipt', $2), receipt_issued_at = now()
++         where id = $1 and receipt_number is null
++         returning receipt_number, receipt_issued_at`,
++        [o.id, cfg.receipt_prefix]
++      );
++      // If two requests raced, the loser re-reads the winner's number.
++      if (updated) Object.assign(o, updated);
++      else Object.assign(o, await one<any>('select receipt_number, receipt_issued_at from orders where id=$1', [o.id]));
++    }
++
++    o.items = await query('select * from order_items where order_id = $1', [o.id]);
++
++    if (String(req.query.format || 'html') === 'json') return res.json({ receipt: o });
++    html(res, receiptHtml(o, await settings()));
++  } catch (e) { next(e); }
++});
++
++
++/* ============================ emailing ============================ */
++
++/** Vendor's contact email, via the owning user account. */
++async function vendorEmail(vendorId: string): Promise<{ email: string | null; name: string }> {
++  const r = await one<any>(
++    `select u.email, v.business_name from vendors v join users u on u.id = v.user_id where v.id = $1`,
++    [vendorId]
++  );
++  return { email: r?.email ?? null, name: r?.business_name ?? 'Vendor' };
++}
++
++billingRouter.post('/statements/:id/send', requireAuth('admin'), async (req, res, next) => {
++  try {
++    const st = await loadStatement(req.params.id);
++    if (st.status === 'draft') throw new HttpError(409, 'Issue the statement before emailing it');
++    const cfg = await settings();
++    const { email } = await vendorEmail(st.vendor_id);
++    if (!email) throw new HttpError(422, 'That vendor has no email address on their account');
++
++    const owed = Number(st.net_due_to_platform) > 0;
++    const amount = formatMoney(owed ? st.net_due_to_platform : st.net_due_to_vendor, st.currency);
++    const r = await sendMail({
++      to: email,
++      subject: `${cfg.business_name} statement ${st.number} — ${amount}`,
++      html: statementHtml(st, cfg),
++      kind: 'statement',
++      entityId: st.id,
++    });
++    if (r.ok) await query('update vendor_statements set emailed_at = now() where id = $1', [st.id]);
++    await audit(req.user!.id, 'billing.statement.email', 'vendor_statement', st.id, { to: email, status: r.status });
++    if (!r.ok) throw new HttpError(502, `Email not sent: ${r.error}`);
++    res.json({ sent: true, to: email });
++  } catch (e) { next(e); }
++});
++
++/** Who received what, for the admin to check a send actually happened. */
++billingRouter.get('/email-log', requireAuth('admin'), async (req, res, next) => {
++  try {
++    const entity = String(req.query.entity_id || '');
++    const rows = await query(
++      `select * from email_log where ($1 = '' or entity_id = $1::uuid)
++       order by created_at desc limit 100`, [entity]
++    );
++    res.json({ emails: rows, enabled: emailEnabled });
++  } catch (e) { next(e); }
++});
++
++/* ======================== payout batches ========================== */
++/*
++ * Money cannot move automatically without a payment rail. What is automated
++ * here is everything either side of the transfer: who to pay, how much, a
++ * bank-ready export, and marking many statements settled under one reference.
++ */
++
++/** Statements issued and still unpaid, with the vendor's bank details. */
++billingRouter.get('/payouts/outstanding', requireAuth('admin'), async (_req, res, next) => {
++  try {
++    const rows = await query(
++      `select s.id, s.number, s.currency, s.period_start, s.period_end,
++              s.net_due_to_vendor, s.net_due_to_platform,
++              v.business_name, v.bank_name, v.bank_account_name, v.bank_iban, u.email, u.phone
++       from vendor_statements s
++       join vendors v on v.id = s.vendor_id
++       join users u on u.id = v.user_id
++       where s.status = 'issued'
++       order by s.net_due_to_vendor desc, v.business_name`
++    );
++    const toVendors = rows.filter((r: any) => Number(r.net_due_to_vendor) > 0);
++    const toPlatform = rows.filter((r: any) => Number(r.net_due_to_platform) > 0);
++    res.json({
++      pay_out: toVendors,
++      collect_in: toPlatform,
++      pay_out_total: toVendors.reduce((a: number, r: any) => a + Number(r.net_due_to_vendor), 0),
++      collect_in_total: toPlatform.reduce((a: number, r: any) => a + Number(r.net_due_to_platform), 0),
++    });
++  } catch (e) { next(e); }
++});
++
++/** CSV for a bank bulk-transfer upload. */
++billingRouter.get('/payouts/export.csv', requireAuth('admin'), async (_req, res, next) => {
++  try {
++    const rows = await query<any>(
++      `select s.number, s.currency, s.net_due_to_vendor,
++              v.business_name, v.bank_name, v.bank_account_name, v.bank_iban
++       from vendor_statements s join vendors v on v.id = s.vendor_id
++       where s.status = 'issued' and s.net_due_to_vendor > 0
++       order by v.business_name`
++    );
++    const cell = (v: unknown) => {
++      const s = String(v ?? '');
++      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
++    };
++    const header = ['statement', 'vendor', 'account_name', 'bank', 'iban', 'currency', 'amount'];
++    const csv = [header.join(',')]
++      .concat(rows.map((r) => [r.number, r.business_name, r.bank_account_name, r.bank_name,
++                               r.bank_iban, r.currency, Number(r.net_due_to_vendor).toFixed(2)]
++        .map(cell).join(',')))
++      .join('\n');
++    res.type('text/csv').attachment(`sokoni-payouts-${new Date().toISOString().slice(0, 10)}.csv`).send(csv);
++  } catch (e) { next(e); }
++});
++
++/** Mark several statements paid under one bank reference. */
++billingRouter.post('/payouts/batch', requireAuth('admin'), async (req, res, next) => {
++  try {
++    const b = z.object({
++      statement_ids: z.array(z.string().uuid()).min(1),
++      reference: z.string().min(1).max(120),
++      note: z.string().max(300).optional(),
++    }).parse(req.body);
++
++    const out = await tx(async (c) => {
++      const { rows: found } = await c.query(
++        `select id, currency, net_due_to_vendor, net_due_to_platform
++         from vendor_statements where id = any($1::uuid[]) and status = 'issued' for update`,
++        [b.statement_ids]
++      );
++      if (!found.length) throw new HttpError(409, 'None of those statements are in the issued state');
++      const total = found.reduce(
++        (a: number, r: any) => a + Number(r.net_due_to_vendor) + Number(r.net_due_to_platform), 0);
++
++      const { rows: [batch] } = await c.query(
++        `insert into payout_batches (reference, note, total, currency, count, created_by)
++         values ($1,$2,$3,$4,$5,$6) returning *`,
++        [b.reference, b.note ?? null, total.toFixed(2), found[0].currency, found.length, req.user!.id]
++      );
++      await c.query(
++        `update vendor_statements
++           set status='paid', paid_at=now(), payment_reference=$2, payout_batch_id=$3, updated_at=now()
++         where id = any($1::uuid[]) and status='issued'`,
++        [found.map((r: any) => r.id), b.reference, batch.id]
++      );
++      return { batch, settled: found.length, skipped: b.statement_ids.length - found.length };
++    });
++
++    await audit(req.user!.id, 'billing.payout.batch', 'payout_batch', out.batch.id,
++      { reference: b.reference, settled: out.settled });
++    res.status(201).json(out);
++  } catch (e) { next(e); }
++});
++
++/* ========================== scheduled run ========================= */
++/**
++ * Monthly statement run, for an external scheduler (cron-job.org, GitHub
++ * Actions, Render cron). Authenticated with CRON_SECRET rather than a user
++ * token, since no human is present.
++ *
++ *   curl -X POST .../api/billing/cron/run-statements \
++ *        -H "x-cron-secret: $CRON_SECRET"
++ *
++ * Defaults to the month just ended. Safe to call repeatedly: the unique index
++ * on (vendor, period) means a second run for the same month is reported as
++ * skipped rather than duplicating anything.
++ */
++billingRouter.post('/cron/run-statements', async (req, res, next) => {
++  try {
++    const secret = process.env.CRON_SECRET || '';
++    if (!secret) throw new HttpError(503, 'CRON_SECRET is not configured on the server');
++    const given = String(req.get('x-cron-secret') || (req.get('authorization') || '').replace(/^Bearer /i, ''));
++    if (given !== secret) throw new HttpError(401, 'Bad cron secret');
++
++    const b = z.object({
++      month: z.string().regex(/^\d{4}-\d{2}$/).optional(),
++      issue: z.boolean().default(true),
++      email: z.boolean().default(true),
++    }).parse(req.body ?? {});
++
++    // Default to last month, so a run on the 1st settles the month just ended.
++    const now = new Date();
++    const d = b.month
++      ? { y: Number(b.month.slice(0, 4)), m: Number(b.month.slice(5, 7)) }
++      : { y: now.getUTCMonth() === 0 ? now.getUTCFullYear() - 1 : now.getUTCFullYear(),
++          m: now.getUTCMonth() === 0 ? 12 : now.getUTCMonth() };
++    const { period_start, period_end } = monthPeriod(d.y, d.m);
++
++    const cfg = await settings();
++    const groups = await settleableOrders(period_start, period_end);
++    const result = { period_start, period_end, generated: 0, issued: 0, emailed: 0, skipped: 0, errors: [] as string[] };
++
++    for (const g of groups) {
++      try {
++        const t = computeStatement(g.orders, cfg.commission_rate);
++        const st = await tx(async (c) => {
++          const { rows: [row] } = await c.query(
++            `insert into vendor_statements
++               (vendor_id, period_start, period_end, currency, order_count,
++                goods_subtotal, delivery_total, gross_sales,
++                commission_rate, commission_base, commission_amount,
++                collected_by_vendor, collected_by_platform,
++                net_due_to_platform, net_due_to_vendor)
++             values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) returning *`,
++            [g.vendor_id, period_start, period_end, g.currency, t.order_count,
++             t.goods_subtotal, t.delivery_total, t.gross_sales, t.commission_rate,
++             t.commission_base, t.commission_amount, t.collected_by_vendor,
++             t.collected_by_platform, t.net_due_to_platform, t.net_due_to_vendor]
++          );
++          for (const l of t.lines)
++            await c.query(
++              `insert into statement_orders (statement_id, order_id, gross, commission_amount) values ($1,$2,$3,$4)`,
++              [row.id, l.order_id, l.gross, l.commission_amount]);
++          if (b.issue) {
++            const { rows: [num] } = await c.query('select next_document_number($1,$2) as n', ['invoice', cfg.invoice_prefix]);
++            const { rows: [iss] } = await c.query(
++              `update vendor_statements set status='issued', number=$2, issued_at=now() where id=$1 returning *`,
++              [row.id, num.n]);
++            return iss;
++          }
++          return row;
++        });
++        result.generated++;
++        if (b.issue) result.issued++;
++
++        if (b.email && b.issue && emailEnabled) {
++          const full = await loadStatement(st.id);
++          const { email } = await vendorEmail(g.vendor_id);
++          if (email) {
++            const r = await sendMail({
++              to: email,
++              subject: `${cfg.business_name} statement ${st.number}`,
++              html: statementHtml(full, cfg),
++              kind: 'statement', entityId: st.id,
++            });
++            if (r.ok) {
++              await query('update vendor_statements set emailed_at = now() where id = $1', [st.id]);
++              result.emailed++;
++            }
++          }
++        }
++      } catch (e: any) {
++        if (e?.code === '23505') result.skipped++;          // already settled this period
++        else result.errors.push(`${g.business_name}: ${e.message}`);
++      }
++    }
++
++    await audit(null, 'billing.cron.run', 'vendor_statement', null, result as any);
++    res.json(result);
++  } catch (e) { next(e); }
++});
+diff --git a/api/src/routes/listings.ts b/api/src/routes/listings.ts
+index 96faa06..3e702db 100644
+--- a/api/src/routes/listings.ts
++++ b/api/src/routes/listings.ts
+@@ -3,6 +3,7 @@ import { z } from 'zod';
+ import { one, query } from '../db';
+ import { requireAuth, loadVendor, requireVerifiedVendor } from '../auth';
+ import { HttpError, audit, slugify, screenProhibited } from '../utils';
++import { config } from '../config';
+ 
+ export const listingRouter = Router();
+ 
+@@ -177,13 +178,14 @@ listingRouter.post('/', requireAuth('vendor'), loadVendor, requireVerifiedVendor
+     const l = await one<any>(
+       `insert into listings (vendor_id, category_id, kind, title, slug, description, price, currency,
+          quantity, unit, weight_kg, volume_l, duration_mins, service_area, price_type, images, status)
+-       values ($1,$2,$3::listing_kind,$4,$5,$6,$7,coalesce($8,'USD'),$9,$10,$11,$12,$13,$14,coalesce($15,'fixed'),
++       values ($1,$2,$3::listing_kind,$4,$5,$6,$7,coalesce($8,$18),$9,$10,$11,$12,$13,$14,coalesce($15,'fixed'),
+                coalesce($16,'[]')::jsonb, $17::listing_status)
+        returning *`,
+       [req.vendor!.id, b.category_id, b.kind, b.title.trim(), slug, b.description || null, b.price,
+        b.currency ?? null, b.kind === 'product' ? b.quantity ?? 0 : null, b.unit ?? null,
+        b.weight_kg ?? null, b.volume_l ?? null, b.kind === 'service' ? b.duration_mins ?? null : null,
+-       b.service_area ?? null, b.price_type ?? null, JSON.stringify(b.images ?? []), initialStatus]
++       b.service_area ?? null, b.price_type ?? null, JSON.stringify(b.images ?? []), initialStatus,
++       config.defaultCurrency]
+     );
+     await audit(req.user!.id, 'listing.create', 'listing', l.id, { title: l.title, status: l.status });
+     res.status(201).json({ listing: l });
+diff --git a/api/src/routes/orders.ts b/api/src/routes/orders.ts
+index d9ec873..a0b3060 100644
+--- a/api/src/routes/orders.ts
++++ b/api/src/routes/orders.ts
+@@ -3,8 +3,10 @@ import { z } from 'zod';
+ import { one, query, tx } from '../db';
+ import { requireAuth, optionalAuth, loadVendor } from '../auth';
+ import { HttpError, audit, randomCode, waLink } from '../utils';
++import { sendMailAsync } from '../mailer';
++import { receiptHtml } from '../templates';
+ import {
+-  quoteVendorOrder, cartTotals, round2,
++  quoteVendorOrder, cartTotals, round2, DEFAULT_CURRENCY,
+   type FulfilmentMode, type VendorDeliverySettings,
+ } from '../delivery';
+ 
+@@ -93,7 +95,7 @@ function priceCart(byVendor: Map<string, any[]>, items: { listing_id: string; qt
+       vendor_id: vendorId,
+       vendor_name: vItems[0].business_name,
+       subtotal,
+-      currency: vItems[0].currency || 'USD',
++      currency: vItems[0].currency || DEFAULT_CURRENCY,
+       mode: allServices ? 'pickup' : mode,
+       settings: settingsOf(vItems[0]),
+     });
+@@ -233,10 +235,56 @@ orderRouter.get('/vendor', requireAuth('vendor'), loadVendor, async (req, res, n
+ orderRouter.patch('/vendor/:id/status', requireAuth('vendor'), loadVendor, async (req, res, next) => {
+   try {
+     const b = z.object({ status: z.enum(['pending', 'confirmed', 'dispatched', 'delivered', 'cancelled']) }).parse(req.body);
+-    const o = await one('update orders set status=$3::order_status where id=$1 and vendor_id=$2 returning *',
++    const o = await one<any>('update orders set status=$3::order_status where id=$1 and vendor_id=$2 returning *',
+       [req.params.id, req.vendor!.id, b.status]);
+     if (!o) throw new HttpError(404, 'Order not found');
+     await audit(req.user!.id, 'order.status', 'order', req.params.id, { status: b.status });
++    if (b.status === 'delivered') void emailReceipt(o.id);
+     res.json({ order: o });
+   } catch (e) { next(e); }
+ });
++
++
++/**
++ * Email the buyer their receipt once an order is delivered.
++ *
++ * Fire-and-forget and fully guarded: a guest checkout has no account and
++ * therefore no email, and a mail failure must never turn a successful status
++ * update into an error. Allocates the receipt number if it has not been
++ * issued yet, so the emailed document matches what the buyer later downloads.
++ */
++async function emailReceipt(orderId: string) {
++  try {
++    const cfg = await one<any>('select * from platform_settings where id = true');
++    if (!cfg) return;
++
++    const o = await one<any>(
++      `select o.*, v.business_name, v.whatsapp as vendor_whatsapp, s.pickup_address, u.email
++       from orders o
++       join vendors v on v.id = o.vendor_id
++       left join vendor_delivery_settings s on s.vendor_id = v.id
++       left join users u on u.id = o.buyer_id
++       where o.id = $1`, [orderId]);
++    if (!o?.email) return;   // guest checkout: nothing to send to
++
++    if (!o.receipt_number) {
++      const up = await one<any>(
++        `update orders set receipt_number = next_document_number('receipt', $2), receipt_issued_at = now()
++         where id = $1 and receipt_number is null returning receipt_number, receipt_issued_at`,
++        [orderId, cfg.receipt_prefix]);
++      Object.assign(o, up ?? await one<any>(
++        'select receipt_number, receipt_issued_at from orders where id=$1', [orderId]));
++    }
++    o.items = await query('select * from order_items where order_id = $1', [orderId]);
++
++    sendMailAsync({
++      to: o.email,
++      subject: `Your receipt ${o.receipt_number} — ${o.business_name}`,
++      html: receiptHtml(o, cfg),
++      kind: 'receipt',
++      entityId: orderId,
++    });
++  } catch (e) {
++    console.error('[receipt email]', (e as Error).message);
++  }
++}
+diff --git a/api/src/routes/vendors.ts b/api/src/routes/vendors.ts
+index b01bf73..8c84163 100644
+--- a/api/src/routes/vendors.ts
++++ b/api/src/routes/vendors.ts
+@@ -119,6 +119,34 @@ vendorRouter.get('/me/delivery', requireAuth('vendor'), loadVendor, async (req,
+   } catch (e) { next(e); }
+ });
+ 
++/**
++ * Payout details. Kept apart from /me so a profile edit cannot wipe bank
++ * data, and so this endpoint can be audited on its own.
++ */
++vendorRouter.put('/me/payout', requireAuth('vendor'), loadVendor, async (req, res, next) => {
++  try {
++    const b = z.object({
++      bank_name:         z.string().max(120).nullable().optional(),
++      bank_account_name: z.string().max(120).nullable().optional(),
++      bank_iban:         z.string().max(60).nullable().optional(),
++      payout_notes:      z.string().max(300).nullable().optional(),
++    }).parse(req.body);
++    const vendor = await one<any>(
++      `update vendors set
++         bank_name         = coalesce($2, bank_name),
++         bank_account_name = coalesce($3, bank_account_name),
++         bank_iban         = coalesce($4, bank_iban),
++         payout_notes      = coalesce($5, payout_notes)
++       where id = $1
++       returning id, bank_name, bank_account_name, bank_iban, payout_notes`,
++      [req.vendor!.id, b.bank_name ?? null, b.bank_account_name ?? null,
++       b.bank_iban ?? null, b.payout_notes ?? null]
++    );
++    await audit(req.user!.id, 'vendor.payout.update', 'vendor', req.vendor!.id);
++    res.json({ payout: vendor });
++  } catch (e) { next(e); }
++});
++
+ vendorRouter.put('/me/delivery', requireAuth('vendor'), loadVendor, async (req, res, next) => {
+   try {
+     const b = deliverySchema.parse(req.body);
+diff --git a/api/src/server.ts b/api/src/server.ts
+index fb0dd9b..8d2ff4f 100644
+--- a/api/src/server.ts
++++ b/api/src/server.ts
+@@ -17,6 +17,7 @@ import { complaintRouter } from './routes/complaints';
+ import { adminRouter } from './routes/admin';
+ import { uploadRouter } from './routes/uploads';
+ import { metaRouter } from './routes/meta';
++import { billingRouter } from './routes/billing';
+ 
+ const app = express();
+ app.set('trust proxy', 1);
+@@ -61,6 +62,7 @@ app.use('/api/complaints', complaintRouter);
+ app.use('/api/admin', adminRouter);
+ app.use('/api/uploads', uploadRouter);
+ app.use('/api/meta', metaRouter);
++app.use('/api/billing', billingRouter);
+ 
+ app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
+ 
+diff --git a/api/src/templates.ts b/api/src/templates.ts
+new file mode 100644
+index 0000000..fe2cfb5
+--- /dev/null
++++ b/api/src/templates.ts
+@@ -0,0 +1,272 @@
++/**
++ * Printable documents: buyer receipts and vendor commission statements.
++ *
++ * Plain server-rendered HTML with inline CSS and an @media print block, rather
++ * than a PDF library. It renders in any browser, prints to PDF via Ctrl/Cmd+P,
++ * attaches to an email, and adds no dependency or build step. If a true PDF
++ * byte stream is ever needed, this HTML is what you would feed the renderer.
++ */
++
++import { formatMoney } from './billing';
++
++const esc = (s: unknown): string =>
++  String(s ?? '').replace(/[&<>"']/g, (c) =>
++    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
++
++const INDIGO = '#2E3B6E';
++
++const fmtDate = (d: string | Date | null | undefined) =>
++  d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
++
++export interface PlatformSettings {
++  business_name: string;
++  business_address?: string | null;
++  business_email?: string | null;
++  business_phone?: string | null;
++  cr_number?: string | null;
++  tax_number?: string | null;
++  logo_url?: string | null;
++  invoice_footer?: string | null;
++  currency: string;
++}
++
++function shell(title: string, body: string) {
++  return `<!doctype html>
++<html lang="en"><head>
++<meta charset="utf-8">
++<meta name="viewport" content="width=device-width,initial-scale=1">
++<title>${esc(title)}</title>
++<style>
++  *{box-sizing:border-box}
++  body{margin:0;padding:32px 16px;background:#F3F4F6;
++       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
++       color:#111827;line-height:1.5;-webkit-print-color-adjust:exact;print-color-adjust:exact}
++  .sheet{max-width:760px;margin:0 auto;background:#fff;padding:40px;
++         border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.1)}
++  .head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;
++        border-bottom:3px solid ${INDIGO};padding-bottom:20px;margin-bottom:24px}
++  .brand{font-size:22px;font-weight:700;color:${INDIGO};margin:0}
++  .muted{color:#6B7280;font-size:13px}
++  .doctype{text-align:right}
++  .doctype h2{margin:0;font-size:15px;letter-spacing:.14em;text-transform:uppercase;color:#6B7280;font-weight:600}
++  .docnum{font-size:19px;font-weight:700;margin-top:4px}
++  .cols{display:flex;flex-wrap:wrap;gap:32px;margin-bottom:28px}
++  .col{flex:1;min-width:200px}
++  .label{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#6B7280;font-weight:600;margin-bottom:6px}
++  table{width:100%;border-collapse:collapse;margin-bottom:20px;font-size:14px}
++  th{text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#6B7280;
++     border-bottom:2px solid #E5E7EB;padding:8px 10px;font-weight:600}
++  td{padding:10px;border-bottom:1px solid #F3F4F6;vertical-align:top}
++  .r{text-align:right;white-space:nowrap}
++  .totals{margin-left:auto;width:min(320px,100%)}
++  .totals td{border:none;padding:6px 10px}
++  .totals .grand td{border-top:2px solid ${INDIGO};font-weight:700;font-size:16px;padding-top:12px}
++  .pill{display:inline-block;padding:3px 12px;border-radius:999px;font-size:12px;font-weight:600}
++  .pill-paid{background:#DCFCE7;color:#166534}
++  .pill-due{background:#FEF3C7;color:#92400E}
++  .pill-void{background:#F3F4F6;color:#6B7280}
++  .note{background:#F9FAFB;border-left:3px solid ${INDIGO};padding:12px 16px;font-size:13px;margin-bottom:20px}
++  .foot{margin-top:28px;padding-top:16px;border-top:1px solid #E5E7EB;font-size:12px;color:#6B7280}
++  .actions{max-width:760px;margin:0 auto 16px;text-align:right}
++  .btn{background:${INDIGO};color:#fff;border:0;padding:9px 18px;border-radius:8px;
++       font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
++  @media print{
++    body{background:#fff;padding:0}
++    .sheet{box-shadow:none;border-radius:0;max-width:none;padding:0}
++    .actions{display:none}
++    @page{margin:18mm}
++  }
++</style></head>
++<body>
++<div class="actions"><button class="btn" onclick="window.print()">Print / Save as PDF</button></div>
++<div class="sheet">${body}</div>
++</body></html>`;
++}
++
++function header(s: PlatformSettings, docType: string, docNumber: string, extra = '') {
++  return `<div class="head">
++    <div>
++      ${s.logo_url ? `<img src="${esc(s.logo_url)}" alt="" style="max-height:52px;margin-bottom:8px">` : ''}
++      <p class="brand">${esc(s.business_name)}</p>
++      <div class="muted">
++        ${s.business_address ? esc(s.business_address) + '<br>' : ''}
++        ${s.business_phone ? esc(s.business_phone) + '<br>' : ''}
++        ${s.business_email ? esc(s.business_email) + '<br>' : ''}
++        ${s.cr_number ? 'CR: ' + esc(s.cr_number) + '<br>' : ''}
++        ${s.tax_number ? 'TRN: ' + esc(s.tax_number) : ''}
++      </div>
++    </div>
++    <div class="doctype">
++      <h2>${esc(docType)}</h2>
++      <div class="docnum">${esc(docNumber)}</div>
++      ${extra}
++    </div>
++  </div>`;
++}
++
++/* ---------------------------------------------------------------- receipt */
++
++export interface ReceiptOrder {
++  code: string; receipt_number: string; receipt_issued_at: string | Date;
++  created_at: string | Date; status: string; payment_method: string;
++  fulfilment_mode: string; currency: string;
++  subtotal: number | string; delivery_fee: number | string; total: number | string;
++  contact_name: string; contact_phone: string; delivery_address: string;
++  city: string; country: string; note?: string | null;
++  business_name: string; vendor_whatsapp?: string | null; pickup_address?: string | null;
++  items: { title: string; qty: number; unit_price: number | string; unit?: string | null; line_total: number | string }[];
++}
++
++export function receiptHtml(o: ReceiptOrder, s: PlatformSettings): string {
++  const cur = o.currency || s.currency;
++  const collected = o.status === 'delivered';
++
++  const rows = o.items.map((i) => `<tr>
++      <td>${esc(i.title)}${i.unit ? ` <span class="muted">(${esc(i.unit)})</span>` : ''}</td>
++      <td class="r">${esc(i.qty)}</td>
++      <td class="r">${esc(formatMoney(i.unit_price, cur))}</td>
++      <td class="r">${esc(formatMoney(i.line_total, cur))}</td>
++    </tr>`).join('');
++
++  const body = `
++    ${header(s, 'Receipt', o.receipt_number, `<div class="muted" style="margin-top:6px">${esc(fmtDate(o.receipt_issued_at))}</div>
++      <div style="margin-top:8px"><span class="pill ${collected ? 'pill-paid' : 'pill-due'}">${collected ? 'Completed' : esc(o.status)}</span></div>`)}
++
++    <div class="cols">
++      <div class="col">
++        <div class="label">Billed to</div>
++        <strong>${esc(o.contact_name)}</strong><br>
++        <span class="muted">${esc(o.contact_phone)}</span><br>
++        <span class="muted">${esc(o.delivery_address)}<br>${esc(o.city)}, ${esc(o.country)}</span>
++      </div>
++      <div class="col">
++        <div class="label">Sold by</div>
++        <strong>${esc(o.business_name)}</strong><br>
++        ${o.vendor_whatsapp ? `<span class="muted">${esc(o.vendor_whatsapp)}</span><br>` : ''}
++        ${o.fulfilment_mode === 'pickup' && o.pickup_address ? `<span class="muted">Collect: ${esc(o.pickup_address)}</span>` : ''}
++      </div>
++      <div class="col">
++        <div class="label">Order</div>
++        <strong>${esc(o.code)}</strong><br>
++        <span class="muted">Placed ${esc(fmtDate(o.created_at))}<br>
++        ${esc(o.payment_method.replace(/_/g, ' '))}<br>
++        ${o.fulfilment_mode === 'pickup' ? 'Collection' : 'Delivery'}</span>
++      </div>
++    </div>
++
++    <table>
++      <thead><tr><th>Item</th><th class="r">Qty</th><th class="r">Unit</th><th class="r">Amount</th></tr></thead>
++      <tbody>${rows}</tbody>
++    </table>
++
++    <table class="totals">
++      <tr><td>Subtotal</td><td class="r">${esc(formatMoney(o.subtotal, cur))}</td></tr>
++      <tr><td>${o.fulfilment_mode === 'pickup' ? 'Collection' : 'Delivery'}</td>
++          <td class="r">${Number(o.delivery_fee) === 0 ? 'Free' : esc(formatMoney(o.delivery_fee, cur))}</td></tr>
++      <tr class="grand"><td>Total</td><td class="r">${esc(formatMoney(o.total, cur))}</td></tr>
++    </table>
++
++    ${o.note ? `<div class="note"><strong>Note:</strong> ${esc(o.note)}</div>` : ''}
++
++    <div class="foot">
++      Sold by ${esc(o.business_name)} via ${esc(s.business_name)}. Payment is made
++      directly to the vendor. Keep this receipt as proof of purchase.
++      ${s.invoice_footer ? '<br>' + esc(s.invoice_footer) : ''}
++    </div>`;
++
++  return shell(`Receipt ${o.receipt_number}`, body);
++}
++
++/* -------------------------------------------------------------- statement */
++
++export interface StatementDoc {
++  number: string | null; status: string;
++  period_start: string; period_end: string; currency: string;
++  order_count: number;
++  goods_subtotal: number | string; delivery_total: number | string; gross_sales: number | string;
++  commission_rate: number | string; commission_base: number | string; commission_amount: number | string;
++  collected_by_vendor: number | string; collected_by_platform: number | string;
++  net_due_to_platform: number | string; net_due_to_vendor: number | string;
++  issued_at?: string | Date | null; paid_at?: string | Date | null;
++  payment_reference?: string | null; notes?: string | null;
++  business_name: string; vendor_city?: string | null; vendor_whatsapp?: string | null;
++  orders: { code: string; created_at: string | Date; total: number | string; commission_amount: number | string }[];
++}
++
++export function statementHtml(st: StatementDoc, s: PlatformSettings): string {
++  const cur = st.currency || s.currency;
++  const ratePct = (Number(st.commission_rate) * 100).toFixed(2).replace(/\.00$/, '');
++  const toPlatform = Number(st.net_due_to_platform) > 0;
++  const toVendor = Number(st.net_due_to_vendor) > 0;
++
++  const pill = st.status === 'paid' ? '<span class="pill pill-paid">Paid</span>'
++    : st.status === 'void' ? '<span class="pill pill-void">Void</span>'
++    : `<span class="pill pill-due">${st.status === 'draft' ? 'Draft' : 'Outstanding'}</span>`;
++
++  const rows = st.orders.map((o) => `<tr>
++      <td>${esc(o.code)}</td>
++      <td class="muted">${esc(fmtDate(o.created_at))}</td>
++      <td class="r">${esc(formatMoney(o.total, cur))}</td>
++      <td class="r">${esc(formatMoney(o.commission_amount, cur))}</td>
++    </tr>`).join('');
++
++  const settlement = toPlatform
++    ? `<tr class="grand"><td>Due to ${esc(s.business_name)}</td><td class="r">${esc(formatMoney(st.net_due_to_platform, cur))}</td></tr>`
++    : toVendor
++      ? `<tr class="grand"><td>Payable to ${esc(st.business_name)}</td><td class="r">${esc(formatMoney(st.net_due_to_vendor, cur))}</td></tr>`
++      : `<tr class="grand"><td>Balance</td><td class="r">${esc(formatMoney(0, cur))}</td></tr>`;
++
++  const body = `
++    ${header(s, 'Statement', st.number || 'DRAFT', `<div class="muted" style="margin-top:6px">${esc(fmtDate(st.period_start))} – ${esc(fmtDate(st.period_end))}</div>
++      <div style="margin-top:8px">${pill}</div>`)}
++
++    <div class="cols">
++      <div class="col">
++        <div class="label">Vendor</div>
++        <strong>${esc(st.business_name)}</strong><br>
++        <span class="muted">${st.vendor_city ? esc(st.vendor_city) + '<br>' : ''}${st.vendor_whatsapp ? esc(st.vendor_whatsapp) : ''}</span>
++      </div>
++      <div class="col">
++        <div class="label">Period</div>
++        ${esc(fmtDate(st.period_start))} – ${esc(fmtDate(st.period_end))}<br>
++        <span class="muted">${esc(st.order_count)} completed order${st.order_count === 1 ? '' : 's'}</span>
++      </div>
++      <div class="col">
++        <div class="label">Commission rate</div>
++        <strong>${esc(ratePct)}%</strong><br>
++        <span class="muted">charged on goods only</span>
++      </div>
++    </div>
++
++    ${st.orders.length ? `<table>
++      <thead><tr><th>Order</th><th>Date</th><th class="r">Order total</th><th class="r">Commission</th></tr></thead>
++      <tbody>${rows}</tbody>
++    </table>` : '<div class="note">No completed orders in this period.</div>'}
++
++    <table class="totals">
++      <tr><td>Goods</td><td class="r">${esc(formatMoney(st.goods_subtotal, cur))}</td></tr>
++      <tr><td>Delivery <span class="muted">(vendor's own)</span></td><td class="r">${esc(formatMoney(st.delivery_total, cur))}</td></tr>
++      <tr><td>Gross sales</td><td class="r">${esc(formatMoney(st.gross_sales, cur))}</td></tr>
++      <tr><td>Commission @ ${esc(ratePct)}%</td><td class="r">− ${esc(formatMoney(st.commission_amount, cur))}</td></tr>
++      <tr><td>Collected by vendor</td><td class="r">${esc(formatMoney(st.collected_by_vendor, cur))}</td></tr>
++      ${Number(st.collected_by_platform) > 0 ? `<tr><td>Collected by platform</td><td class="r">${esc(formatMoney(st.collected_by_platform, cur))}</td></tr>` : ''}
++      ${settlement}
++    </table>
++
++    ${toPlatform ? `<div class="note">
++      The vendor collected payment directly from buyers, so commission for this period
++      is payable to ${esc(s.business_name)}.
++      ${st.payment_reference ? `<br><strong>Reference:</strong> ${esc(st.payment_reference)}` : ''}
++    </div>` : ''}
++    ${st.notes ? `<div class="note">${esc(st.notes)}</div>` : ''}
++
++    <div class="foot">
++      ${st.issued_at ? `Issued ${esc(fmtDate(st.issued_at))}. ` : ''}
++      ${st.paid_at ? `Settled ${esc(fmtDate(st.paid_at))}. ` : ''}
++      Covers delivered orders only; cancelled and in-progress orders are excluded and
++      will appear on a later statement once complete.
++      ${s.invoice_footer ? '<br>' + esc(s.invoice_footer) : ''}
++    </div>`;
++
++  return shell(`Statement ${st.number || 'draft'}`, body);
++}
+diff --git a/db/migrations/003_currency_billing.sql b/db/migrations/003_currency_billing.sql
+new file mode 100644
+index 0000000..99d05d2
+--- /dev/null
++++ b/db/migrations/003_currency_billing.sql
+@@ -0,0 +1,147 @@
++-- ============================================================
++-- Sokoni Hub — 003: QAR currency, settlement statements, receipts
++-- Additive. Idempotent. Safe to re-run.
++--
++-- Three things:
++--   1. Currency defaults move from USD to QAR, and existing rows are
++--      relabelled (they were always QAR, only the label was wrong).
++--   2. A settlement ledger, so what each vendor owes (or is owed) for a
++--      period is computed rather than worked out by hand.
++--   3. Receipt numbers on orders, so a buyer receipt is a stable document
++--      rather than a re-render of whatever the order looks like today.
++--
++-- IMPORTANT on direction: with cash_on_delivery / whatsapp / bank_transfer
++-- the VENDOR collects the buyer's money. The platform is therefore owed
++-- commission BY the vendor — the opposite of a marketplace that holds funds.
++-- The ledger tracks both directions so it still works when a payment
++-- gateway is added and money starts arriving at the platform first.
++-- ============================================================
++
++-- ---------- 1. currency ----------
++alter table listings alter column currency set default 'QAR';
++alter table orders   alter column currency set default 'QAR';
++
++-- Relabel historical rows. Every price ever entered was in Qatari riyal;
++-- 'USD' was an unchanged column default, not a real currency. This is a
++-- correction, not a conversion — no amounts are touched.
++update listings set currency = 'QAR' where currency = 'USD';
++update orders   set currency = 'QAR' where currency = 'USD';
++
++-- ---------- 2. who is holding the money ----------
++-- 'vendor'   : vendor took cash / bank transfer directly (today's reality)
++-- 'platform' : funds arrived at the platform first (future, via a gateway)
++do $$ begin
++  create type funds_holder as enum ('vendor','platform');
++exception when duplicate_object then null; end $$;
++
++alter table orders add column if not exists funds_collected_by funds_holder not null default 'vendor';
++
++-- ---------- 3. platform settings (singleton) ----------
++create table if not exists platform_settings (
++  id                 boolean primary key default true check (id),
++  commission_rate    numeric(5,4) not null default 0 check (commission_rate >= 0 and commission_rate <= 1),
++  currency           text not null default 'QAR',
++  business_name      text not null default 'Sokoni Hub',
++  business_address   text,
++  business_email     text,
++  business_phone     text,
++  cr_number          text,                                  -- MOCI commercial registration
++  tax_number         text,
++  logo_url           text,
++  invoice_prefix     text not null default 'INV',
++  receipt_prefix     text not null default 'RCT',
++  invoice_footer     text,
++  updated_at         timestamptz not null default now()
++);
++insert into platform_settings (id) values (true) on conflict (id) do nothing;
++
++-- ---------- 4. settlement statements ----------
++do $$ begin
++  create type statement_status as enum ('draft','issued','paid','void');
++exception when duplicate_object then null; end $$;
++
++create table if not exists vendor_statements (
++  id                    uuid primary key default gen_random_uuid(),
++  number                text unique,                        -- assigned on issue, not on draft
++  vendor_id             uuid not null references vendors(id) on delete cascade,
++  period_start          date not null,
++  period_end            date not null,
++  currency              text not null default 'QAR',
++
++  order_count           int not null default 0,
++  goods_subtotal        numeric(12,2) not null default 0,   -- sum of order subtotals
++  delivery_total        numeric(12,2) not null default 0,   -- sum of delivery fees (vendor's own money)
++  gross_sales           numeric(12,2) not null default 0,   -- goods_subtotal + delivery_total
++
++  commission_rate       numeric(5,4) not null default 0,    -- snapshot; changing the setting never rewrites history
++  commission_base       numeric(12,2) not null default 0,   -- what commission was charged on
++  commission_amount     numeric(12,2) not null default 0,
++
++  collected_by_vendor   numeric(12,2) not null default 0,
++  collected_by_platform numeric(12,2) not null default 0,
++
++  net_due_to_platform   numeric(12,2) not null default 0,   -- vendor pays platform
++  net_due_to_vendor     numeric(12,2) not null default 0,   -- platform pays vendor
++
++  status                statement_status not null default 'draft',
++  issued_at             timestamptz,
++  paid_at               timestamptz,
++  payment_reference     text,
++  notes                 text,
++  created_by            uuid references users(id),
++  created_at            timestamptz not null default now(),
++  updated_at            timestamptz not null default now(),
++
++  check (period_end >= period_start),
++  -- exactly one direction can be non-zero
++  check (net_due_to_platform = 0 or net_due_to_vendor = 0)
++);
++create index if not exists vendor_statements_vendor_idx on vendor_statements(vendor_id, period_start desc);
++create index if not exists vendor_statements_status_idx on vendor_statements(status);
++
++-- One live statement per vendor per period. Voided ones are excluded so a
++-- mistake can be voided and the period regenerated.
++create unique index if not exists vendor_statements_period_uidx
++  on vendor_statements(vendor_id, period_start, period_end)
++  where status <> 'void';
++
++-- ---------- 5. which orders a statement covers ----------
++-- unique(order_id) is the anti-double-billing guarantee: an order can belong
++-- to at most one statement. Voiding a statement deletes its links, freeing
++-- the orders to be settled again.
++create table if not exists statement_orders (
++  statement_id      uuid not null references vendor_statements(id) on delete cascade,
++  order_id          uuid not null references orders(id) on delete cascade,
++  gross             numeric(12,2) not null default 0,
++  commission_amount numeric(12,2) not null default 0,
++  primary key (statement_id, order_id),
++  unique (order_id)
++);
++
++-- ---------- 6. receipts ----------
++-- A receipt number is issued once, on first request, and never changes.
++alter table orders add column if not exists receipt_number    text;
++alter table orders add column if not exists receipt_issued_at timestamptz;
++create unique index if not exists orders_receipt_uidx on orders(receipt_number) where receipt_number is not null;
++
++-- ---------- 7. document number sequences ----------
++-- Gapless-enough per-year counters for invoices and receipts.
++create table if not exists document_counters (
++  kind  text not null,          -- 'invoice' | 'receipt'
++  year  int  not null,
++  seq   int  not null default 0,
++  primary key (kind, year)
++);
++
++-- Atomically allocate the next number for a document kind.
++create or replace function next_document_number(p_kind text, p_prefix text)
++returns text language plpgsql as $$
++declare
++  y int := extract(year from now())::int;
++  n int;
++begin
++  insert into document_counters (kind, year, seq) values (p_kind, y, 1)
++    on conflict (kind, year) do update set seq = document_counters.seq + 1
++    returning seq into n;
++  return p_prefix || '-' || y || '-' || lpad(n::text, 4, '0');
++end $$;
+diff --git a/db/migrations/004_payouts_email.sql b/db/migrations/004_payouts_email.sql
+new file mode 100644
+index 0000000..be64715
+--- /dev/null
++++ b/db/migrations/004_payouts_email.sql
+@@ -0,0 +1,58 @@
++-- ============================================================
++-- Sokoni Hub — 004: payout details, email log
++-- Additive. Idempotent. Safe to re-run. Requires 003.
++--
++-- Money still cannot move by itself — there is no payment rail. What this
++-- adds is everything around the transfer: where to send it, a bulk export
++-- for the bank, and a record of every document emailed.
++-- ============================================================
++
++-- ---------- vendor bank details ----------
++-- Needed to pay a vendor anything, and to produce a bank bulk-transfer file.
++-- All nullable: a vendor who is only ever charged commission never fills these in.
++alter table vendors add column if not exists bank_name         text;
++alter table vendors add column if not exists bank_account_name text;
++alter table vendors add column if not exists bank_iban         text;
++alter table vendors add column if not exists payout_notes      text;
++
++-- ---------- email log ----------
++-- Every send attempt, successful or not. Without this, "did the vendor get
++-- their statement?" is unanswerable.
++do $$ begin
++  create type email_status as enum ('sent','failed','skipped');
++exception when duplicate_object then null; end $$;
++
++create table if not exists email_log (
++  id          uuid primary key default gen_random_uuid(),
++  to_address  text not null,
++  subject     text not null,
++  kind        text not null,                 -- 'statement' | 'receipt' | other
++  entity_id   uuid,                          -- statement or order id
++  status      email_status not null,
++  provider    text,
++  provider_id text,
++  error       text,
++  created_at  timestamptz not null default now()
++);
++create index if not exists email_log_entity_idx  on email_log(entity_id, created_at desc);
++create index if not exists email_log_created_idx on email_log(created_at desc);
++
++-- ---------- statement email tracking ----------
++alter table vendor_statements add column if not exists emailed_at timestamptz;
++
++-- ---------- payout batches ----------
++-- Groups statements settled together in one bank run, so a single transfer
++-- covering six vendors is still traceable to each statement.
++create table if not exists payout_batches (
++  id          uuid primary key default gen_random_uuid(),
++  reference   text not null,
++  note        text,
++  total       numeric(12,2) not null default 0,
++  currency    text not null default 'QAR',
++  count       int not null default 0,
++  created_by  uuid references users(id),
++  created_at  timestamptz not null default now()
++);
++
++alter table vendor_statements add column if not exists payout_batch_id uuid references payout_batches(id) on delete set null;
++create index if not exists vendor_statements_batch_idx on vendor_statements(payout_batch_id);
+diff --git a/web/src/App.tsx b/web/src/App.tsx
+index 9b7a3dd..ffb3152 100644
+--- a/web/src/App.tsx
++++ b/web/src/App.tsx
+@@ -26,11 +26,13 @@ import ListingForm from './pages/vendor/ListingForm';
+ import VendorOrders from './pages/vendor/VendorOrders';
+ import VendorComplaints from './pages/vendor/VendorComplaints';
+ import VendorProfile from './pages/vendor/VendorProfile';
++import VendorStatements from './pages/vendor/VendorStatements';
+ 
+ import AdminLayout from './pages/admin/AdminLayout';
+ import AdminOverview from './pages/admin/AdminOverview';
+ import AdminVendors from './pages/admin/AdminVendors';
+ import { AdminListings, AdminComplaints, AdminOrders, AdminUsers, AdminCategories, AdminAudit } from './pages/admin/AdminMisc';
++import AdminBilling from './pages/admin/AdminBilling';
+ 
+ function ScrollTop() {
+   const { pathname } = useLocation();
+@@ -79,6 +81,7 @@ export default function App() {
+                 <Route path="listings/:id/edit" element={<ListingForm />} />
+                 <Route path="orders" element={<VendorOrders />} />
+                 <Route path="complaints" element={<VendorComplaints />} />
++                <Route path="statements" element={<VendorStatements />} />
+                 <Route path="profile" element={<VendorProfile />} />
+                 <Route path="*" element={<Navigate to="/vendor" replace />} />
+               </Route>
+@@ -91,6 +94,7 @@ export default function App() {
+                 <Route path="orders" element={<AdminOrders />} />
+                 <Route path="complaints" element={<AdminComplaints />} />
+                 <Route path="users" element={<AdminUsers />} />
++                <Route path="billing" element={<AdminBilling />} />
+                 <Route path="categories" element={<AdminCategories />} />
+                 <Route path="audit" element={<AdminAudit />} />
+                 <Route path="*" element={<Navigate to="/admin" replace />} />
+diff --git a/web/src/pages/Static.tsx b/web/src/pages/Static.tsx
+index 70f6ed2..9d1ad2b 100644
+--- a/web/src/pages/Static.tsx
++++ b/web/src/pages/Static.tsx
+@@ -228,7 +228,17 @@ export function TrackOrder() {
+             <dt>Payment</dt><dd style={{ textTransform: 'capitalize' }}>{order.payment_method.replace(/_/g, ' ')}</dd>
+             <dt>Deliver to</dt><dd>{order.delivery_address}, {order.city}</dd>
+           </dl>
+-          <Link to={`/support?`} className="btn btn-outline btn-sm">Problem with this order?</Link>
++          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
++            <a
++              className="btn btn-primary btn-sm"
++              href={`${(import.meta.env.VITE_API_URL || '').replace(/\/$/, '')}/api/billing/receipt?code=${encodeURIComponent(f.code)}&phone=${encodeURIComponent(f.phone)}`}
++              target="_blank"
++              rel="noopener noreferrer"
++            >
++              Download receipt
++            </a>
++            <Link to={`/support?`} className="btn btn-outline btn-sm">Problem with this order?</Link>
++          </div>
+         </div>
+       )}
+     </div>
+diff --git a/web/src/pages/admin/AdminBilling.tsx b/web/src/pages/admin/AdminBilling.tsx
+new file mode 100644
+index 0000000..e5697b3
+--- /dev/null
++++ b/web/src/pages/admin/AdminBilling.tsx
+@@ -0,0 +1,489 @@
++import { useEffect, useState } from 'react';
++import { api, ApiError, getToken } from '../../lib/api';
++import { money, date, titleCase } from '../../lib/format';
++import { Alert, Spinner, Empty, Field, Modal, Stat, Badge, Tabs, useConfirm } from '../../components/ui';
++import { useToast } from '../../state/ToastContext';
++
++/* ------------------------------------------------------------------ */
++/* Documents are HTML behind an Authorization header, so a plain <a> will
++   not work — fetch with the token and open the result as a blob.       */
++/* ------------------------------------------------------------------ */
++async function openDocument(path: string) {
++  const base = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
++  const res = await fetch(`${base}/api${path}`, {
++    headers: { Authorization: `Bearer ${getToken()}` },
++  });
++  if (!res.ok) throw new ApiError(res.status, 'Could not open the document');
++  const url = URL.createObjectURL(await res.blob());
++  const w = window.open(url, '_blank');
++  if (!w) throw new ApiError(0, 'Your browser blocked the popup — allow popups for this site');
++  // Revoke once the new tab has had time to load, otherwise it renders blank.
++  setTimeout(() => URL.revokeObjectURL(url), 60_000);
++}
++
++async function downloadCsv(path: string, filename: string) {
++  const base = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
++  const res = await fetch(`${base}/api${path}`, { headers: { Authorization: `Bearer ${getToken()}` } });
++  if (!res.ok) throw new ApiError(res.status, 'Export failed');
++  const url = URL.createObjectURL(await res.blob());
++  const a = document.createElement('a');
++  a.href = url; a.download = filename; a.click();
++  URL.revokeObjectURL(url);
++}
++
++interface Statement {
++  id: string; number: string | null; vendor_id: string; business_name: string;
++  period_start: string; period_end: string; currency: string; status: string;
++  order_count: number; gross_sales: string; commission_rate: string; commission_amount: string;
++  net_due_to_platform: string; net_due_to_vendor: string;
++  issued_at: string | null; paid_at: string | null; payment_reference: string | null;
++  emailed_at: string | null;
++}
++
++interface Settings {
++  commission_rate: number; currency: string; business_name: string;
++  business_address: string | null; business_email: string | null; business_phone: string | null;
++  cr_number: string | null; tax_number: string | null; invoice_footer: string | null;
++}
++
++const lastMonth = () => {
++  const d = new Date();
++  d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() - 1);
++  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
++};
++
++export default function AdminBilling() {
++  const toast = useToast();
++  const { confirm, dialog } = useConfirm();
++  const [tab, setTab] = useState<'statements' | 'payouts' | 'settings'>('statements');
++  const [rows, setRows] = useState<Statement[] | null>(null);
++  const [status, setStatus] = useState('');
++  const [err, setErr] = useState('');
++
++  const load = () => {
++    setRows(null);
++    api.get<{ statements: Statement[] }>(`/billing/statements${status ? `?status=${status}` : ''}`)
++      .then((r) => setRows(r.statements))
++      .catch((e) => { setErr(e.message); setRows([]); });
++  };
++  useEffect(load, [status]);
++
++  const act = async (id: string, path: string, body?: unknown, okMsg = 'Done') => {
++    try {
++      await api.post(`/billing/statements/${id}/${path}`, body);
++      toast.push(okMsg, 'success');
++      load();
++    } catch (e) {
++      toast.push(e instanceof ApiError ? e.message : 'Failed', 'error');
++    }
++  };
++
++  return (
++    <div>
++      <div className="row-between mb-3" style={{ flexWrap: 'wrap', gap: 12 }}>
++        <div>
++          <h1 style={{ margin: 0 }}>Billing</h1>
++          <p style={{ color: 'var(--muted)', margin: '4px 0 0' }}>
++            Commission statements, payouts and document settings.
++          </p>
++        </div>
++        <GenerateButton onDone={load} />
++      </div>
++
++      <Tabs
++        value={tab}
++        onChange={setTab}
++        tabs={[
++          { id: 'statements' as const, label: 'Statements' },
++          { id: 'payouts' as const, label: 'Payouts' },
++          { id: 'settings' as const, label: 'Settings' },
++        ]}
++      />
++
++      <Alert kind="error">{err}</Alert>
++
++      {tab === 'statements' && (
++        <>
++          <div className="mb-2" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
++            {['', 'draft', 'issued', 'paid', 'void'].map((s) => (
++              <button key={s} className={`btn btn-sm ${status === s ? 'btn-primary' : 'btn-outline'}`}
++                onClick={() => setStatus(s)}>{s === '' ? 'All' : titleCase(s)}</button>
++            ))}
++          </div>
++
++          {rows === null ? <Spinner /> : rows.length === 0 ? (
++            <Empty title="No statements yet"
++              text="Generate a period to create draft statements from delivered orders." />
++          ) : (
++            <div className="card" style={{ overflowX: 'auto' }}>
++              <table className="tbl">
++                <thead>
++                  <tr>
++                    <th>Statement</th><th>Vendor</th><th>Period</th>
++                    <th style={{ textAlign: 'right' }}>Gross</th>
++                    <th style={{ textAlign: 'right' }}>Commission</th>
++                    <th style={{ textAlign: 'right' }}>Balance</th>
++                    <th>Status</th><th />
++                  </tr>
++                </thead>
++                <tbody>
++                  {rows.map((s) => {
++                    const owesUs = Number(s.net_due_to_platform) > 0;
++                    const weOwe = Number(s.net_due_to_vendor) > 0;
++                    return (
++                      <tr key={s.id}>
++                        <td className="td-mono">{s.number || <span style={{ color: 'var(--muted)' }}>draft</span>}</td>
++                        <td className="td-strong">{s.business_name}</td>
++                        <td style={{ whiteSpace: 'nowrap' }}>{date(s.period_start)} – {date(s.period_end)}
++                          <div style={{ fontSize: '.78rem', color: 'var(--muted)' }}>{s.order_count} orders</div>
++                        </td>
++                        <td style={{ textAlign: 'right' }}>{money(s.gross_sales, s.currency)}</td>
++                        <td style={{ textAlign: 'right' }}>{money(s.commission_amount, s.currency)}
++                          <div style={{ fontSize: '.78rem', color: 'var(--muted)' }}>
++                            {(Number(s.commission_rate) * 100).toFixed(2).replace(/\.00$/, '')}%
++                          </div>
++                        </td>
++                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
++                          {owesUs ? <span style={{ color: 'var(--ok, #166534)', fontWeight: 700 }}>
++                              +{money(s.net_due_to_platform, s.currency)}</span>
++                            : weOwe ? <span style={{ color: 'var(--danger, #b91c1c)', fontWeight: 700 }}>
++                              −{money(s.net_due_to_vendor, s.currency)}</span>
++                            : money(0, s.currency)}
++                          <div style={{ fontSize: '.72rem', color: 'var(--muted)' }}>
++                            {owesUs ? 'vendor owes you' : weOwe ? 'you owe vendor' : 'settled'}
++                          </div>
++                        </td>
++                        <td>
++                          <Badge tone={s.status === 'paid' ? 'green' : s.status === 'void' ? 'grey' : s.status === 'issued' ? 'gold' : 'grey'}>
++                            {titleCase(s.status)}
++                          </Badge>
++                          {s.emailed_at && <div style={{ fontSize: '.72rem', color: 'var(--muted)' }}>emailed</div>}
++                        </td>
++                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
++                          <button className="btn btn-sm btn-outline"
++                            onClick={() => openDocument(`/billing/statements/${s.id}/document`)
++                              .catch((e) => toast.push(e.message, 'error'))}>View</button>
++                          {s.status === 'draft' && (
++                            <button className="btn btn-sm btn-primary" style={{ marginLeft: 6 }}
++                              onClick={() => act(s.id, 'issue', undefined, 'Statement issued')}>Issue</button>
++                          )}
++                          {s.status === 'issued' && (
++                            <>
++                              <button className="btn btn-sm btn-outline" style={{ marginLeft: 6 }}
++                                onClick={() => act(s.id, 'send', undefined, 'Emailed to vendor')}>Email</button>
++                              <MarkPaidButton statement={s} onDone={load} />
++                            </>
++                          )}
++                          {s.status !== 'paid' && s.status !== 'void' && (
++                            <button className="btn btn-sm btn-outline" style={{ marginLeft: 6 }}
++                              onClick={async () => {
++                                if (await confirm({
++                                  title: 'Void this statement?',
++                                  body: 'Its orders are released and the period can be generated again.',
++                                  confirmLabel: 'Void',
++                                })) act(s.id, 'void', {}, 'Statement voided');
++                              }}>Void</button>
++                          )}
++                        </td>
++                      </tr>
++                    );
++                  })}
++                </tbody>
++              </table>
++            </div>
++          )}
++        </>
++      )}
++
++      {tab === 'payouts' && <Payouts onDone={load} />}
++      {tab === 'settings' && <BillingSettings />}
++      {dialog}
++    </div>
++  );
++}
++
++/* ----------------------------- generate ---------------------------- */
++
++function GenerateButton({ onDone }: { onDone: () => void }) {
++  const toast = useToast();
++  const [open, setOpen] = useState(false);
++  const [month, setMonth] = useState(lastMonth());
++  const [preview, setPreview] = useState<any | null>(null);
++  const [busy, setBusy] = useState(false);
++  const [err, setErr] = useState('');
++
++  const runPreview = async () => {
++    setBusy(true); setErr(''); setPreview(null);
++    try { setPreview(await api.post<any>('/billing/statements/preview', { month })); }
++    catch (e) { setErr(e instanceof ApiError ? e.message : 'Preview failed'); }
++    finally { setBusy(false); }
++  };
++
++  const generate = async () => {
++    setBusy(true); setErr('');
++    try {
++      const r = await api.post<any>('/billing/statements/generate', { month });
++      toast.push(`${r.statements.length} statement${r.statements.length === 1 ? '' : 's'} created`, 'success');
++      setOpen(false); setPreview(null); onDone();
++    } catch (e) { setErr(e instanceof ApiError ? e.message : 'Generation failed'); }
++    finally { setBusy(false); }
++  };
++
++  return (
++    <>
++      <button className="btn btn-primary" onClick={() => setOpen(true)}>Generate statements</button>
++      <Modal open={open} onClose={() => { setOpen(false); setPreview(null); setErr(''); }} title="Generate statements">
++        <Alert kind="error">{err}</Alert>
++        <Field label="Month" hint="Covers delivered orders placed in this month. Orders already on a statement are skipped.">
++          <input type="month" value={month} onChange={(e) => { setMonth(e.target.value); setPreview(null); }} />
++        </Field>
++
++        {preview && (
++          <div className="card card-pad mt-2">
++            {preview.vendors.length === 0 ? (
++              <p style={{ margin: 0, color: 'var(--muted)' }}>No settleable orders in that month.</p>
++            ) : (
++              <>
++                <p style={{ marginTop: 0, fontSize: '.85rem', color: 'var(--muted)' }}>
++                  Commission rate {(preview.commission_rate * 100).toFixed(2).replace(/\.00$/, '')}%
++                </p>
++                <table className="tbl">
++                  <thead><tr><th>Vendor</th><th style={{ textAlign: 'right' }}>Orders</th>
++                    <th style={{ textAlign: 'right' }}>Gross</th><th style={{ textAlign: 'right' }}>Commission</th></tr></thead>
++                  <tbody>
++                    {preview.vendors.map((v: any) => (
++                      <tr key={v.vendor_id}>
++                        <td>{v.business_name}</td>
++                        <td style={{ textAlign: 'right' }}>{v.order_count}</td>
++                        <td style={{ textAlign: 'right' }}>{money(v.gross_sales)}</td>
++                        <td style={{ textAlign: 'right' }}>{money(v.commission_amount)}</td>
++                      </tr>
++                    ))}
++                  </tbody>
++                </table>
++              </>
++            )}
++          </div>
++        )}
++
++        <div className="mt-3" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
++          <button className="btn btn-outline" onClick={runPreview} disabled={busy}>
++            {busy && !preview ? 'Checking…' : 'Preview'}
++          </button>
++          <button className="btn btn-primary" onClick={generate}
++            disabled={busy || !preview || preview.vendors.length === 0}>
++            {busy ? 'Working…' : 'Create drafts'}
++          </button>
++        </div>
++      </Modal>
++    </>
++  );
++}
++
++/* ----------------------------- mark paid --------------------------- */
++
++function MarkPaidButton({ statement, onDone }: { statement: Statement; onDone: () => void }) {
++  const toast = useToast();
++  const [open, setOpen] = useState(false);
++  const [ref, setRef] = useState('');
++  const [busy, setBusy] = useState(false);
++
++  const save = async () => {
++    setBusy(true);
++    try {
++      await api.post(`/billing/statements/${statement.id}/pay`, { payment_reference: ref });
++      toast.push('Recorded as settled', 'success');
++      setOpen(false); onDone();
++    } catch (e) { toast.push(e instanceof ApiError ? e.message : 'Failed', 'error'); }
++    finally { setBusy(false); }
++  };
++
++  const owesUs = Number(statement.net_due_to_platform) > 0;
++
++  return (
++    <>
++      <button className="btn btn-sm btn-primary" style={{ marginLeft: 6 }} onClick={() => setOpen(true)}>Mark paid</button>
++      <Modal open={open} onClose={() => setOpen(false)} title={`Settle ${statement.number}`}>
++        <p style={{ marginTop: 0, color: 'var(--muted)', fontSize: '.9rem' }}>
++          {owesUs
++            ? <>Confirm you received {money(statement.net_due_to_platform, statement.currency)} from {statement.business_name}.</>
++            : <>Confirm you transferred {money(statement.net_due_to_vendor, statement.currency)} to {statement.business_name}.</>}
++        </p>
++        <Field label="Bank reference" hint="Transfer reference or receipt number, so this can be traced later.">
++          <input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="e.g. QNB-20261001-0042" />
++        </Field>
++        <div className="mt-3" style={{ display: "flex", justifyContent: "flex-end" }}>
++          <button className="btn btn-primary" onClick={save} disabled={busy || !ref.trim()}>
++            {busy ? 'Saving…' : 'Confirm settled'}
++          </button>
++        </div>
++      </Modal>
++    </>
++  );
++}
++
++/* ------------------------------ payouts ---------------------------- */
++
++function Payouts({ onDone }: { onDone: () => void }) {
++  const toast = useToast();
++  const [data, setData] = useState<any | null>(null);
++  const [sel, setSel] = useState<Record<string, boolean>>({});
++  const [ref, setRef] = useState('');
++  const [busy, setBusy] = useState(false);
++
++  const load = () => {
++    setData(null);
++    api.get<any>('/billing/payouts/outstanding').then(setData).catch(() => setData({ pay_out: [], collect_in: [] }));
++  };
++  useEffect(load, []);
++
++  if (!data) return <Spinner />;
++
++  const chosen = Object.keys(sel).filter((k) => sel[k]);
++
++  const runBatch = async () => {
++    setBusy(true);
++    try {
++      const r = await api.post<any>('/billing/payouts/batch', { statement_ids: chosen, reference: ref });
++      toast.push(`${r.settled} statement${r.settled === 1 ? '' : 's'} settled`, 'success');
++      setSel({}); setRef(''); load(); onDone();
++    } catch (e) { toast.push(e instanceof ApiError ? e.message : 'Failed', 'error'); }
++    finally { setBusy(false); }
++  };
++
++  const missingBank = data.pay_out.filter((r: any) => !r.bank_iban);
++
++  return (
++    <div>
++      <div className="grid grid-stats mb-3">
++        <Stat label="You owe vendors" value={money(data.pay_out_total || 0)} />
++        <Stat label="Vendors owe you" value={money(data.collect_in_total || 0)} />
++      </div>
++
++      <div className="card card-pad mb-3">
++        <p style={{ marginTop: 0, fontSize: '.88rem', color: 'var(--muted)' }}>
++          Sokoni Hub cannot move money — there is no payment gateway connected. Make the
++          transfer in your bank, then record it here so the statement is closed and traceable.
++        </p>
++        <button className="btn btn-outline btn-sm"
++          onClick={() => downloadCsv('/billing/payouts/export.csv', 'sokoni-payouts.csv')
++            .catch((e) => toast.push(e.message, 'error'))}>
++          Download bank transfer CSV
++        </button>
++      </div>
++
++      {missingBank.length > 0 && (
++        <Alert kind="warn">
++          {missingBank.length} vendor{missingBank.length === 1 ? ' has' : 's have'} no bank details on file
++          ({missingBank.map((r: any) => r.business_name).join(', ')}). They cannot be paid until they add an IBAN
++          in their dashboard.
++        </Alert>
++      )}
++
++      <h3>Awaiting settlement</h3>
++      {data.pay_out.length === 0 && data.collect_in.length === 0 ? (
++        <Empty title="Nothing outstanding" text="Issued statements awaiting payment will appear here." />
++      ) : (
++        <div className="card" style={{ overflowX: 'auto' }}>
++          <table className="tbl">
++            <thead><tr><th /><th>Statement</th><th>Vendor</th><th>Bank</th>
++              <th style={{ textAlign: 'right' }}>Amount</th><th>Direction</th></tr></thead>
++            <tbody>
++              {[...data.pay_out, ...data.collect_in].map((r: any) => {
++                const out = Number(r.net_due_to_vendor) > 0;
++                return (
++                  <tr key={r.id}>
++                    <td><input type="checkbox" checked={!!sel[r.id]}
++                      onChange={(e) => setSel({ ...sel, [r.id]: e.target.checked })} /></td>
++                    <td className="td-mono">{r.number}</td>
++                    <td className="td-strong">{r.business_name}</td>
++                    <td style={{ fontSize: '.82rem', color: 'var(--muted)' }}>
++                      {r.bank_iban ? <>{r.bank_name}<br />{r.bank_iban}</> : '—'}
++                    </td>
++                    <td style={{ textAlign: 'right' }}>
++                      {money(out ? r.net_due_to_vendor : r.net_due_to_platform, r.currency)}
++                    </td>
++                    <td>{out ? 'Pay vendor' : 'Collect'}</td>
++                  </tr>
++                );
++              })}
++            </tbody>
++          </table>
++        </div>
++      )}
++
++      {chosen.length > 0 && (
++        <div className="card card-pad mt-3">
++          <strong>{chosen.length} selected</strong>
++          <Field label="Bank reference for this run">
++            <input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="e.g. BULK-2026-10-01" />
++          </Field>
++          <button className="btn btn-primary" onClick={runBatch} disabled={busy || !ref.trim()}>
++            {busy ? 'Recording…' : `Mark ${chosen.length} settled`}
++          </button>
++        </div>
++      )}
++    </div>
++  );
++}
++
++/* ----------------------------- settings ---------------------------- */
++
++function BillingSettings() {
++  const toast = useToast();
++  const [s, setS] = useState<Settings | null>(null);
++  const [ratePct, setRatePct] = useState('0');
++  const [busy, setBusy] = useState(false);
++
++  useEffect(() => {
++    api.get<{ settings: Settings }>('/billing/settings').then((r) => {
++      setS(r.settings);
++      setRatePct(String(Number(r.settings.commission_rate) * 100));
++    }).catch(() => {});
++  }, []);
++
++  if (!s) return <Spinner />;
++
++  const save = async () => {
++    setBusy(true);
++    try {
++      const r = await api.patch<{ settings: Settings }>('/billing/settings', {
++        ...s,
++        commission_rate: Number(ratePct) / 100,
++      });
++      setS(r.settings);
++      toast.push('Settings saved', 'success');
++    } catch (e) { toast.push(e instanceof ApiError ? e.message : 'Failed', 'error'); }
++    finally { setBusy(false); }
++  };
++
++  const set = (k: keyof Settings) => (e: any) => setS({ ...s, [k]: e.target.value });
++
++  return (
++    <div className="card card-pad" style={{ maxWidth: 640 }}>
++      <Field label="Commission rate (%)"
++        hint="Charged on goods only, never on the vendor's delivery fee. 0 means statements are produced with no charge — useful for tracking volume before you start billing.">
++        <input type="number" min={0} max={100} step={0.5} value={ratePct}
++          onChange={(e) => setRatePct(e.target.value)} />
++      </Field>
++
++      <h3 style={{ marginBottom: 4 }}>Appears on every invoice and receipt</h3>
++      <div className="form-row">
++        <Field label="Business name"><input value={s.business_name || ''} onChange={set('business_name')} /></Field>
++        <Field label="Commercial registration (CR)"><input value={s.cr_number || ''} onChange={set('cr_number')} /></Field>
++      </div>
++      <Field label="Address"><input value={s.business_address || ''} onChange={set('business_address')} /></Field>
++      <div className="form-row">
++        <Field label="Email"><input type="email" value={s.business_email || ''} onChange={set('business_email')} /></Field>
++        <Field label="Phone"><input value={s.business_phone || ''} onChange={set('business_phone')} /></Field>
++      </div>
++      <Field label="Document footer" hint="Optional line at the bottom of every document.">
++        <input value={s.invoice_footer || ''} onChange={set('invoice_footer')} />
++      </Field>
++
++      <button className="btn btn-primary" onClick={save} disabled={busy}>
++        {busy ? 'Saving…' : 'Save settings'}
++      </button>
++    </div>
++  );
++}
+diff --git a/web/src/pages/admin/AdminLayout.tsx b/web/src/pages/admin/AdminLayout.tsx
+index 03a8979..50ddf94 100644
+--- a/web/src/pages/admin/AdminLayout.tsx
++++ b/web/src/pages/admin/AdminLayout.tsx
+@@ -26,6 +26,7 @@ export default function AdminLayout() {
+     { to: '/admin/complaints', ico: IconAlert, label: 'Complaints', pill: counts.complaints_open, group: 'Moderation' },
+     { to: '/admin/orders', ico: IconReceipt, label: 'Orders', group: 'Commerce' },
+     { to: '/admin/users', ico: IconUsers, label: 'Users', group: 'Commerce' },
++    { to: '/admin/billing', ico: IconReceipt, label: 'Billing', group: 'Commerce' },
+     { to: '/admin/categories', ico: IconFolder, label: 'Categories', group: 'Configuration' },
+     { to: '/admin/audit', ico: IconHistory, label: 'Activity log', group: 'Configuration' },
+   ];
+diff --git a/web/src/pages/vendor/VendorLayout.tsx b/web/src/pages/vendor/VendorLayout.tsx
+index fb1f303..80b5d92 100644
+--- a/web/src/pages/vendor/VendorLayout.tsx
++++ b/web/src/pages/vendor/VendorLayout.tsx
+@@ -51,6 +51,7 @@ export default function VendorLayout() {
+     { to: '/vendor/listings/new', ico: IconPlus, label: 'Add listing', group: 'Catalogue' },
+     { to: '/vendor/orders', ico: IconReceipt, label: 'Orders', group: 'Sales' },
+     { to: '/vendor/complaints', ico: IconAlert, label: 'Complaints', pill: alerts.open_complaints, group: 'Sales' },
++    { to: '/vendor/statements', ico: IconReceipt, label: 'Statements', group: 'Sales' },
+     { to: '/vendor/profile', ico: IconStore, label: 'Store profile', group: 'Settings' },
+   ];
+ 
+diff --git a/web/src/pages/vendor/VendorStatements.tsx b/web/src/pages/vendor/VendorStatements.tsx
+new file mode 100644
+index 0000000..581ff0a
+--- /dev/null
++++ b/web/src/pages/vendor/VendorStatements.tsx
+@@ -0,0 +1,174 @@
++import { useEffect, useState } from 'react';
++import { api, ApiError, getToken } from '../../lib/api';
++import { money, date, titleCase } from '../../lib/format';
++import { Alert, Spinner, Empty, Field, Badge } from '../../components/ui';
++import { useToast } from '../../state/ToastContext';
++
++interface Statement {
++  id: string; number: string | null; period_start: string; period_end: string;
++  currency: string; status: string; order_count: number;
++  gross_sales: string; commission_rate: string; commission_amount: string;
++  net_due_to_platform: string; net_due_to_vendor: string;
++  issued_at: string | null; paid_at: string | null; payment_reference: string | null;
++}
++
++interface Payout {
++  bank_name: string | null; bank_account_name: string | null;
++  bank_iban: string | null; payout_notes: string | null;
++}
++
++/** Documents sit behind an Authorization header, so open them as a blob. */
++async function openDocument(path: string) {
++  const base = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
++  const res = await fetch(`${base}/api${path}`, { headers: { Authorization: `Bearer ${getToken()}` } });
++  if (!res.ok) throw new ApiError(res.status, 'Could not open that statement');
++  const url = URL.createObjectURL(await res.blob());
++  const w = window.open(url, '_blank');
++  if (!w) throw new ApiError(0, 'Your browser blocked the popup — allow popups for this site');
++  setTimeout(() => URL.revokeObjectURL(url), 60_000);
++}
++
++export default function VendorStatements() {
++  const toast = useToast();
++  const [rows, setRows] = useState<Statement[] | null>(null);
++
++  useEffect(() => {
++    api.get<{ statements: Statement[] }>('/billing/my/statements')
++      .then((r) => setRows(r.statements))
++      .catch(() => setRows([]));
++  }, []);
++
++  const owed = (rows ?? []).filter((s) => s.status === 'issued');
++  const owedToPlatform = owed.reduce((a, s) => a + Number(s.net_due_to_platform), 0);
++  const owedToMe = owed.reduce((a, s) => a + Number(s.net_due_to_vendor), 0);
++
++  return (
++    <div>
++      <h1 style={{ marginBottom: 4 }}>Statements</h1>
++      <p style={{ color: 'var(--muted)', marginTop: 0 }}>
++        A statement covers your completed orders for a period. Commission is charged on
++        goods only — never on the delivery fee you set.
++      </p>
++
++      {owedToPlatform > 0 && (
++        <Alert kind="warn">
++          You have {money(owedToPlatform)} in outstanding commission. You collected payment
++          directly from buyers, so this is payable to Sokoni Hub.
++        </Alert>
++      )}
++      {owedToMe > 0 && (
++        <Alert kind="info">{money(owedToMe)} is due to be paid out to you.</Alert>
++      )}
++
++      {rows === null ? <Spinner /> : rows.length === 0 ? (
++        <Empty icon="🧾" title="No statements yet"
++          text="Once your delivered orders are settled for a period, the statement appears here." />
++      ) : (
++        <div className="card" style={{ overflowX: 'auto' }}>
++          <table className="tbl">
++            <thead>
++              <tr>
++                <th>Statement</th><th>Period</th>
++                <th style={{ textAlign: 'right' }}>Orders</th>
++                <th style={{ textAlign: 'right' }}>Gross sales</th>
++                <th style={{ textAlign: 'right' }}>Commission</th>
++                <th style={{ textAlign: 'right' }}>Balance</th>
++                <th>Status</th><th />
++              </tr>
++            </thead>
++            <tbody>
++              {rows.map((s) => {
++                const iOwe = Number(s.net_due_to_platform) > 0;
++                const owedMe = Number(s.net_due_to_vendor) > 0;
++                return (
++                  <tr key={s.id}>
++                    <td className="td-mono">{s.number}</td>
++                    <td style={{ whiteSpace: 'nowrap' }}>{date(s.period_start)} – {date(s.period_end)}</td>
++                    <td style={{ textAlign: 'right' }}>{s.order_count}</td>
++                    <td style={{ textAlign: 'right' }}>{money(s.gross_sales, s.currency)}</td>
++                    <td style={{ textAlign: 'right' }}>
++                      {money(s.commission_amount, s.currency)}
++                      <div style={{ fontSize: '.78rem', color: 'var(--muted)' }}>
++                        {(Number(s.commission_rate) * 100).toFixed(2).replace(/\.00$/, '')}%
++                      </div>
++                    </td>
++                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap', fontWeight: 700 }}>
++                      {iOwe ? `You pay ${money(s.net_due_to_platform, s.currency)}`
++                        : owedMe ? `You receive ${money(s.net_due_to_vendor, s.currency)}`
++                        : money(0, s.currency)}
++                    </td>
++                    <td>
++                      <Badge tone={s.status === 'paid' ? 'green' : s.status === 'void' ? 'grey' : 'gold'}>
++                        {titleCase(s.status)}
++                      </Badge>
++                      {s.payment_reference && (
++                        <div style={{ fontSize: '.72rem', color: 'var(--muted)' }}>{s.payment_reference}</div>
++                      )}
++                    </td>
++                    <td style={{ textAlign: 'right' }}>
++                      <button className="btn btn-sm btn-outline"
++                        onClick={() => openDocument(`/billing/statements/${s.id}/document`)
++                          .catch((e) => toast.push(e.message, 'error'))}>
++                        View / print
++                      </button>
++                    </td>
++                  </tr>
++                );
++              })}
++            </tbody>
++          </table>
++        </div>
++      )}
++
++      <PayoutDetails />
++    </div>
++  );
++}
++
++/* --------------------------- bank details -------------------------- */
++
++function PayoutDetails() {
++  const toast = useToast();
++  const [p, setP] = useState<Payout>({ bank_name: '', bank_account_name: '', bank_iban: '', payout_notes: '' });
++  const [busy, setBusy] = useState(false);
++
++  useEffect(() => {
++    api.get<any>('/vendors/me')
++      .then((r) => setP({
++        bank_name: r.vendor?.bank_name ?? '',
++        bank_account_name: r.vendor?.bank_account_name ?? '',
++        bank_iban: r.vendor?.bank_iban ?? '',
++        payout_notes: r.vendor?.payout_notes ?? '',
++      }))
++      .catch(() => {});
++  }, []);
++
++  const save = async () => {
++    setBusy(true);
++    try {
++      await api.put('/vendors/me/payout', p);
++      toast.push('Payout details saved', 'success');
++    } catch (e) {
++      toast.push(e instanceof ApiError ? e.message : 'Could not save', 'error');
++    } finally { setBusy(false); }
++  };
++
++  const set = (k: keyof Payout) => (e: any) => setP({ ...p, [k]: e.target.value });
++
++  return (
++    <div className="card card-pad mt-3" style={{ maxWidth: 560 }}>
++      <h3 style={{ marginTop: 0 }}>Payout details</h3>
++      <p style={{ color: 'var(--muted)', fontSize: '.88rem', marginTop: 0 }}>
++        Where Sokoni Hub should transfer money owed to you. Only needed if a statement
++        ever comes out in your favour — today you collect from buyers directly.
++      </p>
++      <div className="form-row">
++        <Field label="Bank"><input value={p.bank_name || ''} onChange={set('bank_name')} placeholder="e.g. QNB" /></Field>
++        <Field label="Account name"><input value={p.bank_account_name || ''} onChange={set('bank_account_name')} /></Field>
++      </div>
++      <Field label="IBAN"><input value={p.bank_iban || ''} onChange={set('bank_iban')} placeholder="QA__ ____ ____ ____ ____ ____" /></Field>
++      <Field label="Notes" hint="Anything the finance team should know."><input value={p.payout_notes || ''} onChange={set('payout_notes')} /></Field>
++      <button className="btn btn-primary" onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save payout details'}</button>
++    </div>
++  );
++}
