@@ -27,6 +27,7 @@ export default function AdminLayout() {
     { to: '/admin/orders', ico: IconReceipt, label: 'Orders', group: 'Commerce' },
     { to: '/admin/users', ico: IconUsers, label: 'Users', group: 'Commerce' },
     { to: '/admin/billing', ico: IconReceipt, label: 'Billing', group: 'Commerce' },
+    { to: '/admin/bookings', ico: IconHistory, label: 'Service bookings', group: 'Commerce' },
     { to: '/admin/categories', ico: IconFolder, label: 'Categories', group: 'Configuration' },
     { to: '/admin/audit', ico: IconHistory, label: 'Activity log', group: 'Configuration' },
   ];
