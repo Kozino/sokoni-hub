@@ -15,7 +15,6 @@ const CAT_ICONS: Record<string, string> = {
   'tailoring': '✂️', 'catering': '🍱', 'events': '🎉', 'cleaning': '🧼',
 };
 const catIcon = (c: Category) => CAT_ICONS[c.slug] || (c.kind === 'service' ? '💼' : '🛍️');
-const { city, setCity } = useBuyerLocation();
 
 /* Quick "popular searches" chips shown under the hero search box. */
 const QUICK = [
@@ -30,9 +29,11 @@ interface Stats { vendors: number; listings: number; services: number; cities: n
 
 export default function Home() {
   const nav = useNavigate();
+  const { city, setCity } = useBuyerLocation();
   const [q, setQ] = useState('');
   const [kind, setKind] = useState('');
-  const [stats, setStats] = useState<Stats>({ vendors: 0, listings: 0, services: 0, cities: 0 });
+  const [cities, setCities] = useState<string[]>([]);
+  const [stats, setStats] = useState<Stats>({ vendors: 0, listings: 0, services: 0, cities: 0, orders_delivered: 0 });
   const [cats, setCats] = useState<Category[]>([]);
   const [trending, setTrending] = useState<Listing[]>([]);
   const [latest, setLatest] = useState<Listing[]>([]);
@@ -44,16 +45,18 @@ export default function Home() {
     api.get<{ listings: Listing[] }>('/listings?limit=8&sort=popular').then((r) => setTrending(r.listings)).catch(() => {});
     api.get<{ listings: Listing[] }>('/listings?limit=12&sort=newest').then((r) => setLatest(r.listings)).catch(() => {});
     api.get<{ listings: Listing[] }>('/listings?limit=6&kind=service&sort=popular').then((r) => setServices(r.listings)).catch(() => {});
+    api.get<{ cities: string[] }>('/listings/cities').then((r) => setCities(r.cities)).catch(() => {});
   }, []);
 
-const search = (e: React.FormEvent) => {
-  e.preventDefault();
-  const p = new URLSearchParams();
-  if (q) p.set('q', q);
-  if (kind) p.set('kind', kind);
-  if (city) p.set('city', city);
-  nav(`/browse?${p}`);
-};
+  const search = (e: React.FormEvent) => {
+    e.preventDefault();
+    const p = new URLSearchParams();
+    if (q) p.set('q', q);
+    if (kind) p.set('kind', kind);
+    if (city) p.set('city', city);
+    nav(`/browse?${p}`);
+  };
+
   return (
     <div className="lp">
       {/* ============================================================ HERO */}
@@ -69,31 +72,31 @@ const search = (e: React.FormEvent) => {
               Food stuff by the kg and the services that keep life moving — from sellers near you.
               Search, compare and order with cash on delivery or a single tap on WhatsApp.
             </p>
-           <form className="lp-searchbar" onSubmit={search}>
-  <input className="grow" placeholder="Search rice, braids, photographer…" value={q} onChange={(e) => setQ(e.target.value)} />
-  <select value={city} onChange={(e) => setCity(e.target.value)}>
-    <option value="">All cities</option>
-    {cities.map((c) => <option key={c} value={c}>{c}</option>)}
-  </select>
-  <select value={kind} onChange={(e) => setKind(e.target.value)}>
-    <option value="">All</option>
-    <option value="product">Products</option>
-    <option value="service">Services</option>
-  </select>
-  <button className="btn btn-primary" type="submit">Search</button>
-</form>
+            <form className="lp-searchbar" onSubmit={search}>
+              <input className="grow" placeholder="Search rice, braids, photographer…" value={q} onChange={(e) => setQ(e.target.value)} />
+              <select value={city} onChange={(e) => setCity(e.target.value)}>
+                <option value="">All cities</option>
+                {cities.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <select value={kind} onChange={(e) => setKind(e.target.value)}>
+                <option value="">All</option>
+                <option value="product">Products</option>
+                <option value="service">Services</option>
+              </select>
+              <button className="btn btn-primary" type="submit">Search</button>
+            </form>
             <div className="lp-hero-chips">
               <span className="lp-hero-chips-label">Popular:</span>
               {QUICK.map((c) => (
                 <button key={c.to} type="button" className="lp-chip" onClick={() => nav(c.to)}>{c.label}</button>
               ))}
             </div>
-          <div className="lp-hero-stats">
-  <div><strong>{stats.listings}</strong><span>Live listings</span></div>
-  <div><strong>{stats.vendors}</strong><span>Verified stores</span></div>
-  <div><strong>{stats.orders_delivered}</strong><span>Orders delivered</span></div>
-  <div><strong>{stats.cities}</strong><span>Cities</span></div>
-</div>
+            <div className="lp-hero-stats">
+              <div><strong>{stats.listings}</strong><span>Live listings</span></div>
+              <div><strong>{stats.vendors}</strong><span>Verified stores</span></div>
+              <div><strong>{stats.orders_delivered}</strong><span>Orders delivered</span></div>
+              <div><strong>{stats.cities}</strong><span>Cities</span></div>
+            </div>
           </div>
           <div className="lp-hero-img-wrap">
             <div className="lp-hero-img"><img src="/img/hero.jpg" alt="Vendor at her food stall" /></div>
@@ -114,36 +117,37 @@ const search = (e: React.FormEvent) => {
           <div className="lp-benefit"><span className="ic">🚫</span><div><strong>No listing fees</strong><span>Free to start selling</span></div></div>
         </div>
       </section>
-{/* ============================================================ HOW IT WORKS */}
-<section className="lp-section lp-how">
-  <div className="container">
-    <div className="lp-section-head" style={{ margin: '0 auto var(--s-7)', textAlign: 'center' }}>
-      <span className="lp-eyebrow">Simple by design</span>
-      <h2>How ordering works</h2>
-    </div>
-    <div className="lp-how-grid">
-      <div className="lp-how-step">
-        <span className="lp-how-num">1</span>
-        <span className="ic">🔍</span>
-        <strong>Search & compare</strong>
-        <p>Filter by city, category or price — no account needed to browse.</p>
-      </div>
-      <div className="lp-how-step">
-        <span className="lp-how-num">2</span>
-        <span className="ic">🛒</span>
-        <strong>Order your way</strong>
-        <p>Checkout as a guest with cash on delivery, or message the seller directly on WhatsApp.</p>
-      </div>
-      <div className="lp-how-step">
-        <span className="lp-how-num">3</span>
-        <span className="ic">📦</span>
-        <strong>Track & receive</strong>
-        <p>Follow your order code from confirmed to delivered — pay only when it arrives.</p>
-      </div>
-    </div>
-  </div>
-</section>
-      
+
+      {/* ============================================================ HOW IT WORKS */}
+      <section className="lp-section lp-how">
+        <div className="container">
+          <div className="lp-section-head" style={{ margin: '0 auto var(--s-7)', textAlign: 'center' }}>
+            <span className="lp-eyebrow">Simple by design</span>
+            <h2>How ordering works</h2>
+          </div>
+          <div className="lp-how-grid">
+            <div className="lp-how-step">
+              <span className="lp-how-num">1</span>
+              <span className="ic">🔍</span>
+              <strong>Search & compare</strong>
+              <p>Filter by city, category or price — no account needed to browse.</p>
+            </div>
+            <div className="lp-how-step">
+              <span className="lp-how-num">2</span>
+              <span className="ic">🛒</span>
+              <strong>Order your way</strong>
+              <p>Checkout as a guest with cash on delivery, or message the seller directly on WhatsApp.</p>
+            </div>
+            <div className="lp-how-step">
+              <span className="lp-how-num">3</span>
+              <span className="ic">📦</span>
+              <strong>Track & receive</strong>
+              <p>Follow your order code from confirmed to delivered — pay only when it arrives.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ============================================================ SHOP BY CATEGORY */}
       <section className="lp-section lp-cat-section">
         <div className="container">
