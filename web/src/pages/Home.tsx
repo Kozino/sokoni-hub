@@ -24,7 +24,7 @@ const QUICK = [
   { label: 'Spices', to: '/browse?category=spices-seasoning' },
 ];
 
-interface Stats { vendors: number; listings: number; services: number; cities: number }
+interface Stats { vendors: number; listings: number; services: number; cities: number; orders_delivered: number }
 
 export default function Home() {
   const nav = useNavigate();
@@ -87,11 +87,12 @@ export default function Home() {
                 <button key={c.to} type="button" className="lp-chip" onClick={() => nav(c.to)}>{c.label}</button>
               ))}
             </div>
-            <div className="lp-hero-stats">
-              <div><strong>{stats.listings}</strong><span>Live listings</span></div>
-              <div><strong>{stats.vendors}</strong><span>Verified stores</span></div>
-              <div><strong>{stats.cities}</strong><span>Cities</span></div>
-            </div>
+          <div className="lp-hero-stats">
+  <div><strong>{stats.listings}</strong><span>Live listings</span></div>
+  <div><strong>{stats.vendors}</strong><span>Verified stores</span></div>
+  <div><strong>{stats.orders_delivered}</strong><span>Orders delivered</span></div>
+  <div><strong>{stats.cities}</strong><span>Cities</span></div>
+</div>
           </div>
           <div className="lp-hero-img-wrap">
             <div className="lp-hero-img"><img src="/img/hero.jpg" alt="Vendor at her food stall" /></div>
