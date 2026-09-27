@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import type { Listing, Category } from '../types';
 import ListingCard from '../components/ListingCard';
+import { useLocation as useBuyerLocation } from '../state/LocationContext';
 import './Home.css';
 
 /* Category wall icons — keyed on the real category slugs from db/schema.sql. */
@@ -14,6 +15,7 @@ const CAT_ICONS: Record<string, string> = {
   'tailoring': '✂️', 'catering': '🍱', 'events': '🎉', 'cleaning': '🧼',
 };
 const catIcon = (c: Category) => CAT_ICONS[c.slug] || (c.kind === 'service' ? '💼' : '🛍️');
+const { city, setCity } = useBuyerLocation();
 
 /* Quick "popular searches" chips shown under the hero search box. */
 const QUICK = [
@@ -44,14 +46,14 @@ export default function Home() {
     api.get<{ listings: Listing[] }>('/listings?limit=6&kind=service&sort=popular').then((r) => setServices(r.listings)).catch(() => {});
   }, []);
 
-  const search = (e: React.FormEvent) => {
-    e.preventDefault();
-    const p = new URLSearchParams();
-    if (q) p.set('q', q);
-    if (kind) p.set('kind', kind);
-    nav(`/browse?${p}`);
-  };
-
+const search = (e: React.FormEvent) => {
+  e.preventDefault();
+  const p = new URLSearchParams();
+  if (q) p.set('q', q);
+  if (kind) p.set('kind', kind);
+  if (city) p.set('city', city);
+  nav(`/browse?${p}`);
+};
   return (
     <div className="lp">
       {/* ============================================================ HERO */}
@@ -67,20 +69,19 @@ export default function Home() {
               Food stuff by the kg and the services that keep life moving — from sellers near you.
               Search, compare and order with cash on delivery or a single tap on WhatsApp.
             </p>
-            <form className="lp-searchbar" onSubmit={search}>
-              <input
-                className="grow"
-                placeholder="Search rice, braids, photographer…"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-              />
-              <select value={kind} onChange={(e) => setKind(e.target.value)}>
-                <option value="">All</option>
-                <option value="product">Products</option>
-                <option value="service">Services</option>
-              </select>
-              <button className="btn btn-primary" type="submit">Search</button>
-            </form>
+           <form className="lp-searchbar" onSubmit={search}>
+  <input className="grow" placeholder="Search rice, braids, photographer…" value={q} onChange={(e) => setQ(e.target.value)} />
+  <select value={city} onChange={(e) => setCity(e.target.value)}>
+    <option value="">All cities</option>
+    {cities.map((c) => <option key={c} value={c}>{c}</option>)}
+  </select>
+  <select value={kind} onChange={(e) => setKind(e.target.value)}>
+    <option value="">All</option>
+    <option value="product">Products</option>
+    <option value="service">Services</option>
+  </select>
+  <button className="btn btn-primary" type="submit">Search</button>
+</form>
             <div className="lp-hero-chips">
               <span className="lp-hero-chips-label">Popular:</span>
               {QUICK.map((c) => (
