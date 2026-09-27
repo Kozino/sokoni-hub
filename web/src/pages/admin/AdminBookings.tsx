@@ -56,19 +56,19 @@ export default function AdminBookings() {
 
   const bookingCols: DTColumn<Booking>[] = [
     { key: 'code', header: 'Reference', alwaysVisible: true,
-      render: (b) => <><div>{b.code}</div><div className="hint">{timeAgo(b.created_at)}</div></>,
+      render: (b) => <><div>{b.code}</div><div className="bk-sub">{timeAgo(b.created_at)}</div></>,
       csvValue: (b) => b.code },
     { key: 'listing_title', header: 'Service', render: (b) => b.listing_title },
     { key: 'business_name', header: 'Provider',
-      render: (b) => <><div>{b.business_name}</div>{b.vendor_city && <div className="hint">{b.vendor_city}</div>}</>,
+      render: (b) => <><div>{b.business_name}</div>{b.vendor_city && <div className="bk-sub">{b.vendor_city}</div>}</>,
       csvValue: (b) => b.business_name },
     { key: 'contact_name', header: 'Customer',
-      render: (b) => <><div>{b.contact_name}</div><div className="hint">{b.contact_phone}</div></>,
+      render: (b) => <><div>{b.contact_name}</div><div className="bk-sub">{b.contact_phone}</div></>,
       csvValue: (b) => `${b.contact_name} ${b.contact_phone}` },
     { key: 'scheduled_at', header: 'When',
       render: (b) => b.scheduled_at ? dateTime(b.scheduled_at)
-        : b.preferred_at ? <span className="hint">{dateTime(b.preferred_at)} (requested)</span>
-        : <span className="hint">Flexible</span>,
+        : b.preferred_at ? <span className="bk-sub">{dateTime(b.preferred_at)} (requested)</span>
+        : <span className="bk-sub">Flexible</span>,
       sortAccessor: (b) => b.scheduled_at || b.preferred_at || '',
       csvValue: (b) => b.scheduled_at || b.preferred_at || '' },
     { key: 'quoted_price', header: 'Advertised', align: 'right',
@@ -85,7 +85,7 @@ export default function AdminBookings() {
 
   const statCols: DTColumn<VendorStat>[] = [
     { key: 'business_name', header: 'Provider', alwaysVisible: true,
-      render: (v) => <><div>{v.business_name}</div>{v.city && <div className="hint">{v.city}</div>}</>,
+      render: (v) => <><div>{v.business_name}</div>{v.city && <div className="bk-sub">{v.city}</div>}</>,
       csvValue: (v) => v.business_name },
     { key: 'bookings', header: 'Bookings sent', align: 'right',
       render: (v) => num(Number(v.bookings)), sortAccessor: (v) => Number(v.bookings) },
