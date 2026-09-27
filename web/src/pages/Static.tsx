@@ -228,7 +228,17 @@ export function TrackOrder() {
             <dt>Payment</dt><dd style={{ textTransform: 'capitalize' }}>{order.payment_method.replace(/_/g, ' ')}</dd>
             <dt>Deliver to</dt><dd>{order.delivery_address}, {order.city}</dd>
           </dl>
-          <Link to={`/support?`} className="btn btn-outline btn-sm">Problem with this order?</Link>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <a
+              className="btn btn-primary btn-sm"
+              href={`${(import.meta.env.VITE_API_URL || '').replace(/\/$/, '')}/api/billing/receipt?code=${encodeURIComponent(f.code)}&phone=${encodeURIComponent(f.phone)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Download receipt
+            </a>
+            <Link to={`/support?`} className="btn btn-outline btn-sm">Problem with this order?</Link>
+          </div>
         </div>
       )}
     </div>
