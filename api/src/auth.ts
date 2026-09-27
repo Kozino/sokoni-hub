@@ -31,21 +31,36 @@ export const signToken = (userId: string, role: Role) =>
 async function loadUser(req: Request): Promise<AuthUser | null> {
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer ')) return null;
+
+  // A bad, expired or forged token is genuinely "not authenticated".
+  let payload: { sub: string };
   try {
-    const payload = jwt.verify(header.slice(7), config.jwtSecret) as { sub: string };
-    return await one<AuthUser>(
-      'select id, role, full_name, phone, email, is_active from users where id = $1',
-      [payload.sub]
-    );
+    payload = jwt.verify(header.slice(7), config.jwtSecret) as { sub: string };
   } catch {
     return null;
   }
+
+  // A database failure is NOT an authentication failure, and must not be
+  // swallowed into a null. The web client clears the stored token on any 401,
+  // so reporting a transient DB blip as 401 silently signs every active user
+  // out — exactly when the database is already struggling. Let it throw and
+  // surface as a 5xx the client will retry instead.
+  return await one<AuthUser>(
+    'select id, role, full_name, phone, email, is_active from users where id = $1',
+    [payload.sub]
+  );
 }
 
 /** Attaches req.user when a valid token is present, never fails. */
 export async function optionalAuth(req: Request, _res: Response, next: NextFunction) {
-  const u = await loadUser(req);
-  if (u && u.is_active) req.user = u;
+  try {
+    const u = await loadUser(req);
+    if (u && u.is_active) req.user = u;
+  } catch {
+    // Public routes must stay up even if the user lookup fails; the request
+    // simply proceeds as anonymous. Routes that require a user call
+    // requireAuth, which re-runs the lookup and propagates the real error.
+  }
   next();
 }
 
