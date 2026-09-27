@@ -1,0 +1,1305 @@
+diff --git a/api/.env.example b/api/.env.example
+index e18ea9b..50ce905 100644
+--- a/api/.env.example
++++ b/api/.env.example
+@@ -17,5 +17,20 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi...
+ SUPABASE_BUCKET=listings
+ 
+ # --- Platform ---
+-DEFAULT_CURRENCY=USD
++DEFAULT_CURRENCY=QAR
+ PLATFORM_WHATSAPP=2348000000000
++
++# --- Email (optional; default is 'none' = no email is ever sent) ---
++# Provider is either resend or brevo. All three of PROVIDER, API_KEY and FROM
++# must be set before any mail goes out; if any is missing, sends are recorded
++# in email_log with status 'skipped' and nothing breaks.
++EMAIL_PROVIDER=none
++EMAIL_API_KEY=
++EMAIL_FROM=billing@yourdomain.com
++EMAIL_FROM_NAME=Sokoni Hub
++EMAIL_REPLY_TO=support@yourdomain.com
++
++# --- Scheduled billing run ---
++# Long random string. Protects POST /api/billing/cron/run, which is called by an
++# external scheduler rather than by a logged-in user. Without it that route 503s.
++CRON_SECRET=
+diff --git a/api/src/routes/bookings.ts b/api/src/routes/bookings.ts
+new file mode 100644
+index 0000000..03de2a8
+--- /dev/null
++++ b/api/src/routes/bookings.ts
+@@ -0,0 +1,306 @@
++/**
++ * Service bookings.
++ *
++ * Services are not ordered, they are booked. This router never touches the
++ * orders table, never decrements stock and never produces a chargeable total,
++ * which is precisely why service work is not commissioned: there is no order
++ * for computeStatement() to pick up.
++ *
++ * The flow is: buyer states a preferred time -> row is written -> the UI opens
++ * WhatsApp carrying the booking code. The negotiation happens on WhatsApp; the
++ * platform keeps the record so admin and vendor both see the demand.
++ */
++
++import { Router } from 'express';
++import { z } from 'zod';
++import { one, query } from '../db';
++import { requireAuth, loadVendor } from '../auth';
++import { HttpError, audit, randomCode, waLink, screenProhibited } from '../utils';
++import { DEFAULT_CURRENCY } from '../delivery';
++
++export const bookingRouter = Router();
++
++const createSchema = z.object({
++  listing_id: z.string().uuid(),
++  contact_name: z.string().min(2).max(120),
++  contact_phone: z.string().min(7).max(20),
++  contact_email: z.string().email().max(160).optional().or(z.literal('')),
++  // ISO timestamp. Optional: a buyer may legitimately have no preference and
++  // just want the vendor to call.
++  preferred_at: z.string().datetime().optional().or(z.literal('')),
++  preferred_note: z.string().max(500).optional(),
++});
++
++/** Statuses a vendor may set, and the timestamp each one stamps. */
++const VENDOR_STATUSES = ['contacted', 'confirmed', 'completed', 'cancelled', 'no_show'] as const;
++
++const updateSchema = z.object({
++  status: z.enum(VENDOR_STATUSES).optional(),
++  // Set once the vendor and buyer have actually agreed a time.
++  scheduled_at: z.string().datetime().nullable().optional(),
++  vendor_note: z.string().max(500).nullable().optional(),
++  cancel_reason: z.string().max(300).nullable().optional(),
++});
++
++const SELECT = `
++  select b.*,
++         l.title as listing_title, l.slug as listing_slug, l.kind as listing_kind,
++         l.duration_mins,
++         v.business_name, v.whatsapp as vendor_whatsapp, v.city as vendor_city
++    from service_bookings b
++    join listings l on l.id = b.listing_id
++    join vendors  v on v.id = b.vendor_id
++`;
++
++/* ============================== create ============================== */
++
++/**
++ * POST /bookings — request a booking.
++ *
++ * Open to signed-out visitors, exactly like checkout, because forcing an
++ * account before a hair appointment loses the booking. buyer_id is attached
++ * when a token happens to be present.
++ */
++bookingRouter.post('/', async (req, res, next) => {
++  try {
++    const b = createSchema.parse(req.body);
++
++    const bad = await screenProhibited(b.preferred_note, b.contact_name);
++    if (bad) throw new HttpError(422, `Your note contains a prohibited term: "${bad}"`);
++
++    const l = await one<any>(
++      `select l.id, l.kind, l.status, l.price, l.price_type, l.currency, l.title,
++              v.id as vendor_id, v.status as vendor_status, v.whatsapp, v.business_name
++         from listings l join vendors v on v.id = l.vendor_id
++        where l.id = $1`,
++      [b.listing_id]
++    );
++    if (!l) throw new HttpError(404, 'That listing no longer exists');
++
++    // The whole point of this router. Products go through the cart.
++    if (l.kind !== 'service')
++      throw new HttpError(422, 'That listing is a product. Add it to your cart instead.');
++    // listing_status is ('draft','active','paused','removed') — 'active' is the
++    // published state, matching the check in orders.ts.
++    if (l.status !== 'active')
++      throw new HttpError(409, 'That service is not currently available for booking');
++    if (l.vendor_status !== 'verified')
++      throw new HttpError(409, 'That provider is not currently accepting bookings');
++
++    // Reject a preferred time in the past — almost always a timezone or
++    // date-picker mistake, and it reaches the vendor as noise.
++    if (b.preferred_at && new Date(b.preferred_at).getTime() < Date.now() - 60_000)
++      throw new HttpError(422, 'Choose a time in the future');
++
++    const code = randomCode('BKG');
++    const row = await one<any>(
++      `insert into service_bookings
++         (code, listing_id, vendor_id, buyer_id, contact_name, contact_phone, contact_email,
++          preferred_at, preferred_note, quoted_price, quoted_price_type, currency)
++       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
++       returning *`,
++      [
++        code, l.id, l.vendor_id, req.user?.id ?? null,
++        b.contact_name, b.contact_phone, b.contact_email || null,
++        b.preferred_at || null, b.preferred_note || null,
++        l.price, l.price_type, l.currency || DEFAULT_CURRENCY,
++      ]
++    );
++
++    // Hand-off text. The code is the thread between the WhatsApp conversation
++    // and the record, so the vendor can find it in their dashboard.
++    const when = b.preferred_at
++      ? new Date(b.preferred_at).toLocaleString('en-GB', { dateStyle: 'full', timeStyle: 'short' })
++      : 'as soon as you are free';
++    const text =
++      `Hello ${l.business_name}, I'd like to book "${l.title}".\n` +
++      `Preferred time: ${when}\n` +
++      (b.preferred_note ? `Note: ${b.preferred_note}\n` : '') +
++      `Booking reference: ${code}`;
++
++    res.status(201).json({
++      booking: row,
++      whatsapp: l.whatsapp ? waLink(l.whatsapp, text) : null,
++    });
++  } catch (e) { next(e); }
++});
++
++/* ============================== buyer ============================== */
++
++/** GET /bookings/mine — a signed-in buyer's own bookings. */
++bookingRouter.get('/mine', requireAuth('buyer', 'vendor', 'admin'), async (req, res, next) => {
++  try {
++    const rows = await query(`${SELECT} where b.buyer_id = $1 order by b.created_at desc limit 100`, [req.user!.id]);
++    res.json({ bookings: rows });
++  } catch (e) { next(e); }
++});
++
++/**
++ * GET /bookings/track?code=&phone= — public look-up, mirroring order tracking.
++ * Phone is required so a guessed code alone reveals nothing.
++ */
++bookingRouter.get('/track', async (req, res, next) => {
++  try {
++    const code = String(req.query.code || '').trim().toUpperCase();
++    const phone = String(req.query.phone || '').replace(/[^\d]/g, '');
++    if (!code || !phone) throw new HttpError(400, 'Booking code and phone number are both required');
++    const row = await one<any>(
++      `${SELECT} where upper(b.code) = $1 and regexp_replace(b.contact_phone, '[^0-9]', '', 'g') like '%' || $2`,
++      [code, phone]
++    );
++    if (!row) throw new HttpError(404, 'No booking found with that code and phone number');
++    res.json({ booking: row });
++  } catch (e) { next(e); }
++});
++
++/** POST /bookings/:id/cancel — buyer pulls out. Only before it is completed. */
++bookingRouter.post('/:id/cancel', requireAuth('buyer', 'vendor', 'admin'), async (req, res, next) => {
++  try {
++    const reason = z.object({ reason: z.string().max(300).optional() }).parse(req.body).reason;
++    const bk = await one<any>('select * from service_bookings where id = $1', [req.params.id]);
++    if (!bk) throw new HttpError(404, 'Booking not found');
++    if (bk.buyer_id !== req.user!.id && req.user!.role !== 'admin')
++      throw new HttpError(403, 'That is not your booking');
++    if (bk.status === 'completed') throw new HttpError(409, 'That booking is already completed');
++
++    const row = await one<any>(
++      `update service_bookings set status = 'cancelled', cancel_reason = $2, updated_at = now()
++        where id = $1 returning *`,
++      [bk.id, reason ?? 'Cancelled by buyer']
++    );
++    await audit(req.user!.id, 'booking.cancel', 'service_booking', bk.id, { reason });
++    res.json({ booking: row });
++  } catch (e) { next(e); }
++});
++
++/* ============================== vendor ============================== */
++
++/** GET /bookings/vendor — the provider's inbox. */
++bookingRouter.get('/vendor', requireAuth('vendor'), loadVendor, async (req, res, next) => {
++  try {
++    const status = String(req.query.status || '');
++    const rows = await query(
++      `${SELECT} where b.vendor_id = $1 and ($2 = '' or b.status = $2::booking_status)
++        order by b.created_at desc limit 200`,
++      [req.vendor!.id, status]
++    );
++    res.json({ bookings: rows });
++  } catch (e) { next(e); }
++});
++
++/** GET /bookings/vendor/counts — for the dashboard badge. */
++bookingRouter.get('/vendor/counts', requireAuth('vendor'), loadVendor, async (req, res, next) => {
++  try {
++    const r = await one<any>(
++      `select count(*) filter (where status = 'new')       as new,
++              count(*) filter (where status = 'confirmed') as confirmed,
++              count(*)                                     as total
++         from service_bookings where vendor_id = $1`,
++      [req.vendor!.id]
++    );
++    res.json({ new: Number(r.new), confirmed: Number(r.confirmed), total: Number(r.total) });
++  } catch (e) { next(e); }
++});
++
++/**
++ * PATCH /bookings/:id — vendor works the booking.
++ *
++ * Status transitions stamp their own timestamps so response time and
++ * completion rate are measurable without a separate event table.
++ */
++bookingRouter.patch('/:id', requireAuth('vendor', 'admin'), loadVendor, async (req, res, next) => {
++  try {
++    const b = updateSchema.parse(req.body);
++    const bk = await one<any>('select * from service_bookings where id = $1', [req.params.id]);
++    if (!bk) throw new HttpError(404, 'Booking not found');
++    if (req.user!.role !== 'admin' && bk.vendor_id !== req.vendor!.id)
++      throw new HttpError(403, 'That booking belongs to another provider');
++
++    if (b.scheduled_at && new Date(b.scheduled_at).getTime() < Date.now() - 60_000)
++      throw new HttpError(422, 'A scheduled time cannot be in the past');
++    if (b.status === 'confirmed' && !(b.scheduled_at || bk.scheduled_at))
++      throw new HttpError(422, 'Set the agreed date and time before confirming');
++
++    const row = await one<any>(
++      `update service_bookings set
++         status        = coalesce($2::booking_status, status),
++         scheduled_at  = case when $3::text is null then scheduled_at
++                              when $3::text = ''    then null
++                              else $3::timestamptz end,
++         vendor_note   = coalesce($4::text, vendor_note),
++         cancel_reason = coalesce($5::text, cancel_reason),
++         contacted_at  = case when $2::text in ('contacted','confirmed') and contacted_at is null
++                              then now() else contacted_at end,
++         completed_at  = case when $2::text = 'completed' then now() else completed_at end,
++         updated_at    = now()
++       where id = $1 returning *`,
++      [
++        bk.id, b.status ?? null,
++        b.scheduled_at === undefined ? null : (b.scheduled_at ?? ''),
++        b.vendor_note ?? null, b.cancel_reason ?? null,
++      ]
++    );
++    await audit(req.user!.id, 'booking.update', 'service_booking', bk.id, { status: b.status });
++    res.json({ booking: row });
++  } catch (e) { next(e); }
++});
++
++/** POST /bookings/:id/seen — stamps first_viewed_at, for response-time stats. */
++bookingRouter.post('/:id/seen', requireAuth('vendor'), loadVendor, async (req, res, next) => {
++  try {
++    await query(
++      `update service_bookings set first_viewed_at = now()
++        where id = $1 and vendor_id = $2 and first_viewed_at is null`,
++      [req.params.id, req.vendor!.id]
++    );
++    res.json({ ok: true });
++  } catch (e) { next(e); }
++});
++
++/* ============================== admin ============================== */
++
++/** GET /bookings/admin — everything, with the filters admin actually needs. */
++bookingRouter.get('/admin', requireAuth('admin'), async (req, res, next) => {
++  try {
++    const status = String(req.query.status || '');
++    const vendor = String(req.query.vendor_id || '');
++    const rows = await query(
++      `${SELECT}
++        where ($1 = '' or b.status = $1::booking_status)
++          and ($2 = '' or b.vendor_id = $2::uuid)
++        order by b.created_at desc limit 500`,
++      [status, vendor]
++    );
++    res.json({ bookings: rows });
++  } catch (e) { next(e); }
++});
++
++/**
++ * GET /bookings/admin/stats — demand per vendor.
++ *
++ * This is the evidence base for charging service vendors a fee: how many
++ * bookings the platform sent them, and how fast they responded.
++ */
++bookingRouter.get('/admin/stats', requireAuth('admin'), async (req, res, next) => {
++  try {
++    const days = Math.min(Math.max(Number(req.query.days) || 30, 1), 365);
++    const rows = await query(
++      `select v.id as vendor_id, v.business_name, v.city,
++              count(b.*)                                          as bookings,
++              count(b.*) filter (where b.status = 'completed')     as completed,
++              count(b.*) filter (where b.status = 'cancelled')     as cancelled,
++              count(b.*) filter (where b.status = 'no_show')       as no_shows,
++              count(b.*) filter (where b.first_viewed_at is null
++                                   and b.status = 'new')           as unseen,
++              round(avg(extract(epoch from (b.first_viewed_at - b.created_at)) / 3600)::numeric, 1)
++                                                                   as avg_response_hours
++         from vendors v
++         join service_bookings b on b.vendor_id = v.id
++        where b.created_at >= now() - ($1 || ' days')::interval
++        group by v.id, v.business_name, v.city
++        order by bookings desc`,
++      [String(days)]
++    );
++    res.json({ days, vendors: rows });
++  } catch (e) { next(e); }
++});
+diff --git a/api/src/routes/orders.ts b/api/src/routes/orders.ts
+index a0b3060..8ebc2af 100644
+--- a/api/src/routes/orders.ts
++++ b/api/src/routes/orders.ts
+@@ -48,10 +48,15 @@ async function loadCart(items: { listing_id: string; qty: number }[]) {
+   if (rows.length !== ids.length) throw new HttpError(400, 'One or more items are no longer available');
+ 
+   for (const r of rows) {
++    // Services are booked through /bookings, not ordered. Rejecting them here
++    // is what keeps them out of the orders table, and therefore out of
++    // computeStatement() — service work is not commissioned.
++    if (r.kind === 'service')
++      throw new HttpError(422, `"${r.title}" is a service. Request a booking for it instead of adding it to your cart.`);
+     if (r.status !== 'active' || r.vendor_status !== 'verified')
+       throw new HttpError(400, `"${r.title}" is no longer available`);
+     const want = items.find((i) => i.listing_id === r.id)!.qty;
+-    if (r.kind === 'product' && r.quantity !== null && r.quantity < want)
++    if (r.quantity !== null && r.quantity < want)
+       throw new HttpError(409, `Only ${r.quantity} left of "${r.title}"`);
+   }
+ 
+@@ -89,18 +94,16 @@ function priceCart(byVendor: Map<string, any[]>, items: { listing_id: string; qt
+       subtotal = round2(subtotal + line);
+       return { r, qty, line };
+     });
+-    // Services are performed or collected, never delivered.
+-    const allServices = vItems.every((r) => r.kind === 'service');
++    // Every row here is a product: loadCart() rejects services outright, so the
++    // old "all services => force pickup, suppress the fee" special case is gone.
+     const q = quoteVendorOrder({
+       vendor_id: vendorId,
+       vendor_name: vItems[0].business_name,
+       subtotal,
+       currency: vItems[0].currency || DEFAULT_CURRENCY,
+-      mode: allServices ? 'pickup' : mode,
++      mode,
+       settings: settingsOf(vItems[0]),
+     });
+-    if (allServices && mode === 'delivery' && !q.unavailable)
+-      q.unavailable = 'Services are arranged directly with the provider — no delivery fee.';
+     quotes.push({ quote: q, lines, vItems });
+   }
+   return quotes;
+@@ -157,7 +160,7 @@ orderRouter.post('/checkout', optionalAuth, async (req, res, next) => {
+              values ($1,$2,$3,$4,$5,$6,$7)`,
+             [order.id, r.id, r.title, r.price, qty, r.unit, line]
+           );
+-          if (r.kind === 'product' && r.quantity !== null)
++          if (r.quantity !== null)
+             await c.query('update listings set quantity = greatest(quantity - $2, 0) where id = $1', [r.id, qty]);
+         }
+         const feeLine = quote.mode === 'pickup'
+diff --git a/api/src/server.ts b/api/src/server.ts
+index 8d2ff4f..22fc009 100644
+--- a/api/src/server.ts
++++ b/api/src/server.ts
+@@ -18,6 +18,7 @@ import { adminRouter } from './routes/admin';
+ import { uploadRouter } from './routes/uploads';
+ import { metaRouter } from './routes/meta';
+ import { billingRouter } from './routes/billing';
++import { bookingRouter } from './routes/bookings';
+ 
+ const app = express();
+ app.set('trust proxy', 1);
+@@ -63,6 +64,7 @@ app.use('/api/admin', adminRouter);
+ app.use('/api/uploads', uploadRouter);
+ app.use('/api/meta', metaRouter);
+ app.use('/api/billing', billingRouter);
++app.use('/api/bookings', bookingRouter);
+ 
+ app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
+ 
+diff --git a/db/migrations/005_service_bookings.sql b/db/migrations/005_service_bookings.sql
+new file mode 100644
+index 0000000..f4e1acd
+--- /dev/null
++++ b/db/migrations/005_service_bookings.sql
+@@ -0,0 +1,98 @@
++-- 005_service_bookings.sql
++--
++-- Services stop going through the cart.
++--
++-- A haircut, a set of nails or a dreadlock appointment is not an order: there is
++-- no stock to decrement, nothing to deliver, and listings.price_type may be
++-- 'from' or 'hourly', so no honest total can be computed at checkout. What the
++-- buyer actually wants is to reach the vendor and agree a time.
++--
++-- But a bare WhatsApp link tells the platform nothing, and the requirement is
++-- that everything in the app reports back to admin and vendor. So a booking row
++-- is written first and the WhatsApp hand-off carries its code. The conversation
++-- still happens on WhatsApp; the platform keeps the record.
++--
++-- Deliberately NOT included here (see notes at the end):
++--   * vendor availability / working hours / slot conflict detection
++--   * any money. Bookings never touch orders, so they are never commissioned.
++--
++-- Additive and idempotent. Safe to re-run.
++
++begin;
++
++do $$ begin
++  create type booking_status as enum ('new','contacted','confirmed','completed','cancelled','no_show');
++exception when duplicate_object then null; end $$;
++
++create table if not exists service_bookings (
++  id             uuid primary key default gen_random_uuid(),
++  code           text not null unique,
++  listing_id     uuid not null references listings(id) on delete cascade,
++  vendor_id      uuid not null references vendors(id) on delete cascade,
++  -- Null when a signed-out visitor books. The contact fields below are the
++  -- source of truth for reaching them, exactly as orders does it.
++  buyer_id       uuid references users(id) on delete set null,
++
++  contact_name   text not null,
++  contact_phone  text not null,
++  contact_email  text,
++
++  -- What the buyer asked for. preferred_at is their request, not a commitment;
++  -- scheduled_at is what the vendor actually agreed after talking.
++  preferred_at   timestamptz,
++  preferred_note text,
++  scheduled_at   timestamptz,
++
++  -- Snapshot of the advertised price at the time of booking, so a later price
++  -- edit cannot rewrite history. Indicative only: nothing is charged here.
++  quoted_price   numeric(12,2),
++  quoted_price_type text,
++  currency       text not null default 'QAR',
++
++  status         booking_status not null default 'new',
++  vendor_note    text,
++  cancel_reason  text,
++
++  -- Set when the vendor first opens it, so response time can be measured. That
++  -- number is the whole argument for charging service vendors a fee later.
++  first_viewed_at timestamptz,
++  contacted_at    timestamptz,
++  completed_at    timestamptz,
++
++  created_at     timestamptz not null default now(),
++  updated_at     timestamptz not null default now()
++);
++
++create index if not exists idx_bookings_vendor  on service_bookings (vendor_id, created_at desc);
++create index if not exists idx_bookings_buyer   on service_bookings (buyer_id, created_at desc);
++create index if not exists idx_bookings_status  on service_bookings (status);
++create index if not exists idx_bookings_listing on service_bookings (listing_id);
++
++-- Look-ups by code+phone for the public "track my booking" view, mirroring the
++-- existing order tracking route.
++create index if not exists idx_bookings_code on service_bookings (code);
++
++do $$ begin
++  create trigger trg_bookings_updated
++    before update on service_bookings
++    for each row execute function touch_updated_at();
++exception when duplicate_object then null; end $$;
++
++commit;
++
++-- ---------------------------------------------------------------------------
++-- Vendor availability, when you are ready for it
++--
++-- This migration stops at "the buyer states a preferred time". Real availability
++-- is a separate problem and should be a later migration, because it needs:
++--
++--   vendor_hours        (vendor_id, weekday, opens_at, closes_at)
++--   vendor_time_off     (vendor_id, starts_at, ends_at, reason)
++--   listings.duration_mins is already present and becomes the slot length
++--
++-- and then a conflict check on insert. Doing that now would mean guessing at
++-- how these vendors actually work before a single booking has been taken.
++-- preferred_at vs scheduled_at is the seam: once availability exists, the API
++-- can validate preferred_at against it and auto-fill scheduled_at, and nothing
++-- above needs to change.
++-- ---------------------------------------------------------------------------
+diff --git a/web/src/App.tsx b/web/src/App.tsx
+index ffb3152..2119163 100644
+--- a/web/src/App.tsx
++++ b/web/src/App.tsx
+@@ -27,12 +27,14 @@ import VendorOrders from './pages/vendor/VendorOrders';
+ import VendorComplaints from './pages/vendor/VendorComplaints';
+ import VendorProfile from './pages/vendor/VendorProfile';
+ import VendorStatements from './pages/vendor/VendorStatements';
++import VendorBookings from './pages/vendor/VendorBookings';
+ 
+ import AdminLayout from './pages/admin/AdminLayout';
+ import AdminOverview from './pages/admin/AdminOverview';
+ import AdminVendors from './pages/admin/AdminVendors';
+ import { AdminListings, AdminComplaints, AdminOrders, AdminUsers, AdminCategories, AdminAudit } from './pages/admin/AdminMisc';
+ import AdminBilling from './pages/admin/AdminBilling';
++import AdminBookings from './pages/admin/AdminBookings';
+ 
+ function ScrollTop() {
+   const { pathname } = useLocation();
+@@ -82,6 +84,7 @@ export default function App() {
+                 <Route path="orders" element={<VendorOrders />} />
+                 <Route path="complaints" element={<VendorComplaints />} />
+                 <Route path="statements" element={<VendorStatements />} />
++                <Route path="bookings" element={<VendorBookings />} />
+                 <Route path="profile" element={<VendorProfile />} />
+                 <Route path="*" element={<Navigate to="/vendor" replace />} />
+               </Route>
+@@ -95,6 +98,7 @@ export default function App() {
+                 <Route path="complaints" element={<AdminComplaints />} />
+                 <Route path="users" element={<AdminUsers />} />
+                 <Route path="billing" element={<AdminBilling />} />
++                <Route path="bookings" element={<AdminBookings />} />
+                 <Route path="categories" element={<AdminCategories />} />
+                 <Route path="audit" element={<AdminAudit />} />
+                 <Route path="*" element={<Navigate to="/admin" replace />} />
+diff --git a/web/src/components/BookServiceModal.tsx b/web/src/components/BookServiceModal.tsx
+new file mode 100644
+index 0000000..35582f8
+--- /dev/null
++++ b/web/src/components/BookServiceModal.tsx
+@@ -0,0 +1,148 @@
++/**
++ * Booking request for a service listing.
++ *
++ * Services do not go through the cart: there is no stock, nothing is delivered,
++ * and a "from QAR 50" price cannot produce an honest checkout total. The buyer
++ * states a preferred time, we record it so the vendor and admin can see the
++ * demand, and then we hand off to WhatsApp where the conversation actually
++ * happens. The booking code ties the two together.
++ */
++
++import { useState } from 'react';
++import { api, ApiError } from '../lib/api';
++import { Modal, Field, Alert } from './ui';
++import { money } from '../lib/format';
++
++interface Props {
++  open: boolean;
++  onClose: () => void;
++  listing: {
++    id: string; title: string; price: number | string; currency: string;
++    price_type?: string; duration_mins?: number | null;
++    business_name?: string | null; whatsapp?: string | null;
++  };
++}
++
++/** Local datetime string for <input type="datetime-local">, rounded to the next hour. */
++function defaultSlot() {
++  const d = new Date();
++  d.setHours(d.getHours() + 25, 0, 0, 0); // tomorrow-ish, on the hour
++  const pad = (n: number) => String(n).padStart(2, '0');
++  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
++}
++
++export function BookServiceModal({ open, onClose, listing }: Props) {
++  const [name, setName] = useState('');
++  const [phone, setPhone] = useState('');
++  const [email, setEmail] = useState('');
++  const [when, setWhen] = useState(defaultSlot());
++  const [flexible, setFlexible] = useState(false);
++  const [note, setNote] = useState('');
++  const [busy, setBusy] = useState(false);
++  const [err, setErr] = useState('');
++  const [done, setDone] = useState<{ code: string; whatsapp: string | null } | null>(null);
++
++  const submit = async () => {
++    setErr(''); setBusy(true);
++    try {
++      const r = await api.post<{ booking: { code: string }; whatsapp: string | null }>('/bookings', {
++        listing_id: listing.id,
++        contact_name: name.trim(),
++        contact_phone: phone.trim(),
++        contact_email: email.trim(),
++        // An empty preferred_at is meaningful: "call me, I'm flexible".
++        preferred_at: flexible ? '' : new Date(when).toISOString(),
++        preferred_note: note.trim() || undefined,
++      });
++      setDone({ code: r.booking.code, whatsapp: r.whatsapp });
++      // Open WhatsApp straight away while the click is still trusted, so the
++      // browser does not treat it as a blocked pop-up.
++      if (r.whatsapp) window.open(r.whatsapp, '_blank', 'noopener');
++    } catch (e) {
++      setErr(e instanceof ApiError ? e.message : 'Could not send your request. Please try again.');
++    } finally {
++      setBusy(false);
++    }
++  };
++
++  const close = () => { setDone(null); setErr(''); onClose(); };
++
++  if (done) {
++    return (
++      <Modal open={open} title="Booking requested" onClose={close}
++        footer={<button className="btn btn-primary" onClick={close}>Done</button>}>
++        <Alert kind="success">
++          Your request has been sent to {listing.business_name || 'the provider'}.
++        </Alert>
++        <p className="mt-2">
++          Your booking reference is <strong>{done.code}</strong>. Keep it — you can use it
++          with your phone number to check the status at any time.
++        </p>
++        <p className="hint mt-1">
++          Nothing has been charged. {listing.business_name || 'The provider'} will confirm the
++          time with you on WhatsApp, and payment is arranged directly with them.
++        </p>
++        {done.whatsapp && (
++          <a className="btn btn-wa btn-block mt-2" href={done.whatsapp} target="_blank" rel="noreferrer">
++            Open WhatsApp
++          </a>
++        )}
++      </Modal>
++    );
++  }
++
++  return (
++    <Modal
++      open={open}
++      title={`Book: ${listing.title}`}
++      onClose={close}
++      footer={
++        <>
++          <button className="btn" onClick={close} disabled={busy}>Cancel</button>
++          <button className="btn btn-primary" onClick={submit}
++            disabled={busy || name.trim().length < 2 || phone.trim().length < 7}>
++            {busy ? 'Sending…' : 'Request booking'}
++          </button>
++        </>
++      }
++    >
++      {err && <Alert kind="error">{err}</Alert>}
++
++      <p className="hint">
++        {listing.price_type && listing.price_type !== 'fixed'
++          ? <>The advertised price is <strong>{money(Number(listing.price), listing.currency)}</strong> ({listing.price_type}). The final price is agreed with the provider.</>
++          : <>Advertised at <strong>{money(Number(listing.price), listing.currency)}</strong>. Nothing is charged now.</>}
++        {listing.duration_mins ? ` Usually takes about ${listing.duration_mins} minutes.` : ''}
++      </p>
++
++      <Field label="Your name">
++        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Amina Yusuf" />
++      </Field>
++
++      <Field label="WhatsApp number" hint="The provider will contact you on this number.">
++        <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+974 3333 4444" />
++      </Field>
++
++      <Field label="Email (optional)">
++        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
++      </Field>
++
++      <Field label="Preferred date and time"
++        hint="A request, not a confirmation — the provider will agree the final time with you.">
++        <input type="datetime-local" value={when} disabled={flexible}
++          min={new Date().toISOString().slice(0, 16)}
++          onChange={(e) => setWhen(e.target.value)} />
++      </Field>
++
++      <label className="row" style={{ gap: 8, alignItems: 'center', marginTop: -4 }}>
++        <input type="checkbox" checked={flexible} onChange={(e) => setFlexible(e.target.checked)} />
++        <span style={{ fontSize: '.88rem' }}>I'm flexible — just contact me</span>
++      </label>
++
++      <Field label="Anything they should know? (optional)">
++        <textarea rows={3} value={note} maxLength={500} onChange={(e) => setNote(e.target.value)}
++          placeholder="Hair length, preferred style, where you are based…" />
++      </Field>
++    </Modal>
++  );
++}
+diff --git a/web/src/pages/ListingDetail.tsx b/web/src/pages/ListingDetail.tsx
+index 0b7e938..52820f3 100644
+--- a/web/src/pages/ListingDetail.tsx
++++ b/web/src/pages/ListingDetail.tsx
+@@ -6,6 +6,7 @@ import { money, priceLabel, waLink, date } from '../lib/format';
+ import { Badge, Spinner, Empty, Alert, QtyInput } from '../components/ui';
+ import { useCart } from '../state/CartContext';
+ import { useToast } from '../state/ToastContext';
++import { BookServiceModal } from '../components/BookServiceModal';
+ import ListingCard from '../components/ListingCard';
+ import './ListingDetail.css';
+ 
+@@ -22,6 +23,7 @@ export default function ListingDetail() {
+   const touchStartX = useRef<number | null>(null);
+   const { add } = useCart();
+   const { push } = useToast();
++  const [booking, setBooking] = useState(false);
+ 
+   useEffect(() => {
+     setLoading(true);
+@@ -172,24 +174,45 @@ export default function ListingDetail() {
+               </p>
+             )}
+ 
+-            {!outOfStock && (
++            {/* Services are booked, not bought. No cart, no stock, no checkout
++                total — the price may be 'from' or hourly, and the real figure is
++                agreed with the provider. */}
++            {l.kind === 'service' ? (
+               <>
+-                <div className="row wrap mt-2" style={{ gap: 8 }}>
+-                  <label style={{ fontSize: '.85rem', fontWeight: 700 }}>Qty</label>
+-                <QtyInput value={qty} min={1} max={l.kind === 'product' ? l.quantity ?? 99 : 99} onChange={setQty} />
+-                  <span style={{ color: 'var(--muted)', fontSize: '.85rem' }}>= {money(Number(l.price) * qty, l.currency)}</span>
+-                </div>
+-                <button className="btn btn-primary btn-block mt-2" onClick={addToCart}>Add to cart</button>
++                {l.duration_mins ? (
++                  <p style={{ fontSize: '.85rem', color: 'var(--muted)' }}>
++                    Typically about {l.duration_mins} minutes
++                  </p>
++                ) : null}
++                <button className="btn btn-primary btn-block mt-2" onClick={() => setBooking(true)}>
++                  Request booking
++                </button>
++                <p className="hint center mt-1" style={{ color: 'var(--muted)', fontSize: '.78rem' }}>
++                  Free to request. You agree the time and price directly with the provider.
++                </p>
++              </>
++            ) : (
++              <>
++                {!outOfStock && (
++                  <>
++                    <div className="row wrap mt-2" style={{ gap: 8 }}>
++                      <label style={{ fontSize: '.85rem', fontWeight: 700 }}>Qty</label>
++                      <QtyInput value={qty} min={1} max={l.quantity ?? 99} onChange={setQty} />
++                      <span style={{ color: 'var(--muted)', fontSize: '.85rem' }}>= {money(Number(l.price) * qty, l.currency)}</span>
++                    </div>
++                    <button className="btn btn-primary btn-block mt-2" onClick={addToCart}>Add to cart</button>
++                  </>
++                )}
++                {l.whatsapp && (
++                  <a className="btn btn-wa btn-block mt-1" href={waLink(l.whatsapp, waText)} target="_blank" rel="noreferrer">
++                    Order on WhatsApp
++                  </a>
++                )}
++                <p className="hint center mt-1" style={{ color: 'var(--muted)', fontSize: '.78rem' }}>
++                  Cash on delivery available at checkout
++                </p>
+               </>
+             )}
+-            {l.whatsapp && (
+-              <a className="btn btn-wa btn-block mt-1" href={waLink(l.whatsapp, waText)} target="_blank" rel="noreferrer">
+-                Order on WhatsApp
+-              </a>
+-            )}
+-            <p className="hint center mt-1" style={{ color: 'var(--muted)', fontSize: '.78rem' }}>
+-              Cash on delivery available at checkout
+-            </p>
+           </div>
+ 
+           <div className="card card-pad mt-2">
+@@ -265,6 +288,15 @@ export default function ListingDetail() {
+           {images.length > 1 && <div className="ld-lightbox-counter">{active + 1} / {images.length}</div>}
+         </div>
+       )}
++    <BookServiceModal
++        open={booking}
++        onClose={() => setBooking(false)}
++        listing={{
++          id: l.id, title: l.title, price: Number(l.price), currency: l.currency,
++          price_type: l.price_type, duration_mins: l.duration_mins,
++          business_name: l.business_name, whatsapp: l.whatsapp,
++        }}
++      />
+     </div>
+   );
+ }
+diff --git a/web/src/pages/admin/AdminBookings.tsx b/web/src/pages/admin/AdminBookings.tsx
+new file mode 100644
+index 0000000..c915848
+--- /dev/null
++++ b/web/src/pages/admin/AdminBookings.tsx
+@@ -0,0 +1,163 @@
++/**
++ * Admin oversight of service bookings.
++ *
++ * Two tabs, answering two different questions:
++ *   Bookings — what is actually happening right now
++ *   Providers — who is receiving demand and who is ignoring it
++ *
++ * The second tab is the commercial one. When service vendors start paying a
++ * listing fee, "we sent you 47 bookings last month" is the argument, and
++ * "you never opened 12 of them" is the reason a vendor gets suspended rather
++ * than refunded.
++ */
++
++import { useEffect, useState } from 'react';
++import { api } from '../../lib/api';
++import { money, dateTime, timeAgo, titleCase, num } from '../../lib/format';
++import { Alert, Spinner, Empty, Badge, Tabs, Stat } from '../../components/ui';
++import { DataTable, type DTColumn } from '../../components/DataTable';
++
++interface Booking {
++  id: string; code: string; status: string;
++  listing_title: string; business_name: string; vendor_city: string | null;
++  contact_name: string; contact_phone: string;
++  preferred_at: string | null; scheduled_at: string | null;
++  quoted_price: string | null; currency: string;
++  first_viewed_at: string | null; created_at: string;
++}
++
++interface VendorStat {
++  vendor_id: string; business_name: string; city: string | null;
++  bookings: string; completed: string; cancelled: string;
++  no_shows: string; unseen: string; avg_response_hours: string | null;
++}
++
++const TONE: Record<string, 'grey' | 'green' | 'gold' | 'red' | 'blue' | 'terra'> = {
++  new: 'gold', contacted: 'blue', confirmed: 'green',
++  completed: 'grey', cancelled: 'red', no_show: 'red',
++};
++
++export default function AdminBookings() {
++  const [tab, setTab] = useState('bookings');
++  const [rows, setRows] = useState<Booking[] | null>(null);
++  const [stats, setStats] = useState<VendorStat[] | null>(null);
++  const [days, setDays] = useState(30);
++
++  useEffect(() => {
++    api.get<{ bookings: Booking[] }>('/bookings/admin')
++      .then((r) => setRows(r.bookings)).catch(() => setRows([]));
++  }, []);
++
++  useEffect(() => {
++    setStats(null);
++    api.get<{ vendors: VendorStat[] }>(`/bookings/admin/stats?days=${days}`)
++      .then((r) => setStats(r.vendors)).catch(() => setStats([]));
++  }, [days]);
++
++  const bookingCols: DTColumn<Booking>[] = [
++    { key: 'code', header: 'Reference', alwaysVisible: true,
++      render: (b) => <><div>{b.code}</div><div className="hint">{timeAgo(b.created_at)}</div></>,
++      csvValue: (b) => b.code },
++    { key: 'listing_title', header: 'Service', render: (b) => b.listing_title },
++    { key: 'business_name', header: 'Provider',
++      render: (b) => <><div>{b.business_name}</div>{b.vendor_city && <div className="hint">{b.vendor_city}</div>}</>,
++      csvValue: (b) => b.business_name },
++    { key: 'contact_name', header: 'Customer',
++      render: (b) => <><div>{b.contact_name}</div><div className="hint">{b.contact_phone}</div></>,
++      csvValue: (b) => `${b.contact_name} ${b.contact_phone}` },
++    { key: 'scheduled_at', header: 'When',
++      render: (b) => b.scheduled_at ? dateTime(b.scheduled_at)
++        : b.preferred_at ? <span className="hint">{dateTime(b.preferred_at)} (requested)</span>
++        : <span className="hint">Flexible</span>,
++      sortAccessor: (b) => b.scheduled_at || b.preferred_at || '',
++      csvValue: (b) => b.scheduled_at || b.preferred_at || '' },
++    { key: 'quoted_price', header: 'Advertised', align: 'right',
++      render: (b) => b.quoted_price ? money(Number(b.quoted_price), b.currency) : '—',
++      sortAccessor: (b) => Number(b.quoted_price ?? 0),
++      csvValue: (b) => b.quoted_price ?? '' },
++    { key: 'status', header: 'Status',
++      render: (b) => <Badge tone={TONE[b.status] || 'grey'}>{titleCase(b.status.replace('_', ' '))}</Badge>,
++      csvValue: (b) => b.status },
++    { key: 'first_viewed_at', header: 'Seen', defaultHidden: true,
++      render: (b) => b.first_viewed_at ? timeAgo(b.first_viewed_at) : <Badge tone="red">Never</Badge>,
++      csvValue: (b) => b.first_viewed_at ?? 'never' },
++  ];
++
++  const statCols: DTColumn<VendorStat>[] = [
++    { key: 'business_name', header: 'Provider', alwaysVisible: true,
++      render: (v) => <><div>{v.business_name}</div>{v.city && <div className="hint">{v.city}</div>}</>,
++      csvValue: (v) => v.business_name },
++    { key: 'bookings', header: 'Bookings sent', align: 'right',
++      render: (v) => num(Number(v.bookings)), sortAccessor: (v) => Number(v.bookings) },
++    { key: 'completed', header: 'Completed', align: 'right',
++      render: (v) => num(Number(v.completed)), sortAccessor: (v) => Number(v.completed) },
++    { key: 'cancelled', header: 'Cancelled', align: 'right',
++      render: (v) => num(Number(v.cancelled)), sortAccessor: (v) => Number(v.cancelled) },
++    { key: 'no_shows', header: 'No shows', align: 'right',
++      render: (v) => num(Number(v.no_shows)), sortAccessor: (v) => Number(v.no_shows) },
++    { key: 'unseen', header: 'Never opened', align: 'right',
++      render: (v) => Number(v.unseen) > 0
++        ? <Badge tone="red">{v.unseen}</Badge> : num(0),
++      sortAccessor: (v) => Number(v.unseen) },
++    { key: 'avg_response_hours', header: 'Avg reply', align: 'right',
++      render: (v) => v.avg_response_hours === null ? '—' : `${v.avg_response_hours} h`,
++      sortAccessor: (v) => Number(v.avg_response_hours ?? 9999) },
++  ];
++
++  return (
++    <div>
++      <h1 style={{ marginBottom: 4 }}>Service bookings</h1>
++      <p style={{ color: 'var(--muted)', marginTop: 0 }}>
++        Services are booked, not sold. No money passes through the platform on a booking,
++        so none of this is commissioned — it is the demand record for service providers.
++      </p>
++
++      <Tabs
++        tabs={[{ id: 'bookings', label: 'Bookings' }, { id: 'providers', label: 'Providers' }]}
++        value={tab}
++        onChange={setTab}
++      />
++
++      {tab === 'bookings' && (
++        rows === null ? <Spinner /> :
++        rows.length === 0 ? <Empty icon="📅" title="No bookings yet" text="Service booking requests will appear here." /> :
++        <DataTable rows={rows} columns={bookingCols} rowKey={(b) => b.id} exportFilename="service-bookings" />
++      )}
++
++      {tab === 'providers' && (
++        <>
++          <div className="row wrap mt-2" style={{ gap: 6 }}>
++            {[7, 30, 90, 365].map((d) => (
++              <button key={d} className={`btn btn-sm ${days === d ? 'btn-primary' : ''}`} onClick={() => setDays(d)}>
++                {d === 365 ? 'Last year' : `Last ${d} days`}
++              </button>
++            ))}
++          </div>
++
++          {stats === null ? <Spinner /> : (
++            <>
++              <div className="row wrap mt-2" style={{ gap: 12 }}>
++                <Stat label="Providers with demand" value={String(stats.length)} />
++                <Stat label="Bookings sent"
++                  value={num(stats.reduce((a, v) => a + Number(v.bookings), 0))} />
++                <Stat label="Never opened"
++                  value={num(stats.reduce((a, v) => a + Number(v.unseen), 0))} />
++              </div>
++
++              {stats.some((v) => Number(v.unseen) > 0) && (
++                <Alert kind="warn">
++                  Some providers have never opened bookings sent to them. Those customers
++                  were let down by the platform, not just by the vendor.
++                </Alert>
++              )}
++
++              {stats.length === 0
++                ? <Empty icon="📊" title="No bookings in this period" text="Try a longer range." />
++                : <DataTable rows={stats} columns={statCols} rowKey={(v) => v.vendor_id} exportFilename="provider-demand" />}
++            </>
++          )}
++        </>
++      )}
++    </div>
++  );
++}
+diff --git a/web/src/pages/admin/AdminLayout.tsx b/web/src/pages/admin/AdminLayout.tsx
+index 50ddf94..3c749a0 100644
+--- a/web/src/pages/admin/AdminLayout.tsx
++++ b/web/src/pages/admin/AdminLayout.tsx
+@@ -27,6 +27,7 @@ export default function AdminLayout() {
+     { to: '/admin/orders', ico: IconReceipt, label: 'Orders', group: 'Commerce' },
+     { to: '/admin/users', ico: IconUsers, label: 'Users', group: 'Commerce' },
+     { to: '/admin/billing', ico: IconReceipt, label: 'Billing', group: 'Commerce' },
++    { to: '/admin/bookings', ico: IconHistory, label: 'Service bookings', group: 'Commerce' },
+     { to: '/admin/categories', ico: IconFolder, label: 'Categories', group: 'Configuration' },
+     { to: '/admin/audit', ico: IconHistory, label: 'Activity log', group: 'Configuration' },
+   ];
+diff --git a/web/src/pages/vendor/VendorBookings.tsx b/web/src/pages/vendor/VendorBookings.tsx
+new file mode 100644
+index 0000000..7f0172e
+--- /dev/null
++++ b/web/src/pages/vendor/VendorBookings.tsx
+@@ -0,0 +1,233 @@
++/**
++ * Vendor booking inbox.
++ *
++ * Bookings are leads, not orders: no money moves through the platform here.
++ * The vendor's job is to contact the buyer, agree a time, and mark what
++ * happened. Those status stamps are what later justify charging for the
++ * service listing, so the UI nudges hard toward keeping them accurate.
++ */
++
++import { useEffect, useMemo, useState } from 'react';
++import { api, ApiError } from '../../lib/api';
++import { money, dateTime, timeAgo, titleCase, waLink } from '../../lib/format';
++import { Alert, Spinner, Empty, Badge, Modal, Field, Stat } from '../../components/ui';
++import { useToast } from '../../state/ToastContext';
++
++interface Booking {
++  id: string; code: string; status: string;
++  listing_title: string; duration_mins: number | null;
++  contact_name: string; contact_phone: string; contact_email: string | null;
++  preferred_at: string | null; preferred_note: string | null;
++  scheduled_at: string | null;
++  quoted_price: string | null; quoted_price_type: string | null; currency: string;
++  vendor_note: string | null; cancel_reason: string | null;
++  first_viewed_at: string | null; contacted_at: string | null;
++  created_at: string;
++}
++
++const TONE: Record<string, 'grey' | 'green' | 'gold' | 'red' | 'blue' | 'terra'> = {
++  new: 'gold', contacted: 'blue', confirmed: 'green',
++  completed: 'grey', cancelled: 'red', no_show: 'red',
++};
++
++const FILTERS = ['', 'new', 'contacted', 'confirmed', 'completed', 'cancelled'] as const;
++
++/** ISO -> value for <input type="datetime-local">, in the browser's timezone. */
++function toLocalInput(iso: string | null) {
++  const d = iso ? new Date(iso) : new Date(Date.now() + 25 * 3600_000);
++  const pad = (n: number) => String(n).padStart(2, '0');
++  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
++}
++
++export default function VendorBookings() {
++  const toast = useToast();
++  const [rows, setRows] = useState<Booking[] | null>(null);
++  const [filter, setFilter] = useState<string>('');
++  const [active, setActive] = useState<Booking | null>(null);
++  const [when, setWhen] = useState('');
++  const [note, setNote] = useState('');
++  const [busy, setBusy] = useState(false);
++
++  const load = () =>
++    api.get<{ bookings: Booking[] }>(`/bookings/vendor${filter ? `?status=${filter}` : ''}`)
++      .then((r) => setRows(r.bookings))
++      .catch(() => setRows([]));
++
++  useEffect(() => { setRows(null); load(); /* eslint-disable-next-line */ }, [filter]);
++
++  const counts = useMemo(() => {
++    const r = rows ?? [];
++    return {
++      total: r.length,
++      fresh: r.filter((b) => b.status === 'new').length,
++      upcoming: r.filter((b) => b.status === 'confirmed' && b.scheduled_at && new Date(b.scheduled_at) > new Date()).length,
++    };
++  }, [rows]);
++
++  const open = (b: Booking) => {
++    setActive(b);
++    setWhen(toLocalInput(b.scheduled_at || b.preferred_at));
++    setNote(b.vendor_note || '');
++    // Stamp first_viewed_at so response time is measurable. Fire and forget.
++    if (!b.first_viewed_at) api.post(`/bookings/${b.id}/seen`, {}).catch(() => {});
++  };
++
++  const save = async (status?: string) => {
++    if (!active) return;
++    setBusy(true);
++    try {
++      const body: Record<string, unknown> = { vendor_note: note.trim() || null };
++      if (status) body.status = status;
++      // Only send a time when one is genuinely set, so a blank field does not
++      // wipe an already-agreed slot.
++      if (when) body.scheduled_at = new Date(when).toISOString();
++      await api.patch(`/bookings/${active.id}`, body);
++      toast.push(status ? `Marked as ${status.replace('_', ' ')}` : 'Booking updated', 'success');
++      setActive(null);
++      await load();
++    } catch (e) {
++      toast.push(e instanceof ApiError ? e.message : 'Could not update that booking', 'error');
++    } finally {
++      setBusy(false);
++    }
++  };
++
++  if (rows === null) return <Spinner />;
++
++  return (
++    <div>
++      <h1 style={{ marginBottom: 4 }}>Bookings</h1>
++      <p style={{ color: 'var(--muted)', marginTop: 0 }}>
++        Requests for your services. Nothing is charged through Sokoni Hub — agree the
++        time and the price with the customer directly.
++      </p>
++
++      <div className="row wrap mt-2" style={{ gap: 12 }}>
++        <Stat label="All bookings" value={String(counts.total)} />
++        <Stat label="Awaiting your reply" value={String(counts.fresh)} />
++        <Stat label="Upcoming" value={String(counts.upcoming)} />
++      </div>
++
++      {counts.fresh > 0 && (
++        <Alert kind="warn">
++          You have {counts.fresh} request{counts.fresh === 1 ? '' : 's'} you have not replied to yet.
++          Customers usually book elsewhere if they do not hear back the same day.
++        </Alert>
++      )}
++
++      <div className="row wrap mt-2" style={{ gap: 6 }}>
++        {FILTERS.map((f) => (
++          <button key={f || 'all'}
++            className={`btn btn-sm ${filter === f ? 'btn-primary' : ''}`}
++            onClick={() => setFilter(f)}>
++            {f ? titleCase(f.replace('_', ' ')) : 'All'}
++          </button>
++        ))}
++      </div>
++
++      {rows.length === 0 ? (
++        <Empty icon="📅" title="No bookings yet"
++          text="When a customer requests one of your services it will appear here." />
++      ) : (
++        <div className="table-wrap mt-2">
++          <table className="table">
++            <thead>
++              <tr>
++                <th>Reference</th><th>Service</th><th>Customer</th>
++                <th>Requested for</th><th>Status</th><th></th>
++              </tr>
++            </thead>
++            <tbody>
++              {rows.map((b) => (
++                <tr key={b.id} style={b.status === 'new' ? { fontWeight: 600 } : undefined}>
++                  <td>
++                    <div>{b.code}</div>
++                    <div className="hint">{timeAgo(b.created_at)}</div>
++                  </td>
++                  <td>
++                    {b.listing_title}
++                    {b.quoted_price && (
++                      <div className="hint">
++                        {money(Number(b.quoted_price), b.currency)}
++                        {b.quoted_price_type && b.quoted_price_type !== 'fixed' ? ` (${b.quoted_price_type})` : ''}
++                      </div>
++                    )}
++                  </td>
++                  <td>
++                    <div>{b.contact_name}</div>
++                    <a className="hint" href={waLink(b.contact_phone, `Hello ${b.contact_name}, about your booking ${b.code}`)}
++                      target="_blank" rel="noreferrer">{b.contact_phone}</a>
++                  </td>
++                  <td>
++                    {b.scheduled_at
++                      ? <><strong>{dateTime(b.scheduled_at)}</strong><div className="hint">agreed</div></>
++                      : b.preferred_at
++                        ? <>{dateTime(b.preferred_at)}<div className="hint">requested</div></>
++                        : <span className="hint">Flexible</span>}
++                  </td>
++                  <td><Badge tone={TONE[b.status] || 'grey'}>{titleCase(b.status.replace('_', ' '))}</Badge></td>
++                  <td><button className="btn btn-sm" onClick={() => open(b)}>Manage</button></td>
++                </tr>
++              ))}
++            </tbody>
++          </table>
++        </div>
++      )}
++
++      <Modal
++        open={!!active}
++        title={active ? `Booking ${active.code}` : ''}
++        onClose={() => setActive(null)}
++        footer={
++          <>
++            <button className="btn" onClick={() => setActive(null)} disabled={busy}>Close</button>
++            <button className="btn" onClick={() => save()} disabled={busy}>Save</button>
++            <button className="btn btn-primary" onClick={() => save('confirmed')} disabled={busy}>
++              Confirm booking
++            </button>
++          </>
++        }
++      >
++        {active && (
++          <>
++            <p>
++              <strong>{active.listing_title}</strong>
++              {active.duration_mins ? <span className="hint"> · about {active.duration_mins} minutes</span> : null}
++            </p>
++            <p>
++              {active.contact_name} · {active.contact_phone}
++              {active.contact_email ? ` · ${active.contact_email}` : ''}
++            </p>
++            {active.preferred_note && (
++              <blockquote style={{ borderLeft: '3px solid var(--line)', paddingLeft: 12, margin: '12px 0', color: 'var(--muted)' }}>
++                {active.preferred_note}
++              </blockquote>
++            )}
++
++            <a className="btn btn-wa btn-block"
++              href={waLink(active.contact_phone, `Hello ${active.contact_name}, about your booking ${active.code} for "${active.listing_title}".`)}
++              target="_blank" rel="noreferrer"
++              onClick={() => { if (active.status === 'new') save('contacted'); }}>
++              Message on WhatsApp
++            </a>
++
++            <Field label="Agreed date and time"
++              hint="Set this once the customer has actually agreed. Required before you can confirm.">
++              <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
++            </Field>
++
++            <Field label="Private note" hint="Only you and the admin can see this.">
++              <textarea rows={2} value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} />
++            </Field>
++
++            <div className="row wrap mt-2" style={{ gap: 6 }}>
++              <button className="btn btn-sm" onClick={() => save('completed')} disabled={busy}>Mark completed</button>
++              <button className="btn btn-sm" onClick={() => save('no_show')} disabled={busy}>No show</button>
++              <button className="btn btn-sm btn-danger" onClick={() => save('cancelled')} disabled={busy}>Cancel</button>
++            </div>
++          </>
++        )}
++      </Modal>
++    </div>
++  );
++}
+diff --git a/web/src/pages/vendor/VendorLayout.tsx b/web/src/pages/vendor/VendorLayout.tsx
+index 80b5d92..ced63e8 100644
+--- a/web/src/pages/vendor/VendorLayout.tsx
++++ b/web/src/pages/vendor/VendorLayout.tsx
+@@ -5,21 +5,27 @@ import DashShell, { DashLink, DashNotification } from '../../components/DashShel
+ import { useAuth } from '../../state/AuthContext';
+ import { StatusBadge, Alert } from '../../components/ui';
+ import { api } from '../../lib/api';
+-import { IconChart, IconBox, IconPlus, IconReceipt, IconAlert, IconStore } from '../../components/icons';
++import { IconChart, IconBox, IconPlus, IconReceipt, IconAlert, IconStore, IconHistory } from '../../components/icons';
+ 
+ export default function VendorLayout() {
+   const { user, vendor } = useAuth();
+   const name = vendor?.business_name || user?.full_name || 'V';
+   const initials = name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
+ 
+-  const [alerts, setAlerts] = useState({ out_of_stock: 0, low_stock: 0, open_complaints: 0 });
++  const [alerts, setAlerts] = useState({ out_of_stock: 0, low_stock: 0, open_complaints: 0, new_bookings: 0 });
+   useEffect(() => {
+     if (!vendor) return;
+-    const load = () => api.get<any>('/vendors/dashboard')
+-      .then((r) => setAlerts({
++    const load = () => Promise.all([
++      api.get<any>('/vendors/dashboard'),
++      // Separate call: a service-only vendor has no stock or orders, so their
++      // booking count must not depend on the commerce dashboard succeeding.
++      api.get<any>('/bookings/vendor/counts').catch(() => ({ new: 0 })),
++    ])
++      .then(([r, bk]) => setAlerts({
+         out_of_stock: Number(r.stats.out_of_stock || 0),
+         low_stock: Number(r.stats.low_stock || 0),
+         open_complaints: Number(r.stats.open_complaints || 0),
++        new_bookings: Number(bk.new || 0),
+       }))
+       .catch(() => {});
+     load();
+@@ -43,6 +49,11 @@ export default function VendorLayout() {
+       title: `${alerts.open_complaints} open complaint${alerts.open_complaints === 1 ? '' : 's'}`,
+       text: 'A buyer is waiting on a response.', to: '/vendor/complaints',
+     }] : []),
++    ...(alerts.new_bookings > 0 ? [{
++      id: 'bk', tone: 'gold' as const,
++      title: `${alerts.new_bookings} new booking request${alerts.new_bookings === 1 ? '' : 's'}`,
++      text: 'A customer is waiting to agree a time with you.', to: '/vendor/bookings',
++    }] : []),
+   ];
+ 
+   const links: DashLink[] = [
+@@ -50,6 +61,7 @@ export default function VendorLayout() {
+     { to: '/vendor/listings', ico: IconBox, label: 'Products & services', pill: alerts.out_of_stock, group: 'Catalogue' },
+     { to: '/vendor/listings/new', ico: IconPlus, label: 'Add listing', group: 'Catalogue' },
+     { to: '/vendor/orders', ico: IconReceipt, label: 'Orders', group: 'Sales' },
++    { to: '/vendor/bookings', ico: IconHistory, label: 'Bookings', pill: alerts.new_bookings, group: 'Sales' },
+     { to: '/vendor/complaints', ico: IconAlert, label: 'Complaints', pill: alerts.open_complaints, group: 'Sales' },
+     { to: '/vendor/statements', ico: IconReceipt, label: 'Statements', group: 'Sales' },
+     { to: '/vendor/profile', ico: IconStore, label: 'Store profile', group: 'Settings' },
+diff --git a/web/src/state/CartContext.tsx b/web/src/state/CartContext.tsx
+index 8ae6965..9a01ee2 100644
+--- a/web/src/state/CartContext.tsx
++++ b/web/src/state/CartContext.tsx
+@@ -20,13 +20,23 @@ export const useCart = () => useContext(Ctx);
+ 
+ export function CartProvider({ children }: { children: ReactNode }) {
+   const [items, setItems] = useState<CartItem[]>(() => {
+-    try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { return []; }
++    try {
++      // Services are booked, never bought. Drop any that a previous build of
++      // the app left in a returning visitor's saved cart, otherwise they would
++      // reach checkout and be charged for something that is arranged and paid
++      // for directly with the provider.
++      const saved: CartItem[] = JSON.parse(localStorage.getItem(KEY) || '[]');
++      return saved.filter((i) => i.kind !== 'service');
++    } catch { return []; }
+   });
+ 
+   useEffect(() => { localStorage.setItem(KEY, JSON.stringify(items)); }, [items]);
+ 
+   const add: CartState['add'] = (i) =>
+     setItems((prev) => {
++      // Guard rather than assert: a service reaching here is a bug in the
++      // caller, and silently ignoring it is safer than charging for it.
++      if (i.kind === 'service') return prev;
+       const found = prev.find((p) => p.listing_id === i.listing_id);
+       if (found)
+         return prev.map((p) =>
