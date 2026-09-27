@@ -1381,6 +1381,87 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 }
 
 /* ---------------------------------------------------------------------------
+   19bb. INVENTORY
+   
+   Deliberately built on the .bk-* grid rather than beside it: same shape-shift
+   from aligned columns to stacked cards, same breakpoints, one set of rules to
+   keep correct. Only the column widths and the state colouring differ.
+   ------------------------------------------------------------------------ */
+
+.inv-list {
+  /* Product title needs the room; the numeric columns do not. The action
+     column is sized for three buttons on one line — wrapped actions read as
+     a layout accident. */
+  --bk-cols: minmax(140px, 1.6fr) 120px 112px 78px 104px 248px;
+}
+@media (max-width: 1100px) {
+  .inv-list { --bk-cols: minmax(120px, 1.5fr) 108px 100px 70px 100px 232px; }
+}
+
+/* Each cell stacks its label, value and caption. The bookings inbox gets this
+   from its markup; here the captions are inline spans, so it is stated. */
+.inv-list .bk-item > div {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+}
+.inv-list .bk-item > div.inv-actions {
+  flex-direction: row; align-items: center; justify-content: flex-end;
+}
+
+/* A left edge in the state colour: scannable down the list without reading a
+   word, which is the whole point of opening this page. */
+.inv-list .bk-item.inv-out { box-shadow: inset 3px 0 0 var(--danger); }
+.inv-list .bk-item.inv-low { box-shadow: inset 3px 0 0 var(--gold); }
+.inv-list .bk-item.inv-untracked { box-shadow: inset 3px 0 0 var(--border-strong); }
+
+.inv-zero { color: var(--danger); }
+
+.inv-c-title strong { display: block; }
+
+/* Three actions per row. They sit inline on desktop and become a full-width
+   stack on a phone, where a thumb needs the target. */
+.inv-actions { display: flex; gap: var(--s-2); justify-content: flex-end; flex-wrap: wrap; }
+.inv-actions .btn { white-space: nowrap; }
+/* Update stock is the action; Rules and History are references. Compacting the
+   secondary two keeps all three on one line — wrapped buttons read as a bug. */
+.inv-actions .btn-ghost { padding-inline: var(--s-2); font-size: var(--fs-xs); }
+
+/* The vendor-wide default, parked in the filter bar rather than buried in Store
+   profile — it is the setting you want to change the moment you notice the
+   warnings are firing at the wrong point. */
+.inv-default {
+  display: inline-flex; align-items: center; gap: var(--s-2);
+  font-size: var(--fs-sm); color: var(--text-muted); white-space: nowrap;
+}
+.inv-default-input { width: 80px; }
+
+.inv-mode { display: flex; gap: var(--s-2); margin-bottom: var(--s-3); }
+
+/* Ledger */
+.inv-ledger { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-1); }
+.inv-ledger li {
+  display: grid; grid-template-columns: 56px 1fr; gap: var(--s-3);
+  align-items: start; padding: var(--s-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+.inv-ledger li:last-child { border-bottom: 0; }
+.inv-ledger-body { display: flex; flex-direction: column; min-width: 0; }
+.inv-ledger-body .bk-sub { overflow-wrap: anywhere; }
+.inv-delta {
+  font-family: var(--display); font-weight: 700; font-variant-numeric: tabular-nums;
+  text-align: right; font-size: var(--fs-md);
+}
+.inv-delta.up { color: var(--success-text); }
+.inv-delta.down { color: var(--danger); }
+
+@media (max-width: 860px) {
+  .inv-actions { width: 100%; }
+  /* Update stock is the reason the vendor is here; the other two are reference. */
+  .inv-actions .btn-primary { flex: 1 1 100%; }
+  .inv-actions .btn-ghost { flex: 1 1 0; }
+  .inv-default { margin-left: auto; }
+}
+
+/* ---------------------------------------------------------------------------
    19c. DASHBOARD BREADCRUMB — shrink fix
    
    .breadcrumb is flex: 0 0 auto, so it cannot shrink and a long page name
