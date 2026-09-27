@@ -111,6 +111,7 @@ export function Footer() {
   useEffect(() => { api.get<{ payment_methods: string[] }>('/meta/policy').then((r) => setPayment(r.payment_methods)).catch(() => {}); }, []);
   const label: Record<string, string> = { cash_on_delivery: '💵 Cash on delivery', whatsapp: '💬 WhatsApp', bank_transfer: '🏦 Bank transfer' };
   const SUPPORT_WHATSAPP = '97466046431'; // no + or spaces — wa.me format
+  const supportMsg = encodeURIComponent('Hi, I need help with Sokoni Hub.');
 
   return (
     <footer className="footer">
@@ -141,7 +142,7 @@ export function Footer() {
             <Link to="/support">File a complaint</Link>
             <Link to="/support#track">Track complaint</Link>
             <Link to="/policy">Prohibited items</Link>
-            <a href={`https://wa.me/${SUPPORT_WHATSAPP}`} target="_blank" rel="noopener noreferrer">
+            <a href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${supportMsg}`} target="_blank" rel="noopener noreferrer">
               💬 Chat with support
             </a>
           </div>
@@ -157,17 +158,6 @@ export function Footer() {
         </div>
       </div>
     </footer>
-
-  );
-}
-
-export default function Layout() {
-  return (
-    <div className="app">
-      <Header />
-      <main className="page"><Outlet /></main>
-      <Footer />
-    </div>
   );
 }
 
