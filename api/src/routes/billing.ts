@@ -44,7 +44,8 @@ billingRouter.patch('/settings', requireAuth('admin'), async (req, res, next) =>
       business_phone: z.string().max(40).nullable().optional(),
       cr_number: z.string().max(60).nullable().optional(),
       tax_number: z.string().max(60).nullable().optional(),
-      logo_url: z.string().url().nullable().optional(),
+      // '' clears the logo; a URL sets it; omitted leaves it untouched.
+      logo_url: z.union([z.string().url(), z.literal('')]).nullable().optional(),
       invoice_prefix: z.string().min(1).max(8).optional(),
       receipt_prefix: z.string().min(1).max(8).optional(),
       invoice_footer: z.string().max(500).nullable().optional(),
@@ -60,7 +61,11 @@ billingRouter.patch('/settings', requireAuth('admin'), async (req, res, next) =>
          business_phone   = coalesce($6, business_phone),
          cr_number        = coalesce($7, cr_number),
          tax_number       = coalesce($8, tax_number),
-         logo_url         = coalesce($9, logo_url),
+         -- $9 needs an explicit cast: every branch here is either NULL or a
+         -- column reference, so Postgres cannot infer the parameter's type.
+         logo_url         = case when $9::text is null then logo_url
+                                 when $9::text = ''    then null
+                                 else $9::text end,
          invoice_prefix   = coalesce($10, invoice_prefix),
          receipt_prefix   = coalesce($11, receipt_prefix),
          invoice_footer   = coalesce($12, invoice_footer),
