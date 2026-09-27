@@ -6,6 +6,7 @@ import { money, priceLabel, waLink, date } from '../lib/format';
 import { Badge, Spinner, Empty, Alert, QtyInput } from '../components/ui';
 import { useCart } from '../state/CartContext';
 import { useToast } from '../state/ToastContext';
+import { BookServiceModal } from '../components/BookServiceModal';
 import ListingCard from '../components/ListingCard';
 import './ListingDetail.css';
 
@@ -22,6 +23,7 @@ export default function ListingDetail() {
   const touchStartX = useRef<number | null>(null);
   const { add } = useCart();
   const { push } = useToast();
+  const [booking, setBooking] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -172,24 +174,45 @@ export default function ListingDetail() {
               </p>
             )}
 
-            {!outOfStock && (
+            {/* Services are booked, not bought. No cart, no stock, no checkout
+                total — the price may be 'from' or hourly, and the real figure is
+                agreed with the provider. */}
+            {l.kind === 'service' ? (
               <>
-                <div className="row wrap mt-2" style={{ gap: 8 }}>
-                  <label style={{ fontSize: '.85rem', fontWeight: 700 }}>Qty</label>
-                <QtyInput value={qty} min={1} max={l.kind === 'product' ? l.quantity ?? 99 : 99} onChange={setQty} />
-                  <span style={{ color: 'var(--muted)', fontSize: '.85rem' }}>= {money(Number(l.price) * qty, l.currency)}</span>
-                </div>
-                <button className="btn btn-primary btn-block mt-2" onClick={addToCart}>Add to cart</button>
+                {l.duration_mins ? (
+                  <p style={{ fontSize: '.85rem', color: 'var(--muted)' }}>
+                    Typically about {l.duration_mins} minutes
+                  </p>
+                ) : null}
+                <button className="btn btn-primary btn-block mt-2" onClick={() => setBooking(true)}>
+                  Request booking
+                </button>
+                <p className="hint center mt-1" style={{ color: 'var(--muted)', fontSize: '.78rem' }}>
+                  Free to request. You agree the time and price directly with the provider.
+                </p>
+              </>
+            ) : (
+              <>
+                {!outOfStock && (
+                  <>
+                    <div className="row wrap mt-2" style={{ gap: 8 }}>
+                      <label style={{ fontSize: '.85rem', fontWeight: 700 }}>Qty</label>
+                      <QtyInput value={qty} min={1} max={l.quantity ?? 99} onChange={setQty} />
+                      <span style={{ color: 'var(--muted)', fontSize: '.85rem' }}>= {money(Number(l.price) * qty, l.currency)}</span>
+                    </div>
+                    <button className="btn btn-primary btn-block mt-2" onClick={addToCart}>Add to cart</button>
+                  </>
+                )}
+                {l.whatsapp && (
+                  <a className="btn btn-wa btn-block mt-1" href={waLink(l.whatsapp, waText)} target="_blank" rel="noreferrer">
+                    Order on WhatsApp
+                  </a>
+                )}
+                <p className="hint center mt-1" style={{ color: 'var(--muted)', fontSize: '.78rem' }}>
+                  Cash on delivery available at checkout
+                </p>
               </>
             )}
-            {l.whatsapp && (
-              <a className="btn btn-wa btn-block mt-1" href={waLink(l.whatsapp, waText)} target="_blank" rel="noreferrer">
-                Order on WhatsApp
-              </a>
-            )}
-            <p className="hint center mt-1" style={{ color: 'var(--muted)', fontSize: '.78rem' }}>
-              Cash on delivery available at checkout
-            </p>
           </div>
 
           <div className="card card-pad mt-2">
@@ -265,6 +288,15 @@ export default function ListingDetail() {
           {images.length > 1 && <div className="ld-lightbox-counter">{active + 1} / {images.length}</div>}
         </div>
       )}
+    <BookServiceModal
+        open={booking}
+        onClose={() => setBooking(false)}
+        listing={{
+          id: l.id, title: l.title, price: Number(l.price), currency: l.currency,
+          price_type: l.price_type, duration_mins: l.duration_mins,
+          business_name: l.business_name, whatsapp: l.whatsapp,
+        }}
+      />
     </div>
   );
 }
