@@ -22,6 +22,9 @@ export interface VendorDeliverySettings {
 }
 
 /** Money is 2dp. Avoids 0.1 + 0.2 drifting into the stored total. */
+/** Fallback when a cart somehow carries no currency. */
+export const DEFAULT_CURRENCY = 'QAR';
+
 export const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 const num = (v: number | string | null | undefined, fallback = 0): number => {
@@ -144,7 +147,7 @@ export function cartTotals(quotes: VendorQuote[]) {
     subtotal: round2(quotes.reduce((s, q) => s + q.subtotal, 0)),
     delivery_fee: round2(quotes.reduce((s, q) => s + q.delivery_fee, 0)),
     total: round2(quotes.reduce((s, q) => s + q.total, 0)),
-    currency: quotes[0]?.currency || 'USD',
+    currency: quotes[0]?.currency || DEFAULT_CURRENCY,
   };
 }
 

@@ -53,6 +53,6 @@ export const config = {
   supabaseUrl: process.env.SUPABASE_URL || '',
   supabaseKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
   supabaseBucket: process.env.SUPABASE_BUCKET || 'listings',
-  defaultCurrency: process.env.DEFAULT_CURRENCY || 'USD',
+  defaultCurrency: process.env.DEFAULT_CURRENCY || 'QAR',
   platformWhatsapp: process.env.PLATFORM_WHATSAPP || '',
 };
