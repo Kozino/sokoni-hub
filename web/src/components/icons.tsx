@@ -17,6 +17,7 @@ export const IconBox       = wrap(<><path d="M21 8.5L12 3 3 8.5v7L12 21l9-5.5z" 
 export const IconReceipt   = wrap(<><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z" /><path d="M9 7h6M9 11h6M9 15h4" /></>);
 export const IconAlert     = wrap(<><path d="M10.3 3.9L2.5 17.2A1.9 1.9 0 0 0 4.2 20h15.6a1.9 1.9 0 0 0 1.7-2.8L13.7 3.9a1.9 1.9 0 0 0-3.4 0z" /><path d="M12 9v4M12 17h.01" /></>);
 export const IconUsers     = wrap(<><path d="M16 20v-1.8a3.6 3.6 0 0 0-3.6-3.6H6.6A3.6 3.6 0 0 0 3 18.2V20" /><circle cx="9.5" cy="7.5" r="3.5" /><path d="M21 20v-1.8a3.6 3.6 0 0 0-2.7-3.5M16.5 4.2a3.6 3.6 0 0 1 0 6.9" /></>);
+export const IconStar      = wrap(<path d="M12 3.5l2.7 5.5 6 .9-4.35 4.25 1.03 6-5.38-2.83L6.6 20.15l1.03-6L3.28 9.9l6-.9z" />);
 export const IconFolder    = wrap(<><path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></>);
 export const IconHistory   = wrap(<><path d="M3 12a9 9 0 1 0 2.6-6.4" /><path d="M3 4v4h4" /><path d="M12 7.5V12l3 2" /></>);
 export const IconPlus      = wrap(<><path d="M12 5v14M5 12h14" /></>);
