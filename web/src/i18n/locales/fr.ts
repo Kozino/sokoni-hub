@@ -93,6 +93,7 @@ const fr: Record<string, string> = {
   'browse.sort.priceLow': 'Prix : croissant',
   'browse.sort.priceHigh': 'Prix : décroissant',
   'browse.clear': 'Effacer les filtres',
+  'browse.filters': 'Filtres',
   'browse.count': '{{count}} résultat | {{count}} résultats',
   'listing.tab.description': 'Description',
   'listing.tab.details': 'Détails',
