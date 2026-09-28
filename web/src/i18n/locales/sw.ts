@@ -93,6 +93,7 @@ const sw: Record<string, string> = {
   'browse.sort.priceLow': 'Bei: chini kwenda juu',
   'browse.sort.priceHigh': 'Bei: juu kwenda chini',
   'browse.clear': 'Ondoa vichujio',
+  'browse.filters': 'Vichujio',
   'browse.count': 'Tokeo {{count}} | Matokeo {{count}}',
   'listing.tab.description': 'Maelezo',
   'listing.tab.details': 'Maelezo zaidi',
