@@ -57,10 +57,37 @@ function ProfileMenu({ onNavigate }: { onNavigate: () => void }) {
   );
 }
 
+/** Modern line cart icon (24px grid, 1.9 stroke, round joins). */
+function CartIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
+         strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'block' }}>
+      <circle cx="8" cy="21" r="1.4" />
+      <circle cx="19" cy="21" r="1.4" />
+      <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+    </svg>
+  );
+}
+
+/**
+ * Cart link with live item badge. Rendered twice by Header: once inside the
+ * desktop nav and once beside the burger on phones (CSS shows only one).
+ */
+function CartLink({ variant, onClick }: { variant: 'desktop' | 'mobile'; onClick?: () => void }) {
+  const t = useT();
+  const { count } = useCart();
+  const label = count > 0 ? `${t('nav.cart')} (${count})` : t('nav.cart');
+  return (
+    <Link to="/cart" className={`cart-btn cart-btn--${variant}`} onClick={onClick} aria-label={label}>
+      <CartIcon />
+      {count > 0 && <span className="cart-badge" aria-hidden="true">{count > 99 ? '99+' : count}</span>}
+    </Link>
+  );
+}
+
 export function Header() {
   const t = useT();
   const { user, vendor, logout } = useAuth();
-  const { count } = useCart();
   const [open, setOpen] = useState(false);
   const nav = useNavigate();
   const close = () => setOpen(false);
@@ -72,20 +99,16 @@ export function Header() {
           <img src="/logo.png" alt="Sokoni Hub" />
           <span>Sokoni Hub<small>Sell beyond status</small></span>
         </Link>
-        <button className="burger" onClick={() => setOpen((o) => !o)} aria-label={t('nav.menu')}>☰</button>
+        <div className="header-mobile-actions">
+          <CartLink variant="mobile" onClick={close} />
+          <button className="burger" onClick={() => setOpen((o) => !o)} aria-label={t('nav.menu')} aria-expanded={open}>☰</button>
+        </div>
         <nav className={`nav${open ? ' open' : ''}`}>
           <NavLink to="/browse" onClick={close}>{t('nav.browse')}</NavLink>
           <NavLink to="/browse?kind=service" onClick={close}>{t('nav.services')}</NavLink>
           <NavLink to="/vendors" onClick={close}>{t('nav.stores')}</NavLink>
           <NavLink to="/support" onClick={close}>{t('nav.support')}</NavLink>
-          <Link to="/cart" className="cart-btn" onClick={close} aria-label={t('nav.cart')}>
-            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                 strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block' }}>
-              <circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
-              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-            </svg>
-            {count > 0 && <span className="cart-badge">{count}</span>}
-          </Link>
+          <CartLink variant="desktop" onClick={close} />
           {!user && (
             <>
               <NavLink to="/login" onClick={close}>{t('nav.login')}</NavLink>
