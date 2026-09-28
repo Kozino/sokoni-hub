@@ -101,6 +101,7 @@ const fr: Record<string, string> = {
   'listing.addToCart': 'Ajouter au panier',
   'listing.orderWhatsapp': 'Commander sur WhatsApp',
   'listing.requestBooking': 'Demander une réservation',
+  'listing.bookNow': 'Réserver',
   'listing.outOfStock': 'Rupture de stock',
   'listing.inStock': '{{count}} {{unit}} en stock',
   'listing.qty': 'Qté',
