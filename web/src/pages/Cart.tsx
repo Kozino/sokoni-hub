@@ -2,23 +2,25 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../state/CartContext';
 import { money } from '../lib/format';
 import { Empty, QtyInput } from '../components/ui';
+import { useT } from '../i18n';
 
 export default function Cart() {
+  const t = useT();
   const { items, byVendor, subtotal, currency, setQty, remove, clear } = useCart();
   const nav = useNavigate();
 
   if (items.length === 0)
     return (
       <div className="container container-narrow">
-        <Empty icon="🛒" title="Your cart is empty" text="Browse food stuff and services from verified stores." action={<Link to="/browse" className="btn btn-primary">Start shopping</Link>} />
+        <Empty icon="🛒" title={t('cart.empty.title')} text={t('cart.emptyText')} action={<Link to="/browse" className="btn btn-primary">{t('cart.startShopping')}</Link>} />
       </div>
     );
 
   return (
     <div className="container">
       <div className="row-between mb-3">
-        <h1 style={{ margin: 0 }}>Your cart</h1>
-        <button className="btn btn-ghost btn-sm" onClick={clear}>Clear cart</button>
+        <h1 style={{ margin: 0 }}>{t('cart.title')}</h1>
+        <button className="btn btn-ghost btn-sm" onClick={clear}>{t('cart.clear')}</button>
       </div>
 
       <div className="cart-layout">
@@ -58,17 +60,17 @@ export default function Cart() {
         </div>
 
         <div className="card card-pad cart-summary">
-          <h3>Summary</h3>
-          <div className="row-between"><span>Items</span><strong>{items.reduce((s, i) => s + i.qty, 0)}</strong></div>
-          <div className="row-between"><span>Subtotal</span><strong>{money(subtotal, currency)}</strong></div>
+          <h3>{t('cart.summary')}</h3>
+          <div className="row-between"><span>{t('cart.itemsLabel')}</span><strong>{items.reduce((s, i) => s + i.qty, 0)}</strong></div>
+          <div className="row-between"><span>{t('cart.subtotal')}</span><strong>{money(subtotal, currency)}</strong></div>
           <div className="row-between" style={{ fontSize: '.82rem', color: 'var(--muted)' }}>
-            <span>Delivery</span><span>Agreed with vendor</span>
+            <span>{t('cart.delivery')}</span><span>{t('cart.deliveryAgreed')}</span>
           </div>
           <hr />
           <div className="row-between" style={{ fontSize: '1.15rem' }}>
-            <strong>Total</strong><strong style={{ color: 'var(--terra-dark)' }}>{money(subtotal, currency)}</strong>
+            <strong>{t('cart.total')}</strong><strong style={{ color: 'var(--terra-dark)' }}>{money(subtotal, currency)}</strong>
           </div>
-          <button className="btn btn-primary btn-block btn-lg mt-2" onClick={() => nav('/checkout')}>Proceed to checkout</button>
+          <button className="btn btn-primary btn-block btn-lg mt-2" onClick={() => nav('/checkout')}>{t('cart.proceed')}</button>
           <p className="center mt-1" style={{ fontSize: '.78rem', color: 'var(--muted)', margin: 0 }}>
             Cash on delivery · No account required
           </p>

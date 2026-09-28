@@ -5,8 +5,10 @@ import type { Listing, Category } from '../types';
 import ListingCard from '../components/ListingCard';
 import { Empty, Spinner } from '../components/ui';
 import './Browse.css';
+import { useT } from '../i18n';
 
 export default function Browse() {
+  const t = useT();
   const [params, setParams] = useSearchParams();
   const [listings, setListings] = useState<Listing[]>([]);
   const [total, setTotal] = useState(0);
@@ -49,45 +51,45 @@ export default function Browse() {
 
   return (
     <div className="container browse-page">
-      <h1>{kind === 'service' ? 'Services' : kind === 'product' ? 'Food stuff & products' : 'Browse everything'}</h1>
-      <p style={{ color: 'var(--muted)' }}>{total} listing{total === 1 ? '' : 's'} from verified stores</p>
+      <h1>{kind === 'service' ? t('common.services') : kind === 'product' ? t('browse.foodstuffTitle') : t('browse.everything')}</h1>
+      <p style={{ color: 'var(--muted)' }}>{t('browse.listingCount', { count: total })} {t('browse.fromStores')}</p>
 
       <form
         className="filters mt-2"
         onSubmit={(e) => { e.preventDefault(); set('q', term); }}
       >
-        <input placeholder="Search…" value={term} onChange={(e) => setTerm(e.target.value)} style={{ minWidth: 220 }} />
+        <input placeholder={t('browse.searchPlaceholder')} value={term} onChange={(e) => setTerm(e.target.value)} style={{ minWidth: 220 }} />
         <select value={kind} onChange={(e) => { set('category', ''); set('kind', e.target.value); }}>
-          <option value="">All types</option>
-          <option value="product">Products</option>
-          <option value="service">Services</option>
+          <option value="">{t('browse.allTypes')}</option>
+          <option value="product">{t('common.products')}</option>
+          <option value="service">{t('common.services')}</option>
         </select>
         <select value={get('category')} onChange={(e) => set('category', e.target.value)}>
-          <option value="">All categories</option>
+          <option value="">{t('browse.allCategories')}</option>
           {visibleCats.map((c) => <option key={c.id} value={c.slug}>{c.name}</option>)}
         </select>
         <select value={get('city')} onChange={(e) => set('city', e.target.value)}>
-          <option value="">All cities</option>
+          <option value="">{t('home.hero.allCities')}</option>
           {cities.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
-        <input type="number" placeholder="Min price" value={get('min')} onChange={(e) => set('min', e.target.value)} style={{ maxWidth: 120 }} />
-        <input type="number" placeholder="Max price" value={get('max')} onChange={(e) => set('max', e.target.value)} style={{ maxWidth: 120 }} />
+        <input type="number" placeholder={t('browse.minPrice')} value={get('min')} onChange={(e) => set('min', e.target.value)} style={{ maxWidth: 120 }} />
+        <input type="number" placeholder={t('browse.maxPrice')} value={get('max')} onChange={(e) => set('max', e.target.value)} style={{ maxWidth: 120 }} />
         <select value={get('sort') || 'newest'} onChange={(e) => set('sort', e.target.value)}>
-          <option value="newest">Newest</option>
+          <option value="newest">{t('browse.sort.newest')}</option>
           <option value="price_asc">Price: low → high</option>
           <option value="price_desc">Price: high → low</option>
-          <option value="popular">Most viewed</option>
+          <option value="popular">{t('browse.sort.viewed')}</option>
         </select>
-        <button className="btn btn-primary" type="submit">Apply</button>
+        <button className="btn btn-primary" type="submit">{t('browse.apply')}</button>
         {[...params.keys()].length > 0 && (
-          <button type="button" className="btn btn-ghost" onClick={() => { setTerm(''); setParams(new URLSearchParams()); }}>Clear</button>
+          <button type="button" className="btn btn-ghost" onClick={() => { setTerm(''); setParams(new URLSearchParams()); }}>{t('browse.clearShort')}</button>
         )}
       </form>
 
       {loading ? (
         <Spinner />
       ) : listings.length === 0 ? (
-        <Empty icon="🔍" title="Nothing matches that search" text="Try a different keyword, category or city." />
+        <Empty icon="🔍" title={t('browse.noMatch.title')} text={t('browse.noMatch.text')} />
       ) : (
         <>
           <div className="grid browse-grid">{listings.map((l) => <ListingCard key={l.id} l={l} />)}</div>

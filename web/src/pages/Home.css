@@ -154,13 +154,18 @@
   transition: border-color var(--t) var(--ease), transform var(--t) var(--ease), box-shadow var(--t) var(--ease);
 }
 .lp-cat-chip:hover { border-color: var(--lp-teal); box-shadow: var(--shadow-sm); text-decoration: none; transform: translateY(-2px); }
+/* A photograph rather than a glyph. object-fit keeps the subject centred
+   whatever the source aspect, and the tinted background survives as a
+   placeholder while the image decodes, so the wall does not flash white. */
 .lp-cat-ico {
   width: 42px; height: 42px; border-radius: var(--r-md); flex-shrink: 0;
-  display: grid; place-items: center; font-size: 1.3rem; background: var(--lp-teal-tint); color: var(--lp-teal);
+  object-fit: cover; display: block;
+  background: var(--lp-teal-tint);
+  border: 1px solid var(--border);
 }
-.lp-cat-chip:nth-child(4n+2) .lp-cat-ico { background: var(--lp-orange-tint); color: var(--lp-orange-deep); }
-.lp-cat-chip:nth-child(4n+3) .lp-cat-ico { background: #EAF1FB; color: #2B5F8A; }
-.lp-cat-chip:nth-child(4n+4) .lp-cat-ico { background: #F3EEFB; color: #6A4CA8; }
+.lp-cat-chip:nth-child(4n+2) .lp-cat-ico { background: var(--lp-orange-tint); }
+.lp-cat-chip:nth-child(4n+3) .lp-cat-ico { background: #EAF1FB; }
+.lp-cat-chip:nth-child(4n+4) .lp-cat-ico { background: #F3EEFB; }
 .lp-cat-label { line-height: 1.25; }
 
 /* ----------------------------------------------------------------------------
@@ -258,7 +263,7 @@
     flex: 0 0 84px; flex-direction: column; text-align: center; gap: var(--s-2);
     padding: var(--s-3) var(--s-2); scroll-snap-align: start;
   }
-  .lp-cat-ico { width: 48px; height: 48px; font-size: 1.5rem; }
+  .lp-cat-ico { width: 48px; height: 48px; }
   .lp-cat-label { font-size: 11px; line-height: 1.2; }
 
   /* The key change: items render small and two-across on phones */

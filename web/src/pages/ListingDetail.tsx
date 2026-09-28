@@ -9,9 +9,11 @@ import { useToast } from '../state/ToastContext';
 import { BookServiceModal } from '../components/BookServiceModal';
 import ListingCard from '../components/ListingCard';
 import Reviews from '../components/Reviews';
+import { useT } from '../i18n';
 import './ListingDetail.css';
 
 export default function ListingDetail() {
+  const t = useT();
   const { id } = useParams();
   const [l, setL] = useState<Listing | null>(null);
   const [related, setRelated] = useState<Listing[]>([]);
@@ -81,7 +83,7 @@ export default function ListingDetail() {
   };
 
   if (loading) return <div className="container"><Spinner /></div>;
-  if (!l) return <div className="container"><Empty icon="🚫" title="Listing not found" text="It may have been removed or the store unverified." action={<Link to="/browse" className="btn btn-primary">Back to browse</Link>} /></div>;
+  if (!l) return <div className="container"><Empty icon="🚫" title={t('listing.notFound.title')} text={t('listing.notFound.text')} action={<Link to="/browse" className="btn btn-primary">{t('listing.backToBrowse')}</Link>} /></div>;
 
   const outOfStock = l.kind === 'product' && (l.quantity ?? 0) <= 0;
 
@@ -99,7 +101,7 @@ export default function ListingDetail() {
   return (
     <div className="container listing-detail-page">
       <p style={{ fontSize: '.85rem' }}>
-        <Link to="/browse">Browse</Link> / <Link to={`/browse?category=${l.category_slug}`}>{l.category_name}</Link>
+        <Link to="/browse">{t('nav.browse')}</Link> / <Link to={`/browse?category=${l.category_slug}`}>{l.category_name}</Link>
       </p>
 
       <div className="ld-layout">
@@ -156,10 +158,11 @@ export default function ListingDetail() {
           <div className="card card-pad">
             <Badge tone={l.kind === 'service' ? 'blue' : 'terra'}>{l.kind}</Badge>
             <h1 style={{ fontSize: '1.5rem', marginTop: 10 }}>{l.title}</h1>
-            <div style={{ fontSize: '1.9rem', fontWeight: 800, color: 'var(--terra-dark)' }}>{priceLabel(l)}</div>
+            <div style={{ fontSize: '1.9rem', fontWeight: 800, color: 'var(--terra-dark)' }}>{priceLabel(l, t)}</div>
             {l.kind === 'product' && (
               <p style={{ fontSize: '.85rem', color: outOfStock ? 'var(--danger)' : 'var(--green)', fontWeight: 700 }}>
-                {outOfStock ? 'Out of stock' : `${l.quantity} ${l.unit || 'units'} in stock`}
+                {outOfStock ? t('listing.outOfStock')
+                  : t('listing.inStock', { count: l.quantity ?? 0, unit: l.unit || t('listing.units') })}
               </p>
             )}
 
@@ -185,11 +188,11 @@ export default function ListingDetail() {
                 {!outOfStock && (
                   <>
                     <div className="row wrap mt-2" style={{ gap: 8 }}>
-                      <label style={{ fontSize: '.85rem', fontWeight: 700 }}>Qty</label>
+                      <label style={{ fontSize: '.85rem', fontWeight: 700 }}>{t('listing.qty')}</label>
                       <QtyInput value={qty} min={1} max={l.quantity ?? 99} onChange={setQty} />
                       <span style={{ color: 'var(--muted)', fontSize: '.85rem' }}>= {money(Number(l.price) * qty, l.currency)}</span>
                     </div>
-                    <button className="btn btn-primary btn-block mt-2" onClick={addToCart}>Add to cart</button>
+                    <button className="btn btn-primary btn-block mt-2" onClick={addToCart}>{t('listing.addToCart')}</button>
                   </>
                 )}
                 {l.whatsapp && (
@@ -212,13 +215,13 @@ export default function ListingDetail() {
               <div className="grow">
                 <strong style={{ color: 'var(--ink)' }}>{l.business_name}</strong>
                 <div style={{ fontSize: '.8rem', color: 'var(--muted)' }}>
-                  {Number(l.rating_avg) > 0 ? `★ ${Number(l.rating_avg).toFixed(1)} (${l.rating_count})` : 'No ratings yet'} · {l.vendor_city}
+                  {Number(l.rating_avg) > 0 ? `★ ${Number(l.rating_avg).toFixed(1)} (${l.rating_count})` : t('stores.noRatings')} · {l.vendor_city}
                 </div>
               </div>
             </div>
             <Badge tone="green">✓ Admin verified</Badge>
-            <Link to={`/store/${l.vendor_slug}`} className="btn btn-outline btn-block mt-2">Visit store</Link>
-            <Link to={`/support?vendor=${l.vendor_id}&listing=${l.id}`} className="btn btn-ghost btn-sm btn-block mt-1">Report this listing</Link>
+            <Link to={`/store/${l.vendor_slug}`} className="btn btn-outline btn-block mt-2">{t('listing.visitStore')}</Link>
+            <Link to={`/support?vendor=${l.vendor_id}&listing=${l.id}`} className="btn btn-ghost btn-sm btn-block mt-1">{t('listing.report')}</Link>
           </div>
 
           <Alert kind="info">
@@ -240,9 +243,9 @@ export default function ListingDetail() {
           onChange={setTab}
           panelId="ld-panel"
           tabs={[
-            { id: 'description' as const, label: 'Description' },
-            { id: 'details' as const, label: 'Details' },
-            { id: 'reviews' as const, label: 'Reviews', count: reviewCount },
+            { id: 'description' as const, label: t('listing.tab.description') },
+            { id: 'details' as const, label: t('listing.tab.details') },
+            { id: 'reviews' as const, label: t('listing.tab.reviews'), count: reviewCount },
           ]}
         />
 
@@ -259,17 +262,17 @@ export default function ListingDetail() {
 
           {tab === 'details' && (
             <dl className="kv">
-              <dt>Type</dt><dd style={{ textTransform: 'capitalize' }}>{l.kind}</dd>
-              <dt>Category</dt><dd>{l.category_name}</dd>
-              {l.kind === 'product' && <><dt>Available quantity</dt><dd>{l.quantity ?? 0} {l.unit || 'units'}</dd></>}
-              {l.unit && <><dt>Sold per</dt><dd>{l.unit}</dd></>}
-              {l.weight_kg && <><dt>Weight</dt><dd>{Number(l.weight_kg)} kg</dd></>}
-              {l.volume_l && <><dt>Volume</dt><dd>{Number(l.volume_l)} litres</dd></>}
-              {l.duration_mins && <><dt>Session length</dt><dd>{l.duration_mins} minutes</dd></>}
-              {l.service_area && <><dt>Service area</dt><dd>{l.service_area}</dd></>}
-              <dt>Location</dt><dd>{l.vendor_city}, {l.vendor_country}</dd>
-              <dt>Listed</dt><dd>{date(l.created_at)}</dd>
-              <dt>Views</dt><dd>{l.views}</dd>
+              <dt>{t('listing.detail.type')}</dt><dd style={{ textTransform: 'capitalize' }}>{l.kind}</dd>
+              <dt>{t('listing.detail.category')}</dt><dd>{l.category_name}</dd>
+              {l.kind === 'product' && <><dt>{t('listing.detail.quantity')}</dt><dd>{l.quantity ?? 0} {l.unit || t('listing.units')}</dd></>}
+              {l.unit && <><dt>{t('listing.detail.soldPer')}</dt><dd>{l.unit}</dd></>}
+              {l.weight_kg && <><dt>{t('listing.detail.weight')}</dt><dd>{Number(l.weight_kg)} kg</dd></>}
+              {l.volume_l && <><dt>{t('listing.detail.volume')}</dt><dd>{Number(l.volume_l)} {t('listing.litres')}</dd></>}
+              {l.duration_mins && <><dt>{t('listing.detail.duration')}</dt><dd>{l.duration_mins} {t('listing.minutes')}</dd></>}
+              {l.service_area && <><dt>{t('listing.detail.area')}</dt><dd>{l.service_area}</dd></>}
+              <dt>{t('listing.detail.location')}</dt><dd>{l.vendor_city}, {l.vendor_country}</dd>
+              <dt>{t('listing.detail.listed')}</dt><dd>{date(l.created_at)}</dd>
+              <dt>{t('listing.detail.views')}</dt><dd>{l.views}</dd>
             </dl>
           )}
 
@@ -288,7 +291,7 @@ export default function ListingDetail() {
 
       {related.length > 0 && (
         <div className="mt-4">
-          <h2>Recommended for you</h2>
+          <h2>{t('listing.recommended')}</h2>
           <div className="grid ld-related-grid">{related.map((r) => <ListingCard key={r.id} l={r} />)}</div>
         </div>
       )}

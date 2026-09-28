@@ -5,8 +5,10 @@ import type { Vendor } from '../types';
 import { Empty, Spinner, Badge, Alert } from '../components/ui';
 import { useLocation, formatDistance } from '../state/LocationContext';
 import { money } from '../lib/format';
+import { useT } from '../i18n';
 
 export default function Vendors() {
+  const t = useT();
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [q, setQ] = useState('');
   const [cities, setCities] = useState<string[]>([]);
@@ -47,8 +49,8 @@ export default function Vendors() {
 
   return (
     <div className="container">
-      <h1>Verified stores</h1>
-      <p style={{ color: 'var(--muted)' }}>Every store below was reviewed and approved by our admin team.</p>
+      <h1>{t('stores.title')}</h1>
+      <p style={{ color: 'var(--muted)' }}>{t('stores.intro')}</p>
 
       {/* Location bar — optional, never blocking. Buyers always see every store;
           sharing a location only changes the order. */}
@@ -57,19 +59,19 @@ export default function Vendors() {
         <div className="grow" style={{ minWidth: 200 }}>
           {location ? (
             <>
-              <strong style={{ fontSize: '.9rem' }}>Showing stores nearest to you</strong>
-              <div style={{ fontSize: '.8rem', color: 'var(--muted)' }}>Using your current location</div>
+              <strong style={{ fontSize: '.9rem' }}>{t('stores.nearestShowing')}</strong>
+              <div style={{ fontSize: '.8rem', color: 'var(--muted)' }}>{t('stores.usingLocation')}</div>
             </>
           ) : city ? (
             <>
               <strong style={{ fontSize: '.9rem' }}>Showing stores in {city}</strong>
-              <div style={{ fontSize: '.8rem', color: 'var(--muted)' }}>Other cities are listed below</div>
+              <div style={{ fontSize: '.8rem', color: 'var(--muted)' }}>{t('stores.otherCities')}</div>
             </>
           ) : (
             <>
-              <strong style={{ fontSize: '.9rem' }}>Find stores near you</strong>
+              <strong style={{ fontSize: '.9rem' }}>{t('stores.findNear')}</strong>
               <div style={{ fontSize: '.8rem', color: 'var(--muted)' }}>
-                Share your location or pick a city — you'll still see every store.
+                {t('stores.locationPrompt')}
               </div>
             </>
           )}
@@ -78,35 +80,35 @@ export default function Vendors() {
         <select
           value={city}
           onChange={(e) => setCity(e.target.value)}
-          aria-label="Filter by city"
+          aria-label={t('stores.filterCity')}
           style={{ minWidth: 150 }}
         >
-          <option value="">All cities</option>
+          <option value="">{t('home.hero.allCities')}</option>
           {cities.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
 
         {!location ? (
           <button type="button" className="btn btn-outline btn-sm" onClick={detect} disabled={status === 'locating'}>
-            {status === 'locating' ? 'Locating…' : 'Use my location'}
+            {status === 'locating' ? t('stores.locating') : t('stores.useLocation')}
           </button>
         ) : (
-          <button type="button" className="btn btn-ghost btn-sm" onClick={clear}>Clear</button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={clear}>{t('browse.clearShort')}</button>
         )}
       </div>
 
       {error && <Alert kind="warn">{error}</Alert>}
 
       <form className="filters mt-2" onSubmit={(e) => { e.preventDefault(); load(q); }}>
-        <input placeholder="Search store name…" value={q} onChange={(e) => setQ(e.target.value)} style={{ minWidth: 240 }} />
-        <button className="btn btn-primary">Search</button>
+        <input placeholder={t('stores.searchPlaceholder')} value={q} onChange={(e) => setQ(e.target.value)} style={{ minWidth: 240 }} />
+        <button className="btn btn-primary">{t('common.search')}</button>
       </form>
 
       {loading ? <Spinner /> : vendors.length === 0 ? (
-        <Empty icon="🏪" title="No stores yet" text="Verified stores will appear here as vendors are approved." action={<Link to="/sell" className="btn btn-primary">Be the first to register</Link>} />
+        <Empty icon="🏪" title={t('stores.empty.title')} text={t('stores.empty.text')} action={<Link to="/sell" className="btn btn-primary">{t('stores.beFirst')}</Link>} />
       ) : (
         <>
           {near && nearbyCount > 0 && (
-            <h2 style={{ fontSize: '1rem', marginTop: 20, marginBottom: 8 }}>Nearest to you</h2>
+            <h2 style={{ fontSize: '1rem', marginTop: 20, marginBottom: 8 }}>{t('stores.nearestHeading')}</h2>
           )}
           <div className="grid grid-3">
             {vendors.map((v, i) => (
@@ -125,12 +127,13 @@ export default function Vendors() {
 }
 
 function VendorCard({ v, showRestHeading }: { v: Vendor; showRestHeading?: boolean }) {
+  const t = useT();
   const dist = formatDistance(v.distance_km);
   const fee = Number(v.delivery_fee ?? 0);
   return (
     <>
       {showRestHeading && (
-        <h2 style={{ gridColumn: '1 / -1', fontSize: '1rem', marginTop: 16, marginBottom: 0 }}>More stores</h2>
+        <h2 style={{ gridColumn: '1 / -1', fontSize: '1rem', marginTop: 16, marginBottom: 0 }}>{t('stores.moreStores')}</h2>
       )}
       <Link to={`/store/${v.slug}`} className="card card-pad card-hover" style={{ color: 'inherit' }}>
         <div className="row mb-2">
@@ -145,18 +148,18 @@ function VendorCard({ v, showRestHeading }: { v: Vendor; showRestHeading?: boole
           </div>
         </div>
         <p style={{ fontSize: '.86rem', color: 'var(--muted)', minHeight: 40 }}>
-          {v.description ? v.description.slice(0, 110) + (v.description.length > 110 ? '…' : '') : 'No description provided.'}
+          {v.description ? v.description.slice(0, 110) + (v.description.length > 110 ? '…' : '') : t('stores.noDescription')}
         </p>
         <div className="row mb-2" style={{ gap: 6, flexWrap: 'wrap' }}>
           {v.offers_delivery && (
-            <Badge tone="blue">🛵 {fee > 0 ? `Delivery ${money(fee, 'QAR')}` : 'Free delivery'}</Badge>
+            <Badge tone="blue">🛵 {fee > 0 ? t('stores.deliveryFee', { fee: money(fee, 'QAR') }) : t('stores.freeDelivery')}</Badge>
           )}
-          {v.offers_pickup && <Badge tone="grey">🏬 Collection</Badge>}
+          {v.offers_pickup && <Badge tone="grey">🏬 {t('stores.collection')}</Badge>}
         </div>
         <div className="row-between">
-          <Badge tone="green">✓ Verified</Badge>
+          <Badge tone="green">✓ {t('stores.verified')}</Badge>
           <span style={{ fontSize: '.8rem', color: 'var(--muted)' }}>
-            {v.listings as number} listings {Number(v.rating_avg) > 0 && `· ★ ${Number(v.rating_avg).toFixed(1)}`}
+            {t('stores.listingsCount', { count: v.listing_count ?? 0 })} {Number(v.rating_avg) > 0 && `· ★ ${Number(v.rating_avg).toFixed(1)}`}
           </span>
         </div>
       </Link>

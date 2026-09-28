@@ -6,8 +6,10 @@ import { waLink, date } from '../lib/format';
 import ListingCard from '../components/ListingCard';
 import Reviews from '../components/Reviews';
 import { Badge, Empty, Spinner, Tabs } from '../components/ui';
+import { useT } from '../i18n';
 
 export default function StorePage() {
+  const t = useT();
   const { slug } = useParams();
   const [data, setData] = useState<{ vendor: Vendor; listings: Listing[] } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -19,7 +21,7 @@ export default function StorePage() {
   }, [slug]);
 
   if (loading) return <div className="container"><Spinner /></div>;
-  if (!data) return <div className="container"><Empty icon="🏪" title="Store not found" text="This store may not be verified yet." action={<Link to="/vendors" className="btn btn-primary">All stores</Link>} /></div>;
+  if (!data) return <div className="container"><Empty icon="🏪" title={t('store.notFound.title')} text={t('store.notFound.text')} action={<Link to="/vendors" className="btn btn-primary">{t('store.allStores')}</Link>} /></div>;
 
   const { vendor, listings } = data;
   const shown = tab === 'all' ? listings : listings.filter((l) => l.kind === tab);
@@ -43,8 +45,8 @@ export default function StorePage() {
             </div>
           </div>
           <div className="row">
-            <a className="btn btn-wa" href={waLink(vendor.whatsapp, `Hello ${vendor.business_name}, I found your store on Sokoni Hub.`)} target="_blank" rel="noreferrer">Chat on WhatsApp</a>
-            <Link to={`/support?vendor=${vendor.id}`} className="btn btn-outline">Report store</Link>
+            <a className="btn btn-wa" href={waLink(vendor.whatsapp, `Hello ${vendor.business_name}, I found your store on Sokoni Hub.`)} target="_blank" rel="noreferrer">{t('store.chatWhatsapp')}</a>
+            <Link to={`/support?vendor=${vendor.id}`} className="btn btn-outline">{t('store.report')}</Link>
           </div>
         </div>
         {vendor.description && <p className="mt-2" style={{ marginBottom: 0 }}>{vendor.description}</p>}
@@ -60,7 +62,7 @@ export default function StorePage() {
           ]}
         />
         {shown.length === 0
-          ? <Empty icon="📦" title="Nothing listed here yet" />
+          ? <Empty icon="📦" title={t('store.nothingListed')} />
           : <div className="grid grid-4">{shown.map((l) => <ListingCard key={l.id} l={{ ...l, business_name: vendor.business_name, vendor_city: vendor.city }} />)}</div>}
       </div>
 
