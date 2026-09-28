@@ -26,6 +26,8 @@ export interface Vendor {
   pickup_address?: string | null; delivery_notes?: string | null;
   owner_name?: string; owner_phone?: string; owner_email?: string;
   listings?: number | Listing[]; open_complaints?: number;
+  /** GET /vendors returns this; `listings` is only set on the dashboard payload. */
+  listing_count?: number;
 }
 
 export interface Category { id: string; name: string; slug: string; kind: ListingKind; is_banned?: boolean; sort?: number }

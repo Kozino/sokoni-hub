@@ -321,7 +321,7 @@ small { font-size: var(--fs-xs); }
 .brand img { width: 30px; height: 30px; object-fit: contain; }
 .brand small { display: block; font-family: var(--sans); font-size: 11px; font-weight: 500; color: var(--text-muted); margin-top: -3px; letter-spacing: 0; text-transform: none; line-height: 1.2; }
 
-.nav { display: flex; gap: 2px; align-items: center; margin-left: auto; }
+.nav { display: flex; gap: 2px; align-items: center; margin-inline-start: auto; }
 .nav a, .nav button.linkish {
   display: inline-flex; align-items: center; gap: var(--s-2);
   padding: var(--s-2) var(--s-3); border-radius: var(--r-sm);
@@ -336,7 +336,7 @@ small { font-size: var(--fs-xs); }
 
 .cart-btn { position: relative; }
 .cart-badge {
-  position: absolute; top: 2px; right: 0;
+  position: absolute; top: 2px; inset-inline-end: 0;
   background: var(--accent); color: #fff; border-radius: var(--r-full);
   font-size: 10px; font-weight: 700; min-width: 17px; height: 17px;
   display: grid; place-items: center; padding: 0 5px; line-height: 1;
@@ -348,7 +348,7 @@ small { font-size: var(--fs-xs); }
   display: none; background: none; color: var(--text-2);
   border: 1px solid var(--border); border-radius: var(--r-sm);
   width: 38px; height: 38px; cursor: pointer; font-size: 1rem;
-  align-items: center; justify-content: center; margin-left: auto;
+  align-items: center; justify-content: center; margin-inline-start: auto;
   transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .burger:hover { background: var(--surface-3); border-color: var(--border-strong); }
@@ -368,7 +368,7 @@ small { font-size: var(--fs-xs); }
 .icon-btn.bordered:hover { border-color: var(--border-strong); background: var(--surface-3); }
 .icon-btn svg { width: 18px; height: 18px; display: block; }
 .icon-btn .dot {
-  position: absolute; top: 7px; right: 7px; width: 7px; height: 7px;
+  position: absolute; top: 7px; inset-inline-end: 7px; width: 7px; height: 7px;
   border-radius: var(--r-full); background: var(--danger);
   border: 2px solid var(--surface);
 }
@@ -425,9 +425,9 @@ small { font-size: var(--fs-xs); }
 .btn-group button {
   border: 0; background: transparent; color: var(--text-2); font: inherit; font-size: var(--fs-sm); font-weight: 600;
   padding: var(--s-2) var(--s-3); min-height: 34px; cursor: pointer;
-  border-right: 1px solid var(--border); transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+  border-inline-end: 1px solid var(--border); transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
-.btn-group button:last-child { border-right: 0; }
+.btn-group button:last-child { border-inline-end: 0; }
 .btn-group button:hover { background: var(--surface-3); color: var(--text); }
 .btn-group button[aria-pressed='true'], .btn-group button.active { background: var(--accent-soft); color: var(--accent-text); }
 
@@ -493,7 +493,7 @@ input[type='file'] { padding: 7px var(--s-3); }
 textarea { resize: vertical; min-height: 96px; padding-top: var(--s-3); line-height: 1.6; }
 
 select {
-  cursor: pointer; appearance: none; padding-right: var(--s-8);
+  cursor: pointer; appearance: none; padding-inline-end: var(--s-8);
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23858CA0' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
   background-repeat: no-repeat; background-position: right var(--s-3) center;
 }
@@ -509,10 +509,10 @@ select {
 
 /* Search input with a leading icon */
 .search-input { position: relative; display: flex; align-items: center; min-width: 0; }
-.search-input svg { position: absolute; left: var(--s-3); width: 16px; height: 16px; color: var(--text-muted); pointer-events: none; }
-.search-input input { padding-left: var(--s-8); }
+.search-input svg { position: absolute; inset-inline-start: var(--s-3); width: 16px; height: 16px; color: var(--text-muted); pointer-events: none; }
+.search-input input { padding-inline-start: var(--s-8); }
 .search-input kbd {
-  position: absolute; right: var(--s-2); font-family: var(--sans); font-size: 11px; font-weight: 600;
+  position: absolute; inset-inline-end: var(--s-2); font-family: var(--sans); font-size: 11px; font-weight: 600;
   color: var(--text-muted); background: var(--surface-2); border: 1px solid var(--border);
   border-radius: var(--r-xs); padding: 2px 6px; line-height: 1.4; pointer-events: none;
 }
@@ -571,7 +571,7 @@ table.tbl {
   font-size: var(--fs-md); min-width: 560px;
 }
 table.tbl th {
-  text-align: left; padding: var(--s-3) var(--s-4);
+  text-align: start; padding: var(--s-3) var(--s-4);
   font-size: var(--fs-xs); font-weight: 600; letter-spacing: .02em;
   color: var(--text-muted); text-transform: uppercase;
   border-bottom: 1px solid var(--border);
@@ -589,7 +589,7 @@ table.tbl tbody tr:hover { background: var(--surface-2); }
 table.tbl tbody tr:last-child td { border-bottom: 0; }
 table.tbl tbody tr[data-selected='true'] { background: var(--accent-softer); box-shadow: inset 3px 0 0 var(--accent); }
 /* Numeric columns align right and use tabular figures so digits line up. */
-table.tbl td.num, table.tbl th.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.tbl td.num, table.tbl th.num { text-align: end; font-variant-numeric: tabular-nums; }
 table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap; }
 
 .td-strong { font-weight: 600; color: var(--text); }
@@ -619,7 +619,7 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 /* --- sidebar --- */
 .dash-side {
   background: transparent;
-  border-right: 0;
+  border-inline-end: 0;
   padding: var(--s-4) var(--s-3) var(--s-6);
   display: flex; flex-direction: column; gap: var(--s-4);
   position: sticky; top: var(--header-h);
@@ -648,7 +648,7 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 .dash-nav a:hover { background: var(--surface-3); color: var(--text); text-decoration: none; }
 .dash-nav a.active { background: var(--accent-soft); color: var(--accent-text); font-weight: 600; }
 .dash-nav a.active::before {
-  content: ''; position: absolute; left: -12px; top: 50%; transform: translateY(-50%);
+  content: ''; position: absolute; inset-inline-start: -12px; top: 50%; transform: translateY(-50%);
   width: 3px; height: 20px; border-radius: 0 2px 2px 0; background: var(--accent);
 }
 .dash-nav a .ico { width: 18px; height: 18px; display: grid; place-items: center; flex: 0 0 auto; line-height: 1; opacity: .75; }
@@ -656,7 +656,7 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 .dash-nav a:hover .ico { opacity: 1; }
 .dash-nav a.active .ico { opacity: 1; color: var(--accent); }
 .dash-nav a .pill {
-  margin-left: auto; background: var(--accent); color: #fff;
+  margin-inline-start: auto; background: var(--accent); color: #fff;
   border-radius: var(--r-full); font-size: 11px; padding: 1px 7px; font-weight: 650;
   line-height: 16px; min-width: 20px; text-align: center;
 }
@@ -671,7 +671,7 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 .dash-side-foot { margin-top: auto; padding-top: var(--s-4); border-top: 1px solid var(--border); }
 
 /* collapsed (icon-only) sidebar */
-.dash[data-collapsed='true'] .dash-side { padding-left: var(--s-2); padding-right: var(--s-2); align-items: stretch; }
+.dash[data-collapsed='true'] .dash-side { padding-inline-start: var(--s-2); padding-inline-end: var(--s-2); align-items: stretch; }
 .dash[data-collapsed='true'] .dash-nav a { justify-content: center; padding: var(--s-2); gap: 0; }
 .dash[data-collapsed='true'] .dash-nav a .label,
 .dash[data-collapsed='true'] .dash-nav a .pill,
@@ -679,11 +679,11 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 .dash[data-collapsed='true'] .who .who-text,
 .dash[data-collapsed='true'] .dash-side-foot .label { display: none; }
 .dash[data-collapsed='true'] .dash-side .who { justify-content: center; }
-.dash[data-collapsed='true'] .dash-nav a.active::before { left: -8px; }
+.dash[data-collapsed='true'] .dash-nav a.active::before { inset-inline-start: -8px; }
 /* tooltip for icon-only items */
 .dash[data-collapsed='true'] .dash-nav a::after {
   content: attr(data-label);
-  position: absolute; left: calc(100% + 10px); top: 50%; transform: translateY(-50%) scale(.96);
+  position: absolute; inset-inline-start: calc(100% + 10px); top: 50%; transform: translateY(-50%) scale(.96);
   background: var(--text); color: var(--surface);
   font-size: var(--fs-xs); font-weight: 550; padding: 5px var(--s-2); border-radius: var(--r-xs);
   white-space: nowrap; opacity: 0; pointer-events: none; z-index: 70;
@@ -713,8 +713,8 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 
 /* dashboard topbar quick-search: filters the sidebar's own nav items, no server round-trip */
 .dash-search { position: relative; display: flex; align-items: center; max-width: 320px; min-width: 0; }
-.dash-search svg { position: absolute; left: 10px; width: 15px; height: 15px; color: var(--text-muted); pointer-events: none; }
-.dash-search input { padding-left: 32px; height: 34px; font-size: .84rem; background: var(--surface-2); border-color: transparent; }
+.dash-search svg { position: absolute; inset-inline-start: 10px; width: 15px; height: 15px; color: var(--text-muted); pointer-events: none; }
+.dash-search input { padding-inline-start: 32px; height: 34px; font-size: .84rem; background: var(--surface-2); border-color: transparent; }
 .dash-search input:focus { background: var(--surface); border-color: var(--accent); }
 .dash-search .menu { margin-top: var(--s-1); max-height: 260px; overflow: auto; }
 @media (max-width: 860px) { .dash-search { display: none; } }
@@ -844,7 +844,7 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
    15. TOASTS
    ------------------------------------------------------------------------ */
 .toast-wrap {
-  position: fixed; bottom: var(--s-5); right: var(--s-5); z-index: 999;
+  position: fixed; bottom: var(--s-5); inset-inline-end: var(--s-5); z-index: 999;
   display: flex; flex-direction: column; gap: var(--s-2);
   max-width: min(360px, calc(100vw - 32px));
 }
@@ -855,16 +855,16 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
   background: var(--elevated);
   color: var(--text);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--text-muted);
+  border-inline-start: 3px solid var(--text-muted);
   font-size: var(--fs-md); font-weight: 500;
   box-shadow: var(--shadow-md);
   cursor: pointer;
   animation: toast-in 220ms var(--ease-out);
 }
 .toast:hover { border-color: var(--border-strong); }
-.toast-success { border-left-color: var(--success); }
-.toast-error   { border-left-color: var(--danger); }
-.toast-info    { border-left-color: var(--info); }
+.toast-success { border-inline-start-color: var(--success); }
+.toast-error   { border-inline-start-color: var(--danger); }
+.toast-info    { border-inline-start-color: var(--info); }
 @keyframes toast-in { from { transform: translateY(8px) scale(.98); opacity: 0; } }
 
 /* ---------------------------------------------------------------------------
@@ -937,13 +937,13 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
   animation: menu-in 140ms var(--ease-out);
 }
 @keyframes menu-in { from { opacity: 0; transform: translateY(-4px) scale(.99); } }
-.menu-right { right: 0; }
+.menu-right { inset-inline-end: 0; }
 .menu-label { font-size: 11px; font-weight: 650; letter-spacing: .05em; text-transform: uppercase; color: var(--text-muted); padding: var(--s-2) var(--s-3) var(--s-1); }
 .menu-item {
   display: flex; align-items: center; gap: var(--s-2); width: 100%;
   padding: var(--s-2) var(--s-3); min-height: 36px;
   background: none; border: 0; border-radius: var(--r-sm);
-  font: inherit; font-size: var(--fs-md); color: var(--text-2); text-align: left;
+  font: inherit; font-size: var(--fs-md); color: var(--text-2); text-align: start;
   cursor: pointer; transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
 .menu-item:hover { background: var(--surface-3); color: var(--text); text-decoration: none; }
@@ -977,7 +977,7 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
    Anchoring to the right keeps the whole tooltip on screen rather than
    clipping it, which is what overflow:hidden on the header would have done. */
 .tip-end::after {
-  left: auto; right: 0;
+  inset-inline-start: auto; inset-inline-end: 0;
   transform: translateX(0) translateY(3px);
 }
 .tip-end:hover::after, .tip-end:focus-visible::after { transform: translateX(0) translateY(0); }
@@ -1028,14 +1028,14 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 .cart-line-info { flex: 1 1 160px; min-width: 0; }
 .cart-line-title { display: block; font-weight: 700; color: var(--ink); overflow-wrap: anywhere; }
 .cart-line-price { font-size: .82rem; color: var(--muted); margin-top: 2px; }
-.cart-line-controls { display: flex; align-items: center; gap: var(--s-3); flex-shrink: 0; margin-left: auto; }
-.cart-line-total { min-width: 72px; text-align: right; }
+.cart-line-controls { display: flex; align-items: center; gap: var(--s-3); flex-shrink: 0; margin-inline-start: auto; }
+.cart-line-total { min-width: 72px; text-align: end; }
 
 .qty-stepper { display: inline-flex; align-items: stretch; border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden; flex-shrink: 0; }
 .qty-btn { width: 30px; border: none; background: var(--surface-2); color: var(--ink); font-size: 1rem; line-height: 1; cursor: pointer; }
 .qty-btn:hover { background: var(--surface-3); }
 .qty-input {
-  width: 38px; border: none; border-left: 1px solid var(--border); border-right: 1px solid var(--border);
+  width: 38px; border: none; border-inline-start: 1px solid var(--border); border-inline-end: 1px solid var(--border);
   text-align: center; padding: 0; -moz-appearance: textfield;
 }
 
@@ -1043,7 +1043,7 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 .gallery .g-item { position: relative; aspect-ratio: 1; border-radius: var(--r-sm); overflow: hidden; border: 1px solid var(--border); }
 .gallery .g-item img { width: 100%; height: 100%; object-fit: cover; }
 .gallery .g-item button {
-  position: absolute; top: 4px; right: 4px; background: rgba(10,12,18,.7); color: #fff;
+  position: absolute; top: 4px; inset-inline-end: 4px; background: rgba(10,12,18,.7); color: #fff;
   border: 0; border-radius: var(--r-xs); width: 22px; height: 22px; cursor: pointer; line-height: 1;
   transition: background var(--t-fast) var(--ease);
 }
@@ -1151,7 +1151,7 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 .lcard-img img { width: 100%; height: 100%; object-fit: cover; transition: transform var(--t-slow) var(--ease); }
 .lcard:hover .lcard-img img { transform: scale(1.03); }
 .lcard-img .ph { position: absolute; inset: 0; display: grid; place-items: center; font-size: 1.8rem; opacity: .3; }
-.lcard-kind { position: absolute; top: var(--s-2); left: var(--s-2); }
+.lcard-kind { position: absolute; top: var(--s-2); inset-inline-start: var(--s-2); }
 .lcard-body { padding: var(--s-3) var(--s-4) var(--s-4); display: flex; flex-direction: column; gap: var(--s-1); flex: 1; }
 .lcard-title { font-weight: 600; color: var(--text); font-size: var(--fs-md); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .lcard-meta { font-size: var(--fs-xs); color: var(--text-muted); }
@@ -1166,7 +1166,7 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 .cat-tile:hover img { transform: scale(1.04); }
 .cat-tile::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to top, rgba(10,12,20,.68), rgba(10,12,20,.05) 55%); }
 .cat-tile span {
-  position: absolute; left: var(--s-4); bottom: var(--s-4); z-index: 1;
+  position: absolute; inset-inline-start: var(--s-4); bottom: var(--s-4); z-index: 1;
   color: #fff; font-family: var(--display); font-weight: 600; font-size: var(--fs-base);
   letter-spacing: -.01em;
 }
@@ -1312,7 +1312,7 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 .bk-quote {
   margin: var(--s-3) 0;
   padding: var(--s-2) var(--s-4);
-  border-left: 3px solid var(--border);
+  border-inline-start: 3px solid var(--border);
   color: var(--text-muted);
   font-size: var(--fs-sm);
   line-height: 1.6;
@@ -1324,7 +1324,7 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 @media (max-width: 1100px) {
   /* Reclaim the reference column before anything has to wrap. */
   .bk-list { --bk-cols: 150px minmax(110px, 1.4fr) minmax(110px, 1.2fr) 132px 104px 92px; }
-  .bk-head, .bk-item { padding-left: var(--s-4); padding-right: var(--s-4); }
+  .bk-head, .bk-item { padding-inline-start: var(--s-4); padding-inline-end: var(--s-4); }
 }
 
 /* Below 860px the grid stops pretending to be a table. Reference and status
@@ -1470,7 +1470,7 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 .inv-ledger-body .bk-sub { overflow-wrap: anywhere; }
 .inv-delta {
   font-family: var(--display); font-weight: 700; font-variant-numeric: tabular-nums;
-  text-align: right; font-size: var(--fs-md);
+  text-align: end; font-size: var(--fs-md);
 }
 .inv-delta.up { color: var(--success-text); }
 .inv-delta.down { color: var(--danger); }
@@ -1480,7 +1480,7 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
   /* Update stock is the reason the vendor is here; the other two are reference. */
   .inv-actions .btn-primary { flex: 1 1 100%; }
   .inv-actions .btn-ghost { flex: 1 1 0; }
-  .inv-default { margin-left: auto; }
+  .inv-default { margin-inline-start: auto; }
 }
 
 /* ---------------------------------------------------------------------------
@@ -1496,7 +1496,7 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
    pushing. Applies to every admin and vendor page, not just bookings.
    ------------------------------------------------------------------------ */
 @media (max-width: 640px) {
-  .dash-bar { padding-left: var(--s-3); padding-right: var(--s-3); min-width: 0; }
+  .dash-bar { padding-inline-start: var(--s-3); padding-inline-end: var(--s-3); min-width: 0; }
   .breadcrumb { flex: 0 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; }
   .breadcrumb > a:first-child,
   .breadcrumb > .sep:first-of-type { display: none; }
@@ -1524,7 +1524,7 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
     grid-template-columns: var(--side-w-collapsed) minmax(0, 1fr);
     background-image: linear-gradient(to right, var(--sidebar) 0 var(--side-w-collapsed), var(--border) var(--side-w-collapsed) calc(var(--side-w-collapsed) + 1px), var(--bg) calc(var(--side-w-collapsed) + 1px));
   }
-  .dash .dash-side { padding-left: var(--s-2); padding-right: var(--s-2); }
+  .dash .dash-side { padding-inline-start: var(--s-2); padding-inline-end: var(--s-2); }
   .dash .dash-nav a { justify-content: center; padding: var(--s-2); gap: 0; }
   .dash .dash-nav a .label,
   .dash .dash-nav a .pill,
@@ -1532,9 +1532,9 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
   .dash .who .who-text,
   .dash .dash-side-foot { display: none; }
   .dash .dash-side .who { justify-content: center; }
-  .dash .dash-nav a.active::before { left: -8px; }
+  .dash .dash-nav a.active::before { inset-inline-start: -8px; }
   .dash .dash-nav a::after {
-    content: attr(data-label); position: absolute; left: calc(100% + 10px); top: 50%;
+    content: attr(data-label); position: absolute; inset-inline-start: calc(100% + 10px); top: 50%;
     transform: translateY(-50%); background: var(--text); color: var(--surface);
     font-size: var(--fs-xs); font-weight: 550; padding: 5px var(--s-2); border-radius: var(--r-xs);
     white-space: nowrap; opacity: 0; pointer-events: none; z-index: 70; box-shadow: var(--shadow);
@@ -1569,12 +1569,12 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
   .dash, .dash[data-collapsed='true'] { grid-template-columns: minmax(0, 1fr); background-image: none; }
   .dash-side {
     background: var(--sidebar);
-    position: fixed; top: 0; left: 0; bottom: 0; z-index: 80;
+    position: fixed; top: 0; inset-inline-start: 0; bottom: 0; z-index: 80;
     width: min(280px, 84vw); height: 100vh;
     padding: var(--s-4) var(--s-3) var(--s-6);
     transform: translateX(-100%);
     transition: transform var(--t-slow) var(--ease);
-    box-shadow: none; border-right: 1px solid var(--border);
+    box-shadow: none; border-inline-end: 1px solid var(--border);
   }
   .dash[data-drawer='open'] .dash-side { transform: translateX(0); box-shadow: var(--shadow-lg); }
   /* inside the drawer the nav is always full-width with labels */
@@ -1606,14 +1606,14 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
   .nav { display: none; }
   .nav.open {
     display: flex; flex-direction: column; align-items: stretch;
-    position: absolute; top: var(--header-h); left: 0; right: 0;
+    position: absolute; top: var(--header-h); inset-inline: 0;
     background: var(--surface); border-bottom: 1px solid var(--border);
     padding: var(--s-2); gap: 2px; box-shadow: var(--shadow-md);
     max-height: calc(100vh - var(--header-h)); overflow-y: auto;
     animation: menu-in 160ms var(--ease-out);
   }
-  .nav.open a, .nav.open button.linkish { width: 100%; text-align: left; justify-content: flex-start; min-height: 44px; }
-  .nav.open .cart-btn { padding-left: var(--s-3); }
+  .nav.open a, .nav.open button.linkish { width: 100%; text-align: start; justify-content: flex-start; min-height: 44px; }
+  .nav.open .cart-btn { padding-inline-start: var(--s-3); }
   .burger { display: inline-flex; }
 
   .grid-stats, .grid-3, .grid-4 { grid-template-columns: minmax(0, 1fr); }
@@ -1642,7 +1642,7 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
      below (qty on the left, total + remove on the right) instead of
      squeezing everything onto one cramped line. */
   .cart-line-info { flex: 1 1 100%; }
-  .cart-line-controls { flex: 1 1 100%; justify-content: space-between; margin-left: 0; }
+  .cart-line-controls { flex: 1 1 100%; justify-content: space-between; margin-inline-start: 0; }
   .qty-btn, .qty-input { min-height: 44px; }
   .qty-btn { width: 44px; }
 
@@ -1665,7 +1665,7 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
   .modal-foot { flex-direction: column-reverse; }
   .modal-foot .btn { width: 100%; }
 
-  .toast-wrap { left: var(--s-3); right: var(--s-3); bottom: var(--s-3); max-width: none; }
+  .toast-wrap { inset-inline: var(--s-3); bottom: var(--s-3); max-width: none; }
 
   /* Tables: never squeeze columns to fit the screen — give each cell room to
      breathe and let the wrapper scroll sideways instead. The first column is
@@ -1674,7 +1674,7 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
   table.tbl th, table.tbl td { padding: var(--s-3); white-space: nowrap; }
   table.tbl td .td-sub, table.tbl td div { white-space: nowrap; }
   table.tbl th:first-child, table.tbl td:first-child {
-    position: sticky; left: 0; z-index: 2;
+    position: sticky; inset-inline-start: 0; z-index: 2;
     background: var(--surface);
     box-shadow: 1px 0 0 var(--border);
     max-width: 180px; white-space: normal;
@@ -1683,9 +1683,11 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
   table.tbl tbody tr:hover td:first-child { background: var(--surface-2); }
   .card > .table-wrap { border-radius: var(--r-lg); }
 
-  /* Scroll hint: a soft fade on the right edge of any scrollable table. */
+  /* Scroll hint: a soft fade on the trailing edge of a scrollable table.
+     Logical, so in Arabic the fade sits on the left where the table actually
+     runs off — a right-hand fade under RTL points at the wrong edge. */
   .table-wrap::after {
-    content: ''; position: sticky; top: 0; right: 0; float: right;
+    content: ''; position: sticky; top: 0; inset-inline-end: 0; float: inline-end;
     width: 24px; height: 100%; pointer-events: none;
   }
 
@@ -1808,7 +1810,7 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
   gap: var(--s-2); align-items: center;
   background: none; border: 0; padding: 2px 4px; cursor: pointer;
   border-radius: var(--r-sm); font: inherit; color: var(--text-muted);
-  text-align: left;
+  text-align: start;
 }
 .rv-bar-row:hover { background: var(--surface-2); }
 .rv-bar-row.active { background: var(--accent-softer); color: var(--text); }
@@ -1818,7 +1820,7 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
   background: var(--surface-2); overflow: hidden;
 }
 .rv-bar > span { display: block; height: 100%; background: var(--gold); border-radius: 999px; }
-.rv-bar-count { font-size: var(--fs-sm); text-align: right; font-variant-numeric: tabular-nums; }
+.rv-bar-count { font-size: var(--fs-sm); text-align: end; font-variant-numeric: tabular-nums; }
 
 .rv-toolbar {
   display: flex; align-items: center; justify-content: flex-end;
@@ -1864,7 +1866,7 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 .rv-reply {
   margin-top: var(--s-2);
   padding: var(--s-3) var(--s-4);
-  border-left: 3px solid var(--accent);
+  border-inline-start: 3px solid var(--accent);
   background: var(--surface-2);
   border-radius: 0 var(--r-md) var(--r-md) 0;
   display: flex; flex-direction: column; gap: 4px;
@@ -1950,4 +1952,101 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
   .ld-tabs .tabs button { min-height: 44px; padding-inline: var(--s-4); }
   .rv-compose-foot .btn { width: 100%; }
   .rv-compose-foot { flex-direction: column-reverse; align-items: stretch; }
+}
+
+
+/* ---------------------------------------------------------------------------
+   RIGHT-TO-LEFT
+
+   Everything above uses logical properties (margin-inline-start,
+   inset-inline-end, text-align: start), so the layout mirrors itself when
+   <html dir="rtl"> is set and needs no overrides here.
+
+   What logical properties CANNOT fix is anything whose meaning is tied to a
+   physical direction: a chevron that must point the way the reader travels, a
+   transform written in pixels, and content that is never mirrored at all.
+   Those are the only rules in this block — if this section starts growing,
+   something above it has reverted to physical properties.
+   ------------------------------------------------------------------------ */
+
+/* Directional glyphs. A "next" chevron points right in English and left in
+   Arabic; the character itself does not flip, so the box does. */
+[dir='rtl'] .ld-main-nav.prev svg,
+[dir='rtl'] .ld-main-nav.next svg,
+[dir='rtl'] .lp-arrow,
+[dir='rtl'] .breadcrumb .sep { transform: scaleX(-1); }
+
+/* The sidebar drawer slides in from the inline-start edge, which is the right
+   in Arabic. The transform is in pixels, so it has to be restated. */
+[dir='rtl'] .dash-side { transform: translateX(100%); }
+[dir='rtl'] .dash[data-open='true'] .dash-side { transform: translateX(0); }
+
+/* Tooltips: the centred variant stays centred, the edge variant flips. */
+[dir='rtl'] .tip-end::after { transform: translateX(0) translateY(3px); }
+[dir='rtl'] .tip-end:hover::after,
+[dir='rtl'] .tip-end:focus-visible::after { transform: translateX(0) translateY(0); }
+
+/* Never mirrored, whatever the page direction:
+   - phone numbers and prices are read left-to-right even in Arabic;
+   - a latin store slug or an order code reverses into nonsense otherwise. */
+[dir='rtl'] .lcard-price,
+[dir='rtl'] .cart-line-price,
+[dir='rtl'] .cart-line-total,
+[dir='rtl'] .price,
+[dir='rtl'] .rv-stars,
+[dir='rtl'] .bk-ref,
+[dir='rtl'] code,
+[dir='rtl'] .mono,
+[dir='rtl'] a[href^='tel:'],
+[dir='rtl'] a[href^='https://wa.me'],
+[dir='rtl'] .num,
+[dir='rtl'] [data-numeric] { direction: ltr; unicode-bidi: isolate; }
+
+/* Numerals stay Western Arabic (1234) rather than Eastern (١٢٣٤): the whole
+   catalogue, every price and every phone number in the database is written
+   that way, and mixing the two in one view is worse than picking one. */
+[dir='rtl'] { font-variant-numeric: lining-nums; }
+
+/* ---------------------------------------------------------------------------
+   LANGUAGE SWITCHER
+   ------------------------------------------------------------------------ */
+
+.lang { position: relative; display: inline-flex; }
+.lang-btn {
+  display: inline-flex; align-items: center; gap: var(--s-2);
+  background: none; border: 1px solid transparent; border-radius: var(--r-md);
+  padding: var(--s-2) var(--s-3); min-height: 40px;
+  font: inherit; font-size: var(--fs-sm); font-weight: 600;
+  color: var(--text-muted); cursor: pointer; white-space: nowrap;
+}
+.lang-btn:hover { color: var(--text); border-color: var(--border); }
+.lang-btn.compact .lang-code { display: none; }
+
+.lang-menu {
+  position: absolute; top: calc(100% + 6px); inset-inline-end: 0;
+  z-index: 200; min-width: 210px; margin: 0; padding: var(--s-1);
+  list-style: none; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+}
+.lang-menu button {
+  display: flex; align-items: center; gap: var(--s-2); width: 100%;
+  padding: var(--s-2) var(--s-3); min-height: 40px;
+  background: none; border: 0; border-radius: var(--r-sm);
+  font: inherit; color: var(--text); cursor: pointer; text-align: start;
+}
+.lang-menu button:hover { background: var(--surface-2); }
+.lang-menu button.active { background: var(--accent-softer); font-weight: 600; }
+.lang-native { flex: 1 1 auto; }
+.lang-english { font-size: var(--fs-xs); color: var(--text-muted); }
+.lang-tick { color: var(--accent); }
+
+@media (max-width: 860px) {
+  /* In the mobile drawer the switcher is a full-width row like every other
+     nav item, not a floating menu pinned to a corner. */
+  .nav.open .lang { width: 100%; }
+  .nav.open .lang-btn { width: 100%; min-height: 44px; justify-content: flex-start; }
+  .nav.open .lang-btn.compact .lang-code { display: inline; }
+  .nav.open .lang-menu { position: static; width: 100%; box-shadow: none; margin-top: var(--s-2); }
+  .lang-menu button { min-height: 44px; }
 }
