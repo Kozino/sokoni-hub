@@ -984,6 +984,28 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 .fp-field select, .fp-field input { width: 100%; min-width: 0; max-width: none; }
 .fp-footer { display: flex; justify-content: flex-end; margin-top: var(--s-3); }
 .fp-footer:empty { display: none; }
+
+/* Store directory card. Desktop keeps the roomy layout; phones get compact 2-up cards. */
+.vc-desc { min-height: 40px; }
+@media (max-width: 640px) {
+  .vendor-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-2); }
+  .vendor-grid .vc { padding: var(--s-3); min-width: 0; display: flex; flex-direction: column; }
+  .vc-head { flex-direction: column; align-items: flex-start; gap: var(--s-2); margin-bottom: var(--s-2); }
+  .vc .avatar { width: 40px; height: 40px; font-size: 1rem; flex: 0 0 auto; }
+  .vc-id { min-width: 0; width: 100%; }
+  .vc-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: var(--fs-sm); line-height: 1.3; }
+  .vc-loc { font-size: 11px !important; line-height: 1.3; margin-top: 2px; overflow-wrap: anywhere; }
+  .vc-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 0; font-size: 11.5px !important; line-height: 1.35; margin: 0 0 var(--s-2); }
+  .vc-badges { gap: 4px !important; margin-bottom: var(--s-2); }
+  .vc-badges .badge { font-size: 10px; padding: 1px 6px; }
+  .vc-foot { flex-direction: column; align-items: flex-start; gap: 4px; margin-top: auto; }
+  .vc-foot .badge { font-size: 10px; padding: 1px 6px; }
+  .vc-count { font-size: 11px !important; }
+}
+@media (max-width: 375px) {
+  .vendor-grid { gap: var(--s-1); }
+  .vendor-grid .vc { padding: var(--s-2); }
+}
 @media (max-width: 640px) {
   /* Keep search + Filters on one row; the label collapses to icon + count + chevron on very narrow screens. */
   .fp-top .btn { width: auto; flex: 0 0 auto; }
