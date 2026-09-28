@@ -1,0 +1,37 @@
+/* ============================================================================
+   STORE PAGE ONLY (All / Products / Services tabs)
+   Phones get the same small, two-across cards as the landing page listings.
+   Desktop and tablet keep the existing .grid-4 layout untouched.
+   ========================================================================= */
+
+@media (max-width: 640px) {
+  /* Specificity is deliberate: beats the global `.grid-4 { 1 column }` phone rule. */
+  .store-page .store-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s-2);
+  }
+
+  .store-page .store-grid .lcard { border-radius: var(--r-md); min-width: 0; }
+  .store-page .store-grid .lcard-img { aspect-ratio: 1 / 1; }
+  .store-page .store-grid .lcard-kind { top: var(--s-2); inset-inline-start: var(--s-2); }
+  .store-page .store-grid .lcard-kind .badge { font-size: 9px; padding: 1px 5px; text-transform: uppercase; letter-spacing: .03em; }
+
+  .store-page .store-grid .lcard-body { padding: var(--s-2); gap: 1px; display: flex; flex-direction: column; }
+  .store-page .store-grid .lcard-price { order: 1; margin-top: 0; padding-top: 0; font-size: var(--fs-sm); }
+  .store-page .store-grid .lcard-title { order: 2; font-size: var(--fs-xs); font-weight: 500; line-height: 1.3; }
+  .store-page .store-grid .lcard-rating { order: 3; }
+  .store-page .store-grid .lcard-meta { display: none; }
+
+  /* Footer: the store name is already the page heading, so show only the city. */
+  .store-page .store-grid .lcard-foot { order: 4; border-top: none; margin-top: 2px; padding-top: 0; }
+  .store-page .store-grid .lcard-foot span:first-child { display: none; }
+  .store-page .store-grid .lcard-foot span:last-child {
+    display: flex; align-items: center; gap: 3px; font-size: 10px; color: var(--text-muted);
+  }
+  .store-page .store-grid .lcard-foot span:last-child::before { content: '📍'; font-size: .8em; }
+}
+
+@media (max-width: 375px) {
+  .store-page .store-grid { gap: var(--s-1); }
+  .store-page .store-grid .lcard-body { padding: 6px; }
+}
