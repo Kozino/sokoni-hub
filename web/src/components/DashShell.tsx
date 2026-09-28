@@ -42,7 +42,7 @@ function NotifBell({ items }: { items: DashNotification[] }) {
   return (
     <div ref={ref} style={{ position: 'relative' }}>
       <button
-        type="button" className="icon-btn tip" data-tip="Notifications"
+        type="button" className="icon-btn tip tip-end" data-tip="Notifications"
         onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open} aria-label="Notifications"
       >
         {IconBell}
@@ -216,7 +216,7 @@ export default function DashShell({
             <ThemeToggle />
             <NotifBell items={notifications} />
             {settingsTo && (
-              <Link to={settingsTo} className="icon-btn tip" data-tip="Settings" aria-label="Settings">
+              <Link to={settingsTo} className="icon-btn tip tip-end" data-tip="Settings" aria-label="Settings">
                 {IconSettings}
               </Link>
             )}
