@@ -101,6 +101,7 @@ const sw: Record<string, string> = {
   'listing.addToCart': 'Weka kikapuni',
   'listing.orderWhatsapp': 'Agiza kwa WhatsApp',
   'listing.requestBooking': 'Omba kuhifadhi nafasi',
+  'listing.bookNow': 'Weka nafasi',
   'listing.outOfStock': 'Hakuna stoo',
   'listing.inStock': '{{count}} {{unit}} zipo stoo',
   'listing.qty': 'Idadi',
