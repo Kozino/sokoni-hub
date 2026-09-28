@@ -110,7 +110,7 @@ export default function Vendors() {
           {near && nearbyCount > 0 && (
             <h2 style={{ fontSize: '1rem', marginTop: 20, marginBottom: 8 }}>{t('stores.nearestHeading')}</h2>
           )}
-          <div className="grid grid-3">
+          <div className="grid grid-3 vendor-grid">
             {vendors.map((v, i) => (
               <VendorCard
                 key={v.id}
@@ -135,30 +135,30 @@ function VendorCard({ v, showRestHeading }: { v: Vendor; showRestHeading?: boole
       {showRestHeading && (
         <h2 style={{ gridColumn: '1 / -1', fontSize: '1rem', marginTop: 16, marginBottom: 0 }}>{t('stores.moreStores')}</h2>
       )}
-      <Link to={`/store/${v.slug}`} className="card card-pad card-hover" style={{ color: 'inherit' }}>
-        <div className="row mb-2">
+      <Link to={`/store/${v.slug}`} className="card card-pad card-hover vc" style={{ color: 'inherit' }}>
+        <div className="row mb-2 vc-head">
           <div className="avatar">
             {v.logo_url ? <img src={v.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 }} /> : v.business_name[0]}
           </div>
-          <div className="grow">
-            <strong style={{ color: 'var(--ink)' }}>{v.business_name}</strong>
-            <div style={{ fontSize: '.8rem', color: 'var(--muted)' }}>
+          <div className="grow vc-id">
+            <strong className="vc-name" style={{ color: 'var(--ink)' }}>{v.business_name}</strong>
+            <div className="vc-loc" style={{ fontSize: '.8rem', color: 'var(--muted)' }}>
               {v.city}, {v.country}{dist && <> · <strong style={{ color: 'var(--terra-dark)' }}>{dist} away</strong></>}
             </div>
           </div>
         </div>
-        <p style={{ fontSize: '.86rem', color: 'var(--muted)', minHeight: 40 }}>
+        <p className="vc-desc" style={{ fontSize: '.86rem', color: 'var(--muted)' }}>
           {v.description ? v.description.slice(0, 110) + (v.description.length > 110 ? '…' : '') : t('stores.noDescription')}
         </p>
-        <div className="row mb-2" style={{ gap: 6, flexWrap: 'wrap' }}>
+        <div className="row mb-2 vc-badges" style={{ gap: 6, flexWrap: 'wrap' }}>
           {v.offers_delivery && (
             <Badge tone="blue">🛵 {fee > 0 ? t('stores.deliveryFee', { fee: money(fee, 'QAR') }) : t('stores.freeDelivery')}</Badge>
           )}
           {v.offers_pickup && <Badge tone="grey">🏬 {t('stores.collection')}</Badge>}
         </div>
-        <div className="row-between">
+        <div className="row-between vc-foot">
           <Badge tone="green">✓ {t('stores.verified')}</Badge>
-          <span style={{ fontSize: '.8rem', color: 'var(--muted)' }}>
+          <span className="vc-count" style={{ fontSize: '.8rem', color: 'var(--muted)' }}>
             {t('stores.listingsCount', { count: v.listing_count ?? 0 })} {Number(v.rating_avg) > 0 && `· ★ ${Number(v.rating_avg).toFixed(1)}`}
           </span>
         </div>
