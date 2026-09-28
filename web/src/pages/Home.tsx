@@ -239,7 +239,7 @@ export default function Home() {
               </div>
               <Link to="/browse?sort=popular">{t('common.viewAll')}</Link>
             </div>
-            <div className="grid lp-listing-grid">{trending.map((l) => <ListingCard key={l.id} l={l} showCart />)}</div>
+            <div className="grid lp-listing-grid">{trending.map((l) => <ListingCard key={l.id} l={l} showAction />)}</div>
           </div>
         </section>
       )}
@@ -255,7 +255,7 @@ export default function Home() {
               </div>
               <Link to="/browse">{t('common.viewAll')}</Link>
             </div>
-            <div className="grid lp-listing-grid">{latest.map((l) => <ListingCard key={l.id} l={l} showCart />)}</div>
+            <div className="grid lp-listing-grid">{latest.map((l) => <ListingCard key={l.id} l={l} showAction />)}</div>
           </div>
         </section>
       )}
@@ -271,7 +271,7 @@ export default function Home() {
               </div>
               <Link to="/browse?kind=service">{t('common.viewAll')}</Link>
             </div>
-            <div className="grid lp-listing-grid">{services.map((l) => <ListingCard key={l.id} l={l} showCart />)}</div>
+            <div className="grid lp-listing-grid">{services.map((l) => <ListingCard key={l.id} l={l} showAction />)}</div>
           </div>
         </section>
       )}
