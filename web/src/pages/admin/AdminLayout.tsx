@@ -5,6 +5,7 @@ import DashShell, { DashLink, DashNotification } from '../../components/DashShel
 import { useAuth } from '../../state/AuthContext';
 import { api } from '../../lib/api';
 import { IconChart, IconShield, IconBox, IconAlert, IconReceipt, IconUsers, IconFolder, IconHistory, IconStar } from '../../components/icons';
+import { EnglishScope } from '../../i18n';
 
 export default function AdminLayout() {
   const { user } = useAuth();
@@ -49,7 +50,12 @@ export default function AdminLayout() {
   ];
 
   return (
-    <div className="app">
+    <>
+      {/* Dashboards stay English and LTR: translation is a buyer feature,
+          and flipping an unchecked console into RTL is worse than not
+          offering it. */}
+      <EnglishScope />
+      <div className="app">
       <Header />
       <DashShell
         links={links}
@@ -68,5 +74,6 @@ export default function AdminLayout() {
         <Outlet />
       </DashShell>
     </div>
+  </>
   );
 }
