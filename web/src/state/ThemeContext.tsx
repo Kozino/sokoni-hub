@@ -38,7 +38,7 @@ export function ThemeToggle() {
   return (
     <button
       type="button"
-      className="icon-btn tip"
+      className="icon-btn tip tip-end"
       onClick={toggle}
       data-tip={dark ? 'Switch to light' : 'Switch to dark'}
       aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
