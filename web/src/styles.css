@@ -1876,3 +1876,61 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
   .rv-toolbar { justify-content: space-between; }
   .rv-helpful { min-height: 44px; }
 }
+
+/* ---------------------------------------------------------------------------
+   LISTING DETAIL — Description / Details / Reviews in one panel
+
+   Three stacked cards became one strip. The panel is full width rather than
+   inside the narrow left column: the review summary, its distribution bars and
+   the composer all need the room, and this is the shape buyers already know —
+   gallery and buy box on top, one tabbed panel underneath.
+   ------------------------------------------------------------------------ */
+
+.ld-tabs { padding: var(--s-5) var(--s-6); }
+/* The strip already separates itself from the panel; the component's own
+   bottom margin would double the gap. */
+.ld-tabs .tabs { margin-bottom: 0; }
+
+.ld-panel { padding-top: var(--s-5); min-width: 0; }
+/* The panel is focusable so keyboard users land in the content after the
+   tabs; it must not then draw a focus ring on mouse click. */
+.ld-panel:focus { outline: none; }
+.ld-panel:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: var(--r-sm); }
+
+.ld-desc { white-space: pre-wrap; margin: 0; line-height: 1.7; overflow-wrap: anywhere; }
+
+/* Reviews inside the panel: the card already provides the frame. */
+.ld-panel .rv { margin-top: 0; }
+
+/* inline composer -------------------------------------------------------- */
+.rv-compose {
+  display: flex; flex-direction: column; gap: var(--s-3);
+  padding: var(--s-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+  margin-bottom: var(--s-5);
+}
+.rv-compose-title { font-family: var(--display); font-size: var(--fs-md); }
+.rv-compose .rv-sub { margin: 0; }
+.rv-compose-row { display: flex; align-items: center; gap: var(--s-4); flex-wrap: wrap; }
+.rv-compose-label { font-size: var(--fs-sm); font-weight: 600; }
+.rv-compose textarea.input { resize: vertical; min-height: 96px; }
+.rv-compose-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s-3); flex-wrap: wrap;
+}
+.rv-compose-done {
+  flex-direction: row; align-items: center; justify-content: space-between;
+  font-size: var(--fs-sm);
+}
+
+@media (max-width: 640px) {
+  .ld-tabs { padding: var(--s-4); }
+  .ld-panel { padding-top: var(--s-4); }
+  /* Thumb-sized tab targets, and the strip scrolls rather than wrapping into
+     two rows that shift the panel down. */
+  .ld-tabs .tabs button { min-height: 44px; padding-inline: var(--s-4); }
+  .rv-compose-foot .btn { width: 100%; }
+  .rv-compose-foot { flex-direction: column-reverse; align-items: stretch; }
+}
