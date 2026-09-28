@@ -1188,6 +1188,33 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 .lcard-rating .stars { color: #F5A623; font-size: .9em; }
 .lcard-rating .count { color: var(--text-muted); font-weight: 500; }
 
+/* Card with an Add-to-cart button (products only). The link fills the card and
+   the action row sits under it, so every card in a row keeps the button at the bottom. */
+.lcard-link { display: flex; flex-direction: column; flex: 1; min-width: 0; color: inherit; }
+.lcard-link:hover { text-decoration: none; color: inherit; }
+.lcard-actions { padding: 0 var(--s-3) var(--s-3); }
+.lcard-cart {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; min-height: 36px; padding: 6px var(--s-3);
+  font: inherit; font-size: var(--fs-sm); font-weight: 600; line-height: 1.2; text-align: center;
+  color: var(--accent-text); background: var(--accent-soft);
+  border: 1px solid var(--accent-line); border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+}
+.lcard-cart svg { width: 16px; height: 16px; flex: 0 0 auto; }
+.lcard-cart:hover:not(:disabled) { background: var(--accent); border-color: var(--accent); color: #fff; }
+:root[data-theme='dark'] .lcard-cart:hover:not(:disabled) { color: #0F1320; }
+.lcard-cart:active:not(:disabled) { transform: translateY(.5px); }
+.lcard-cart:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lcard-cart.added { background: var(--success-soft); border-color: var(--success-line); color: var(--success-text); }
+.lcard-cart:disabled { opacity: .55; cursor: not-allowed; }
+@media (max-width: 640px) {
+  .lcard-actions { padding: 0 var(--s-2) var(--s-2); }
+  .lcard-cart { min-height: 34px; padding: 6px var(--s-2); font-size: 12px; gap: 4px; }
+  .lcard-cart svg { width: 14px; height: 14px; }
+}
+
 .cat-tile { position: relative; border-radius: var(--r-lg); overflow: hidden; aspect-ratio: 3/2; border: 1px solid var(--border); display: block; }
 .cat-tile img { width: 100%; height: 100%; object-fit: cover; transition: transform var(--t-slow) var(--ease); }
 .cat-tile:hover img { transform: scale(1.04); }
