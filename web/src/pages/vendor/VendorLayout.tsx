@@ -6,6 +6,7 @@ import { useAuth } from '../../state/AuthContext';
 import { StatusBadge, Alert } from '../../components/ui';
 import { api } from '../../lib/api';
 import { IconChart, IconBox, IconPlus, IconReceipt, IconAlert, IconStore, IconHistory } from '../../components/icons';
+import { EnglishScope } from '../../i18n';
 
 export default function VendorLayout() {
   const { user, vendor } = useAuth();
@@ -110,7 +111,12 @@ export default function VendorLayout() {
   );
 
   return (
-    <div className="app">
+    <>
+      {/* Dashboards stay English and LTR: translation is a buyer feature,
+          and flipping an unchecked console into RTL is worse than not
+          offering it. */}
+      <EnglishScope />
+      <div className="app">
       <Header />
       <DashShell
         links={links}
@@ -130,5 +136,6 @@ export default function VendorLayout() {
         <Outlet />
       </DashShell>
     </div>
+  </>
   );
 }
