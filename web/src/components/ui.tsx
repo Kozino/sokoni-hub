@@ -88,14 +88,60 @@ export function Field({ label, hint, error, children }: { label: string; hint?: 
   );
 }
 
-export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: { id: T; label: string; count?: number }[]; value: T; onChange: (v: T) => void }) {
+/**
+ * Tab strip.
+ *
+ * Carries real tab semantics: a screen reader announces "tab 2 of 3, selected",
+ * and Left/Right/Home/End move between tabs as the platform conventions
+ * require. Previously these were plain buttons, which read as an unrelated row
+ * of controls.
+ *
+ * `panelId` opts a caller into the full tab/tabpanel pairing. Callers that use
+ * Tabs purely as a filter row (the admin tables) leave it off and are
+ * unaffected.
+ */
+export function Tabs<T extends string>({ tabs, value, onChange, panelId }: {
+  tabs: { id: T; label: string; count?: number }[];
+  value: T;
+  onChange: (v: T) => void;
+  panelId?: string;
+}) {
+  const keyNav = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const i = tabs.findIndex((t) => t.id === value);
+    if (i < 0) return;
+    let next = i;
+    if (e.key === 'ArrowRight') next = (i + 1) % tabs.length;
+    else if (e.key === 'ArrowLeft') next = (i - 1 + tabs.length) % tabs.length;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = tabs.length - 1;
+    else return;
+    e.preventDefault();
+    onChange(tabs[next].id);
+    // Follow focus, so the next Tab keypress leaves the strip rather than
+    // walking the remaining tabs.
+    (e.currentTarget.querySelectorAll('button')[next] as HTMLButtonElement | undefined)?.focus();
+  };
+
   return (
-    <div className="tabs">
-      {tabs.map((t) => (
-        <button key={t.id} className={value === t.id ? 'active' : ''} onClick={() => onChange(t.id)}>
-          {t.label}{t.count !== undefined && ` (${t.count})`}
-        </button>
-      ))}
+    <div className="tabs" role="tablist" onKeyDown={keyNav}>
+      {tabs.map((t) => {
+        const selected = value === t.id;
+        return (
+          <button
+            key={t.id}
+            role="tab"
+            id={panelId ? `${panelId}-tab-${t.id}` : undefined}
+            aria-selected={selected}
+            aria-controls={panelId}
+            // Roving tabindex: the strip is one stop, arrows move within it.
+            tabIndex={selected ? 0 : -1}
+            className={selected ? 'active' : ''}
+            onClick={() => onChange(t.id)}
+          >
+            {t.label}{t.count !== undefined && ` (${t.count})`}
+          </button>
+        );
+      })}
     </div>
   );
 }

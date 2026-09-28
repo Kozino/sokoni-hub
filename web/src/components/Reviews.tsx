@@ -69,12 +69,30 @@ function StarInput({ value, onChange }: { value: number; onChange: (n: number) =
   );
 }
 
-type Props =
-  | { listingId: string; vendorId?: never; title?: string }
-  | { vendorId: string; listingId?: never; title?: string };
+type Props = (
+  | { listingId: string; vendorId?: never }
+  | { vendorId: string; listingId?: never }
+) & {
+  title?: string;
+  /**
+   * Called with the live review count whenever it changes, so a tab label or
+   * badge outside this component does not go stale after someone posts. The
+   * page's own listing payload was fetched before the review existed.
+   */
+  onCount?: (n: number) => void;
+  /**
+   * Rendered inside the listing page's tab panel. The tab is already the
+   * heading, so the internal <h2> is dropped, and the composer is shown inline
+   * instead of behind a button and a modal — a buyer who has opened the
+   * Reviews tab has already expressed the intent that the button was there to
+   * capture.
+   */
+  embedded?: boolean;
+};
 
 export default function Reviews(props: Props) {
-  const { listingId, vendorId } = props as { listingId?: string; vendorId?: string };
+  const { listingId, vendorId, embedded, onCount } = props as
+    { listingId?: string; vendorId?: string; embedded?: boolean; onCount?: (n: number) => void };
   const target = listingId ? `listing_id=${listingId}` : `vendor_id=${vendorId}`;
   const { user } = useAuth();
   const { push } = useToast();
@@ -95,7 +113,7 @@ export default function Reviews(props: Props) {
   const load = useCallback(() => {
     const q = `${target}&sort=${sort}${starFilter ? `&rating=${starFilter}` : ''}`;
     return api.get<{ reviews: Review[]; summary: Summary }>(`/reviews?${q}`)
-      .then((r) => { setReviews(r.reviews); setSummary(r.summary); })
+      .then((r) => { setReviews(r.reviews); setSummary(r.summary); onCount?.(r.summary.count); })
       .catch((e) => setErr(e.message));
   }, [target, sort, starFilter]);
 
@@ -132,6 +150,9 @@ export default function Reviews(props: Props) {
           rating, title: heading || undefined, comment: body || undefined,
         });
         push('Thanks — your review is live', 'success');
+        // The inline composer stays mounted, so it has to be cleared by hand;
+        // leaving the text sitting there reads as "that did not save".
+        setRating(0); setHeading(''); setBody('');
       }
       setOpen(false);
       await load();
@@ -166,15 +187,59 @@ export default function Reviews(props: Props) {
 
   return (
     <section className="rv" id="reviews">
-      <div className="row-between mb-3">
-        <h2 className="rv-title">{props.title ?? 'Reviews'}</h2>
-        {elig?.can_review && (
-          <button className="btn btn-primary btn-sm" onClick={openForm}>Write a review</button>
-        )}
-        {elig?.reason === 'already_reviewed' && elig.existing?.editable && (
-          <button className="btn btn-sm" onClick={openForm}>Edit your review</button>
-        )}
-      </div>
+      {!embedded && (
+        <div className="row-between mb-3">
+          <h2 className="rv-title">{props.title ?? 'Reviews'}</h2>
+          {elig?.can_review && (
+            <button className="btn btn-primary btn-sm" onClick={openForm}>Write a review</button>
+          )}
+          {elig?.reason === 'already_reviewed' && elig.existing?.editable && (
+            <button className="btn btn-sm" onClick={openForm}>Edit your review</button>
+          )}
+        </div>
+      )}
+
+      {/* Inline composer. Shown wherever the buyer is entitled to write, which
+          in the tab means the form is simply there — no button, no modal, no
+          second decision between "I want to say something" and saying it. */}
+      {embedded && elig?.can_review && (
+        <form className="rv-compose" onSubmit={(e) => { e.preventDefault(); submit(); }}>
+          <strong className="rv-compose-title">Write a review</strong>
+          <p className="rv-sub">
+            You bought this, so your review will show as a verified purchase.
+          </p>
+          <div className="rv-compose-row">
+            <span className="rv-compose-label">Your rating</span>
+            <StarInput value={rating} onChange={setRating} />
+          </div>
+          <input
+            className="input" value={heading} maxLength={120}
+            placeholder="Headline (optional) — e.g. Exactly as described"
+            onChange={(e) => setHeading(e.target.value)}
+          />
+          <textarea
+            className="input" rows={4} value={body} maxLength={2000}
+            placeholder="How was the quality, the packaging, the timing?"
+            onChange={(e) => setBody(e.target.value)}
+          />
+          <div className="rv-compose-foot">
+            <span className="rv-sub">{body.length}/2000 · editable for 30 days</span>
+            <button className="btn btn-primary" type="submit" disabled={busy || rating < 1}>
+              {busy ? 'Posting…' : 'Post review'}
+            </button>
+          </div>
+          {err && <Alert kind="error">{err}</Alert>}
+        </form>
+      )}
+
+      {embedded && elig?.reason === 'already_reviewed' && (
+        <div className="rv-compose rv-compose-done">
+          <span>You reviewed this.</span>
+          {elig.existing?.editable && (
+            <button className="btn btn-sm" onClick={openForm}>Edit your review</button>
+          )}
+        </div>
+      )}
 
       {err && <Alert kind="error">{err}</Alert>}
 
@@ -183,9 +248,10 @@ export default function Reviews(props: Props) {
           icon="⭐"
           title="No reviews yet"
           text={elig?.can_review
-            ? 'You have bought from here — be the first to say how it went.'
+            ? (embedded ? 'Be the first — the form is just above.'
+                        : 'You have bought from here — be the first to say how it went.')
             : 'Reviews appear once a buyer has completed an order or a booking.'}
-          action={elig?.can_review
+          action={elig?.can_review && !embedded
             ? <button className="btn btn-primary" onClick={openForm}>Write the first review</button>
             : undefined}
         />
