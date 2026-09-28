@@ -31,7 +31,10 @@ listingRouter.get('/', async (req, res, next) => {
     const sql = `
       select l.*, c.name as category_name, c.slug as category_slug,
              v.business_name, v.slug as vendor_slug, v.city as vendor_city,
-             v.country as vendor_country, v.rating_avg, v.whatsapp
+             v.country as vendor_country, v.whatsapp,
+             -- l.* already carries the LISTING's rating since 009; the store's
+             -- is aliased so the two can never collide on one name.
+             v.rating_avg as vendor_rating_avg, v.rating_count as vendor_rating_count
       from listings l
       join vendors v on v.id = l.vendor_id
       join categories c on c.id = l.category_id
@@ -78,7 +81,8 @@ listingRouter.get('/:id', async (req, res, next) => {
     const l = await one<any>(
       `select l.*, c.name as category_name, c.slug as category_slug,
               v.business_name, v.slug as vendor_slug, v.whatsapp, v.city as vendor_city,
-              v.country as vendor_country, v.rating_avg, v.rating_count, v.logo_url as vendor_logo
+              v.country as vendor_country, v.logo_url as vendor_logo,
+              v.rating_avg as vendor_rating_avg, v.rating_count as vendor_rating_count
        from listings l join vendors v on v.id = l.vendor_id join categories c on c.id = l.category_id
        where l.id = $1 and l.status = 'active' and v.status = 'verified'`,
       [req.params.id]

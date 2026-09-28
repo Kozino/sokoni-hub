@@ -320,10 +320,13 @@ vendorRouter.get('/:slug', async (req, res, next) => {
       `select * from listings where vendor_id = $1 and status = 'active' order by created_at desc`,
       [vendor.id]
     );
+    // Hidden reviews are excluded here as well as from the averages.
     const reviews = await query(
-      `select r.rating, r.comment, r.created_at, u.full_name
-       from reviews r join users u on u.id = r.buyer_id
-       where r.vendor_id = $1 order by r.created_at desc limit 20`,
+      `select id, rating, title, comment, created_at, buyer_name as full_name,
+              verified, vendor_reply, vendor_replied_at, listing_title, listing_slug
+         from review_public
+        where vendor_id = $1 and status = 'published'
+        order by created_at desc limit 20`,
       [vendor.id]
     );
     res.json({ vendor, listings, reviews });
@@ -332,20 +335,10 @@ vendorRouter.get('/:slug', async (req, res, next) => {
   }
 });
 
-/* Reviews */
-vendorRouter.post('/:id/reviews', requireAuth(), async (req, res, next) => {
-  try {
-    const b = z.object({ rating: z.number().int().min(1).max(5), comment: z.string().max(600).optional() }).parse(req.body);
-    const r = await one(
-      `insert into reviews (vendor_id, buyer_id, rating, comment) values ($1,$2,$3,$4)
-       on conflict (vendor_id, buyer_id) do update set rating = excluded.rating, comment = excluded.comment
-       returning *`,
-      [req.params.id, req.user!.id, b.rating, b.comment || null]
-    );
-    res.status(201).json({ review: r });
-  } catch (e) {
-    next(e);
-  }
-});
+/* Reviews moved to /api/reviews in 009.
+   The endpoint that used to live here let any logged-in account rate any store
+   — including its own — with no transaction behind it, and upserted silently.
+   Deleting it rather than leaving it mounted: an unauthenticated-by-design
+   bypass next to a verified path is worse than no path at all. */
 
 export { requireVerifiedVendor };
