@@ -36,6 +36,7 @@ import AdminVendors from './pages/admin/AdminVendors';
 import { AdminListings, AdminComplaints, AdminOrders, AdminUsers, AdminCategories, AdminAudit } from './pages/admin/AdminMisc';
 import AdminBilling from './pages/admin/AdminBilling';
 import AdminBookings from './pages/admin/AdminBookings';
+import AdminPromotions from './pages/admin/AdminPromotions';
 
 function ScrollTop() {
   const { pathname } = useLocation();
@@ -101,6 +102,7 @@ export default function App() {
                 <Route path="users" element={<AdminUsers />} />
                 <Route path="billing" element={<AdminBilling />} />
                 <Route path="bookings" element={<AdminBookings />} />
+                <Route path="promotions" element={<AdminPromotions />} />
                 <Route path="categories" element={<AdminCategories />} />
                 <Route path="audit" element={<AdminAudit />} />
                 <Route path="*" element={<Navigate to="/admin" replace />} />
