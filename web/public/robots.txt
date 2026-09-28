@@ -1,0 +1,16 @@
+# Sokoni Hub
+User-agent: *
+Allow: /
+
+# Signed-in surfaces: nothing here is useful in an index, and crawling them
+# just burns budget on pages that redirect to a login.
+Disallow: /admin
+Disallow: /vendor
+Disallow: /checkout
+Disallow: /cart
+Disallow: /account
+Disallow: /login
+Disallow: /register
+
+# Generated at the edge from live listings — see netlify/edge-functions/sitemap.ts
+Sitemap: https://sokonihub.com/sitemap.xml
