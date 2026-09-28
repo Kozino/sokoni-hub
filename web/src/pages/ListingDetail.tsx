@@ -8,6 +8,7 @@ import { useCart } from '../state/CartContext';
 import { useToast } from '../state/ToastContext';
 import { BookServiceModal } from '../components/BookServiceModal';
 import ListingCard from '../components/ListingCard';
+import Reviews from '../components/Reviews';
 import './ListingDetail.css';
 
 export default function ListingDetail() {
@@ -238,6 +239,10 @@ export default function ListingDetail() {
           </Alert>
         </div>
       </div>
+
+      {/* Reviews sit above "more from this store": a buyer deciding on THIS
+          item wants the verdict on it before being offered another one. */}
+      <Reviews listingId={l.id} title={l.kind === 'service' ? 'Reviews of this service' : 'Reviews of this product'} />
 
       {vendorItems.length > 0 && (
         <div className="mt-4">

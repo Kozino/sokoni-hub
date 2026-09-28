@@ -4,11 +4,12 @@ import { api } from '../lib/api';
 import type { Listing, Vendor } from '../types';
 import { waLink, date } from '../lib/format';
 import ListingCard from '../components/ListingCard';
+import Reviews from '../components/Reviews';
 import { Badge, Empty, Spinner, Tabs } from '../components/ui';
 
 export default function StorePage() {
   const { slug } = useParams();
-  const [data, setData] = useState<{ vendor: Vendor; listings: Listing[]; reviews: any[] } | null>(null);
+  const [data, setData] = useState<{ vendor: Vendor; listings: Listing[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'all' | 'product' | 'service'>('all');
 
@@ -20,7 +21,7 @@ export default function StorePage() {
   if (loading) return <div className="container"><Spinner /></div>;
   if (!data) return <div className="container"><Empty icon="🏪" title="Store not found" text="This store may not be verified yet." action={<Link to="/vendors" className="btn btn-primary">All stores</Link>} /></div>;
 
-  const { vendor, listings, reviews } = data;
+  const { vendor, listings } = data;
   const shown = tab === 'all' ? listings : listings.filter((l) => l.kind === tab);
 
   return (
@@ -63,22 +64,10 @@ export default function StorePage() {
           : <div className="grid grid-4">{shown.map((l) => <ListingCard key={l.id} l={{ ...l, business_name: vendor.business_name, vendor_city: vendor.city }} />)}</div>}
       </div>
 
-      {reviews.length > 0 && (
-        <div className="mt-4">
-          <h2>Buyer reviews</h2>
-          <div className="grid grid-2">
-            {reviews.map((r, i) => (
-              <div key={i} className="card card-pad">
-                <div className="row-between mb-1">
-                  <strong style={{ color: 'var(--ink)' }}>{r.full_name}</strong>
-                  <span style={{ color: 'var(--gold)' }}>{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</span>
-                </div>
-                <p style={{ margin: 0, fontSize: '.9rem' }}>{r.comment || '—'}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Replaces a hand-rolled list that had no summary, no verified marker,
+          no vendor replies and no way to leave one. Same component as the
+          listing page, so the two cannot drift apart. */}
+      <Reviews vendorId={vendor.id} title={`Reviews of ${vendor.business_name}`} />
     </div>
   );
 }
