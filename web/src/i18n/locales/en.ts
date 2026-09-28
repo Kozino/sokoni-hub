@@ -124,6 +124,7 @@ const en: Record<string, string> = {
   'listing.addToCart': 'Add to cart',
   'listing.orderWhatsapp': 'Order on WhatsApp',
   'listing.requestBooking': 'Request booking',
+  'listing.bookNow': 'Book now',
   'listing.outOfStock': 'Out of stock',
   'listing.inStock': '{{count}} {{unit}} in stock',
   'listing.qty': 'Qty',
