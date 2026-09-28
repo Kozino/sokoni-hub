@@ -92,7 +92,7 @@ export default function Browse() {
         <Empty icon="🔍" title={t('browse.noMatch.title')} text={t('browse.noMatch.text')} />
       ) : (
         <>
-          <div className="grid browse-grid">{listings.map((l) => <ListingCard key={l.id} l={l} />)}</div>
+          <div className="grid browse-grid">{listings.map((l) => <ListingCard key={l.id} l={l} showAction />)}</div>
           {total > 24 && (
             <div className="row mt-4" style={{ justifyContent: 'center' }}>
               <button className="btn btn-outline" disabled={offset === 0} onClick={() => set('offset', String(Math.max(0, offset - 24)))}>← Previous</button>
