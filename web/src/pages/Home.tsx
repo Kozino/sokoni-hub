@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import type { Listing, Category } from '../types';
 import ListingCard from '../components/ListingCard';
+import FeaturedStores from '../components/FeaturedStores';
 import { useLocation as useBuyerLocation } from '../state/LocationContext';
 import './Home.css';
 
@@ -147,6 +148,12 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* ==================================================== PAID PLACEMENT */}
+      {/* Above the category wall and the organic rails: the vendor is paying
+          for visibility, and below three scrolls of other content is not it.
+          Renders nothing at all when no placement is sold. */}
+      <FeaturedStores />
 
       {/* ============================================================ SHOP BY CATEGORY */}
       <section className="lp-section lp-cat-section">

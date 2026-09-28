@@ -299,3 +299,117 @@
 @media (max-width: 640px) {
   .lp-how-grid { grid-template-columns: 1fr; gap: var(--s-4); }
 }
+
+/* ===========================================================================
+   PAID PLACEMENT — VIP and Featured stores
+   
+   VIP is visually louder than Featured because the vendor paid more for
+   exactly that. The gap between the two tiers has to be legible at a glance or
+   the premium price is not defensible.
+   =========================================================================== */
+
+.lp-promos { padding-top: 0; }
+.pr-head { max-width: 640px; }
+
+.pr-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: var(--s-4);
+}
+/* VIP cards are wider and taller than Featured. The tiers have to be
+   distinguishable at a glance or the premium price is not defensible — and
+   sizing does that more honestly than colour alone, which a colour-blind
+   buyer would miss. auto-fill (not auto-fit) so the card size stays the same
+   whether one store or six bought the tier. */
+.pr-grid-vip { grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }
+.pr-vip { padding: var(--s-5); }
+.pr-vip .pr-logo { width: 72px; height: 72px; font-size: var(--fs-lg); }
+.pr-vip .pr-name { font-size: var(--fs-lg); }
+
+.pr-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  color: inherit;
+  text-decoration: none;
+  min-width: 0;
+  transition: border-color var(--t) var(--ease), box-shadow var(--t) var(--ease),
+              transform var(--t) var(--ease);
+}
+.pr-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+  text-decoration: none;
+}
+
+/* The VIP treatment: gold edge and a warm wash, so it reads as a different
+   product rather than the same card with different words on it. */
+.pr-main { display: flex; align-items: center; gap: var(--s-4); width: 100%; min-width: 0; }
+
+.pr-vip {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 1px var(--gold), var(--shadow-xs);
+  background:
+    linear-gradient(180deg, var(--gold-soft) 0%, var(--surface) 62%);
+}
+.pr-vip:hover { box-shadow: 0 0 0 1px var(--gold), var(--shadow-md); }
+
+.pr-badge {
+  align-self: flex-start;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: 3px var(--s-2);
+  border-radius: var(--r-sm);
+  line-height: 1.4;
+}
+.pr-badge-vip { background: var(--gold); color: #fff; }
+.pr-badge-featured {
+  background: var(--surface-2);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.pr-logo {
+  flex: 0 0 auto;
+  width: 56px; height: 56px;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  display: grid; place-items: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-family: var(--display);
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.pr-logo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.pr-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pr-name {
+  font-family: var(--display);
+  font-size: var(--fs-base);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.pr-meta { font-size: var(--fs-sm); color: var(--text-muted); }
+.pr-dim { opacity: .7; }
+
+.pr-disclosure {
+  margin: var(--s-5) 0 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+@media (max-width: 640px) {
+  /* One column rather than two cramped ones: the store name is the point and
+     it must not wrap to three lines. */
+  .pr-grid, .pr-grid-vip { grid-template-columns: 1fr; gap: var(--s-3); }
+}
