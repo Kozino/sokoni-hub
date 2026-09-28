@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import type { Listing } from '../types';
 import { priceLabel } from '../lib/format';
@@ -6,18 +7,23 @@ import { Badge } from './ui';
 import { useT } from '../i18n';
 import { useCart } from '../state/CartContext';
 import { useToast } from '../state/ToastContext';
+import { BookServiceModal } from './BookServiceModal';
 
 interface Props {
   l: Listing;
-  /** Show a one-tap "Add to cart" button. Applies to products only — services are booked, never carted. */
-  showCart?: boolean;
+  /**
+   * Show a one-tap action button under the card: "Add to cart" for products,
+   * "Book now" for services (opens the booking request; services never touch the cart).
+   */
+  showAction?: boolean;
 }
 
-export default function ListingCard({ l, showCart = false }: Props) {
+export default function ListingCard({ l, showAction = false }: Props) {
   const t = useT();
   const { items, add } = useCart();
   const { push } = useToast();
   const [justAdded, setJustAdded] = useState(false);
+  const [booking, setBooking] = useState(false);
   const timer = useRef<number>();
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
@@ -52,8 +58,39 @@ export default function ListingCard({ l, showCart = false }: Props) {
   );
 
   // Default card: the whole thing is one link, exactly as before.
-  if (!showCart || l.kind !== 'product') {
+  if (!showAction) {
     return <Link to={`/listing/${l.id}`} className="lcard">{body}</Link>;
+  }
+
+  // Service: "Book now" opens the booking request. The modal is portalled to
+  // <body> because the card clips overflow and lifts on hover (a transform),
+  // either of which would break a position:fixed modal rendered inside it.
+  if (l.kind === 'service') {
+    return (
+      <div className="lcard lcard-has-cart">
+        <Link to={`/listing/${l.id}`} className="lcard-link">{body}</Link>
+        <div className="lcard-actions">
+          <button type="button" className="lcard-cart" onClick={() => setBooking(true)} aria-label={`${t('listing.bookNow')}: ${l.title}`}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="3" y="4.5" width="18" height="16" rx="2.5" /><path d="M3 9.5h18M8 2.5v4M16 2.5v4" />
+            </svg>
+            <span>{t('listing.bookNow')}</span>
+          </button>
+        </div>
+        {booking && createPortal(
+          <BookServiceModal
+            open
+            onClose={() => setBooking(false)}
+            listing={{
+              id: l.id, title: l.title, price: Number(l.price), currency: l.currency,
+              price_type: l.price_type, duration_mins: l.duration_mins,
+              business_name: l.business_name, whatsapp: l.whatsapp,
+            }}
+          />,
+          document.body
+        )}
+      </div>
+    );
   }
 
   // Product with cart button. The button is a sibling of the link (not nested
