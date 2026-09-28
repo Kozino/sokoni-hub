@@ -29,7 +29,16 @@ const EDIT_WINDOW_DAYS = 30;
  * the client: a buyer could otherwise attach a genuine order to a review aimed
  * at a different store.
  */
+async function requiresPurchase(): Promise<boolean> {
+  const r = await one<any>(`select reviews_require_purchase from platform_settings where id = true`);
+  // Missing settings row means "not configured", and the safe reading of that
+  // is the strict one.
+  return r?.reviews_require_purchase !== false;
+}
+
 async function findProof(buyerId: string, listingId: string | null, vendorId: string | null) {
+  const strict = await requiresPurchase();
+
   if (listingId) {
     const l = await one<any>(`select id, vendor_id, kind, status from listings where id = $1`, [listingId]);
     if (!l) throw new HttpError(404, 'Listing not found');
@@ -41,9 +50,8 @@ async function findProof(buyerId: string, listingId: string | null, vendorId: st
           order by created_at desc limit 1`,
         [listingId, buyerId]
       );
-      return b
-        ? { vendor_id: l.vendor_id, order_id: null, booking_id: b.id, kind: 'service' }
-        : null;
+      if (b) return { vendor_id: l.vendor_id, order_id: null, booking_id: b.id, kind: 'service' };
+      return strict ? null : { vendor_id: l.vendor_id, order_id: null, booking_id: null, kind: 'service' };
     }
 
     const o = await one<any>(
@@ -53,7 +61,10 @@ async function findProof(buyerId: string, listingId: string | null, vendorId: st
         order by o.created_at desc limit 1`,
       [listingId, buyerId]
     );
-    return o ? { vendor_id: l.vendor_id, order_id: o.id, booking_id: null, kind: 'product' } : null;
+    if (o) return { vendor_id: l.vendor_id, order_id: o.id, booking_id: null, kind: 'product' };
+    // Policy open: allowed, but with no transaction attached, so the review
+    // will read as unverified.
+    return strict ? null : { vendor_id: l.vendor_id, order_id: null, booking_id: null, kind: 'product' };
   }
 
   // Store review: any completed dealing with this vendor qualifies.
@@ -73,7 +84,8 @@ async function findProof(buyerId: string, listingId: string | null, vendorId: st
       order by created_at desc limit 1`,
     [vendorId, buyerId]
   );
-  return b ? { vendor_id: vendorId, order_id: null, booking_id: b.id, kind: 'store' } : null;
+  if (b) return { vendor_id: vendorId, order_id: null, booking_id: b.id, kind: 'store' };
+  return strict ? null : { vendor_id: vendorId, order_id: null, booking_id: null, kind: 'store' };
 }
 
 /** A vendor rating their own shop is the first thing anyone tries. */
@@ -213,7 +225,11 @@ reviewRouter.get('/eligibility', requireAuth(), async (req, res, next) => {
 
     const proof = await findProof(req.user!.id, p.listing_id ?? null, p.vendor_id ?? null);
     res.json(proof
-      ? { can_review: true, basis: proof.booking_id ? 'booking' : 'order' }
+      ? {
+          can_review: true,
+          basis: proof.booking_id ? 'booking' : proof.order_id ? 'order' : 'open',
+          verified: !!(proof.order_id || proof.booking_id),
+        }
       : { can_review: false, reason: 'no_purchase' });
   } catch (e) { next(e); }
 });
