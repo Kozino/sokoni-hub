@@ -43,7 +43,10 @@ export interface Listing {
   views: number; created_at: string; updated_at?: string;
   category_name?: string; category_slug?: string;
   business_name?: string; vendor_slug?: string; vendor_city?: string;
-  vendor_country?: string; rating_avg?: number; rating_count?: number;
+  vendor_country?: string;
+  /** The LISTING's own rating (009). The store's is vendor_rating_*. */
+  rating_avg?: number; rating_count?: number;
+  vendor_rating_avg?: number; vendor_rating_count?: number;
   whatsapp?: string; vendor_logo?: string | null;
 }
 

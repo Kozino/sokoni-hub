@@ -1188,7 +1188,7 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 
 /* ---------------------------------------------------------------------------
    19b. BOOKINGS INBOX
-   
+
    A booking is read, not scanned: the vendor needs the customer's name, the
    time they asked for and a way to reply. A horizontally scrolling table is
    the wrong shape for that on a phone, so this is one DOM that changes shape —
@@ -1387,7 +1387,7 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 
 /* ---------------------------------------------------------------------------
    19bb. INVENTORY
-   
+
    Deliberately built on the .bk-* grid rather than beside it: same shape-shift
    from aligned columns to stacked cards, same breakpoints, one set of rules to
    keep correct. Only the column widths and the state colouring differ.
@@ -1468,12 +1468,12 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 
 /* ---------------------------------------------------------------------------
    19c. DASHBOARD BREADCRUMB — shrink fix
-   
+
    .breadcrumb is flex: 0 0 auto, so it cannot shrink and a long page name
    pushes the whole document sideways. "Home / Vendor / Bookings" overflows a
    390px phone by 6px; "Home / Vendor / Products & services" by 73px. This is
    why several dashboard pages scroll horizontally on a phone.
-   
+
    Below 640px the leading "Home /" is dropped — the burger and the back
    gesture both already cover it — and the current page truncates instead of
    pushing. Applies to every admin and vendor page, not just bookings.
@@ -1749,4 +1749,130 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 @media (max-width: 860px) {
   .pm-actions { width: 100%; }
   .pm-actions .btn { flex: 1 1 0; min-height: 44px; }
+}
+
+/* ---------------------------------------------------------------------------
+   REVIEWS (009)
+   Used on the listing detail page and the store page.
+   ------------------------------------------------------------------------ */
+
+.rv { margin-top: var(--s-8); }
+.rv-title { font-family: var(--display); font-size: var(--fs-xl); margin: 0; }
+
+.rv-stars { display: inline-flex; gap: 1px; line-height: 1; white-space: nowrap; }
+.rv-stars .on  { color: var(--gold); }
+.rv-stars .off { color: var(--border-strong); }
+.rv-stars-sm { font-size: var(--fs-sm); }
+.rv-stars-md { font-size: var(--fs-base); }
+.rv-stars-lg { font-size: 1.5rem; }
+
+/* summary ---------------------------------------------------------------- */
+.rv-summary {
+  display: grid;
+  grid-template-columns: minmax(150px, 200px) minmax(0, 1fr);
+  gap: var(--s-6);
+  align-items: center;
+  padding: var(--s-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.rv-score { display: flex; flex-direction: column; gap: var(--s-1); align-items: flex-start; }
+.rv-score strong {
+  font-family: var(--display); font-size: 2.5rem; line-height: 1;
+  letter-spacing: -.03em; font-variant-numeric: tabular-nums;
+}
+.rv-sub { font-size: var(--fs-sm); color: var(--text-muted); }
+
+.rv-bars { display: grid; gap: 4px; min-width: 0; }
+/* A button, not a div: filtering by star rating must be reachable by keyboard. */
+.rv-bar-row {
+  display: grid; grid-template-columns: 34px minmax(0, 1fr) 40px;
+  gap: var(--s-2); align-items: center;
+  background: none; border: 0; padding: 2px 4px; cursor: pointer;
+  border-radius: var(--r-sm); font: inherit; color: var(--text-muted);
+  text-align: left;
+}
+.rv-bar-row:hover { background: var(--surface-2); }
+.rv-bar-row.active { background: var(--accent-softer); color: var(--text); }
+.rv-bar-label { font-size: var(--fs-sm); }
+.rv-bar {
+  display: block; height: 8px; border-radius: 999px;
+  background: var(--surface-2); overflow: hidden;
+}
+.rv-bar > span { display: block; height: 100%; background: var(--gold); border-radius: 999px; }
+.rv-bar-count { font-size: var(--fs-sm); text-align: right; font-variant-numeric: tabular-nums; }
+
+.rv-toolbar {
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: var(--s-3); margin: var(--s-4) 0 var(--s-2); flex-wrap: wrap;
+}
+.rv-sort { display: inline-flex; align-items: center; gap: var(--s-2); font-size: var(--fs-sm); color: var(--text-muted); }
+.rv-sort .input { width: auto; }
+
+/* list ------------------------------------------------------------------- */
+.rv-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.rv-item {
+  display: flex; flex-direction: column; gap: var(--s-2);
+  padding: var(--s-5) 0;
+  border-bottom: 1px solid var(--border);
+  min-width: 0;
+}
+.rv-item:last-child { border-bottom: 0; }
+
+.rv-head { display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
+.rv-verified {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: var(--fs-xs); font-weight: 600;
+  color: var(--success-text); background: var(--success-soft);
+  border-radius: var(--r-sm); padding: 2px var(--s-2);
+}
+.rv-when { font-size: var(--fs-xs); color: var(--text-muted); }
+.rv-item-title { font-size: var(--fs-base); overflow-wrap: anywhere; }
+.rv-on { font-size: var(--fs-sm); color: var(--text-muted); }
+.rv-body { margin: 0; line-height: 1.65; overflow-wrap: anywhere; white-space: pre-wrap; }
+
+.rv-foot { display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
+.rv-author { font-size: var(--fs-sm); font-weight: 600; }
+.rv-helpful {
+  background: none; border: 1px solid var(--border); border-radius: 999px;
+  padding: 4px var(--s-3); font-size: var(--fs-xs); cursor: pointer;
+  color: var(--text-muted); font-family: inherit;
+  min-height: 32px;
+}
+.rv-helpful:hover { border-color: var(--border-strong); color: var(--text); }
+.rv-helpful.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+
+/* The vendor's reply is indented under the review it answers. */
+.rv-reply {
+  margin-top: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  border-left: 3px solid var(--accent);
+  background: var(--surface-2);
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.rv-reply strong { font-size: var(--fs-sm); }
+.rv-reply p { margin: 0; font-size: var(--fs-sm); line-height: 1.6; overflow-wrap: anywhere; white-space: pre-wrap; }
+
+.rv-note { font-size: var(--fs-sm); color: var(--text-muted); margin: var(--s-4) 0 0; }
+
+/* star input ------------------------------------------------------------- */
+.rv-input { display: inline-flex; gap: var(--s-1); }
+.rv-input-star {
+  position: relative; cursor: pointer; font-size: 2rem; line-height: 1;
+  color: var(--border-strong); transition: color var(--t-fast) var(--ease);
+}
+.rv-input-star.on { color: var(--gold); }
+.rv-input-star input {
+  position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer;
+}
+/* Visible ring when tabbing, since the real input is transparent. */
+.rv-input-star input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+@media (max-width: 640px) {
+  .rv-summary { grid-template-columns: 1fr; gap: var(--s-4); padding: var(--s-4); }
+  .rv-score { flex-direction: row; align-items: baseline; gap: var(--s-3); flex-wrap: wrap; }
+  .rv-toolbar { justify-content: space-between; }
+  .rv-helpful { min-height: 44px; }
 }
