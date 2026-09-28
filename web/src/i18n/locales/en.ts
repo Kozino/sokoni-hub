@@ -114,6 +114,7 @@ const en: Record<string, string> = {
   'browse.sort.priceLow': 'Price: low to high',
   'browse.sort.priceHigh': 'Price: high to low',
   'browse.clear': 'Clear filters',
+  'browse.filters': 'Filters',
   'browse.count': '{{count}} result | {{count}} results',
 
   /* --------------------------------------------------------------- listing */
