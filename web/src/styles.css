@@ -965,6 +965,23 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 }
 .tip:hover::after, .tip:focus-visible::after { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+/* Tooltips on controls that sit against the right edge.
+
+   A centred, nowrap ::after on the last control in the header spills past the
+   viewport, and an absolutely positioned pseudo-element still contributes to
+   the document's scrollable area even at opacity 0. That is what put a 23px
+   horizontal scroll on EVERY page between roughly 700px and 900px wide — and
+   it is invisible to getBoundingClientRect, which does not see pseudo-elements,
+   so it survived several element sweeps.
+
+   Anchoring to the right keeps the whole tooltip on screen rather than
+   clipping it, which is what overflow:hidden on the header would have done. */
+.tip-end::after {
+  left: auto; right: 0;
+  transform: translateX(0) translateY(3px);
+}
+.tip-end:hover::after, .tip-end:focus-visible::after { transform: translateX(0) translateY(0); }
+
 /* ---------------------------------------------------------------------------
    18. MISC COMPONENTS (avatar, thumb, stepper, kv, dropzone, gallery, progress)
    ------------------------------------------------------------------------ */
