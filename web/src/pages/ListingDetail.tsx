@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useLocation } from 'react-router-dom';
 import { api } from '../lib/api';
 import type { Listing } from '../types';
 import { money, priceLabel, waLink, date } from '../lib/format';
-import { Badge, Spinner, Empty, Alert, QtyInput } from '../components/ui';
+import { Badge, Spinner, Empty, Alert, QtyInput, Tabs } from '../components/ui';
 import { useCart } from '../state/CartContext';
 import { useToast } from '../state/ToastContext';
 import { BookServiceModal } from '../components/BookServiceModal';
@@ -18,6 +18,14 @@ export default function ListingDetail() {
   const [vendorItems, setVendorItems] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [qty, setQty] = useState(1);
+  const { hash } = useLocation();
+  // Deep link: a review notification or a shared link can point straight at
+  // #reviews and land on the right tab.
+  const [tab, setTab] = useState<'description' | 'details' | 'reviews'>(
+    hash === '#reviews' ? 'reviews' : 'description');
+  // Seeded from the listing payload so the tab has a count before the Reviews
+  // tab is ever opened, then kept live by the component itself.
+  const [reviewCount, setReviewCount] = useState(0);
   const [active, setActive] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [zoomed, setZoomed] = useState(false);
@@ -30,7 +38,8 @@ export default function ListingDetail() {
     setLoading(true);
     setActive(0);
     api.get<{ listing: Listing; related: Listing[]; vendorItems: Listing[] }>(`/listings/${id}`)
-      .then((r) => { setL(r.listing); setRelated(r.related); setVendorItems(r.vendorItems || []); })
+      .then((r) => { setL(r.listing); setReviewCount(Number(r.listing.rating_count ?? 0));
+                     setRelated(r.related); setVendorItems(r.vendorItems || []); })
       .catch(() => setL(null))
       .finally(() => setLoading(false));
   }, [id]);
@@ -141,27 +150,6 @@ export default function ListingDetail() {
             </div>
           )}
 
-          <div className="card card-pad mt-3">
-            <h3>Description</h3>
-            <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{l.description || 'No description provided.'}</p>
-          </div>
-
-          <div className="card card-pad mt-3">
-            <h3>Details</h3>
-            <dl className="kv">
-              <dt>Type</dt><dd style={{ textTransform: 'capitalize' }}>{l.kind}</dd>
-              <dt>Category</dt><dd>{l.category_name}</dd>
-              {l.kind === 'product' && <><dt>Available quantity</dt><dd>{l.quantity ?? 0} {l.unit || 'units'}</dd></>}
-              {l.unit && <><dt>Sold per</dt><dd>{l.unit}</dd></>}
-              {l.weight_kg && <><dt>Weight</dt><dd>{Number(l.weight_kg)} kg</dd></>}
-              {l.volume_l && <><dt>Volume</dt><dd>{Number(l.volume_l)} litres</dd></>}
-              {l.duration_mins && <><dt>Session length</dt><dd>{l.duration_mins} minutes</dd></>}
-              {l.service_area && <><dt>Service area</dt><dd>{l.service_area}</dd></>}
-              <dt>Location</dt><dd>{l.vendor_city}, {l.vendor_country}</dd>
-              <dt>Listed</dt><dd>{date(l.created_at)}</dd>
-              <dt>Views</dt><dd>{l.views}</dd>
-            </dl>
-          </div>
         </div>
 
         <div className="ld-buybox">
@@ -240,9 +228,56 @@ export default function ListingDetail() {
         </div>
       </div>
 
-      {/* Reviews sit above "more from this store": a buyer deciding on THIS
-          item wants the verdict on it before being offered another one. */}
-      <Reviews listingId={l.id} title={l.kind === 'service' ? 'Reviews of this service' : 'Reviews of this product'} />
+      {/* Description, Details and Reviews share one strip instead of stacking
+          three cards down the page. Full width rather than inside the narrow
+          left column: the review summary, its distribution bars and the
+          composer need the room, and this is the shape buyers already know
+          from every large marketplace — gallery and buy box on top, one tabbed
+          panel underneath. */}
+      <section className="ld-tabs card mt-4">
+        <Tabs
+          value={tab}
+          onChange={setTab}
+          panelId="ld-panel"
+          tabs={[
+            { id: 'description' as const, label: 'Description' },
+            { id: 'details' as const, label: 'Details' },
+            { id: 'reviews' as const, label: 'Reviews', count: reviewCount },
+          ]}
+        />
+
+        <div
+          id="ld-panel"
+          role="tabpanel"
+          aria-labelledby={`ld-panel-tab-${tab}`}
+          tabIndex={0}
+          className="ld-panel"
+        >
+          {tab === 'description' && (
+            <p className="ld-desc">{l.description || 'No description provided.'}</p>
+          )}
+
+          {tab === 'details' && (
+            <dl className="kv">
+              <dt>Type</dt><dd style={{ textTransform: 'capitalize' }}>{l.kind}</dd>
+              <dt>Category</dt><dd>{l.category_name}</dd>
+              {l.kind === 'product' && <><dt>Available quantity</dt><dd>{l.quantity ?? 0} {l.unit || 'units'}</dd></>}
+              {l.unit && <><dt>Sold per</dt><dd>{l.unit}</dd></>}
+              {l.weight_kg && <><dt>Weight</dt><dd>{Number(l.weight_kg)} kg</dd></>}
+              {l.volume_l && <><dt>Volume</dt><dd>{Number(l.volume_l)} litres</dd></>}
+              {l.duration_mins && <><dt>Session length</dt><dd>{l.duration_mins} minutes</dd></>}
+              {l.service_area && <><dt>Service area</dt><dd>{l.service_area}</dd></>}
+              <dt>Location</dt><dd>{l.vendor_city}, {l.vendor_country}</dd>
+              <dt>Listed</dt><dd>{date(l.created_at)}</dd>
+              <dt>Views</dt><dd>{l.views}</dd>
+            </dl>
+          )}
+
+          {/* Mounted only when open, so the reviews request is not made for
+              buyers who never look at the tab. */}
+          {tab === 'reviews' && <Reviews listingId={l.id} embedded onCount={setReviewCount} />}
+        </div>
+      </section>
 
       {vendorItems.length > 0 && (
         <div className="mt-4">
