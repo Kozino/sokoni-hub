@@ -2,13 +2,96 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Sokoni Hub — the marketplace where African food-stuff sellers and service providers get discovered beyond WhatsApp status." />
+
     <title>Sokoni Hub — Sell beyond WhatsApp status</title>
+    <meta name="description" content="Sokoni Hub — the marketplace where African food-stuff sellers and service providers get discovered beyond WhatsApp status. Verified stores, cash on delivery, WhatsApp checkout." />
+
+    <!--
+      SOCIAL PREVIEW.
+
+      These tags are the growth surface for this product, not decoration. The
+      pitch is "sell beyond WhatsApp status", so vendors share links in
+      WhatsApp groups — and WhatsApp, Facebook and X scrapers DO NOT EXECUTE
+      JAVASCRIPT. For a Vite SPA that means the only thing a scraper will ever
+      read is this file. Anything set from React is invisible to them.
+
+      Per-page previews (a specific listing or store) are therefore handled by
+      netlify/edge-functions/social-preview.ts, which rewrites these same tags
+      server-side for crawler requests. This file is the fallback every other
+      URL gets.
+    -->
+    <link rel="canonical" href="https://sokonihub.com/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Sokoni Hub" />
+    <meta property="og:url" content="https://sokonihub.com/" />
+    <meta property="og:title" content="Sokoni Hub — Sell beyond WhatsApp status" />
+    <meta property="og:description" content="Food stuff by the kg and the services that keep life moving — from verified sellers near you. Cash on delivery or one tap on WhatsApp." />
+    <meta property="og:image" content="https://sokonihub.com/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Sokoni Hub — food stuff and services from verified sellers near you" />
+    <meta property="og:locale" content="en_US" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Sokoni Hub — Sell beyond WhatsApp status" />
+    <meta name="twitter:description" content="Food stuff by the kg and the services that keep life moving — from verified sellers near you." />
+    <meta name="twitter:image" content="https://sokonihub.com/og-image.png" />
+
+    <meta name="theme-color" content="#2E3B6E" />
+    <link rel="icon" type="image/png" href="/logo.png" />
+    <link rel="apple-touch-icon" href="/logo.png" />
+
+    <!--
+      Structured data. The SearchAction is what lets Google render a search box
+      against the site in results, and it costs nothing to declare.
+    -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://sokonihub.com/#org",
+          "name": "Sokoni Hub",
+          "url": "https://sokonihub.com/",
+          "logo": "https://sokonihub.com/logo.png",
+          "areaServed": { "@type": "Country", "name": "Qatar" }
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://sokonihub.com/#site",
+          "url": "https://sokonihub.com/",
+          "name": "Sokoni Hub",
+          "publisher": { "@id": "https://sokonihub.com/#org" },
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": { "@type": "EntryPoint", "urlTemplate": "https://sokonihub.com/browse?q={search_term_string}" },
+            "query-input": "required name=search_term_string"
+          }
+        }
+      ]
+    }
+    </script>
+
+    <!--
+      Fonts. preconnect is kept, but the stylesheet is loaded without blocking
+      first paint: `media=print` + onload is the standard trick, with a
+      <noscript> fallback. The page renders in the fallback stack and swaps,
+      rather than showing nothing until Google Fonts answers — which matters on
+      a mid-range Android over Qatari mobile data.
+    -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" />
+    </noscript>
   </head>
   <body>
     <div id="root"></div>
