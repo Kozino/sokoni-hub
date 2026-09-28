@@ -4,7 +4,7 @@ import { Header } from '../../components/Layout';
 import DashShell, { DashLink, DashNotification } from '../../components/DashShell';
 import { useAuth } from '../../state/AuthContext';
 import { api } from '../../lib/api';
-import { IconChart, IconShield, IconBox, IconAlert, IconReceipt, IconUsers, IconFolder, IconHistory } from '../../components/icons';
+import { IconChart, IconShield, IconBox, IconAlert, IconReceipt, IconUsers, IconFolder, IconHistory, IconStar } from '../../components/icons';
 
 export default function AdminLayout() {
   const { user } = useAuth();
@@ -28,6 +28,7 @@ export default function AdminLayout() {
     { to: '/admin/users', ico: IconUsers, label: 'Users', group: 'Commerce' },
     { to: '/admin/billing', ico: IconReceipt, label: 'Billing', group: 'Commerce' },
     { to: '/admin/bookings', ico: IconHistory, label: 'Service bookings', group: 'Commerce' },
+    { to: '/admin/promotions', ico: IconStar, label: 'Placements', group: 'Commerce' },
     { to: '/admin/categories', ico: IconFolder, label: 'Categories', group: 'Configuration' },
     { to: '/admin/audit', ico: IconHistory, label: 'Activity log', group: 'Configuration' },
   ];
