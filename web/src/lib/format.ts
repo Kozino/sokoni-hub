@@ -30,9 +30,17 @@ export const waLink = (phone: string, text: string) =>
 
 export const titleCase = (s: string) => s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
-export const priceLabel = (l: { price: string | number; currency: string; price_type?: string; unit?: string | null }) => {
+/**
+ * `t` is optional so this stays a plain helper usable outside React. Callers
+ * inside a component pass the translator; anything else falls back to English
+ * rather than forcing every call site through a hook.
+ */
+export const priceLabel = (
+  l: { price: string | number; currency: string; price_type?: string; unit?: string | null },
+  t?: (k: string, v?: Record<string, string | number>) => string,
+) => {
   const base = money(l.price, l.currency);
-  if (l.price_type === 'from') return `From ${base}`;
+  if (l.price_type === 'from') return t ? t('price.from', { price: base }) : `From ${base}`;
   if (l.price_type === 'hourly') return `${base}/hr`;
   if (l.price_type === 'per_kg') return `${base}/kg`;
   if (l.unit) return `${base} / ${l.unit}`;
