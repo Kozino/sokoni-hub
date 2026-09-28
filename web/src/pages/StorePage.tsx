@@ -7,6 +7,7 @@ import ListingCard from '../components/ListingCard';
 import Reviews from '../components/Reviews';
 import { Badge, Empty, Spinner, Tabs } from '../components/ui';
 import { useT } from '../i18n';
+import './StorePage.css';
 
 export default function StorePage() {
   const t = useT();
@@ -27,7 +28,7 @@ export default function StorePage() {
   const shown = tab === 'all' ? listings : listings.filter((l) => l.kind === tab);
 
   return (
-    <div className="container">
+    <div className="container store-page">
       <div className="card card-pad">
         <div className="row-between">
           <div className="row">
@@ -63,7 +64,7 @@ export default function StorePage() {
         />
         {shown.length === 0
           ? <Empty icon="📦" title={t('store.nothingListed')} />
-          : <div className="grid grid-4">{shown.map((l) => <ListingCard key={l.id} l={{ ...l, business_name: vendor.business_name, vendor_city: vendor.city }} />)}</div>}
+          : <div className="grid grid-4 store-grid">{shown.map((l) => <ListingCard key={l.id} l={{ ...l, business_name: vendor.business_name, vendor_city: vendor.city }} />)}</div>}
       </div>
 
       {/* Replaces a hand-rolled list that had no summary, no verified marker,
