@@ -102,6 +102,7 @@ const ar: Record<string, string> = {
   'listing.addToCart': 'أضف إلى السلة',
   'listing.orderWhatsapp': 'اطلب عبر واتساب',
   'listing.requestBooking': 'اطلب حجزًا',
+  'listing.bookNow': 'احجز الآن',
   'listing.outOfStock': 'غير متوفر',
   'listing.inStock': '{{count}} {{unit}} متوفرة',
   'listing.qty': 'الكمية',
