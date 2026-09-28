@@ -4,6 +4,7 @@ import { api, qs } from '../lib/api';
 import type { Listing, Category } from '../types';
 import ListingCard from '../components/ListingCard';
 import { Empty, Spinner } from '../components/ui';
+import FilterPanel from '../components/FilterPanel';
 import './Browse.css';
 import { useT } from '../i18n';
 
@@ -48,43 +49,71 @@ export default function Browse() {
   const kind = get('kind');
   const visibleCats = cats.filter((c) => !kind || c.kind === kind);
   const offset = Number(get('offset') || 0);
+  // Filters that are actually narrowing the results (search text has its own box; sort only counts when changed).
+  const activeCount = ['kind', 'category', 'city', 'min', 'max'].filter((k) => get(k)).length
+    + (get('sort') && get('sort') !== 'newest' ? 1 : 0);
 
   return (
     <div className="container browse-page">
       <h1>{kind === 'service' ? t('common.services') : kind === 'product' ? t('browse.foodstuffTitle') : t('browse.everything')}</h1>
       <p style={{ color: 'var(--muted)' }}>{t('browse.listingCount', { count: total })} {t('browse.fromStores')}</p>
 
-      <form
-        className="filters mt-2"
+      <FilterPanel
+        className="mt-2"
         onSubmit={(e) => { e.preventDefault(); set('q', term); }}
+        activeCount={activeCount}
+        top={
+          <>
+            <input
+              className="grow"
+              type="search"
+              placeholder={t('browse.searchPlaceholder')}
+              value={term}
+              onChange={(e) => setTerm(e.target.value)}
+            />
+            <button className="btn btn-primary" type="submit">{t('common.search')}</button>
+          </>
+        }
+        footer={
+          [...params.keys()].length > 0 && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setTerm(''); setParams(new URLSearchParams()); }}>{t('browse.clear')}</button>
+          )
+        }
       >
-        <input placeholder={t('browse.searchPlaceholder')} value={term} onChange={(e) => setTerm(e.target.value)} style={{ minWidth: 220 }} />
-        <select value={kind} onChange={(e) => { set('category', ''); set('kind', e.target.value); }}>
-          <option value="">{t('browse.allTypes')}</option>
-          <option value="product">{t('common.products')}</option>
-          <option value="service">{t('common.services')}</option>
-        </select>
-        <select value={get('category')} onChange={(e) => set('category', e.target.value)}>
-          <option value="">{t('browse.allCategories')}</option>
-          {visibleCats.map((c) => <option key={c.id} value={c.slug}>{c.name}</option>)}
-        </select>
-        <select value={get('city')} onChange={(e) => set('city', e.target.value)}>
-          <option value="">{t('home.hero.allCities')}</option>
-          {cities.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
-        <input type="number" placeholder={t('browse.minPrice')} value={get('min')} onChange={(e) => set('min', e.target.value)} style={{ maxWidth: 120 }} />
-        <input type="number" placeholder={t('browse.maxPrice')} value={get('max')} onChange={(e) => set('max', e.target.value)} style={{ maxWidth: 120 }} />
-        <select value={get('sort') || 'newest'} onChange={(e) => set('sort', e.target.value)}>
-          <option value="newest">{t('browse.sort.newest')}</option>
-          <option value="price_asc">Price: low → high</option>
-          <option value="price_desc">Price: high → low</option>
-          <option value="popular">{t('browse.sort.viewed')}</option>
-        </select>
-        <button className="btn btn-primary" type="submit">{t('browse.apply')}</button>
-        {[...params.keys()].length > 0 && (
-          <button type="button" className="btn btn-ghost" onClick={() => { setTerm(''); setParams(new URLSearchParams()); }}>{t('browse.clearShort')}</button>
-        )}
-      </form>
+        <label className="fp-field"><span>{t('browse.allTypes')}</span>
+          <select value={kind} onChange={(e) => { set('category', ''); set('kind', e.target.value); }}>
+            <option value="">{t('browse.allTypes')}</option>
+            <option value="product">{t('common.products')}</option>
+            <option value="service">{t('common.services')}</option>
+          </select>
+        </label>
+        <label className="fp-field"><span>{t('browse.filter.category')}</span>
+          <select value={get('category')} onChange={(e) => set('category', e.target.value)}>
+            <option value="">{t('browse.allCategories')}</option>
+            {visibleCats.map((c) => <option key={c.id} value={c.slug}>{c.name}</option>)}
+          </select>
+        </label>
+        <label className="fp-field"><span>{t('browse.filter.city')}</span>
+          <select value={get('city')} onChange={(e) => set('city', e.target.value)}>
+            <option value="">{t('home.hero.allCities')}</option>
+            {cities.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </label>
+        <label className="fp-field"><span>{t('browse.minPrice')}</span>
+          <input type="number" inputMode="decimal" min={0} placeholder={t('browse.minPrice')} value={get('min')} onChange={(e) => set('min', e.target.value)} />
+        </label>
+        <label className="fp-field"><span>{t('browse.maxPrice')}</span>
+          <input type="number" inputMode="decimal" min={0} placeholder={t('browse.maxPrice')} value={get('max')} onChange={(e) => set('max', e.target.value)} />
+        </label>
+        <label className="fp-field"><span>{t('browse.filter.sort')}</span>
+          <select value={get('sort') || 'newest'} onChange={(e) => set('sort', e.target.value)}>
+            <option value="newest">{t('browse.sort.newest')}</option>
+            <option value="price_asc">Price: low → high</option>
+            <option value="price_desc">Price: high → low</option>
+            <option value="popular">{t('browse.sort.viewed')}</option>
+          </select>
+        </label>
+      </FilterPanel>
 
       {loading ? (
         <Spinner />
