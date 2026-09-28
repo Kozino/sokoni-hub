@@ -64,7 +64,7 @@ export default function StorePage() {
         />
         {shown.length === 0
           ? <Empty icon="📦" title={t('store.nothingListed')} />
-          : <div className="grid grid-4 store-grid">{shown.map((l) => <ListingCard key={l.id} showCart l={{ ...l, business_name: vendor.business_name, vendor_city: vendor.city }} />)}</div>}
+          : <div className="grid grid-4 store-grid">{shown.map((l) => <ListingCard key={l.id} showAction l={{ ...l, business_name: vendor.business_name, vendor_city: vendor.city, whatsapp: vendor.whatsapp }} />)}</div>}
       </div>
 
       {/* Replaces a hand-rolled list that had no summary, no verified marker,
