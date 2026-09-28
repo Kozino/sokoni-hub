@@ -120,7 +120,7 @@ export default function Checkout() {
   return (
     <div className="container">
       <h1>Checkout</h1>
-      <div className="grid checkout-grid" style={{ gridTemplateColumns: 'minmax(0,1.4fr) minmax(0,1fr)', gap: 24, alignItems: 'start' }}>
+      <div className="checkout-layout">
         <form className="card card-pad" onSubmit={submit}>
           <Alert kind="error">{err}</Alert>
 
@@ -202,7 +202,7 @@ export default function Checkout() {
           </button>
         </form>
 
-        <div className="card card-pad" style={{ position: 'sticky', top: 86 }}>
+        <div className="card card-pad checkout-summary">
           <h3>Your order</h3>
 
           {quoteErr && <Alert kind="error">{quoteErr}</Alert>}
@@ -213,7 +213,7 @@ export default function Checkout() {
               <div key={g.vendor_id} className="mb-2">
                 <div style={{ fontSize: '.78rem', fontWeight: 800, color: 'var(--muted)', textTransform: 'uppercase' }}>{g.vendor_name}</div>
                 {g.items.map((i) => (
-                  <div key={i.listing_id} className="row-between" style={{ fontSize: '.87rem', padding: '4px 0' }}>
+                  <div key={i.listing_id} className="co-line" style={{ fontSize: '.87rem', padding: '4px 0' }}>
                     <span>{i.title} ×{i.qty}</span><span>{money(i.price * i.qty, i.currency)}</span>
                   </div>
                 ))}
