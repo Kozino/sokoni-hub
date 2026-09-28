@@ -94,6 +94,7 @@ const ar: Record<string, string> = {
   'browse.sort.priceLow': 'السعر: من الأقل للأعلى',
   'browse.sort.priceHigh': 'السعر: من الأعلى للأقل',
   'browse.clear': 'مسح عوامل التصفية',
+  'browse.filters': 'تصفية',
   'browse.count': 'نتيجة واحدة | {{count}} نتائج',
   'listing.tab.description': 'الوصف',
   'listing.tab.details': 'التفاصيل',
