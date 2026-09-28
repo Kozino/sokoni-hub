@@ -49,6 +49,15 @@ export default function Home() {
     api.get<{ cities: string[] }>('/listings/cities').then((r) => setCities(r.cities)).catch(() => {});
   }, []);
 
+  // Built from whatever is actually non-zero, so the row shrinks to the truth
+  // rather than padding itself with zeros.
+  const heroStats = [
+    { label: 'Live listings', value: stats.listings },
+    { label: 'Verified stores', value: stats.vendors },
+    { label: 'Orders delivered', value: stats.orders_delivered },
+    { label: 'Cities', value: stats.cities },
+  ].filter((s) => Number(s.value) > 0);
+
   const search = (e: React.FormEvent) => {
     e.preventDefault();
     const p = new URLSearchParams();
@@ -67,7 +76,15 @@ export default function Home() {
         <div className="lp-blob lp-blob-2" />
         <div className="container lp-hero-inner">
           <div className="lp-hero-copy">
-            <span className="lp-hero-tag"><span className="dot" /> {stats.vendors || 'Dozens of'} verified stores</span>
+            {/* "Dozens of verified stores" with three on the books is a claim
+                the page cannot support. Before there is a number worth quoting,
+                say what is true about the product instead. */}
+            <span className="lp-hero-tag">
+              <span className="dot" />
+              {stats.vendors >= 5
+                ? `${stats.vendors} verified stores`
+                : 'Every store checked by hand'}
+            </span>
             <h1>Shop your market, <span className="accent">all in one place.</span></h1>
             <p className="lede">
               Food stuff by the kg and the services that keep life moving — from sellers near you.
@@ -92,15 +109,35 @@ export default function Home() {
                 <button key={c.to} type="button" className="lp-chip" onClick={() => nav(c.to)}>{c.label}</button>
               ))}
             </div>
-            <div className="lp-hero-stats">
-              <div><strong>{stats.listings}</strong><span>Live listings</span></div>
-              <div><strong>{stats.vendors}</strong><span>Verified stores</span></div>
-              <div><strong>{stats.orders_delivered}</strong><span>Orders delivered</span></div>
-              <div><strong>{stats.cities}</strong><span>Cities</span></div>
-            </div>
+            {/* Only the counters that have something to say.
+                A marketplace announcing "0 Live listings / 0 Verified stores"
+                above the fold loses the visitor in the first second, and
+                /meta/stats is wrapped in a .catch, so a failed call would have
+                pinned those zeros there permanently. A counter with nothing
+                behind it is simply not shown. */}
+            {heroStats.length > 0 && (
+              <div className="lp-hero-stats">
+                {heroStats.map((s) => (
+                  <div key={s.label}><strong>{s.value}</strong><span>{s.label}</span></div>
+                ))}
+              </div>
+            )}
           </div>
           <div className="lp-hero-img-wrap">
-            <div className="lp-hero-img"><img src="/img/hero.jpg" alt="Vendor at her food stall" /></div>
+            <div className="lp-hero-img">
+              {/* This is the LCP element. width/height reserve the box so the
+                  copy beside it does not jump when the image lands, and
+                  fetchPriority tells the browser to stop treating it like a
+                  decorative asset. */}
+              <img
+                src="/img/hero.jpg"
+                alt="Vendor at her food stall"
+                width={1584}
+                height={672}
+                fetchPriority="high"
+                decoding="async"
+              />
+            </div>
             <div className="lp-hero-float">
               <span className="ic">✅</span>
               <div><strong>Admin-verified</strong><span>every store, checked by hand</span></div>
