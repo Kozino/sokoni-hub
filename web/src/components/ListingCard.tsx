@@ -2,8 +2,10 @@ import { Link } from 'react-router-dom';
 import type { Listing } from '../types';
 import { priceLabel } from '../lib/format';
 import { Badge } from './ui';
+import { useT } from '../i18n';
 
 export default function ListingCard({ l }: { l: Listing }) {
+  const t = useT();
   const img = Array.isArray(l.images) ? l.images[0] : undefined;
   const hasRating = typeof l.rating_avg === 'number' && (l.rating_count ?? 0) > 0;
   return (
@@ -11,7 +13,7 @@ export default function ListingCard({ l }: { l: Listing }) {
       <div className="lcard-img">
         {img ? <img src={img} alt={l.title} loading="lazy" /> : <div className="ph">{l.kind === 'service' ? '💇' : '🛍️'}</div>}
         <span className="lcard-kind">
-          <Badge tone={l.kind === 'service' ? 'blue' : 'terra'}>{l.kind}</Badge>
+          <Badge tone={l.kind === 'service' ? 'blue' : 'terra'}>{t(`kind.${l.kind}`)}</Badge>
         </span>
       </div>
       <div className="lcard-body">
@@ -24,7 +26,7 @@ export default function ListingCard({ l }: { l: Listing }) {
             <span className="count">({l.rating_count})</span>
           </div>
         )}
-        <div className="lcard-price">{priceLabel(l)}</div>
+        <div className="lcard-price">{priceLabel(l, t)}</div>
         <div className="lcard-foot">
           <span>{l.business_name}</span>
           <span>{l.vendor_city}</span>

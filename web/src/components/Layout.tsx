@@ -3,6 +3,8 @@ import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../state/AuthContext';
 import { useCart } from '../state/CartContext';
 import { ThemeToggle } from '../state/ThemeContext';
+import LanguageSwitcher from './LanguageSwitcher';
+import { useT } from '../i18n';
 import { api } from '../lib/api';
 
 /** Avatar + dropdown for the signed-in user. Keyboard and click-away aware. */
@@ -56,6 +58,7 @@ function ProfileMenu({ onNavigate }: { onNavigate: () => void }) {
 }
 
 export function Header() {
+  const t = useT();
   const { user, vendor, logout } = useAuth();
   const { count } = useCart();
   const [open, setOpen] = useState(false);
@@ -69,13 +72,13 @@ export function Header() {
           <img src="/logo.png" alt="Sokoni Hub" />
           <span>Sokoni Hub<small>Sell beyond status</small></span>
         </Link>
-        <button className="burger" onClick={() => setOpen((o) => !o)} aria-label="Menu">☰</button>
+        <button className="burger" onClick={() => setOpen((o) => !o)} aria-label={t('nav.menu')}>☰</button>
         <nav className={`nav${open ? ' open' : ''}`}>
-          <NavLink to="/browse" onClick={close}>Browse</NavLink>
-          <NavLink to="/browse?kind=service" onClick={close}>Services</NavLink>
-          <NavLink to="/vendors" onClick={close}>Stores</NavLink>
-          <NavLink to="/support" onClick={close}>Support</NavLink>
-          <Link to="/cart" className="cart-btn" onClick={close} aria-label="Cart">
+          <NavLink to="/browse" onClick={close}>{t('nav.browse')}</NavLink>
+          <NavLink to="/browse?kind=service" onClick={close}>{t('nav.services')}</NavLink>
+          <NavLink to="/vendors" onClick={close}>{t('nav.stores')}</NavLink>
+          <NavLink to="/support" onClick={close}>{t('nav.support')}</NavLink>
+          <Link to="/cart" className="cart-btn" onClick={close} aria-label={t('nav.cart')}>
             <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
                  strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block' }}>
               <circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
@@ -85,21 +88,27 @@ export function Header() {
           </Link>
           {!user && (
             <>
-              <NavLink to="/login" onClick={close}>Login</NavLink>
-              <Link to="/sell" className="btn btn-primary btn-sm" onClick={close}>Start selling</Link>
+              <NavLink to="/login" onClick={close}>{t('nav.login')}</NavLink>
+              <Link to="/sell" className="btn btn-primary btn-sm" onClick={close}>{t('nav.startSelling')}</Link>
             </>
           )}
           {user && (
             <>
-              {user.role === 'admin' && <NavLink to="/admin" onClick={close}>Admin</NavLink>}
-              {user.role === 'vendor' && vendor && <NavLink to="/vendor" onClick={close}>My store</NavLink>}
+              {user.role === 'admin' && <NavLink to="/admin" onClick={close}>{t('nav.admin')}</NavLink>}
+              {user.role === 'vendor' && vendor && <NavLink to="/vendor" onClick={close}>{t('nav.myStore')}</NavLink>}
               {user.role === 'vendor' && !vendor && <NavLink to="/vendor/onboard" onClick={close}>Finish setup</NavLink>}
-              {user.role === 'buyer' && <NavLink to="/account" onClick={close}>Account</NavLink>}
+              {user.role === 'buyer' && <NavLink to="/account" onClick={close}>{t('nav.account')}</NavLink>}
+              <LanguageSwitcher compact />
               <ThemeToggle />
               <ProfileMenu onNavigate={close} />
             </>
           )}
-          {!user && <ThemeToggle />}
+          {!user && (
+            <>
+              <LanguageSwitcher compact />
+              <ThemeToggle />
+            </>
+          )}
         </nav>
       </div>
     </header>
@@ -107,9 +116,10 @@ export function Header() {
 }
 
 export function Footer() {
+  const t = useT();
   const [payment, setPayment] = useState<string[]>([]);
   useEffect(() => { api.get<{ payment_methods: string[] }>('/meta/policy').then((r) => setPayment(r.payment_methods)).catch(() => {}); }, []);
-  const label: Record<string, string> = { cash_on_delivery: '💵 Cash on delivery', whatsapp: '💬 WhatsApp', bank_transfer: '🏦 Bank transfer' };
+  const payIcon: Record<string, string> = { cash_on_delivery: '💵', whatsapp: '💬', bank_transfer: '🏦' };
   const SUPPORT_WHATSAPP = '97466046431'; // no + or spaces — wa.me format
   const supportMsg = encodeURIComponent('Hi, I need help with Sokoni Hub.');
 
@@ -120,41 +130,40 @@ export function Footer() {
           <div>
             <h4>Sokoni Hub</h4>
             <p style={{ maxWidth: 320 }}>
-              A proper storefront for African food-stuff traders and service providers — so your
-              business is searchable, not buried in a 24-hour WhatsApp status.
+              {t('footer.blurb')}
             </p>
           </div>
           <div>
-            <h4>Buy</h4>
-            <Link to="/browse?kind=product">Food stuff</Link>
-            <Link to="/browse?kind=service">Services</Link>
-            <Link to="/vendors">Verified stores</Link>
-            <Link to="/track">Track an order</Link>
+            <h4>{t('footer.buy')}</h4>
+            <Link to="/browse?kind=product">{t('footer.foodstuff')}</Link>
+            <Link to="/browse?kind=service">{t('footer.services')}</Link>
+            <Link to="/vendors">{t('footer.verifiedStores')}</Link>
+            <Link to="/track">{t('footer.trackOrder')}</Link>
           </div>
           <div>
-            <h4>Sell</h4>
-            <Link to="/sell">Become a vendor</Link>
-            <Link to="/register?role=vendor">Create account</Link>
-            <Link to="/login">Vendor login</Link>
+            <h4>{t('footer.sell')}</h4>
+            <Link to="/sell">{t('footer.becomeVendor')}</Link>
+            <Link to="/register?role=vendor">{t('footer.createAccount')}</Link>
+            <Link to="/login">{t('footer.vendorLogin')}</Link>
           </div>
           <div>
-            <h4>Help</h4>
-            <Link to="/support">File a complaint</Link>
-            <Link to="/support#track">Track complaint</Link>
-            <Link to="/policy">Prohibited items</Link>
+            <h4>{t('footer.help')}</h4>
+            <Link to="/support">{t('footer.fileComplaint')}</Link>
+            <Link to="/support#track">{t('footer.trackComplaint')}</Link>
+            <Link to="/policy">{t('footer.prohibited')}</Link>
             <a href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${supportMsg}`} target="_blank" rel="noopener noreferrer">
-              💬 Chat with support
+              💬 {t('footer.chatSupport')}
             </a>
           </div>
         </div>
 
         <div className="footer-payments">
-          {payment.map((p) => <span key={p} className="footer-pay-badge">{label[p] || p}</span>)}
+          {payment.map((p) => <span key={p} className="footer-pay-badge">{payIcon[p] ?? ''} {t(`pay.${p}`)}</span>)}
         </div>
 
         <div className="footer-bottom">
-          <span>© {new Date().getFullYear()} Sokoni Hub. All rights reserved.</span>
-          <span>Pay on delivery. Checkout on WhatsApp. Every store is checked before it goes live.</span>
+          <span>{t('footer.rightsLine', { year: new Date().getFullYear() })}</span>
+          <span>{t('footer.promise')}</span>
         </div>
       </div>
     </footer>

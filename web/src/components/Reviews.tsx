@@ -18,6 +18,7 @@ import { useAuth } from '../state/AuthContext';
 import { useToast } from '../state/ToastContext';
 import { Alert, Empty, Field, Modal, Spinner } from './ui';
 import { date, timeAgo } from '../lib/format';
+import { useT } from '../i18n';
 
 interface Review {
   id: string; listing_id: string | null; rating: number;
@@ -91,6 +92,7 @@ type Props = (
 };
 
 export default function Reviews(props: Props) {
+  const t = useT();
   const { listingId, vendorId, embedded, onCount } = props as
     { listingId?: string; vendorId?: string; embedded?: boolean; onCount?: (n: number) => void };
   const target = listingId ? `listing_id=${listingId}` : `vendor_id=${vendorId}`;
@@ -137,7 +139,7 @@ export default function Reviews(props: Props) {
   };
 
   const submit = async () => {
-    if (rating < 1) { setErr('Choose a rating'); return; }
+    if (rating < 1) { setErr(t('reviews.chooseRating')); return; }
     setBusy(true); setErr('');
     try {
       const ex = elig?.existing;
@@ -189,12 +191,12 @@ export default function Reviews(props: Props) {
     <section className="rv" id="reviews">
       {!embedded && (
         <div className="row-between mb-3">
-          <h2 className="rv-title">{props.title ?? 'Reviews'}</h2>
+          <h2 className="rv-title">{props.title ?? t('reviews.title')}</h2>
           {elig?.can_review && (
-            <button className="btn btn-primary btn-sm" onClick={openForm}>Write a review</button>
+            <button className="btn btn-primary btn-sm" onClick={openForm}>{t('reviews.write')}</button>
           )}
           {elig?.reason === 'already_reviewed' && elig.existing?.editable && (
-            <button className="btn btn-sm" onClick={openForm}>Edit your review</button>
+            <button className="btn btn-sm" onClick={openForm}>{t('reviews.edit')}</button>
           )}
         </div>
       )}
@@ -204,28 +206,28 @@ export default function Reviews(props: Props) {
           second decision between "I want to say something" and saying it. */}
       {embedded && elig?.can_review && (
         <form className="rv-compose" onSubmit={(e) => { e.preventDefault(); submit(); }}>
-          <strong className="rv-compose-title">Write a review</strong>
+          <strong className="rv-compose-title">{t('reviews.write')}</strong>
           <p className="rv-sub">
-            You bought this, so your review will show as a verified purchase.
+            {t('reviews.verifiedNote')}
           </p>
           <div className="rv-compose-row">
-            <span className="rv-compose-label">Your rating</span>
+            <span className="rv-compose-label">{t('reviews.yourRating')}</span>
             <StarInput value={rating} onChange={setRating} />
           </div>
           <input
             className="input" value={heading} maxLength={120}
-            placeholder="Headline (optional) — e.g. Exactly as described"
+            placeholder={t('reviews.headlinePlaceholder')}
             onChange={(e) => setHeading(e.target.value)}
           />
           <textarea
             className="input" rows={4} value={body} maxLength={2000}
-            placeholder="How was the quality, the packaging, the timing?"
+            placeholder={t('reviews.bodyPlaceholder')}
             onChange={(e) => setBody(e.target.value)}
           />
           <div className="rv-compose-foot">
             <span className="rv-sub">{body.length}/2000 · editable for 30 days</span>
             <button className="btn btn-primary" type="submit" disabled={busy || rating < 1}>
-              {busy ? 'Posting…' : 'Post review'}
+              {busy ? t('reviews.posting') : t('reviews.post')}
             </button>
           </div>
           {err && <Alert kind="error">{err}</Alert>}
@@ -234,9 +236,9 @@ export default function Reviews(props: Props) {
 
       {embedded && elig?.reason === 'already_reviewed' && (
         <div className="rv-compose rv-compose-done">
-          <span>You reviewed this.</span>
+          <span>{t('reviews.youReviewed')}</span>
           {elig.existing?.editable && (
-            <button className="btn btn-sm" onClick={openForm}>Edit your review</button>
+            <button className="btn btn-sm" onClick={openForm}>{t('reviews.edit')}</button>
           )}
         </div>
       )}
@@ -246,7 +248,7 @@ export default function Reviews(props: Props) {
       {total === 0 ? (
         <Empty
           icon="⭐"
-          title="No reviews yet"
+          title={t('reviews.none.title')}
           text={elig?.can_review
             ? (embedded ? 'Be the first — the form is just above.'
                         : 'You have bought from here — be the first to say how it went.')
@@ -293,12 +295,12 @@ export default function Reviews(props: Props) {
               </button>
             )}
             <label className="rv-sort">
-              <span>Sort</span>
+              <span>{t('reviews.sort')}</span>
               <select className="input" value={sort} onChange={(e) => setSort(e.target.value as any)}>
-                <option value="recent">Most recent</option>
-                <option value="helpful">Most helpful</option>
-                <option value="high">Highest rated</option>
-                <option value="low">Lowest rated</option>
+                <option value="recent">{t('reviews.sort.recent')}</option>
+                <option value="helpful">{t('reviews.sort.helpful')}</option>
+                <option value="high">{t('reviews.sort.high')}</option>
+                <option value="low">{t('reviews.sort.low')}</option>
               </select>
             </label>
           </div>
@@ -313,7 +315,7 @@ export default function Reviews(props: Props) {
                     <Stars value={r.rating} size="sm" />
                     {r.verified && (
                       <span className="rv-verified" title="This buyer completed an order or booking">
-                        ✓ Verified purchase
+                        {t('reviews.verified')}
                       </span>
                     )}
                     <span className="rv-when">{timeAgo(r.created_at)}</span>
@@ -341,20 +343,20 @@ export default function Reviews(props: Props) {
                         onClick={() => vote(r)}
                         aria-pressed={r.voted}
                       >
-                        {r.voted ? 'Helpful ✓' : 'Helpful'}
+                        {r.voted ? t('reviews.helpfulDone') : t('reviews.helpful')}
                         {r.helpful_count > 0 && <span> ({r.helpful_count})</span>}
                       </button>
                     )}
                     {r.mine && (
                       <button type="button" className="rv-helpful" onClick={() => remove(r)}>
-                        Delete
+                        {t('reviews.delete')}
                       </button>
                     )}
                   </div>
 
                   {r.vendor_reply && (
                     <div className="rv-reply">
-                      <strong>Reply from the store</strong>
+                      <strong>{t('reviews.replyFrom')}</strong>
                       <p>{r.vendor_reply}</p>
                       {r.vendor_replied_at && <span className="rv-when">{timeAgo(r.vendor_replied_at)}</span>}
                     </div>
@@ -393,14 +395,14 @@ export default function Reviews(props: Props) {
           </>
         }
       >
-        <Field label="Your rating">
+        <Field label={t('reviews.yourRating')}>
           <StarInput value={rating} onChange={setRating} />
         </Field>
-        <Field label="Headline" hint="Optional. A short summary.">
+        <Field label={t('reviews.headline')} hint={t('reviews.headlineHint')}>
           <input className="input" value={heading} maxLength={120}
             placeholder="e.g. Exactly as described" onChange={(e) => setHeading(e.target.value)} />
         </Field>
-        <Field label="Your review" hint="Optional. What was good, what was not.">
+        <Field label={t('reviews.body')}>
           <textarea className="input" rows={5} value={body} maxLength={2000}
             placeholder="How was the quality, the packaging, the timing?"
             onChange={(e) => setBody(e.target.value)} />
