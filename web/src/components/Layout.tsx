@@ -151,7 +151,10 @@ export function Footer() {
       <div className="container">
         <div className="footer-grid">
           <div>
-            <h4>Sokoni Hub</h4>
+            <Link to="/" className="footer-brand" aria-label="Sokoni Hub home">
+              <span className="footer-logo"><img src="/logo.png" alt="" width={32} height={32} /></span>
+              <span className="footer-brand-name">Sokoni Hub</span>
+            </Link>
             <p style={{ maxWidth: 320 }}>
               {t('footer.blurb')}
             </p>
