@@ -10,7 +10,23 @@ import { api } from '../lib/api';
 const initialsOf = (name?: string) =>
   (name || '?').split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
 
-/** Desktop/tablet: avatar + dropdown. Hidden on phones (see MobileAccount). */
+/** True on phones (same 640px breakpoint the stylesheet uses for the mobile menu). */
+function useIsPhone() {
+  const query = '(max-width: 640px)';
+  const [phone, setPhone] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(query).matches,
+  );
+  useEffect(() => {
+    const mql = window.matchMedia(query);
+    const update = () => setPhone(mql.matches);
+    update();
+    mql.addEventListener('change', update);
+    return () => mql.removeEventListener('change', update);
+  }, []);
+  return phone;
+}
+
+/** Desktop/tablet: avatar + dropdown. */
 function ProfileMenu({ onNavigate }: { onNavigate: () => void }) {
   const { user, vendor, logout } = useAuth();
   const [open, setOpen] = useState(false);
@@ -60,9 +76,9 @@ function ProfileMenu({ onNavigate }: { onNavigate: () => void }) {
 }
 
 /**
- * Phones: the account section is part of the menu itself, as plain full-width
- * rows. A dropdown inside a scrolling menu gets clipped, which is what hid
- * "Support" and "Sign out". Sign out is always the last row.
+ * Phones only: the account section is part of the menu itself, as plain
+ * full-width rows. A dropdown inside a scrolling menu gets clipped, which is
+ * what hid "Support" and "Sign out". Sign out is always the last row.
  */
 function MobileAccount({ onNavigate }: { onNavigate: () => void }) {
   const { user, vendor, logout } = useAuth();
@@ -70,7 +86,7 @@ function MobileAccount({ onNavigate }: { onNavigate: () => void }) {
   if (!user) return null;
 
   return (
-    <div className="nav-account mob-only">
+    <div className="nav-account">
       <div className="nav-account-who">
         <span className="avatar">{initialsOf(user.full_name)}</span>
         <div>
@@ -127,6 +143,7 @@ function CartLink({ variant, onClick }: { variant: 'desktop' | 'mobile'; onClick
 export function Header() {
   const t = useT();
   const { user, vendor } = useAuth();
+  const isPhone = useIsPhone();
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
 
@@ -147,31 +164,28 @@ export function Header() {
           <NavLink to="/vendors" onClick={close}>{t('nav.stores')}</NavLink>
           <NavLink to="/support" onClick={close}>{t('nav.support')}</NavLink>
           <CartLink variant="desktop" onClick={close} />
+
           {!user && (
             <>
               <NavLink to="/login" onClick={close}>{t('nav.login')}</NavLink>
               <Link to="/sell" className="btn btn-primary btn-sm" onClick={close}>{t('nav.startSelling')}</Link>
             </>
           )}
-          {user && (
+
+          {/* Role links in the top bar: desktop/tablet only. On phones they live in MobileAccount. */}
+          {user && !isPhone && (
             <>
-              {/* Role links: desktop only. On phones they live in MobileAccount. */}
-              {user.role === 'admin' && <NavLink to="/admin" className="desk-only" onClick={close}>{t('nav.admin')}</NavLink>}
-              {user.role === 'vendor' && vendor && <NavLink to="/vendor" className="desk-only" onClick={close}>{t('nav.myStore')}</NavLink>}
-              {user.role === 'vendor' && !vendor && <NavLink to="/vendor/onboard" className="desk-only" onClick={close}>Finish setup</NavLink>}
-              {user.role === 'buyer' && <NavLink to="/account" className="desk-only" onClick={close}>{t('nav.account')}</NavLink>}
-              <LanguageSwitcher compact />
-              <ThemeToggle />
-              <div className="desk-only"><ProfileMenu onNavigate={close} /></div>
-              <MobileAccount onNavigate={close} />
+              {user.role === 'admin' && <NavLink to="/admin" onClick={close}>{t('nav.admin')}</NavLink>}
+              {user.role === 'vendor' && vendor && <NavLink to="/vendor" onClick={close}>{t('nav.myStore')}</NavLink>}
+              {user.role === 'vendor' && !vendor && <NavLink to="/vendor/onboard" onClick={close}>Finish setup</NavLink>}
+              {user.role === 'buyer' && <NavLink to="/account" onClick={close}>{t('nav.account')}</NavLink>}
             </>
           )}
-          {!user && (
-            <>
-              <LanguageSwitcher compact />
-              <ThemeToggle />
-            </>
-          )}
+
+          <LanguageSwitcher compact />
+          <ThemeToggle />
+
+          {user && (isPhone ? <MobileAccount onNavigate={close} /> : <ProfileMenu onNavigate={close} />)}
         </nav>
       </div>
     </header>
