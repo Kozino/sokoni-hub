@@ -98,6 +98,18 @@ adminRouter.get('/vendors', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+adminRouter.get('/vendors/incomplete', async (_req, res, next) => {
+  try {
+    const rows = await query(`
+      select u.id, u.full_name, u.phone, u.email, u.is_active, u.created_at
+      from users u
+      where u.role = 'vendor'
+        and not exists (select 1 from vendors v where v.user_id = u.id)
+      order by u.created_at desc limit 200`);
+    res.json({ users: rows });
+  } catch (e) { next(e); }
+});
+
 adminRouter.get('/vendors/:id', async (req, res, next) => {
   try {
     const v = await one<any>(`
