@@ -1,8 +1,10 @@
 // Serves link-preview HTML (Open Graph tags) to crawlers like WhatsApp for /s/:slug.
 // Real visitors get the normal SPA via context.next().
 //
-// Needs a runtime env var on Netlify:  API_URL=https://<your-api>.onrender.com
-// (Vite's VITE_* variables are build-time only; edge functions read runtime env.)
+// Needs a runtime env var on Netlify: API_URL=https://<your-api>.onrender.com
+// Read via Netlify.env.get(), the same global social-preview.ts uses — Deno.env.get()
+// does not see variables scoped to Edge Functions on Netlify's runtime, so a build
+// using it will always fall through to context.next() as if API_URL were unset.
 
 const CRAWLER_RE =
   /(whatsapp|facebookexternalhit|facebot|twitterbot|telegrambot|slackbot|linkedinbot|discordbot|skypeuripreview|googlebot|bingbot|applebot|pinterest)/i;
@@ -11,6 +13,8 @@ const SITE_NAME = "Sokoni Hub";
 const FETCH_TIMEOUT_MS = 5000;
 
 type Ctx = { next: () => Promise<Response> };
+
+declare const Netlify: { env: { get(key: string): string | undefined } };
 
 function esc(s: string): string {
   return s
@@ -34,7 +38,7 @@ export default async (request: Request, context: Ctx): Promise<Response> => {
   const slug = url.pathname.split("/").filter(Boolean)[1]; // /s/<slug>
   if (!slug || !/^[a-z0-9-]{1,80}$/i.test(slug)) return context.next();
 
-  const apiBase = (Deno.env.get("API_URL") ?? "").replace(/\/$/, "");
+  const apiBase = (Netlify.env.get("API_URL") ?? "").replace(/\/$/, "");
   if (!apiBase) return context.next();
 
   try {
