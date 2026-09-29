@@ -125,10 +125,7 @@ export default function FeaturedStores() {
           <>
             <div className="pr-head">
               <h2 className="pr-title"><StarIcon />VIP</h2>
-              <p>
-                Stores that paid for this placement. Rated and verified like every
-                other store on Sokoni Hub.
-              </p>
+              <p> </p>
             </div>
             <div className="pr-grid pr-grid-vip">
               {vip.map((p) => <StoreCard key={p.id} p={p} onClick={click} />)}
@@ -149,8 +146,7 @@ export default function FeaturedStores() {
 
         {/* Stated once, plainly, rather than relying on the badges alone. */}
         <p className="pr-disclosure">
-          Stores in this section pay for placement. It does not affect their rating,
-          their reviews, or where they appear in search results.
+         
         </p>
       </div>
     </section>
