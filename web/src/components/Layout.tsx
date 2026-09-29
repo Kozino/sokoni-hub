@@ -192,11 +192,10 @@ export function Header() {
   );
 }
 
+
 export function Footer() {
   const t = useT();
-  const [payment, setPayment] = useState<string[]>([]);
-  useEffect(() => { api.get<{ payment_methods: string[] }>('/meta/policy').then((r) => setPayment(r.payment_methods)).catch(() => {}); }, []);
-  const payIcon: Record<string, string> = { cash_on_delivery: '💵', whatsapp: '💬', bank_transfer: '🏦' };
+
   const SUPPORT_WHATSAPP = '97466046431'; // no + or spaces — wa.me format
   const supportMsg = encodeURIComponent('Hi, I need help with Sokoni Hub.');
 
@@ -206,13 +205,16 @@ export function Footer() {
         <div className="footer-grid">
           <div>
             <Link to="/" className="footer-brand" aria-label="Sokoni Hub home">
-              <span className="footer-logo"><img src="/logo.png" alt="" width={32} height={32} /></span>
+              <span className="footer-logo">
+                <img src="/logo.png" alt="" width={32} height={32} />
+              </span>
               <span className="footer-brand-name">Sokoni Hub</span>
             </Link>
             <p style={{ maxWidth: 320 }}>
               {t('footer.blurb')}
             </p>
           </div>
+
           <div>
             <h4>{t('footer.buy')}</h4>
             <Link to="/browse?kind=product">{t('footer.foodstuff')}</Link>
@@ -220,25 +222,27 @@ export function Footer() {
             <Link to="/vendors">{t('footer.verifiedStores')}</Link>
             <Link to="/track">{t('footer.trackOrder')}</Link>
           </div>
+
           <div>
             <h4>{t('footer.sell')}</h4>
             <Link to="/sell">{t('footer.becomeVendor')}</Link>
             <Link to="/register?role=vendor">{t('footer.createAccount')}</Link>
             <Link to="/login">{t('footer.vendorLogin')}</Link>
           </div>
+
           <div>
             <h4>{t('footer.help')}</h4>
             <Link to="/support">{t('footer.fileComplaint')}</Link>
             <Link to="/support#track">{t('footer.trackComplaint')}</Link>
             <Link to="/policy">{t('footer.prohibited')}</Link>
-            <a href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${supportMsg}`} target="_blank" rel="noopener noreferrer">
+            <a
+              href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${supportMsg}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               💬 {t('footer.chatSupport')}
             </a>
           </div>
-        </div>
-
-        <div className="footer-payments">
-          {payment.map((p) => <span key={p} className="footer-pay-badge">{payIcon[p] ?? ''} {t(`pay.${p}`)}</span>)}
         </div>
 
         <div className="footer-bottom">
