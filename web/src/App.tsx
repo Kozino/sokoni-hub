@@ -10,6 +10,7 @@ import { RequireAuth, RequireVendor } from './components/Guards';
 
 import Home from './pages/Home';
 import Browse from './pages/Browse';
+import ShortStoreRedirect from './pages/ShortStoreRedirect';
 import ListingDetail from './pages/ListingDetail';
 import Vendors from './pages/Vendors';
 import StorePage from './pages/StorePage';
