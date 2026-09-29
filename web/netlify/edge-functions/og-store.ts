@@ -63,7 +63,7 @@ export default async (request: Request, context: Ctx): Promise<Response> => {
       115
     ) + (city ? ` (${city})` : "");
 
-    const image = /^https?:\/\//i.test(logo) ? logo : `${url.origin}/og-default.png`;
+    const image = /^https?:\/\//i.test(logo) ? logo : `${url.origin}/og-image.png`;
     const canonical = `${url.origin}/s/${slug}`;
 
     const html = `<!doctype html>
