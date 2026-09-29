@@ -2,7 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { one, query } from '../db';
-import { signToken, requireAuth } from '../auth';
+import { signToken, requireAuth, blockImpersonation } from '../auth';
 import { HttpError, audit, normalizePhone } from '../utils';
 
 export const authRouter = Router();
@@ -77,7 +77,7 @@ authRouter.get('/me', requireAuth(), async (req, res, next) => {
   }
 });
 
-authRouter.patch('/me', requireAuth(), async (req, res, next) => {
+authRouter.patch('/me', requireAuth(), blockImpersonation, async (req, res, next) => {
   try {
     const b = z
       .object({ full_name: z.string().min(2).optional(), email: z.string().email().nullable().optional() })
@@ -93,7 +93,7 @@ authRouter.patch('/me', requireAuth(), async (req, res, next) => {
   }
 });
 
-authRouter.post('/change-password', requireAuth(), async (req, res, next) => {
+authRouter.post('/change-password', requireAuth(), blockImpersonation, async (req, res, next) => {
   try {
     const b = z
       .object({ current_password: z.string(), new_password: z.string().min(6) })
