@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react';
-import QRCode from 'qrcode';
+import { useState } from 'react';
 import { Field } from './ui';
 
 type Props = { slug: string; businessName: string };
@@ -13,17 +12,16 @@ export default function ShareStorePanel({ slug, businessName }: Props) {
   const qrLink = `${SITE}/s/${slug}?ref=qr`;
   const message = `Order from ${businessName} on Sokoni Hub. See what's in stock and place your order here: ${link}`;
 
-  const [qr, setQr] = useState('');
+  // No local QR generation, no npm dependency. api.qrserver.com is a free,
+  // unauthenticated public QR image service: it receives the plain qrLink URL
+  // as a query param and returns a PNG. That URL is already meant to be
+  // public (it's what gets printed/shared), so this leaks nothing sensitive
+  // — but it does mean a third party's server sees the link on each render.
+  // Swap this for a self-hosted generator later if that's a concern.
+  const qr = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=10&data=${encodeURIComponent(qrLink)}`;
+
   const [copied, setCopied] = useState(false);
   const canNativeShare = typeof navigator !== 'undefined' && 'share' in navigator;
-
-  useEffect(() => {
-    let cancelled = false;
-    QRCode.toDataURL(qrLink, { width: 640, margin: 2, errorCorrectionLevel: 'M' })
-      .then((url: string) => { if (!cancelled) setQr(url); })
-      .catch(() => { /* QR is optional; the link still works */ });
-    return () => { cancelled = true; };
-  }, [qrLink]);
 
   async function copyLink() {
     try {
@@ -64,18 +62,22 @@ export default function ShareStorePanel({ slug, businessName }: Props) {
           )}
         </div>
 
-        {qr && (
-          <div className="row mt-2" style={{ alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
-            <img src={qr} alt={`QR code for ${businessName}`} width={140} height={140}
-                 style={{ borderRadius: 8, background: '#fff' }} />
-            <div>
-              <p style={{ color: 'var(--muted)', fontSize: '.85rem', margin: '0 0 8px', maxWidth: '32ch' }}>
-                Print this for your stall or shop. Scans are counted separately from shared links.
-              </p>
-              <a className="btn btn-outline btn-sm" href={qr} download={`${slug}-qr.png`}>Download QR code</a>
-            </div>
+        <div className="row mt-2" style={{ alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+          <img src={qr} alt={`QR code for ${businessName}`} width={140} height={140}
+               style={{ borderRadius: 8, background: '#fff' }} loading="lazy" />
+          <div>
+            <p style={{ color: 'var(--muted)', fontSize: '.85rem', margin: '0 0 8px', maxWidth: '32ch' }}>
+              Print this for your stall or shop. Scans are counted separately from shared links.
+            </p>
+            {/* Cross-origin image: most browsers open it in a new tab rather
+                than force-saving it, since `download` only works reliably
+                same-origin. Good enough for "right-click, save image". */}
+            <a className="btn btn-outline btn-sm" href={qr} target="_blank" rel="noreferrer"
+               download={`${slug}-qr.png`}>
+              Download QR code
+            </a>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
