@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../state/AuthContext';
 import { useCart } from '../state/CartContext';
 import { ThemeToggle } from '../state/ThemeContext';
 import LanguageSwitcher from './LanguageSwitcher';
 import { useT } from '../i18n';
-import { api } from '../lib/api';
 
 const initialsOf = (name?: string) =>
   (name || '?').split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
@@ -147,6 +146,13 @@ export function Header() {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
 
+  // NavLink ignores the query string, so /browse and /browse?kind=service
+  // would both look active. Decide it here instead.
+  const { pathname, search } = useLocation();
+  const onBrowse = pathname === '/browse';
+  const servicesActive = onBrowse && new URLSearchParams(search).get('kind') === 'service';
+  const browseActive = onBrowse && !servicesActive;
+
   return (
     <header className="header">
       <div className="container header-inner">
@@ -159,13 +165,14 @@ export function Header() {
           <button className="burger" onClick={() => setOpen((o) => !o)} aria-label={t('nav.menu')} aria-expanded={open}>☰</button>
         </div>
         <nav className={`nav${open ? ' open' : ''}`}>
-        <NavLink to="/browse" end>
-  {t('nav.browse')}
-</NavLink>
-
-<NavLink to="/browse?kind=service">
-  {t('nav.services')}
-</NavLink>
+          <Link to="/browse" className={browseActive ? 'active' : undefined}
+                aria-current={browseActive ? 'page' : undefined} onClick={close}>
+            {t('nav.browse')}
+          </Link>
+          <Link to="/browse?kind=service" className={servicesActive ? 'active' : undefined}
+                aria-current={servicesActive ? 'page' : undefined} onClick={close}>
+            {t('nav.services')}
+          </Link>
           <NavLink to="/vendors" onClick={close}>{t('nav.stores')}</NavLink>
           <NavLink to="/support" onClick={close}>{t('nav.support')}</NavLink>
           <CartLink variant="desktop" onClick={close} />
@@ -196,7 +203,6 @@ export function Header() {
     </header>
   );
 }
-
 
 export function Footer() {
   const t = useT();
