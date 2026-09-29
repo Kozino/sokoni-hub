@@ -9,6 +9,7 @@ import {
   quoteVendorOrder, cartTotals, round2, DEFAULT_CURRENCY,
   type FulfilmentMode, type VendorDeliverySettings,
 } from '../delivery';
+import { attributionSchema, resolveOrderSource } from '../lib/attribution';
 
 export const orderRouter = Router();
 
@@ -26,6 +27,7 @@ const checkoutSchema = z.object({
   payment_method: z.enum(['cash_on_delivery', 'whatsapp', 'bank_transfer']).default('cash_on_delivery'),
   fulfilment_mode: z.enum(['pickup', 'delivery']).default('delivery'),
   note: z.string().max(500).optional(),
+  attribution: attributionSchema,
 });
 
 /**
@@ -36,7 +38,7 @@ const checkoutSchema = z.object({
 async function loadCart(items: { listing_id: string; qty: number }[]) {
   const ids = items.map((i) => i.listing_id);
   const rows = await query<any>(
-    `select l.*, v.id as vid, v.business_name, v.whatsapp, v.status as vendor_status,
+    `select l.*, v.id as vid, v.slug as vendor_slug, v.business_name, v.whatsapp, v.status as vendor_status,
             s.offers_pickup, s.offers_delivery, s.delivery_fee as v_delivery_fee,
             s.free_delivery_over, s.delivery_radius_km, s.pickup_address, s.delivery_notes
      from listings l
@@ -143,16 +145,20 @@ orderRouter.post('/checkout', optionalAuth, async (req, res, next) => {
       const out: any[] = [];
       for (const { quote, lines, vItems } of priced) {
         const code = randomCode('ORD');
+        // Which channel actually brought this buyer to this vendor. A shared
+        // link/QR only counts for the vendor it names — every other vendor in
+        // a multi-vendor cart still gets 'marketplace'.
+        const source = resolveOrderSource(b.attribution, vItems[0].vendor_slug);
         // total is written explicitly as subtotal + delivery_fee. A CHECK
         // constraint on the table enforces this, so a regression fails loudly.
         const { rows: [order] } = await c.query(
           `insert into orders (code, buyer_id, vendor_id, payment_method, subtotal, delivery_fee, total, currency,
-             contact_name, contact_phone, delivery_address, city, country, note, fulfilment_mode)
-           values ($1,$2,$3,$4::payment_method,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15::fulfilment_mode) returning *`,
+             contact_name, contact_phone, delivery_address, city, country, note, fulfilment_mode, source)
+           values ($1,$2,$3,$4::payment_method,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15::fulfilment_mode,$16) returning *`,
           [code, req.user?.id ?? null, quote.vendor_id, b.payment_method,
            quote.subtotal, quote.delivery_fee, quote.total, quote.currency,
            b.contact_name, b.contact_phone,
-           b.delivery_address, b.city, b.country, b.note || null, quote.mode]
+           b.delivery_address, b.city, b.country, b.note || null, quote.mode, source]
         );
         for (const { r, qty, line } of lines) {
           await c.query(
