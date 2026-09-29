@@ -7,15 +7,22 @@ import { DataTable, DTColumn } from '../../components/DataTable';
 import { useToast } from '../../state/ToastContext';
 import type { Vendor } from '../../types';
 
+type IncompleteUser = {
+  id: string; full_name: string; phone: string;
+  email: string | null; is_active: boolean; created_at: string;
+};
+
 const TABS = [
   { id: 'pending', label: 'Pending' }, { id: 'verified', label: 'Verified' },
-  { id: 'rejected', label: 'Rejected' }, { id: 'suspended', label: 'Suspended' }, { id: '', label: 'All' },
+  { id: 'rejected', label: 'Rejected' }, { id: 'suspended', label: 'Suspended' },
+  { id: 'incomplete', label: 'Incomplete' }, { id: '', label: 'All' },
 ];
 
 export default function AdminVendors() {
   const [params, setParams] = useSearchParams();
   const status = params.get('status') ?? 'pending';
   const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [incomplete, setIncomplete] = useState<IncompleteUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
   const [detail, setDetail] = useState<any>(null);
@@ -26,6 +33,11 @@ export default function AdminVendors() {
 
   const load = () => {
     setLoading(true);
+    if (status === 'incomplete') {
+      api.get<{ users: IncompleteUser[] }>('/admin/vendors/incomplete')
+        .then((r) => setIncomplete(r.users)).catch(() => setIncomplete([])).finally(() => setLoading(false));
+      return;
+    }
     api.get<{ vendors: Vendor[] }>(`/admin/vendors${qs({ status, q })}`)
       .then((r) => setVendors(r.vendors)).catch(() => setVendors([])).finally(() => setLoading(false));
   };
@@ -68,6 +80,19 @@ export default function AdminVendors() {
     { key: 'applied', header: 'Applied', defaultHidden: true, sortAccessor: (v) => v.created_at, render: (v) => <span style={{ fontSize: '.8rem' }}>{date(v.created_at)}</span> },
   ];
 
+  const incompleteColumns: DTColumn<IncompleteUser>[] = [
+    { key: 'name', header: 'Name', alwaysVisible: true, sortAccessor: (u) => u.full_name, render: (u) => <span className="td-strong">{u.full_name}</span> },
+    { key: 'phone', header: 'Phone', render: (u) => <span className="td-mono" style={{ fontSize: '.8rem' }}>{u.phone}</span> },
+    { key: 'email', header: 'Email', defaultHidden: true, render: (u) => u.email || '—' },
+    { key: 'account', header: 'Account', render: (u) => (u.is_active ? 'Enabled' : 'Disabled') },
+    { key: 'registered', header: 'Registered', sortAccessor: (u) => u.created_at, render: (u) => <span style={{ fontSize: '.8rem' }}>{date(u.created_at)}</span> },
+  ];
+
+  const term = q.trim().toLowerCase();
+  const incompleteRows = term
+    ? incomplete.filter((u) => `${u.full_name} ${u.phone} ${u.email ?? ''}`.toLowerCase().includes(term))
+    : incomplete;
+
   return (
     <>
       <div className="dash-title"><h1>Vendor verification</h1><p>Approve, reject or suspend stores. Nothing goes live without your approval.</p></div>
@@ -79,18 +104,38 @@ export default function AdminVendors() {
         <button className="btn btn-primary btn-sm">Search</button>
       </form>
 
-      <DataTable
-        columns={columns}
-        rows={vendors}
-        rowKey={(v) => v.id}
-        loading={loading}
-        emptyIcon="🛡️"
-        emptyTitle={`No ${status || ''} vendors`}
-        emptyText="Nothing to review right now."
-        exportFilename="vendors"
-        storageKey="admin-vendors"
-        rowActions={(v) => <button className="btn btn-outline btn-sm" onClick={() => open(v.id)}>Review</button>}
-      />
+      {status === 'incomplete' ? (
+        <>
+          <Alert kind="warn">
+            These people registered as vendors but haven't submitted their store yet, so there is nothing to
+            verify. They appear in the Pending tab once they finish onboarding.
+          </Alert>
+          <DataTable
+            columns={incompleteColumns}
+            rows={incompleteRows}
+            rowKey={(u) => u.id}
+            loading={loading}
+            emptyIcon="📝"
+            emptyTitle="No incomplete registrations"
+            emptyText="Every registered vendor has submitted their store."
+            exportFilename="incomplete-vendors"
+            storageKey="admin-vendors-incomplete"
+          />
+        </>
+      ) : (
+        <DataTable
+          columns={columns}
+          rows={vendors}
+          rowKey={(v) => v.id}
+          loading={loading}
+          emptyIcon="🛡️"
+          emptyTitle={`No ${status || ''} vendors`}
+          emptyText="Nothing to review right now."
+          exportFilename="vendors"
+          storageKey="admin-vendors"
+          rowActions={(v) => <button className="btn btn-outline btn-sm" onClick={() => open(v.id)}>Review</button>}
+        />
+      )}
 
       <Modal open={!!detail} title={detail?.business_name ?? ''} onClose={() => { setDetail(null); setAction(null); }}
         footer={detail && !action ? (
