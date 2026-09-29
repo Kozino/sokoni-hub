@@ -57,10 +57,10 @@ export default async (request: Request, context: Ctx): Promise<Response> => {
     const city: string = v.city ?? "";
     const logo: string = v.logo_url ?? "";
 
-    const title = truncate(`${name} on ${SITE_NAME}`, 70);
+    const title = truncate(`${name} on ${SITE_NAME}`, 60);
     const description = truncate(
       about || `Browse ${name} and place your order on ${SITE_NAME}.`,
-      150
+      115
     ) + (city ? ` (${city})` : "");
 
     const image = /^https?:\/\//i.test(logo) ? logo : `${url.origin}/og-default.png`;
