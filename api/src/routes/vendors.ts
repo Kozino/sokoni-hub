@@ -229,13 +229,25 @@ vendorRouter.get('/dashboard', requireAuth('vendor'), loadVendor, async (req, re
       [vid]
     );
 
+    // Where orders actually came from — a vendor's shared link, a QR scan, or
+    // plain marketplace discovery. Backs the "your shared link brought in X
+    // orders" stat and, later, whatever gets priced around it.
+    const bySource = await query<any>(
+      `select coalesce(source, 'marketplace') as source, count(*)::int as orders,
+              coalesce(sum(total),0) filter (where status <> 'cancelled')::float as gmv
+       from orders
+       where vendor_id = $1 and created_at > now() - interval '30 days'
+       group by source`,
+      [vid]
+    );
+
     const recentOrders = await query<any>(
       `select id, code, status, total, currency, contact_name, city, payment_method, created_at
        from orders where vendor_id = $1 order by created_at desc limit 10`,
       [vid]
     );
 
-    res.json({ stats, salesTrend, topListings, byStatus, recentOrders, vendor: req.vendor });
+    res.json({ stats, salesTrend, topListings, byStatus, bySource, recentOrders, vendor: req.vendor });
   } catch (e) {
     next(e);
   }
