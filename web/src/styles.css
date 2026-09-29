@@ -2207,3 +2207,28 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 .nav-account a.active { color: var(--accent-text); background: var(--accent-soft); font-weight: 600; }
 .nav-account button.linkish.danger { color: var(--danger-text); margin-top: var(--s-2); border: 1px solid var(--danger-line); justify-content: center; }
 .nav-account button.linkish.danger:hover { background: var(--danger-soft); }
+
+/* Add to the end of your global stylesheet. */
+
+/* Big, centred, spaced-out dots for a 4-digit PIN */
+.pin-input {
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 1.75rem;
+  letter-spacing: .6em;
+  text-indent: .6em;          /* balances the trailing letter-spacing so dots look centred */
+  font-variant-numeric: tabular-nums;
+}
+.pin-input::placeholder { letter-spacing: .4em; opacity: .5; }
+
+/* "Forgot your PIN?" helper under the PIN form */
+.pin-help {
+  margin-top: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  line-height: 1.55;
+}
