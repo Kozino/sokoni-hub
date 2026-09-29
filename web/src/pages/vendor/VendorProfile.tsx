@@ -4,6 +4,7 @@ import { api, ApiError } from '../../lib/api';
 import { useAuth } from '../../state/AuthContext';
 import { Alert, Field, Spinner, StatusBadge } from '../../components/ui';
 import ImageUploader from '../../components/ImageUploader';
+import ShareStorePanel from '../../components/ShareStorePanel';
 import { useToast } from '../../state/ToastContext';
 import { date } from '../../lib/format';
 import DeliverySettings from './DeliverySettings';
@@ -56,6 +57,12 @@ export default function VendorProfile() {
         </div>
         {vendor.rejection_reason && <Alert kind="error"><strong>Admin note:</strong> {vendor.rejection_reason}</Alert>}
       </div>
+
+      {vendor.status === 'verified' && (
+        <div className="mb-3">
+          <ShareStorePanel slug={vendor.slug} businessName={vendor.business_name} />
+        </div>
+      )}
 
       <form className="card card-pad" onSubmit={submit} style={{ maxWidth: 780 }}>
         <Alert kind="error">{err}</Alert>
