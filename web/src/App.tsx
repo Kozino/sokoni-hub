@@ -61,6 +61,7 @@ export default function App() {
 
               <Route element={<Layout />}>
                 <Route path="/browse" element={<Browse />} />
+                <Route path="/s/:slug" element={<ShortStoreRedirect />} />
                 <Route path="/listing/:id" element={<ListingDetail />} />
                 <Route path="/vendors" element={<Vendors />} />
                 <Route path="/store/:slug" element={<StorePage />} />
