@@ -119,7 +119,10 @@ export default function Home() {
     <div className="lp">
       {/* ================================================================ HERO */}
       <section className="lp-hero">
-        <div className="lp-hero-glow" aria-hidden="true" />
+        {/* Photo background. An <img> (not CSS background) so it can be the LCP
+            element and carry fetchPriority; the overlay in Home.css keeps text readable. */}
+        <img className="lp-hero-bg" src="/img/hero.jpg" alt="" width={1584} height={672}
+             fetchPriority="high" decoding="async" />
         <div className="container lp-hero-inner">
           <div className="lp-hero-copy">
             <span className="lp-hero-tag">
@@ -165,16 +168,9 @@ export default function Home() {
             )}
           </div>
 
-          <div className="lp-hero-img-wrap">
-            <div className="lp-hero-img">
-              {/* LCP element: width/height reserve the box, fetchPriority raises it. */}
-              <img src="/img/hero.jpg" alt={t('home.hero.imageAlt')} width={1584} height={672}
-                   fetchPriority="high" decoding="async" />
-            </div>
-            <div className="lp-hero-float">
-              <span className="ic"><Icon name="check" /></span>
-              <div><strong>{t('home.hero.adminVerified')}</strong><span>{t('home.hero.adminVerifiedSub')}</span></div>
-            </div>
+          <div className="lp-hero-float">
+            <span className="ic"><Icon name="check" /></span>
+            <div><strong>{t('home.hero.adminVerified')}</strong><span>{t('home.hero.adminVerifiedSub')}</span></div>
           </div>
         </div>
       </section>
