@@ -24,6 +24,10 @@ adminRouter.get('/overview', async (_req, res, next) => {
         (select count(*) from vendors where status = 'verified')                 as vendors_verified,
         (select count(*) from vendors where status = 'rejected')                 as vendors_rejected,
         (select count(*) from vendors where status = 'suspended')                as vendors_suspended,
+        (select count(*) from vendors where status = 'suspended')                as vendors_suspended,
+        (select count(*) from users u where u.role = 'vendor'
+           and not exists (select 1 from vendors v where v.user_id = u.id))      as vendors_incomplete,
+        (select count(*) from listings where status = 'active')                  as listings_active,
         (select count(*) from listings where status = 'active')                  as listings_active,
         (select count(*) from listings where status = 'pending_review')         as listings_pending,
         (select count(*) from listings where kind='product' and status='active') as products_active,
