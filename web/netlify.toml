@@ -3,7 +3,7 @@
   publish = "dist"
   # Per-page social previews and the live sitemap. Both no-op safely when
   # API_URL is unset, so a deploy without it behaves exactly as before.
-#  edge_functions = "netlify/edge-functions"
+  edge_functions = "netlify/edge-functions"
 
 [build.environment]
   NODE_VERSION = "20"
