@@ -5,6 +5,7 @@ import { useCart } from '../state/CartContext';
 import { useAuth } from '../state/AuthContext';
 import { money } from '../lib/format';
 import { Alert, Field } from '../components/ui';
+import { getAttribution, clearAttribution } from '../lib/attribution';
 import type { Order, PaymentMethod, FulfilmentMode, CartQuote } from '../types';
 
 export default function Checkout() {
@@ -67,9 +68,14 @@ export default function Checkout() {
         // For collection the address field is hidden; send a clear placeholder
         // rather than an empty string so the vendor's record still reads well.
         delivery_address: needsAddress ? form.delivery_address : 'Collection from store',
+        // Which vendor's shared link/QR brought this buyer here, if any.
+        // undefined when there's nothing stored — the server treats that as
+        // an ordinary marketplace order.
+        attribution: getAttribution(),
       });
       setDone(r.orders);
       clear();
+      clearAttribution();
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : 'Checkout failed');
     } finally { setBusy(false); }
