@@ -13,6 +13,8 @@ export interface AuthUser {
   phone: string;
   email: string | null;
   is_active: boolean;
+  /** Set when an admin is viewing as this user; holds the admin's user id. */
+  impersonated_by?: string;
 }
 
 declare global {
@@ -25,17 +27,25 @@ declare global {
   }
 }
 
-export const signToken = (userId: string, role: Role) =>
-  jwt.sign({ sub: userId, role }, config.jwtSecret, { expiresIn: config.jwtExpires } as jwt.SignOptions);
+export const signToken = (
+  userId: string,
+  role: Role,
+  opts?: { expiresIn?: string; impersonatedBy?: string }
+) =>
+  jwt.sign(
+    { sub: userId, role, ...(opts?.impersonatedBy ? { imp: opts.impersonatedBy } : {}) },
+    config.jwtSecret,
+    { expiresIn: opts?.expiresIn ?? config.jwtExpires } as jwt.SignOptions
+  );
 
 async function loadUser(req: Request): Promise<AuthUser | null> {
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer ')) return null;
 
   // A bad, expired or forged token is genuinely "not authenticated".
-  let payload: { sub: string };
+  let payload: { sub: string; imp?: string };
   try {
-    payload = jwt.verify(header.slice(7), config.jwtSecret) as { sub: string };
+    payload = jwt.verify(header.slice(7), config.jwtSecret) as { sub: string; imp?: string };
   } catch {
     return null;
   }
@@ -45,10 +55,12 @@ async function loadUser(req: Request): Promise<AuthUser | null> {
   // so reporting a transient DB blip as 401 silently signs every active user
   // out — exactly when the database is already struggling. Let it throw and
   // surface as a 5xx the client will retry instead.
-  return await one<AuthUser>(
+  const u = await one<AuthUser>(
     'select id, role, full_name, phone, email, is_active from users where id = $1',
     [payload.sub]
   );
+  if (u && payload.imp) u.impersonated_by = payload.imp;
+  return u;
 }
 
 /** Attaches req.user when a valid token is present, never fails. */
@@ -105,4 +117,14 @@ export function requireVerifiedVendor(req: Request, _res: Response, next: NextFu
       ? 'Your verification was rejected. Please update your details and resubmit.'
       : 'Your store is suspended. Contact support.';
   next(new HttpError(403, msg));
+}
+
+/**
+ * Must come after requireAuth. Blocks sensitive actions (password, email,
+ * payout details) while an admin is viewing as another user.
+ */
+export function blockImpersonation(req: Request, _res: Response, next: NextFunction) {
+  if (req.user?.impersonated_by)
+    return next(new HttpError(403, 'Not available while viewing as another user'));
+  next();
 }
