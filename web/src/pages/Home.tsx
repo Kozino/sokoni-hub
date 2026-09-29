@@ -1,3 +1,4 @@
+
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
@@ -16,16 +17,17 @@ const CAT_SLUGS = new Set([
   'nails', 'makeup', 'photography', 'video-editing', 'graphics-design',
   'tailoring', 'catering', 'events', 'cleaning',
 ]);
+
 const catImg = (c: Category) =>
   `/img/cat/${CAT_SLUGS.has(c.slug) ? c.slug : '_default'}.webp`;
 
 /* Labels are translation keys, resolved at render. */
 const QUICK = [
-  { key: 'quick.grains',   to: '/browse?category=grains-cereals' },
-  { key: 'quick.braids',   to: '/browse?category=hair-styling' },
+  { key: 'quick.grains', to: '/browse?category=grains-cereals' },
+  { key: 'quick.braids', to: '/browse?category=hair-styling' },
   { key: 'quick.catering', to: '/browse?category=catering' },
-  { key: 'quick.photo',    to: '/browse?category=photography' },
-  { key: 'quick.spices',   to: '/browse?category=spices-seasoning' },
+  { key: 'quick.photo', to: '/browse?category=photography' },
+  { key: 'quick.spices', to: '/browse?category=spices-seasoning' },
 ];
 
 /* Inline SVG icons (stroke, 24px grid). Emoji render differently on every
@@ -40,6 +42,7 @@ const ICONS: Record<string, ReactNode> = {
   box: <><path d="m7.5 4.27 9 5.15" /><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" /></>,
   check: <><circle cx="12" cy="12" r="10" /><path d="m9 12 2 2 4-4" /></>,
 };
+
 function Icon({ name }: { name: keyof typeof ICONS }) {
   return (
     <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
@@ -56,6 +59,7 @@ function Shelf({ title, to, items, cols, scroll, tint }: {
 }) {
   const t = useT();
   if (items.length === 0) return null;
+
   return (
     <section className={`lp-shelf${tint ? ' is-tint' : ''}`}>
       <div className="container">
@@ -73,7 +77,13 @@ function Shelf({ title, to, items, cols, scroll, tint }: {
   );
 }
 
-interface Stats { vendors: number; listings: number; services: number; cities: number; orders_delivered: number }
+interface Stats {
+  vendors: number;
+  listings: number;
+  services: number;
+  cities: number;
+  orders_delivered: number;
+}
 
 export default function Home() {
   const t = useT();
@@ -82,7 +92,13 @@ export default function Home() {
   const [q, setQ] = useState('');
   const [kind, setKind] = useState('');
   const [cities, setCities] = useState<string[]>([]);
-  const [stats, setStats] = useState<Stats>({ vendors: 0, listings: 0, services: 0, cities: 0, orders_delivered: 0 });
+  const [stats, setStats] = useState<Stats>({
+    vendors: 0,
+    listings: 0,
+    services: 0,
+    cities: 0,
+    orders_delivered: 0
+  });
   const [cats, setCats] = useState<Category[]>([]);
   const [trending, setTrending] = useState<Listing[]>([]);
   const [latest, setLatest] = useState<Listing[]>([]);
@@ -125,12 +141,6 @@ export default function Home() {
              fetchPriority="high" decoding="async" />
         <div className="container lp-hero-inner">
           <div className="lp-hero-copy">
-            <span className="lp-hero-tag">
-              <span className="dot" />
-              {stats.vendors >= 5
-                ? t('home.hero.verifiedStores', { count: stats.vendors })
-                : t('home.hero.checkedByHand')}
-            </span>
             <h1>{t('home.hero.title')} {t('home.hero.titleAccent')}</h1>
             <p className="lede">{t('home.hero.lede')}</p>
 
@@ -166,11 +176,6 @@ export default function Home() {
                 ))}
               </div>
             )}
-          </div>
-
-          <div className="lp-hero-float">
-            <span className="ic"><Icon name="check" /></span>
-            <div><strong>{t('home.hero.adminVerified')}</strong><span>{t('home.hero.adminVerifiedSub')}</span></div>
           </div>
         </div>
       </section>
