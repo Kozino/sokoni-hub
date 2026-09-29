@@ -369,9 +369,26 @@
 
 @media (max-width: 640px) {
   .lp-promos { padding-top: var(--s-10); }
-  .pr-grid, .pr-grid-vip { grid-template-columns: 1fr; gap: var(--s-3); }
-  .pr-vip { padding: var(--s-5); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .pr-card:hover, .pr-card:hover .pr-main::after { transform: none; }
+
+  /* Two cards per row on phones, for both VIP and Sponsored */
+  .pr-grid, .pr-grid-vip { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-2); }
+  .pr-card, .pr-vip { padding: var(--s-3); gap: var(--s-2); }
+  .pr-vip::before { inset: 4px; }
+
+  /* Half-width cards: logo above the text, no chevron */
+  .pr-main { flex-direction: column; align-items: flex-start; gap: var(--s-2); }
+  .pr-main::after { display: none; }
+  .pr-body { width: 100%; min-width: 0; }
+  .pr-logo, .pr-vip .pr-logo { width: 48px; height: 48px; font-size: var(--fs-base); }
+
+  /* Long store names wrap to two lines instead of pushing the card wider */
+  .pr-name, .pr-vip .pr-name {
+    font-size: var(--fs-sm); line-height: 1.3;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .pr-meta { font-size: 11px; }
+  .pr-loc { min-width: 0; overflow-wrap: anywhere; }
+  .pr-stats { flex-direction: column; align-items: flex-start; gap: 0; }
+  .pr-stats [aria-hidden='true'] { display: none; }  /* the "•" between rating and listings */
+  .pr-badge { font-size: 9px; padding: 2px 6px; }
 }
