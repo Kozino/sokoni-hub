@@ -139,7 +139,7 @@ export default function FeaturedStores() {
         {featured.length > 0 && (
           <>
             <div className={`pr-head ${vip.length ? 'mt-4' : ''}`}>
-              <h2 className="pr-title">Sponsored stores</h2>
+              <h2 className="pr-title">Sponsored</h2>
             </div>
             <div className="pr-grid">
               {featured.map((p) => <StoreCard key={p.id} p={p} onClick={click} />)}
