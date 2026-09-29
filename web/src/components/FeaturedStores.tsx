@@ -1,5 +1,5 @@
 /**
- * Paid placement on the landing page — VIP and Featured stores.
+ * Paid placement on the landing page — VIP and Sponsored stores.
  *
  * Two rules this component exists to enforce, both of which are easy to lose
  * if the markup is inlined into Home.tsx:
@@ -39,6 +39,19 @@ export interface PromotedStore {
 const initials = (name: string) =>
   name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
 
+/* Small inline icons: identical on every phone, and they follow text colour. */
+const PinIcon = () => (
+  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
+       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" />
+  </svg>
+);
+const StarIcon = () => (
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+    <path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2Z" />
+  </svg>
+);
+
 function StoreCard({ p, onClick }: { p: PromotedStore; onClick: (id: string) => void }) {
   const rating = Number(p.rating_avg) || 0;
   return (
@@ -51,7 +64,7 @@ function StoreCard({ p, onClick }: { p: PromotedStore; onClick: (id: string) => 
           over the card. Overlaying it means every padding change risks it
           landing on the store name — which it did. */}
       <span className={`pr-badge pr-badge-${p.tier}`}>
-        {p.tier === 'vip' ? 'VIP' : 'Featured'}
+        {p.tier === 'vip' ? 'VIP' : 'Sponsored'}
       </span>
 
       <div className="pr-main">
@@ -63,13 +76,13 @@ function StoreCard({ p, onClick }: { p: PromotedStore; onClick: (id: string) => 
 
         <div className="pr-body">
           <strong className="pr-name">{p.business_name}</strong>
-          <span className="pr-meta">{p.city}</span>
-          <span className="pr-meta">
+          <span className="pr-meta pr-loc"><PinIcon />{p.city}</span>
+          <span className="pr-meta pr-stats">
             {rating > 0
-              ? <>★ {rating.toFixed(1)} <span className="pr-dim">({p.rating_count})</span></>
+              ? <span><span className="pr-star">★</span> {rating.toFixed(1)} <span className="pr-dim">({p.rating_count})</span></span>
               : <span className="pr-dim">New store</span>}
-            {' · '}
-            {p.listing_count} {p.listing_count === 1 ? 'listing' : 'listings'}
+            <span className="pr-dim" aria-hidden="true">•</span>
+            <span>{p.listing_count} {p.listing_count === 1 ? 'listing' : 'listings'}</span>
           </span>
         </div>
       </div>
@@ -110,9 +123,8 @@ export default function FeaturedStores() {
       <div className="container">
         {vip.length > 0 && (
           <>
-            <div className="lp-section-head pr-head">
-              <span className="lp-eyebrow">Premium stores</span>
-              <h2>VIP stores</h2>
+            <div className="pr-head">
+              <h2 className="pr-title"><StarIcon />VIP stores</h2>
               <p>
                 Stores that paid for this placement. Rated and verified like every
                 other store on Sokoni Hub.
@@ -126,9 +138,8 @@ export default function FeaturedStores() {
 
         {featured.length > 0 && (
           <>
-            <div className={`lp-section-head pr-head ${vip.length ? 'mt-6' : ''}`}>
-              <span className="lp-eyebrow">Sponsored</span>
-              <h2>Featured stores</h2>
+            <div className={`pr-head ${vip.length ? 'mt-4' : ''}`}>
+              <h2 className="pr-title">Sponsored stores</h2>
             </div>
             <div className="pr-grid">
               {featured.map((p) => <StoreCard key={p.id} p={p} onClick={click} />)}
