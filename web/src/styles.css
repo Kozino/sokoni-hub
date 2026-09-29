@@ -2232,3 +2232,874 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
   color: var(--text-muted);
   line-height: 1.55;
 }
+
+
+/* ============================================================================
+   SOKONI HUB — VENDOR DASHBOARD · "CLASSIC EDITION" COLOUR SKIN
+   ----------------------------------------------------------------------------
+   A colour-only layer for sokoni.css. Append it at the very bottom of the
+   global stylesheet and the vendor dashboard repaints in a classic palette:
+
+     ivory paper canvas · adire-indigo ink · brass gold rules
+     oxblood · forest · teal · plum as the working accents
+
+   What this file does NOT do
+   - No markup changes. No new classes are required on any existing page.
+   - No layout, spacing, radius, type or motion changes. Nothing moves; only
+     colour, tint, rules and hairlines are added.
+
+   How it works
+   - The design system already routes every colour through tokens, and the
+     dashboard shell carries `.dash` on its root element. Redefining the tokens
+     once on `.dash` recolours most of the product for free; the rest is
+     component polish written in the same token language, so both themes and
+     any future component inherit it correctly.
+
+   Scoping — read this one paragraph
+   - Everything below is prefixed with `.dash`, the shell the vendor dashboard
+     renders inside (the admin console shares that shell). To keep the admin on
+     the neutral DS palette: find-and-replace `.dash` with `.dash.vendor` in
+     this file and add `vendor` to the vendor layout's class list only.
+   - The one exception is section 16, PORTALS: modals, dropdown menus, search
+     menus and toasts render into <body>, outside `.dash`, so those rules are
+     global. Delete the section to leave them neutral.
+
+   Every block that is a matter of taste rather than correctness is marked
+   "optional" — KPI colour rotation, card colour rotation, paper texture.
+   ========================================================================= */
+
+
+/* ============================================================================
+   1. THE CLASSIC PALETTE — light
+   ----------------------------------------------------------------------------
+   Values are re-stated on `.dash`, not on :root, so the marketing pages and any
+   other surface keep the neutral DS palette. Everything downstream —
+   alerts, badges, focus rings, charts, empty states, the legacy aliases —
+   picks these up automatically.
+   ========================================================================= */
+.dash {
+  /* new tokens this skin introduces -------------------------------------- */
+  --gold-bright:   #C9A227;   /* rules, active markers, star fills          */
+  --gold-line:     #E8D9B4;   /* borders around gold-tinted surfaces        */
+  --gold-deep:     #7C5A11;   /* gold as body-sized text                    */
+  --rust:          #A6522B;
+  --rust-soft:     #FBEEE8;
+  --rust-line:     #EACDBE;
+  --rust-text:     #8A4322;
+  --plum:          #5D3A6E;
+  --plum-soft:     #F2ECF6;
+  --plum-line:     #D9CBE6;
+  --plum-text:     #4A2E5B;
+  --teal:          #1B6473;
+  --teal-soft:     #E8F1F2;
+  --teal-line:     #C2D9DC;
+  --teal-text:     #155460;
+
+  /* paper ---------------------------------------------------------------- */
+  --bg:            #F6F4EE;   /* warm ivory, not cool grey                  */
+  --bg-subtle:     #FBF9F4;
+  --surface:       #FFFFFF;
+  --surface-2:     #F7F4EC;
+  --surface-3:     #EFEADF;
+  --elevated:      #FFFFFF;
+  --sidebar:       #1B2145;   /* the rail is ink; content is paper          */
+  --header:        rgba(246,244,238,.90);
+
+  /* ruling lines --------------------------------------------------------- */
+  --border:        #E3DED0;
+  --border-strong: #CBC2AC;
+  --border-subtle: #EEE9DC;
+  --ring:          rgba(43,58,114,.20);
+
+  /* ink ------------------------------------------------------------------ */
+  --text:          #171C36;
+  --text-2:        #4C5169;
+  --text-muted:    #868B9E;
+  --text-invert:   #FFFFFF;
+
+  /* adire indigo, given a little more depth ------------------------------ */
+  --accent:        #2B3A72;
+  --accent-hover:  #22305F;
+  --accent-active: #1A2650;
+  --accent-soft:   #ECEEF7;
+  --accent-softer: #F4F5FA;
+  --accent-line:   #C7CDE4;
+  --accent-text:   #2B3A72;
+
+  /* semantics, warmed up ------------------------------------------------- */
+  --success:       #1F6B4A;   /* forest, not grass                          */
+  --success-soft:  #E9F3EC;
+  --success-line:  #BFD9C9;
+  --success-text:  #175539;
+
+  --warning:       #A9700F;   /* bronze                                     */
+  --warning-soft:  #FBF1DF;
+  --warning-line:  #E9D3A6;
+  --warning-text:  #805409;
+
+  --danger:        #9E2B2B;   /* oxblood, not signal red                    */
+  --danger-soft:   #FBECEA;
+  --danger-line:   #EFC9C4;
+  --danger-text:   #85221F;
+
+  --info:          #1B6473;   /* teal — the old blue was the accent twice   */
+  --info-soft:     #E8F1F2;
+  --info-line:     #C2D9DC;
+  --info-text:     #155460;
+
+  --gold:          #B5852A;
+  --gold-soft:     #FBF2E0;
+
+  --ink-deep:      #141833;
+
+  /* data-viz — a five-colour classic set, in fixed meaning order --------- */
+  --chart-1: #2B3A72;   /* indigo   */
+  --chart-2: #1F6B4A;   /* forest   */
+  --chart-3: #B5852A;   /* brass    */
+  --chart-4: #1B6473;   /* teal     */
+  --chart-5: #6B4485;   /* plum     */
+  --chart-grid: #E9E3D5;
+  --chart-axis: #8C8778;
+
+  /* shadows carry the ink, so they read warm rather than grey-blue ------- */
+  --shadow-xs: 0 1px 2px rgba(23,28,54,.06);
+  --shadow-sm: 0 1px 2px rgba(23,28,54,.07), 0 1px 1px rgba(23,28,54,.04);
+  --shadow:    0 2px 4px rgba(23,28,54,.06), 0 4px 12px rgba(23,28,54,.07);
+  --shadow-md: 0 4px 8px rgba(23,28,54,.08), 0 12px 28px rgba(23,28,54,.09);
+  --shadow-lg: 0 12px 24px rgba(23,28,54,.11), 0 24px 56px rgba(23,28,54,.13);
+
+  /* the ink rail's own vocabulary ---------------------------------------- */
+  --v-rail-text:   rgba(232,235,247,.74);
+  --v-rail-ink:    #FFFFFF;
+  --v-rail-muted:  rgba(232,235,247,.46);
+  --v-rail-icon:   rgba(226,232,255,.55);
+  --v-rail-line:   rgba(232,235,247,.10);
+  --v-rail-hover:  rgba(255,255,255,.065);
+  --v-rail-active: rgba(255,255,255,.105);
+  --v-rail-danger: #F2A99B;
+}
+
+
+/* ============================================================================
+   2. THE CLASSIC PALETTE — dark
+   ----------------------------------------------------------------------------
+   Same palette at night: the rail loses to the page (it is already the darkest
+   thing on screen), gold and oxblood lift until they clear AA, and the paper
+   texture drops to a whisper.
+   ========================================================================= */
+:root[data-theme='dark'] .dash {
+  --gold-bright:   #E0BC6A;
+  --gold-line:     #4C3D1E;
+  --gold-deep:     #E5C57A;
+  --rust:          #D98F63;  --rust-soft: #2B1D14;  --rust-line: #4A3324;  --rust-text: #E7A87F;
+  --plum:          #B58FD0;  --plum-soft: #241B2C;  --plum-line: #3E2F4C;  --plum-text: #C6A7DC;
+  --teal:          #74B6C8;  --teal-soft: #142329;  --teal-line: #264049;  --teal-text: #93CBD9;
+
+  --bg:            #14151B;
+  --bg-subtle:     #181A21;
+  --surface:       #1D1F28;
+  --surface-2:     #22242E;
+  --surface-3:     #2A2D38;
+  --elevated:      #22242E;
+  --sidebar:       #0C0E19;
+  --header:        rgba(20,21,27,.90);
+
+  --border:        #31333F;
+  --border-strong: #434653;
+  --border-subtle: #262833;
+  --ring:          rgba(224,188,106,.30);
+
+  --text:          #ECEDF2;
+  --text-2:        #AEB2C2;
+  --text-muted:    #7B8093;
+  --text-invert:   #14151B;
+
+  --accent:        #93A0E4;
+  --accent-hover:  #A6B1EA;
+  --accent-active: #B8C1EF;
+  --accent-soft:   #232744;
+  --accent-softer: #1E2138;
+  --accent-line:   #3A4067;
+  --accent-text:   #A9B4EC;
+
+  --success:       #66BE93;  --success-soft: #14261E;  --success-line: #2A4636;  --success-text: #7FD0A6;
+  --warning:       #DCAE4E;  --warning-soft: #2A2113;  --warning-line: #4A3A1C;  --warning-text: #E6C377;
+  --danger:        #E2867B;  --danger-soft:  #2B1917;  --danger-line:  #4C2B26;  --danger-text:  #EEA096;
+  --info:          #74B6C8;  --info-soft:    #142329;  --info-line:    #264049;  --info-text:    #93CBD9;
+  --gold:          #D8B25C;  --gold-soft:    #2A2214;
+  --ink-deep:      #0B0D16;
+
+  --chart-1: #93A0E4;
+  --chart-2: #66BE93;
+  --chart-3: #D8B25C;
+  --chart-4: #74B6C8;
+  --chart-5: #B58FD0;
+  --chart-grid: #2A2C36;
+  --chart-axis: #7B8093;
+
+  --shadow-xs: 0 1px 2px rgba(0,0,0,.4);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.45);
+  --shadow:    0 2px 6px rgba(0,0,0,.45), 0 8px 20px rgba(0,0,0,.32);
+  --shadow-md: 0 6px 16px rgba(0,0,0,.48), 0 16px 36px rgba(0,0,0,.38);
+  --shadow-lg: 0 16px 40px rgba(0,0,0,.58);
+
+  --v-rail-text:   rgba(233,235,246,.78);
+  --v-rail-ink:    #FFFFFF;
+  --v-rail-muted:  rgba(233,235,246,.42);
+  --v-rail-icon:   rgba(226,232,255,.58);
+  --v-rail-line:   rgba(233,235,246,.09);
+  --v-rail-hover:  rgba(255,255,255,.055);
+  --v-rail-active: rgba(255,255,255,.095);
+  --v-rail-danger: #F0A79A;
+}
+
+
+/* ============================================================================
+   3. THE PAPER — dashboard canvas, rules and the top of the page
+   ========================================================================= */
+
+/* optional: engraved-paper grain. Delete this block for a flat canvas. */
+.dash-main {
+  background-image: radial-gradient(rgba(43,58,114,.045) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+:root[data-theme='dark'] .dash-main {
+  background-image: radial-gradient(rgba(255,255,255,.022) 1px, transparent 1px);
+}
+
+.dash ::selection { background: #F0DFB4; color: var(--text); }
+
+/* The global header sits above the shell, so it cannot be reached from `.dash`.
+   `:has()` is used to tint it only on pages that actually contain a dashboard;
+   browsers without support simply keep the DS header. */
+body:has(.dash) .header {
+  background: rgba(246,244,238,.92);
+  border-bottom-color: transparent;
+}
+body:has(.dash) .header::after {
+  content: ''; position: absolute; inset-inline: 0; bottom: 0; height: 2px;
+  background: linear-gradient(90deg,
+    #2B3A72 0%, #2B3A72 18%,
+    #C9A227 50%,
+    #2B3A72 82%, #2B3A72 100%);
+  opacity: .9;
+}
+body:has(.dash) .brand { color: var(--text); }
+body:has(.dash) .brand small { color: var(--gold-deep); letter-spacing: .04em; }
+
+:root[data-theme='dark'] body:has(.dash) .header { background: rgba(20,21,27,.92); }
+:root[data-theme='dark'] body:has(.dash) .brand small { color: var(--gold-bright); }
+
+/* Toolbar strip under the header: a ruled ledger line, not a floating panel. */
+.dash .dash-bar { border-bottom: 1px solid var(--border); }
+.dash .breadcrumb .sep { color: var(--gold); opacity: .9; }
+.dash .breadcrumb a:hover { color: var(--accent-text); }
+.dash .breadcrumb .current { color: var(--text); }
+
+.dash .dash-search input { background: var(--surface-2); border-color: var(--border); }
+.dash .dash-search input:focus { background: var(--surface); border-color: var(--accent); }
+.dash .dash-search .menu { border-top-width: 2px; border-top-color: var(--gold); }
+
+/* Page heading gains a signature rule: ink for the words, brass for the seal. */
+.dash .dash-title h1 { color: var(--text); }
+.dash .dash-title h1::after {
+  content: ''; display: block; width: 46px; height: 3px; margin-top: 10px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent) 0 58%, var(--gold-bright) 58% 100%);
+}
+.dash .dash-title p { color: var(--text-muted); }
+
+.dash .dash-scrim { background: rgba(20,24,51,.55); }
+
+
+/* ============================================================================
+   4. THE RAIL — sidebar
+   ----------------------------------------------------------------------------
+   `--sidebar` alone turns the whole track ink at every breakpoint: the shell
+   paints the column as a background image, so the rail stays full height on
+   long pages. Everything here is the light-on-ink counterpart.
+   ========================================================================= */
+.dash .dash-side { scrollbar-color: rgba(255,255,255,.22) transparent; }
+
+.dash .dash-side .who { border-bottom-color: var(--v-rail-line); }
+.dash .dash-side .who strong { color: var(--v-rail-ink); }
+.dash .dash-side .who span { color: var(--v-rail-muted); }
+.dash .dash-side .avatar {
+  background: rgba(201,162,39,.18);
+  color: #E8CB7E;
+  border-color: rgba(201,162,39,.5);
+}
+
+.dash .nav-group-label { color: var(--v-rail-muted); letter-spacing: .09em; }
+
+.dash .dash-nav a { color: var(--v-rail-text); }
+.dash .dash-nav a .ico { color: var(--v-rail-icon); opacity: .82; }
+.dash .dash-nav a:hover { background: var(--v-rail-hover); color: var(--v-rail-ink); }
+.dash .dash-nav a:hover .ico { color: var(--v-rail-ink); opacity: 1; }
+.dash .dash-nav a:active { background: rgba(255,255,255,.13); }
+
+/* Active item: a brass marker on the gutter, a lifted navy fill, ink-white text.
+   The marker is the one place gold is allowed to shout. */
+.dash .dash-nav a.active {
+  background: var(--v-rail-active);
+  color: var(--v-rail-ink);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.07);
+}
+.dash .dash-nav a.active .ico { color: var(--gold-bright); opacity: 1; }
+.dash .dash-nav a.active::before {
+  background: var(--gold-bright);
+  box-shadow: 0 0 0 1px rgba(201,162,39,.25);
+}
+
+.dash .dash-nav a .pill { background: var(--gold-bright); color: #2A1E05; }
+
+.dash .dash-nav a:focus-visible { outline-color: var(--gold-bright); }
+
+/* Icon-rail tooltips: ink chip with a brass hairline, legible over content. */
+.dash .dash-nav a::after {
+  background: #10142E; color: #F5F1E6;
+  border: 1px solid rgba(224,188,106,.35);
+}
+.dash[data-collapsed='true'] .dash-nav a::after {
+  background: #10142E; color: #F5F1E6;
+  border: 1px solid rgba(224,188,106,.35);
+}
+
+.dash .dash-side-foot { border-top-color: var(--v-rail-line); }
+.dash .dash-side-foot .menu-item { color: var(--v-rail-text); }
+.dash .dash-side-foot .menu-item:hover { background: var(--v-rail-hover); color: var(--v-rail-ink); }
+.dash .dash-side-foot .menu-item .meta,
+.dash .dash-side-foot .label { color: var(--v-rail-muted); }
+.dash .dash-side-foot .menu-item.danger { color: var(--v-rail-danger); }
+.dash .dash-side-foot .menu-item.danger:hover { background: rgba(226,134,123,.14); }
+
+
+/* ============================================================================
+   5. CARDS — the ruled panel
+   ----------------------------------------------------------------------------
+   A 3px hue bar across the top replaces the shadow-heavy card: that band is the
+   single strongest classic cue on the page, so it is also where the colour
+   rotation lives.
+   ========================================================================= */
+.dash .card {
+  --card-accent: var(--accent);
+  --card-soft:   var(--accent-softer);
+  --card-line:   var(--accent-line);
+  --card-ink:    var(--accent-text);
+  border-top: 3px solid var(--card-accent);
+}
+.dash .card.card-hover:hover { border-top-color: var(--card-accent); }
+
+.dash .card-head {
+  background: linear-gradient(180deg, var(--card-soft) 0%, var(--surface) 100%);
+  border-bottom-color: var(--card-line);
+}
+.dash .card-head h3,
+.dash .card-head h4 { color: var(--card-ink); }
+.dash .card-head .sub { color: var(--text-muted); }
+.dash .card-foot { background: var(--surface-2); border-top-color: var(--border); }
+
+/* optional: rotate card hues across a grid (indigo → brass → forest).
+   Delete this block and every card returns to indigo. */
+.dash .grid > .card:nth-child(3n+2) {
+  --card-accent: var(--gold);
+  --card-soft:   var(--gold-soft);
+  --card-line:   var(--gold-line);
+  --card-ink:    var(--gold-deep);
+}
+.dash .grid > .card:nth-child(3n+3) {
+  --card-accent: var(--success);
+  --card-soft:   var(--success-soft);
+  --card-line:   var(--success-line);
+  --card-ink:    var(--success-text);
+}
+
+/* Explicit overrides, for when the page should choose rather than the counter.
+   Add one of these classes to a .card and the rotation steps aside. */
+.dash .grid > .card.card-navy,   .dash .card.card-navy   { --card-accent: var(--accent);  --card-soft: var(--accent-softer); --card-line: var(--accent-line);  --card-ink: var(--accent-text); }
+.dash .grid > .card.card-gold,   .dash .card.card-gold   { --card-accent: var(--gold);    --card-soft: var(--gold-soft);     --card-line: var(--gold-line);    --card-ink: var(--gold-deep); }
+.dash .grid > .card.card-forest, .dash .card.card-forest { --card-accent: var(--success); --card-soft: var(--success-soft);  --card-line: var(--success-line); --card-ink: var(--success-text); }
+.dash .grid > .card.card-wine,   .dash .card.card-wine   { --card-accent: var(--danger);  --card-soft: var(--danger-soft);   --card-line: var(--danger-line);  --card-ink: var(--danger-text); }
+.dash .grid > .card.card-teal,   .dash .card.card-teal   { --card-accent: var(--teal);    --card-soft: var(--teal-soft);     --card-line: var(--teal-line);    --card-ink: var(--teal-text); }
+.dash .grid > .card.card-plum,   .dash .card.card-plum   { --card-accent: var(--plum);    --card-soft: var(--plum-soft);     --card-line: var(--plum-line);    --card-ink: var(--plum-text); }
+.dash .grid > .card.card-rust,   .dash .card.card-rust   { --card-accent: var(--rust);    --card-soft: var(--rust-soft);     --card-line: var(--rust-line);    --card-ink: var(--rust-text); }
+
+
+/* ============================================================================
+   6. KPI / STAT CARDS — the colour wheel of the dashboard
+   ----------------------------------------------------------------------------
+   Each tile is tinted from its own hue and labelled in it. When the markup
+   names a hue (.accent-gold, .accent-green…) that name wins; when it does not,
+   the grid rotates indigo → brass → forest → teal → oxblood so a row never
+   lands on one flat colour.
+   ========================================================================= */
+.dash .stat {
+  --stat-ink:   var(--accent);
+  --stat-soft:  var(--accent-softer);
+  --stat-line:  var(--accent-line);
+  --stat-label: var(--accent-text);
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--stat-soft) 0%, var(--surface) 62%);
+  border-color: var(--stat-line);
+}
+.dash .stat::before {
+  content: ''; position: absolute; inset: 0 0 auto 0; height: 3px;
+  background: var(--stat-ink);
+}
+.dash .stat:hover { border-color: var(--stat-ink); }
+.dash .stat .label { color: var(--stat-label); }
+.dash .stat .value { color: var(--text); }
+.dash .stat .sub { color: var(--text-muted); }
+
+/* Named hues — the markup's own accents, remapped to the classic set. */
+.dash .stat.accent-terra { --stat-ink: var(--accent);  --stat-soft: var(--accent-softer);  --stat-line: var(--accent-line);  --stat-label: var(--accent-text); }
+.dash .stat.accent-gold  { --stat-ink: var(--gold);    --stat-soft: var(--gold-soft);      --stat-line: var(--gold-line);    --stat-label: var(--gold-deep); }
+.dash .stat.accent-green { --stat-ink: var(--success); --stat-soft: var(--success-soft);   --stat-line: var(--success-line); --stat-label: var(--success-text); }
+.dash .stat.accent-blue  { --stat-ink: var(--teal);    --stat-soft: var(--teal-soft);      --stat-line: var(--teal-line);    --stat-label: var(--teal-text); }
+.dash .stat.accent-red   { --stat-ink: var(--danger);  --stat-soft: var(--danger-soft);    --stat-line: var(--danger-line);  --stat-label: var(--danger-text); }
+
+/* optional: the rotation. `:not([class*='accent-'])` keeps it out of the way of
+   any stat that has already named its own colour. Delete for an all-indigo row. */
+.dash .grid-stats > .stat:not([class*='accent-']):nth-child(5n+1) {
+  --stat-ink: var(--accent);  --stat-soft: var(--accent-softer); --stat-line: var(--accent-line);  --stat-label: var(--accent-text);
+}
+.dash .grid-stats > .stat:not([class*='accent-']):nth-child(5n+2) {
+  --stat-ink: var(--gold);    --stat-soft: var(--gold-soft);     --stat-line: var(--gold-line);    --stat-label: var(--gold-deep);
+}
+.dash .grid-stats > .stat:not([class*='accent-']):nth-child(5n+3) {
+  --stat-ink: var(--success); --stat-soft: var(--success-soft);  --stat-line: var(--success-line); --stat-label: var(--success-text);
+}
+.dash .grid-stats > .stat:not([class*='accent-']):nth-child(5n+4) {
+  --stat-ink: var(--teal);    --stat-soft: var(--teal-soft);     --stat-line: var(--teal-line);    --stat-label: var(--teal-text);
+}
+.dash .grid-stats > .stat:not([class*='accent-']):nth-child(5n+5) {
+  --stat-ink: var(--danger);  --stat-soft: var(--danger-soft);   --stat-line: var(--danger-line);  --stat-label: var(--danger-text);
+}
+/* the same rhythm for the three-count strips (bookings, payouts, placements) */
+.dash .grid.bk-stats > .stat:not([class*='accent-']):nth-child(3n+2) {
+  --stat-ink: var(--gold);    --stat-soft: var(--gold-soft);     --stat-line: var(--gold-line);    --stat-label: var(--gold-deep);
+}
+.dash .grid.bk-stats > .stat:not([class*='accent-']):nth-child(3n+3) {
+  --stat-ink: var(--success); --stat-soft: var(--success-soft);  --stat-line: var(--success-line); --stat-label: var(--success-text);
+}
+
+.dash .stat .trend.up { color: var(--success-text); }
+.dash .stat .trend.down { color: var(--danger-text); }
+
+
+/* ============================================================================
+   7. TABLES — a ledger, ruled in ink
+   ========================================================================= */
+.dash table.tbl th {
+  color: var(--accent-text);
+  background: var(--surface-2);
+  border-bottom: 2px solid var(--accent-line);
+  letter-spacing: .07em;
+}
+/* the header of a table that lives inside a card borrows that card's hue */
+.dash .card .table-wrap th {
+  color: var(--card-ink);
+  background: var(--card-soft);
+  border-bottom-color: var(--card-line);
+}
+.dash table.tbl td { color: var(--text-2); border-bottom-color: var(--border-subtle); }
+
+/* Ruled-paper rows. Applied to the row, not the cells, so the ledger line and
+   the hover/selected washes cannot fight each other: each rule below is the
+   same weight and later in the cascade, which is what makes hover win on an
+   even row as well. */
+.dash table.tbl tbody tr:nth-child(even) { background: var(--bg-subtle); }
+.dash table.tbl tbody tr:hover { background: var(--accent-softer); }
+.dash table.tbl tbody tr[data-selected='true'] {
+  background: var(--gold-soft);
+  box-shadow: inset 3px 0 0 var(--gold);
+}
+/* Phones pin the first column with its own background, so the washes above
+   have to be restated for that one cell or the stripes break mid-row. */
+@media (max-width: 640px) {
+  .dash table.tbl tbody tr:nth-child(even) td:first-child { background: var(--surface-2); }
+  .dash table.tbl tbody tr:hover td:first-child { background: var(--accent-softer); }
+  .dash table.tbl tbody tr[data-selected='true'] td:first-child { background: var(--gold-soft); }
+}
+
+.dash .td-strong { color: var(--text); }
+.dash .td-mono { color: var(--accent-text); }
+.dash .td-sub { color: var(--text-muted); }
+.dash table.tbl td.num { color: var(--text); font-weight: 600; }
+
+/* Money and totals read as ink figures — a small, very classic touch. */
+.dash .td-mono, .dash table.tbl td.num { font-variant-numeric: tabular-nums; }
+
+
+/* ============================================================================
+   8. BADGES, ALERTS, STAMPS
+   ========================================================================= */
+.dash .badge { border-radius: var(--r-xs); font-weight: 650; }
+.dash .badge-green { background: var(--success-soft); color: var(--success-text); border-color: var(--success-line); }
+.dash .badge-gold  { background: var(--warning-soft); color: var(--warning-text); border-color: var(--warning-line); }
+.dash .badge-red   { background: var(--danger-soft);  color: var(--danger-text);  border-color: var(--danger-line); }
+.dash .badge-blue  { background: var(--teal-soft);    color: var(--teal-text);    border-color: var(--teal-line); }
+.dash .badge-terra { background: var(--accent-soft);  color: var(--accent-text);  border-color: var(--accent-line); }
+.dash .badge-grey  { background: var(--surface-3);    color: var(--text-2);       border-color: var(--border); }
+
+/* Extra hues, available without any change to existing markup. */
+.dash .badge-rust  { background: var(--rust-soft);  color: var(--rust-text);  border-color: var(--rust-line); }
+.dash .badge-plum  { background: var(--plum-soft);  color: var(--plum-text);  border-color: var(--plum-line); }
+.dash .badge-teal  { background: var(--teal-soft);  color: var(--teal-text);  border-color: var(--teal-line); }
+.dash .badge-navy  { background: var(--accent);     color: #fff; border-color: var(--accent-active); }
+:root[data-theme='dark'] .dash .badge-navy { color: #12142A; }
+
+/* Alerts keep the DS tint but gain a solid rule on the reading edge. */
+.dash .alert { border-inline-start: 3px solid var(--border-strong); }
+.dash .alert-error   { border-inline-start-color: var(--danger); }
+.dash .alert-success { border-inline-start-color: var(--success); }
+.dash .alert-warn    { border-inline-start-color: var(--warning); }
+.dash .alert-info    { border-inline-start-color: var(--teal); }
+.dash .alert strong { font-weight: 700; }
+
+.dash .stamp { background: var(--success-soft); color: var(--success-text); border-color: var(--success-line); }
+
+
+/* ============================================================================
+   9. BUTTONS, SEGMENTS, TABS, FILTERS, MENUS
+   ========================================================================= */
+/* Primary: a pressed-ink gradient rather than a flat fill. */
+.dash .btn-primary {
+  background-image: linear-gradient(180deg, var(--accent) 0%, var(--accent-active) 100%);
+  border-color: var(--accent-active);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14), var(--shadow-xs);
+}
+.dash .btn-primary:hover:not(:disabled) {
+  background-image: linear-gradient(180deg, var(--accent-hover) 0%, var(--accent-active) 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.16), var(--shadow-sm);
+}
+:root[data-theme='dark'] .dash .btn-primary {
+  background-image: linear-gradient(180deg, #97A3E6 0%, #7C89D6 100%);
+  border-color: #6E7BC9;
+  color: #111427;
+}
+:root[data-theme='dark'] .dash .btn-primary:hover:not(:disabled) {
+  background-image: linear-gradient(180deg, #A7B1EC 0%, #8B97DE 100%);
+}
+
+/* Brass — the second action. Sparingly: one per screen at most. */
+.dash .btn-gold {
+  background-image: linear-gradient(180deg, #C9A227 0%, #A87F1C 100%);
+  border-color: #8E6A14; color: #241A03;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.25), var(--shadow-xs);
+}
+.dash .btn-gold:hover:not(:disabled) {
+  background-image: linear-gradient(180deg, #D2AC31 0%, #B08620 100%);
+}
+:root[data-theme='dark'] .dash .btn-gold {
+  background-image: linear-gradient(180deg, #E0BC6A 0%, #C79F45 100%);
+  border-color: #A9862F; color: #241A03;
+}
+
+/* Forest — the confirming action (approve, mark complete, release payout). */
+.dash .btn-green {
+  background-image: linear-gradient(180deg, var(--success) 0%, #175539 100%);
+  border-color: #144A32; color: #fff;
+}
+:root[data-theme='dark'] .dash .btn-green {
+  background-image: linear-gradient(180deg, #66BE93 0%, #4FA87C 100%);
+  border-color: #3E8C67; color: #0E1B15;
+}
+
+/* Oxblood — the destructive action. */
+.dash .btn-danger {
+  background-image: linear-gradient(180deg, var(--danger) 0%, #7C1E1E 100%);
+  border-color: #701B1B; color: #fff;
+}
+:root[data-theme='dark'] .dash .btn-danger {
+  background-image: linear-gradient(180deg, #E2867B 0%, #D06E63 100%);
+  border-color: #B85B51; color: #2B0F0C;
+}
+
+.dash .btn-outline {
+  background: var(--surface);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+.dash .btn-outline:hover:not(:disabled) {
+  background: var(--surface-3);
+  border-color: var(--accent-line);
+  color: var(--accent-text);
+}
+.dash .btn-ghost { color: var(--text-2); }
+.dash .btn-ghost:hover:not(:disabled) { background: var(--accent-softer); color: var(--accent-text); }
+
+.dash .btn-group { border-color: var(--border-strong); }
+.dash .btn-group button:hover { background: var(--surface-3); }
+.dash .btn-group button[aria-pressed='true'], .dash .btn-group button.active {
+  background: var(--accent); color: #fff;
+}
+:root[data-theme='dark'] .dash .btn-group button[aria-pressed='true'],
+:root[data-theme='dark'] .dash .btn-group button.active { color: #12142A; }
+
+/* Tabs: the active tab gets ink text, a brass underline and a faint paper wash. */
+.dash .tabs { border-bottom-color: var(--border); }
+.dash .tabs button:hover { color: var(--text); }
+.dash .tabs button.active {
+  color: var(--accent-text);
+  border-bottom-color: var(--gold-bright);
+  background: linear-gradient(180deg, transparent 0%, var(--accent-softer) 100%);
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+}
+
+/* Panels that hold tools: a hairline, not a heavy box. */
+.dash .filters, .dash .fp { border-color: var(--border); box-shadow: var(--shadow-xs); }
+.dash .fp-toggle { border-color: var(--border-strong); }
+.dash .fp-toggle:hover { background: var(--surface-3); border-color: var(--accent-line); color: var(--accent-text); }
+.dash .fp-toggle.open, .dash .fp-toggle.has-active {
+  background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent-text);
+}
+.dash .fp-count { background: var(--gold-bright); color: #2A1E05; }
+.dash .fp-field > span { color: var(--text-muted); }
+
+.dash .menu { border-color: var(--border); box-shadow: var(--shadow-md); }
+.dash .menu-label { color: var(--gold-deep); }
+.dash .menu-item:hover { background: var(--accent-softer); color: var(--accent-text); }
+.dash .menu-item.danger { color: var(--danger-text); }
+.dash .menu-item.danger:hover { background: var(--danger-soft); }
+.dash .menu-sep { background: var(--border); }
+
+
+/* ============================================================================
+   10. FORMS — ink on paper
+   ========================================================================= */
+.dash input, .dash select, .dash textarea {
+  background: var(--surface);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+.dash input:hover:not(:disabled), .dash select:hover:not(:disabled), .dash textarea:hover:not(:disabled) {
+  border-color: var(--text-muted);
+}
+.dash input:focus, .dash select:focus, .dash textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+.dash .field label { color: var(--text); }
+.dash .field .hint { color: var(--text-muted); }
+.dash .search-input svg { color: var(--text-muted); }
+.dash .search-input kbd { background: var(--surface-2); border-color: var(--border); color: var(--gold-deep); }
+.dash .dropzone {
+  background: var(--bg-subtle);
+  border-color: var(--border-strong);
+  color: var(--text-muted);
+}
+.dash .dropzone:hover {
+  border-color: var(--gold);
+  background: var(--gold-soft);
+  color: var(--gold-deep);
+}
+
+
+/* ============================================================================
+   11. CHARTS — recoloured from the tokens set in section 1/2.
+   ----------------------------------------------------------------------------
+   Nothing here hardcodes a series colour: recharts reads --chart-1…5, so the
+   palette stays in one place and both themes stay correct.
+   ========================================================================= */
+.dash .recharts-cartesian-grid line { stroke: var(--chart-grid) !important; }
+.dash .recharts-cartesian-axis-line,
+.dash .recharts-cartesian-axis-tick-line { stroke: var(--chart-grid) !important; }
+.dash .recharts-text, .dash .recharts-cartesian-axis-tick-value { fill: var(--chart-axis) !important; }
+.dash .recharts-legend-item-text { color: var(--text-2) !important; fill: var(--text-2) !important; }
+.dash .recharts-default-tooltip {
+  background: var(--elevated) !important;
+  border: 1px solid var(--border) !important;
+  border-top: 2px solid var(--gold) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+.dash .recharts-tooltip-label { color: var(--text) !important; }
+.dash .recharts-tooltip-item { color: var(--text-2) !important; }
+.dash .recharts-pie-sector path, .dash .recharts-sector { stroke: var(--surface); }
+
+
+/* ============================================================================
+   12. STATES — empty, loading, avatars, thumbnails, progress, kv, lists
+   ========================================================================= */
+.dash .empty { color: var(--text-muted); }
+.dash .empty .ico {
+  background: var(--gold-soft);
+  border-color: var(--gold-line);
+  color: var(--gold-deep);
+}
+.dash .empty h3 { color: var(--text); }
+.dash .spinner { border-color: var(--border); border-top-color: var(--accent); }
+.dash .skeleton {
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 37%, var(--surface-2) 63%);
+  background-size: 400% 100%;
+}
+
+.dash .avatar {
+  background: linear-gradient(160deg, #F1F3FB 0%, #E3E7F5 100%);
+  color: var(--accent-text);
+  border-color: var(--accent-line);
+}
+.dash .thumb { background: var(--surface-3); border-color: var(--border); }
+
+/* optional: list rows cycle hue the way the KPI row does — five tinted avatars
+   down a "top products" list reads as a chart, not a spreadsheet. */
+.dash .list-item:nth-child(5n+1) .avatar { background: linear-gradient(160deg, #F1F3FB, #E3E7F5); color: var(--accent-text); border-color: var(--accent-line); }
+.dash .list-item:nth-child(5n+2) .avatar { background: linear-gradient(160deg, #FCF4E4, #F6E9CE); color: var(--gold-deep);   border-color: var(--gold-line); }
+.dash .list-item:nth-child(5n+3) .avatar { background: linear-gradient(160deg, #EDF6F0, #DCEBE2); color: var(--success-text);border-color: var(--success-line); }
+.dash .list-item:nth-child(5n+4) .avatar { background: linear-gradient(160deg, #EBF4F5, #D9E9EB); color: var(--teal-text);   border-color: var(--teal-line); }
+.dash .list-item:nth-child(5n+5) .avatar { background: linear-gradient(160deg, #F5F0F8, #E9DFF1); color: var(--plum-text);   border-color: var(--plum-line); }
+
+.dash .list-item:hover { background: var(--accent-softer); }
+.dash .list-item .title { color: var(--text); }
+.dash .list-item .meta { color: var(--text-muted); }
+
+.dash .progress { background: var(--surface-3); }
+.dash .progress > span { background: linear-gradient(90deg, var(--accent) 0%, #4A5A9C 100%); }
+.dash .progress.success > span { background: linear-gradient(90deg, var(--success) 0%, #2C8A61 100%); }
+.dash .progress.warn > span { background: linear-gradient(90deg, var(--warning) 0%, var(--gold-bright) 100%); }
+.dash .progress.danger > span { background: linear-gradient(90deg, var(--danger) 0%, #C0453F 100%); }
+
+.dash .kv dt { color: var(--text-muted); }
+.dash .kv dd { color: var(--text); }
+
+.dash .stepper .step { color: var(--text-muted); border-bottom-color: var(--border); }
+.dash .stepper .step.active { color: var(--accent-text); border-bottom-color: var(--gold-bright); }
+.dash .stepper .step.done { color: var(--success-text); border-bottom-color: var(--success); }
+
+.dash .qty-stepper { border-color: var(--border-strong); }
+.dash .qty-btn { background: var(--surface-2); color: var(--accent-text); }
+.dash .qty-btn:hover { background: var(--accent-soft); }
+.dash .qty-input { border-inline-color: var(--border-strong); }
+
+.dash .prohibited { background: var(--danger-soft); border-color: var(--danger-line); color: var(--danger-text); }
+.dash .gallery .g-item { border-color: var(--border); }
+
+/* Search command palette rows (sidebar filter) */
+.dash .dash-search .menu-item:hover { background: var(--accent-softer); }
+
+
+/* ============================================================================
+   13. BOOKINGS · INVENTORY · PLACEMENTS — the workhorse lists
+   ----------------------------------------------------------------------------
+   These already encode state in a left edge; the skin keeps that grammar and
+   adds the wash, so a row's state is legible from across the desk.
+   ========================================================================= */
+.dash .bk-list { background: var(--surface); border-color: var(--border); }
+.dash .bk-head {
+  background: var(--surface-2);
+  color: var(--accent-text);
+  border-bottom: 2px solid var(--accent-line);
+  letter-spacing: .07em;
+}
+.dash .bk-item { border-bottom-color: var(--border-subtle); }
+.dash .bk-item:hover { background: var(--accent-softer); }
+.dash .bk-ref { color: var(--accent-text); }
+.dash .bk-sub { color: var(--text-muted); }
+.dash .bk-quote { border-inline-start-color: var(--gold); color: var(--text-2); }
+.dash .bk-label { color: var(--gold-deep); }
+
+/* Unanswered request: ink edge + a wash of brass — the only row on the page
+   that is allowed to look urgent. */
+.dash .bk-item.is-new {
+  box-shadow: inset 3px 0 0 var(--accent);
+  background: linear-gradient(90deg, var(--gold-soft) 0%, var(--surface) 46%);
+}
+.dash .bk-item.is-new:hover { background: linear-gradient(90deg, #F8EDD6 0%, var(--surface) 52%); }
+
+.dash .inv-list .bk-item.inv-out {
+  box-shadow: inset 3px 0 0 var(--danger);
+  background: linear-gradient(90deg, var(--danger-soft) 0%, var(--surface) 42%);
+}
+.dash .inv-list .bk-item.inv-low {
+  box-shadow: inset 3px 0 0 var(--gold);
+  background: linear-gradient(90deg, var(--gold-soft) 0%, var(--surface) 42%);
+}
+.dash .inv-list .bk-item.inv-untracked { box-shadow: inset 3px 0 0 var(--border-strong); }
+.dash .inv-list .bk-item.inv-out:hover,
+.dash .inv-list .bk-item.inv-low:hover { background: linear-gradient(90deg, var(--surface-2) 0%, var(--surface) 50%); }
+.dash .inv-zero { color: var(--danger); font-weight: 700; }
+.dash .inv-delta.up { color: var(--success-text); }
+.dash .inv-delta.down { color: var(--danger); }
+.dash .inv-default { color: var(--text-muted); }
+
+.dash .pm-link { color: var(--accent-text); }
+.dash .pm-link:hover { color: var(--accent-hover); }
+
+
+/* ============================================================================
+   14. REVIEWS & COMPLAINT THREAD
+   ========================================================================= */
+.dash .rv-title { color: var(--text); }
+.dash .rv-stars .on { color: var(--gold-bright); }
+.dash .rv-stars .off { color: var(--border-strong); }
+
+.dash .rv-summary {
+  background: linear-gradient(180deg, var(--gold-soft) 0%, var(--surface) 58%);
+  border-color: var(--gold-line);
+}
+.dash .rv-score strong { color: var(--text); }
+.dash .rv-sub { color: var(--text-muted); }
+.dash .rv-bar-row:hover { background: var(--surface-2); }
+.dash .rv-bar-row.active { background: var(--accent-softer); color: var(--text); }
+.dash .rv-bar { background: var(--surface-3); }
+.dash .rv-bar > span { background: linear-gradient(90deg, var(--gold) 0%, var(--gold-bright) 100%); }
+
+.dash .rv-item { border-bottom-color: var(--border-subtle); }
+.dash .rv-verified { background: var(--success-soft); color: var(--success-text); }
+.dash .rv-when { color: var(--text-muted); }
+.dash .rv-author { color: var(--text); }
+.dash .rv-body { color: var(--text-2); }
+.dash .rv-helpful { border-color: var(--border-strong); color: var(--text-2); background: var(--surface); }
+.dash .rv-helpful:hover { border-color: var(--gold); color: var(--gold-deep); background: var(--gold-soft); }
+.dash .rv-helpful.on { border-color: var(--gold); color: var(--gold-deep); background: var(--gold-soft); }
+.dash .rv-reply {
+  border-inline-start-color: var(--gold);
+  background: var(--surface-2);
+}
+.dash .rv-compose { background: var(--bg-subtle); border-color: var(--border); }
+.dash .rv-input-star.on { color: var(--gold-bright); }
+
+.dash .complaint-msg.mine {
+  background: linear-gradient(180deg, var(--accent-soft) 0%, #E4E8F7 100%);
+  color: var(--accent-text);
+}
+.dash .complaint-msg.mine .complaint-msg-meta { color: var(--accent-text); }
+.dash .complaint-msg.theirs { background: var(--surface-2); border-color: var(--border); }
+.dash .complaint-msg.theirs .complaint-msg-meta { color: var(--text-2); }
+
+
+/* ============================================================================
+   15. MODALS · TOASTS (rendered outside .dash by most portals)
+   ----------------------------------------------------------------------------
+   Kept unscoped-terms: these rules reference the token layer, so inside the
+   dashboard they pick up the classic palette, and on a page with no dashboard
+   the tokens fall back to the DS values.
+   ========================================================================= */
+.modal { border-top: 3px solid var(--gold); }
+.modal-head { border-bottom-color: var(--border); }
+.modal-head h3 { color: var(--text); }
+.modal-foot { background: var(--surface-2); }
+.x-btn:hover { background: var(--danger-soft); color: var(--danger-text); }
+
+.toast { border-inline-start-width: 3px; }
+.toast-success { border-inline-start-color: var(--success); }
+.toast-error   { border-inline-start-color: var(--danger); }
+.toast-info    { border-inline-start-color: var(--teal, var(--info)); }
+
+
+/* ============================================================================
+   16. NOTES / HOW TO TUNE IT
+   ----------------------------------------------------------------------------
+   - Want a light rail instead of ink? Set `--sidebar: #FBF9F4` in section 1 and
+     delete section 4; the nav falls back to the DS's light treatment.
+   - Want no colour rotation at all? Delete the two "optional: rotate" blocks
+     (section 5 and 6). Every KPI and card then uses adire indigo.
+   - Want the gold rules gone (the 3px bands and the header gradient)? Delete
+     `body:has(.dash) .header::after`, `.dash .dash-title h1::after` and the
+     `border-top` line in section 5.
+   - The palette is five hues in fixed meaning order. If you add a sixth data
+     series, extend --chart-6 rather than reusing --chart-1: a colour that means
+     two things means nothing.
+   ========================================================================= */
