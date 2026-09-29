@@ -6,6 +6,7 @@ import { Alert, Empty, Field, Modal, StatusBadge, Tabs, useConfirm } from '../..
 import { DataTable, DTColumn } from '../../components/DataTable';
 import { useToast } from '../../state/ToastContext';
 import { useAuth } from '../../state/AuthContext';
+import ResetPinButton from '../../components/ResetPinButton';
 import type { Complaint, ComplaintMessage, Listing, Order, User, Category } from '../../types';
 
 /* ================= Listings moderation ================= */
@@ -429,13 +430,14 @@ export function AdminUsers() {
         columns={columns} rows={items} rowKey={(u) => u.id} loading={loading}
         emptyIcon="👥" emptyTitle="No users found" exportFilename="users" storageKey="admin-users"
         rowActions={(u) => (
-          <div className="row" style={{ gap: 4 }}>
-            {u.role !== 'admin' && u.is_active && (
-              <button className="btn btn-primary btn-sm" onClick={() => viewAs(u)}>View</button>
-            )}
-            <button className="btn btn-outline btn-sm" onClick={() => toggle(u)}>{u.is_active ? 'Disable' : 'Enable'}</button>
-          </div>
-        )}
+  <div className="row" style={{ gap: 4 }}>
+    {u.role !== 'admin' && u.is_active && (
+      <button className="btn btn-primary btn-sm" onClick={() => viewAs(u)}>View</button>
+    )}
+    {u.role !== 'admin' && <ResetPinButton userId={u.id} name={u.full_name} />}
+    <button className="btn btn-outline btn-sm" onClick={() => toggle(u)}>{u.is_active ? 'Disable' : 'Enable'}</button>
+  </div>
+)}
       />
 
       <Modal open={showNew} title="Create administrator" onClose={() => setShowNew(false)}
