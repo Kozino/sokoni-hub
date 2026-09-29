@@ -2,7 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { one, query } from '../db';
-import { requireAuth } from '../auth';
+import { requireAuth, signToken } from '../auth';
 import { HttpError, audit } from '../utils';
 
 export const adminRouter = Router();
@@ -24,10 +24,8 @@ adminRouter.get('/overview', async (_req, res, next) => {
         (select count(*) from vendors where status = 'verified')                 as vendors_verified,
         (select count(*) from vendors where status = 'rejected')                 as vendors_rejected,
         (select count(*) from vendors where status = 'suspended')                as vendors_suspended,
-        (select count(*) from vendors where status = 'suspended')                as vendors_suspended,
         (select count(*) from users u where u.role = 'vendor'
            and not exists (select 1 from vendors v where v.user_id = u.id))      as vendors_incomplete,
-        (select count(*) from listings where status = 'active')                  as listings_active,
         (select count(*) from listings where status = 'active')                  as listings_active,
         (select count(*) from listings where status = 'pending_review')         as listings_pending,
         (select count(*) from listings where kind='product' and status='active') as products_active,
@@ -102,6 +100,11 @@ adminRouter.get('/vendors', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+/**
+ * People who registered as vendors but never submitted their store, so they
+ * have no vendors row and don't appear in the verification queue.
+ * Must stay ABOVE '/vendors/:id' or Express will treat "incomplete" as an id.
+ */
 adminRouter.get('/vendors/incomplete', async (_req, res, next) => {
   try {
     const rows = await query(`
@@ -322,6 +325,36 @@ adminRouter.patch('/users/:id', async (req, res, next) => {
     if (!u) throw new HttpError(404, 'User not found');
     await audit(req.user!.id, 'user.admin_update', 'user', req.params.id, b as any);
     res.json({ user: u });
+  } catch (e) { next(e); }
+});
+
+/**
+ * "View as": issue a short-lived session for a buyer or vendor so the admin can
+ * open their account directly. Admins cannot be impersonated, the token lasts
+ * one hour, carries the admin's id, and every use is written to the audit log.
+ * Response shape matches /auth/login so the frontend can reuse its handler.
+ */
+adminRouter.post('/users/:id/impersonate', async (req, res, next) => {
+  try {
+    if (req.params.id === req.user!.id) throw new HttpError(400, 'You are already this user');
+    const target = await one<any>(
+      'select id, full_name, phone, email, role, is_active from users where id = $1',
+      [req.params.id]);
+    if (!target) throw new HttpError(404, 'User not found');
+    if (target.role === 'admin') throw new HttpError(403, 'You cannot view as another admin');
+    if (!target.is_active) throw new HttpError(403, 'This account is disabled. Enable it first.');
+
+    const vendor = await one(
+      'select id, status, business_name, slug from vendors where user_id = $1', [target.id]);
+
+    await audit(req.user!.id, 'user.impersonate', 'user', target.id,
+      { role: target.role, phone: target.phone });
+
+    res.json({
+      token: signToken(target.id, target.role, { expiresIn: '1h', impersonatedBy: req.user!.id }),
+      user: target,
+      vendor,
+    });
   } catch (e) { next(e); }
 });
 
