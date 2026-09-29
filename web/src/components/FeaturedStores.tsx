@@ -124,7 +124,7 @@ export default function FeaturedStores() {
         {vip.length > 0 && (
           <>
             <div className="pr-head">
-              <h2 className="pr-title"><StarIcon />VIP stores</h2>
+              <h2 className="pr-title"><StarIcon />VIP</h2>
               <p>
                 Stores that paid for this placement. Rated and verified like every
                 other store on Sokoni Hub.
