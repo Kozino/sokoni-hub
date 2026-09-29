@@ -159,9 +159,13 @@ export function Header() {
           <button className="burger" onClick={() => setOpen((o) => !o)} aria-label={t('nav.menu')} aria-expanded={open}>☰</button>
         </div>
         <nav className={`nav${open ? ' open' : ''}`}>
-          <NavLink to="/browse" end onClick={close}>{t('nav.browse')}</NavLink>
+        <NavLink to="/browse" end>
+  {t('nav.browse')}
+</NavLink>
 
-<NavLink to="/browse?kind=service" onClick={close}>  {t('nav.services')}</NavLink>
+<NavLink to="/browse?kind=service">
+  {t('nav.services')}
+</NavLink>
           <NavLink to="/vendors" onClick={close}>{t('nav.stores')}</NavLink>
           <NavLink to="/support" onClick={close}>{t('nav.support')}</NavLink>
           <CartLink variant="desktop" onClick={close} />
