@@ -20,7 +20,7 @@ export default function ShareStorePanel({ slug, businessName }: Props) {
   useEffect(() => {
     let cancelled = false;
     QRCode.toDataURL(qrLink, { width: 640, margin: 2, errorCorrectionLevel: 'M' })
-      .then((url) => { if (!cancelled) setQr(url); })
+      .then((url: string) => { if (!cancelled) setQr(url); })
       .catch(() => { /* QR is optional; the link still works */ });
     return () => { cancelled = true; };
   }, [qrLink]);
