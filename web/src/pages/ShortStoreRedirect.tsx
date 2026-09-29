@@ -1,9 +1,9 @@
 import { Navigate, useParams, useSearchParams } from "react-router-dom";
 import { captureAttribution } from "../lib/attribution";
 
-// The public API is GET /api/vendors/:slug, so this assumes the frontend
-// route is /vendors/:slug. Confirm against your router and adjust if not.
-const storePath = (slug: string) => `/vendors/${slug}`;
+// The frontend route is /store/:slug (see App.tsx), which renders StorePage.
+// It's a different path from the API's GET /api/vendors/:slug — don't confuse the two.
+const storePath = (slug: string) => `/store/${slug}`;
 
 export default function ShortStoreRedirect() {
   const { slug = "" } = useParams();
