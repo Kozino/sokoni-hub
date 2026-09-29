@@ -1,9 +1,8 @@
 /* ============================================================================
    SOKONI HUB — MARKETPLACE LANDING PAGE
-   Scoped entirely under .lp so nothing outside Home.tsx is affected.
-   Palette lifted straight from /public/logo.png:
-     teal   #0B5D4A  (bag + wordmark)
-     orange #FD7A00  (bag flare + "Hub")
+   Scoped under .lp so nothing outside Home.tsx is affected.
+   Brand colours come from /public/logo.png: teal #0B5D4A, orange #FD7A00.
+   Surfaces use the global tokens, so light and dark mode both work.
    ========================================================================= */
 
 .lp {
@@ -14,45 +13,38 @@
   --lp-orange:      #FD7A00;
   --lp-orange-deep: #D96600;
   --lp-orange-tint: #FFEEDC;
-  --lp-cream:       #FBF8F2;
-  /* steps the global scale skips, used only on this page */
+  --lp-link:        var(--lp-teal);
+  --lp-band:        var(--lp-teal-tint);
   --s-7:  28px;
   --s-14: 56px;
   overflow-x: clip;
 }
-
-/* ----------------------------------------------------------------------------
-   Shared background graphics (blobs / dot grid)
-   ------------------------------------------------------------------------- */
-.lp-blob {
-  position: absolute; border-radius: 999px; filter: blur(2px);
-  pointer-events: none;
-}
-.lp-dotgrid {
-  position: absolute; inset: 0; pointer-events: none;
-  background-image: radial-gradient(rgba(255,255,255,.16) 1.4px, transparent 1.4px);
-  background-size: 24px 24px;
+:root[data-theme='dark'] .lp {
+  --lp-link: #4FC9A4;
+  --lp-band: var(--bg-subtle);
+  --lp-teal-tint: #12302A;
+  --lp-orange-tint: #2A1D10;
 }
 
 /* ----------------------------------------------------------------------------
-   HERO
+   HERO — dark teal in both themes; the search bar is the focal point
    ------------------------------------------------------------------------- */
 .lp-hero {
   position: relative; overflow: hidden; color: #fff;
-  background:
-    radial-gradient(120% 140% at 88% -10%, rgba(253,122,0,.35), transparent 55%),
-    linear-gradient(155deg, var(--lp-teal-deeper) 0%, var(--lp-teal-deep) 46%, var(--lp-teal) 100%);
+  background: linear-gradient(160deg, var(--lp-teal-deeper) 0%, var(--lp-teal-deep) 55%, var(--lp-teal) 100%);
+  padding-bottom: var(--s-16);
 }
-.lp-hero .lp-dotgrid { mask-image: linear-gradient(to bottom, rgba(0,0,0,.85), transparent 80%); -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,.85), transparent 80%); }
-.lp-hero .lp-blob-1 { width: 520px; height: 520px; top: -220px; right: -140px; background: radial-gradient(closest-side, rgba(253,122,0,.42), transparent 72%); }
-.lp-hero .lp-blob-2 { width: 380px; height: 380px; bottom: -180px; left: -120px; background: radial-gradient(closest-side, rgba(255,255,255,.10), transparent 72%); }
-
+.lp-hero-glow {
+  position: absolute; width: 560px; height: 560px; top: -260px; inset-inline-end: -120px;
+  background: radial-gradient(closest-side, rgba(253,122,0,.38), transparent 72%);
+  pointer-events: none;
+}
 .lp-hero-inner {
   position: relative; z-index: 1;
-  display: grid; grid-template-columns: 1.05fr .95fr;
-  gap: var(--s-12); align-items: center; padding: var(--s-14) 0 var(--s-12);
+  display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
+  gap: var(--s-12); align-items: center; padding: var(--s-12) var(--s-6) var(--s-4);
 }
-.lp-hero-copy { max-width: 620px; }
+.lp-hero-copy { max-width: 640px; min-width: 0; }
 .lp-hero-tag {
   display: inline-flex; align-items: center; gap: 7px;
   font-size: var(--fs-sm); font-weight: 600; color: #FFDEB0;
@@ -61,360 +53,288 @@
 }
 .lp-hero-tag .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--lp-orange); box-shadow: 0 0 0 3px rgba(253,122,0,.25); }
 .lp-hero h1 {
-  color: #fff; font-family: var(--display); font-size: clamp(2.1rem, 4.4vw, 3.15rem);
-  line-height: 1.07; margin-bottom: var(--s-4); letter-spacing: -.03em;
-  font-weight: 650; max-width: 16ch;
+  color: #fff; font-size: clamp(2.1rem, 4.4vw, 3.2rem);
+  line-height: 1.08; margin-bottom: var(--s-4); letter-spacing: -.03em;
+  font-weight: 650; max-width: 17ch; text-wrap: balance;
 }
-.lp-hero h1 .accent { color: var(--lp-orange); }
-.lp-hero p.lede { font-size: var(--fs-lg); color: rgba(255,255,255,.78); max-width: 52ch; margin-bottom: var(--s-6); line-height: 1.6; }
+.lp-hero p.lede { font-size: var(--fs-lg); color: rgba(255,255,255,.8); max-width: 54ch; margin-bottom: var(--s-6); line-height: 1.6; }
 
+/* One white bar: keyword | city | type | button. Colours are fixed (not
+   tokens) because the bar is white in both themes. */
 .lp-searchbar {
-  display: flex; gap: var(--s-2); background: #fff; padding: var(--s-2);
-  border-radius: var(--r-lg); box-shadow: 0 18px 40px rgba(3,25,20,.35); border: 1px solid rgba(255,255,255,.5);
+  display: flex; align-items: stretch; gap: 0; background: #fff;
+  padding: 6px; border-radius: var(--r-lg);
+  box-shadow: 0 18px 40px rgba(3,25,20,.35);
 }
+.lp-sb-field { display: flex; align-items: center; gap: var(--s-2); flex: 1 1 auto; min-width: 0; padding-inline-start: var(--s-3); color: #6B7280; margin: 0; }
+.lp-sb-field svg { flex: 0 0 auto; }
 .lp-searchbar input, .lp-searchbar select {
-  border-color: transparent; background: transparent; color: var(--lp-teal-deep);
+  border: 0; background-color: transparent; color: #10231E; box-shadow: none; border-radius: 0;
 }
-.lp-searchbar input:focus, .lp-searchbar select:focus { box-shadow: none; border-color: var(--lp-teal); }
-.lp-searchbar select { width: auto; min-width: 120px; }
-.lp-searchbar .btn-primary { background: var(--lp-orange); color: #fff; box-shadow: none; }
+.lp-searchbar input::placeholder { color: #6B7280; }
+.lp-searchbar input:focus, .lp-searchbar select:focus { box-shadow: none; }
+.lp-searchbar:focus-within { box-shadow: 0 0 0 3px rgba(253,122,0,.55), 0 18px 40px rgba(3,25,20,.35); }
+.lp-searchbar select { width: auto; min-width: 118px; max-width: 160px; border-inline-start: 1px solid #E4E7EC; cursor: pointer; }
+.lp-searchbar .btn-primary { background: var(--lp-orange); color: #fff; box-shadow: none; min-height: 44px; padding: 0 var(--s-6); }
 .lp-searchbar .btn-primary:hover { background: var(--lp-orange-deep); }
 
 .lp-hero-chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); margin-top: var(--s-4); }
-.lp-hero-chips-label { font-size: var(--fs-xs); color: rgba(255,255,255,.6); font-weight: 600; }
+.lp-hero-chips-label { font-size: var(--fs-xs); color: rgba(255,255,255,.65); font-weight: 600; }
 .lp-chip {
   border: 1px solid rgba(255,255,255,.28); background: rgba(255,255,255,.08); color: #fff;
-  font-size: var(--fs-xs); font-weight: 600; padding: 5px var(--s-3); border-radius: var(--r-full);
-  cursor: pointer; font-family: inherit; line-height: 1; transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+  font-size: var(--fs-xs); font-weight: 600; padding: 6px var(--s-3); border-radius: var(--r-full);
+  cursor: pointer; font-family: inherit; line-height: 1;
+  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .lp-chip:hover { background: rgba(255,255,255,.18); border-color: rgba(255,255,255,.5); }
 
 .lp-hero-stats { display: flex; gap: var(--s-8); margin-top: var(--s-7); flex-wrap: wrap; padding-top: var(--s-5); border-top: 1px solid rgba(255,255,255,.14); }
-.lp-hero-stats div strong { display: block; font-family: var(--display); font-size: var(--fs-2xl); color: #fff; line-height: 1.1; font-weight: 650; font-variant-numeric: tabular-nums; }
-.lp-hero-stats div span { font-size: var(--fs-xs); color: rgba(255,255,255,.6); letter-spacing: .02em; }
+.lp-hero-stats strong { display: block; font-family: var(--display); font-size: var(--fs-2xl); line-height: 1.1; font-weight: 650; font-variant-numeric: tabular-nums; }
+.lp-hero-stats span { font-size: var(--fs-xs); color: rgba(255,255,255,.65); }
 
-.lp-hero-img-wrap { position: relative; }
+.lp-hero-img-wrap { position: relative; min-width: 0; }
 .lp-hero-img-wrap::before {
-  content: ''; position: absolute; inset: -18px -18px auto auto; width: 92%; height: 92%;
-  background: var(--lp-orange); border-radius: var(--r-xl); opacity: .9; z-index: 0;
+  content: ''; position: absolute; inset-block-start: -16px; inset-inline-end: -16px; width: 88%; height: 88%;
+  background: var(--lp-orange); border-radius: var(--r-xl); z-index: 0;
 }
 .lp-hero-img {
   position: relative; z-index: 1; border-radius: var(--r-xl); overflow: hidden;
-  aspect-ratio: 4/3; border: 4px solid rgba(255,255,255,.9); box-shadow: 0 30px 60px rgba(3,25,20,.45);
+  aspect-ratio: 4/3; border: 4px solid rgba(255,255,255,.92); box-shadow: 0 30px 60px rgba(3,25,20,.45);
 }
 .lp-hero-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .lp-hero-float {
-  position: absolute; z-index: 2; left: -28px; bottom: -22px;
-  background: #fff; color: var(--lp-teal-deep); border-radius: var(--r-lg);
+  position: absolute; z-index: 2; inset-inline-start: -24px; bottom: -20px;
+  background: #fff; color: #073F32; border-radius: var(--r-lg);
   padding: var(--s-3) var(--s-4); box-shadow: 0 16px 32px rgba(3,25,20,.28);
   display: flex; align-items: center; gap: var(--s-3); min-width: 200px;
 }
-.lp-hero-float .ic {
-  width: 38px; height: 38px; border-radius: 999px; background: var(--lp-teal-tint);
-  display: grid; place-items: center; flex-shrink: 0; font-size: 1.05rem;
-}
+.lp-hero-float .ic { width: 38px; height: 38px; border-radius: 999px; background: #E7F2EE; color: var(--lp-teal); display: grid; place-items: center; flex-shrink: 0; }
 .lp-hero-float strong { display: block; font-size: var(--fs-base); line-height: 1.2; }
-.lp-hero-float span { font-size: var(--fs-xs); color: var(--text-muted); }
+.lp-hero-float span { font-size: var(--fs-xs); color: #6B7280; }
 
 /* ----------------------------------------------------------------------------
-   BENEFITS STRIP
+   TRUST BAR — a card that overlaps the bottom of the hero
    ------------------------------------------------------------------------- */
-.lp-benefits { background: #fff; border-bottom: 1px solid var(--border); }
-.lp-benefits-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s-4); padding: var(--s-5) 0; }
-.lp-benefit { display: flex; align-items: center; gap: var(--s-3); }
-.lp-benefit .ic {
-  width: 40px; height: 40px; border-radius: var(--r-md); flex-shrink: 0;
-  display: grid; place-items: center; font-size: 1.15rem;
-  background: var(--lp-teal-tint); color: var(--lp-teal);
+.lp-trust { position: relative; z-index: 3; margin-top: calc(var(--s-10) * -1); }
+.lp-trust-row {
+  list-style: none; margin: 0; padding: var(--s-5) var(--s-6);
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s-5);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-xl); box-shadow: var(--shadow-md);
 }
-.lp-benefit:nth-child(2n) .ic { background: var(--lp-orange-tint); color: var(--lp-orange-deep); }
-.lp-benefit strong { display: block; font-size: var(--fs-sm); line-height: 1.3; }
-.lp-benefit span { font-size: var(--fs-xs); color: var(--text-muted); }
+.lp-trust-row li { display: flex; align-items: center; gap: var(--s-3); min-width: 0; }
+.lp-trust-row .ic {
+  width: 42px; height: 42px; border-radius: var(--r-md); flex-shrink: 0; display: grid; place-items: center;
+  background: var(--lp-teal-tint); color: var(--lp-link);
+}
+.lp-trust-row li:nth-child(even) .ic { background: var(--lp-orange-tint); color: var(--lp-orange-deep); }
+.lp-trust-row strong { display: block; color: var(--text); font-size: var(--fs-sm); line-height: 1.3; }
+.lp-trust-row span:not(.ic) { font-size: var(--fs-xs); color: var(--text-muted); line-height: 1.4; }
 
 /* ----------------------------------------------------------------------------
-   GENERIC LANDING SECTION
+   BLOCKS + SHELF HEADERS
    ------------------------------------------------------------------------- */
-.lp-section { padding: var(--s-14) 0; position: relative; }
-.lp-section-head { max-width: 620px; margin: 0 0 var(--s-7); }
-.lp-eyebrow {
-  display: inline-block; font-size: var(--fs-xs); font-weight: 700; letter-spacing: .08em;
-  text-transform: uppercase; color: var(--lp-orange-deep); margin-bottom: var(--s-2);
-}
-.lp-section-head h2 { font-size: var(--fs-2xl); letter-spacing: -.025em; font-family: var(--display); }
-.lp-section-head p { color: var(--text-muted); margin: 0; font-size: var(--fs-base); }
+.lp-block { padding: var(--s-12) 0 0; position: relative; }
+.lp-block-last { padding-bottom: var(--s-16); }
+.lp-shelf { padding: var(--s-12) 0 0; }
+.lp-shelf.is-tint { background: var(--lp-band); padding: var(--s-12) 0; margin-top: var(--s-12); }
+.lp-shelf-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-4); margin-bottom: var(--s-5); }
+.lp-shelf-head h2, .lp-block h2 { margin: 0; font-size: var(--fs-2xl); letter-spacing: -.025em; }
+.lp-center { text-align: center; margin-bottom: var(--s-8) !important; }
+.lp-viewall { display: inline-flex; align-items: center; gap: 6px; font-weight: 650; font-size: var(--fs-sm); white-space: nowrap; color: var(--lp-link); }
+.lp-viewall:hover { color: var(--lp-link); text-decoration: underline; text-underline-offset: 3px; }
 
 /* ----------------------------------------------------------------------------
-   CATEGORY WALL — icon chips, grid on desktop, horizontal scroll strip on mobile
+   CATEGORIES — round photo tiles
    ------------------------------------------------------------------------- */
-.lp-cat-wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--s-3); }
-.lp-cat-chip {
-  display: flex; align-items: center; gap: var(--s-3); padding: var(--s-3);
-  border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface);
-  color: var(--text); font-weight: 600; font-size: var(--fs-sm);
-  transition: border-color var(--t) var(--ease), transform var(--t) var(--ease), box-shadow var(--t) var(--ease);
-}
-.lp-cat-chip:hover { border-color: var(--lp-teal); box-shadow: var(--shadow-sm); text-decoration: none; transform: translateY(-2px); }
-/* A photograph rather than a glyph. object-fit keeps the subject centred
-   whatever the source aspect, and the tinted background survives as a
-   placeholder while the image decodes, so the wall does not flash white. */
+.lp-cats { display: grid; grid-template-columns: repeat(auto-fill, minmax(108px, 1fr)); gap: var(--s-5) var(--s-3); }
+.lp-cat { display: flex; flex-direction: column; align-items: center; gap: var(--s-2); text-align: center; color: var(--text); font-weight: 600; font-size: var(--fs-sm); }
+.lp-cat:hover { text-decoration: none; color: var(--text); }
 .lp-cat-ico {
-  width: 42px; height: 42px; border-radius: var(--r-md); flex-shrink: 0;
-  object-fit: cover; display: block;
-  background: var(--lp-teal-tint);
-  border: 1px solid var(--border);
+  width: 76px; height: 76px; border-radius: 999px; object-fit: cover; display: block;
+  background: var(--lp-teal-tint); border: 3px solid var(--surface);
+  box-shadow: 0 0 0 1px var(--border), var(--shadow-xs);
+  transition: box-shadow var(--t) var(--ease), transform var(--t) var(--ease);
 }
-.lp-cat-chip:nth-child(4n+2) .lp-cat-ico { background: var(--lp-orange-tint); }
-.lp-cat-chip:nth-child(4n+3) .lp-cat-ico { background: #EAF1FB; }
-.lp-cat-chip:nth-child(4n+4) .lp-cat-ico { background: #F3EEFB; }
+.lp-cat:hover .lp-cat-ico, .lp-cat:focus-visible .lp-cat-ico { box-shadow: 0 0 0 2px var(--lp-orange), var(--shadow-sm); transform: translateY(-2px); }
 .lp-cat-label { line-height: 1.25; }
 
 /* ----------------------------------------------------------------------------
-   LISTING GRID — dense classifieds-style cards (marketplace.ng / Jumia layout)
-   Overrides the shared .lcard component, scoped to .lp so Browse and
-   dashboard pages keep their existing card style untouched.
+   PRODUCT RAILS — the same ListingCard, arranged differently
+   Desktop: fixed columns. Phones: swipeable row (is-scroll) or 2-up grid.
    ------------------------------------------------------------------------- */
-.lp-listing-grid {
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: var(--s-4);
-}
-.lp .lcard {
-  border-radius: var(--r-md); border-color: var(--border);
-  transition: transform var(--t) var(--ease), box-shadow var(--t) var(--ease), border-color var(--t) var(--ease);
-}
-.lp .lcard:hover { border-color: var(--lp-teal); box-shadow: 0 10px 24px rgba(5,42,34,.12); transform: translateY(-2px); }
+.lp-rail { display: grid; gap: var(--s-4); }
+.lp-rail.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.lp-rail.cols-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+
+/* Dense classifieds-style cards, scoped to .lp so Browse keeps its own look. */
+.lp .lcard { border-radius: var(--r-md); }
+.lp .lcard:hover { border-color: var(--lp-teal); box-shadow: 0 10px 24px rgba(5,42,34,.14); transform: translateY(-2px); }
 .lp .lcard-img { aspect-ratio: 1/1; }
-.lp .lcard-kind { top: var(--s-2); left: var(--s-2); }
 .lp .lcard-kind .badge { background: rgba(5,42,34,.72); color: #fff; border: none; backdrop-filter: blur(2px); font-size: 10px; text-transform: uppercase; letter-spacing: .03em; }
 .lp .lcard-body { padding: var(--s-2) var(--s-3) var(--s-3); gap: 2px; display: flex; flex-direction: column; }
-.lp .lcard-price {
-  order: 1; margin-top: 0; padding-top: 0; font-size: var(--fs-base);
-  color: var(--lp-teal-deep); font-weight: 700; letter-spacing: -.01em;
-}
-.lp .lcard-title {
-  order: 2; font-size: var(--fs-sm); font-weight: 500; color: var(--text);
-  line-height: 1.35; -webkit-line-clamp: 2;
-}
+.lp .lcard-price { order: 1; margin-top: 0; padding-top: 0; font-size: var(--fs-base); color: var(--text); font-weight: 700; letter-spacing: -.01em; }
+.lp .lcard-title { order: 2; font-size: var(--fs-sm); font-weight: 500; color: var(--text); line-height: 1.35; -webkit-line-clamp: 2; }
 .lp .lcard-meta { display: none; }
 .lp .lcard-foot { order: 3; border-top: none; margin-top: 3px; padding-top: 0; }
 .lp .lcard-foot span:first-child { display: none; }
-.lp .lcard-foot span:last-child {
-  display: flex; align-items: center; gap: 3px; font-size: 11px; color: var(--text-muted);
-}
+.lp .lcard-foot span:last-child { display: flex; align-items: center; gap: 3px; font-size: 11px; color: var(--text-muted); }
 .lp .lcard-foot span:last-child::before { content: '📍'; font-size: .8em; }
+
+/* ----------------------------------------------------------------------------
+   HOW IT WORKS
+   ------------------------------------------------------------------------- */
+.lp-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-5); counter-reset: step; }
+.lp-step {
+  position: relative; display: flex; gap: var(--s-4); align-items: flex-start;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: var(--s-5);
+  counter-increment: step;
+}
+.lp-step::after {
+  content: counter(step); position: absolute; top: var(--s-3); inset-inline-end: var(--s-4);
+  font-family: var(--display); font-weight: 700; font-size: var(--fs-xl); color: var(--border-strong);
+}
+.lp-step-ic { width: 46px; height: 46px; border-radius: 999px; flex: 0 0 auto; display: grid; place-items: center; background: var(--lp-orange-tint); color: var(--lp-orange-deep); }
+.lp-step strong { display: block; color: var(--text); font-size: var(--fs-base); margin-bottom: var(--s-1); }
+.lp-step p { margin: 0; font-size: var(--fs-sm); color: var(--text-muted); line-height: 1.55; }
 
 /* ----------------------------------------------------------------------------
    SELL CTA
    ------------------------------------------------------------------------- */
 .lp-sell {
-  position: relative; overflow: hidden; border-radius: var(--r-xl);
-  background: linear-gradient(120deg, var(--lp-orange) 0%, var(--lp-orange-deep) 100%);
-  color: #fff; padding: var(--s-12) var(--s-8);
+  position: relative; overflow: hidden; border-radius: var(--r-xl); color: #fff;
+  background: linear-gradient(120deg, var(--lp-teal-deeper) 0%, var(--lp-teal) 100%);
+  padding: var(--s-12) var(--s-8);
 }
-.lp-sell .lp-dotgrid { opacity: .5; }
-.lp-sell .lp-blob-1 { width: 360px; height: 360px; top: -160px; right: -80px; background: radial-gradient(closest-side, rgba(255,255,255,.22), transparent 72%); }
-.lp-sell-inner {
-  position: relative; z-index: 1;
-  display: flex; align-items: center; justify-content: space-between; gap: var(--s-8); flex-wrap: wrap;
+.lp-sell::after {
+  content: ''; position: absolute; width: 380px; height: 380px; top: -170px; inset-inline-end: -90px; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(253,122,0,.5), transparent 72%);
 }
-.lp-sell-inner h2 { color: #fff; font-family: var(--display); margin-bottom: var(--s-2); }
-.lp-sell-inner p { color: rgba(255,255,255,.9); max-width: 48ch; margin: 0; }
-.lp-sell .btn-primary { background: #fff; color: var(--lp-teal-deep); box-shadow: none; flex-shrink: 0; }
-.lp-sell .btn-primary:hover { background: var(--lp-cream); }
+.lp-sell-inner { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: var(--s-8); flex-wrap: wrap; }
+.lp-sell-inner h2 { color: #fff; margin-bottom: var(--s-2); }
+.lp-sell-inner p { color: rgba(255,255,255,.85); max-width: 50ch; margin: 0; }
+.lp-sell .btn-primary { background: var(--lp-orange); color: #fff; box-shadow: none; flex-shrink: 0; }
+.lp-sell .btn-primary:hover { background: var(--lp-orange-deep); }
 .lp-stamp {
-  display: inline-flex; align-items: center; gap: 6px; font-weight: 700;
-  font-size: var(--fs-xs); color: #FFDEB0; border: 1px solid rgba(253,122,0,.45);
-  border-radius: var(--r-xs); padding: 3px var(--s-2); background: rgba(253,122,0,.14);
-  text-transform: uppercase; letter-spacing: .06em; margin-bottom: var(--s-3);
+  display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: var(--fs-xs); color: #FFDEB0;
+  border: 1px solid rgba(253,122,0,.45); border-radius: var(--r-xs); padding: 3px var(--s-2);
+  background: rgba(253,122,0,.14); margin-bottom: var(--s-3);
 }
 
 /* ----------------------------------------------------------------------------
    RESPONSIVE
    ------------------------------------------------------------------------- */
 @media (max-width: 1024px) {
-  .lp-listing-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--s-3); }
+  .lp-rail.cols-6 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 @media (max-width: 900px) {
-  .lp-hero-inner { grid-template-columns: minmax(0, 1fr); padding: var(--s-10) 0 var(--s-10); }
+  .lp-hero-inner { grid-template-columns: minmax(0, 1fr); padding: var(--s-10) var(--s-4) var(--s-4); }
   .lp-hero-img-wrap { display: none; }
   .lp-hero-copy { max-width: none; }
-  .lp-benefits-row { grid-template-columns: repeat(2, 1fr); }
-  .lp-section { padding: var(--s-12) 0; }
+  .lp-trust-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lp-steps { grid-template-columns: minmax(0, 1fr); }
+  .lp-rail.cols-4, .lp-rail.cols-6 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+  /* Swipeable shelf: bleeds to the screen edge so it is obviously scrollable. */
+  .lp-rail.is-scroll {
+    display: flex; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+    margin-inline: calc(-1 * var(--s-4)); padding: 0 var(--s-4) var(--s-2); scrollbar-width: none; gap: var(--s-3);
+  }
+  .lp-rail.is-scroll::-webkit-scrollbar { display: none; }
+  .lp-rail.is-scroll > * { flex: 0 0 min(44vw, 210px); scroll-snap-align: start; }
 }
 
-/* ---- Phones: small 2-up product cards, like Jumia / Jiji ----------------- */
 @media (max-width: 640px) {
+  .lp-hero { padding-bottom: var(--s-14); }
   .lp-hero-stats { gap: var(--s-6); }
   .lp-hero-float { display: none; }
   .lp-searchbar { flex-wrap: wrap; }
-  .lp-searchbar input { flex: 1 1 100%; }
-  .lp-searchbar select, .lp-searchbar .btn { flex: 1 1 0; }
+  .lp-sb-q { flex: 1 1 100%; }
+  .lp-searchbar select { flex: 1 1 0; min-width: 0; max-width: none; border-inline-start: 0; border-top: 1px solid #E4E7EC; }
+  .lp-searchbar .btn { flex: 1 1 100%; margin-top: 6px; }
 
-  .lp-benefits-row { grid-template-columns: minmax(0, 1fr); gap: var(--s-4); padding: var(--s-5) 0; }
+  .lp-trust { margin-top: calc(var(--s-8) * -1); }
+  .lp-trust-row { padding: var(--s-4); gap: var(--s-4) var(--s-3); }
+  .lp-trust-row .ic { width: 36px; height: 36px; }
+  .lp-trust-row span:not(.ic) { display: none; }
 
-  /* Category wall becomes a horizontally scrolling strip with icon-on-top chips */
-  .lp-cat-wall {
-    display: flex; gap: var(--s-2); overflow-x: auto; scroll-snap-type: x mandatory;
-    padding-bottom: var(--s-2); margin: 0 calc(-1 * var(--s-4)); padding-left: var(--s-4); padding-right: var(--s-4);
-    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  .lp-block, .lp-shelf { padding-top: var(--s-10); }
+  .lp-shelf.is-tint { padding: var(--s-10) 0; margin-top: var(--s-10); }
+  .lp-shelf-head h2, .lp-block h2 { font-size: var(--fs-xl); }
+
+  /* Category tiles become a horizontal strip */
+  .lp-cats {
+    display: flex; gap: var(--s-3); overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
+    margin-inline: calc(-1 * var(--s-4)); padding: 0 var(--s-4) var(--s-2);
   }
-  .lp-cat-wall::-webkit-scrollbar { display: none; }
-  .lp-cat-chip {
-    flex: 0 0 84px; flex-direction: column; text-align: center; gap: var(--s-2);
-    padding: var(--s-3) var(--s-2); scroll-snap-align: start;
-  }
-  .lp-cat-ico { width: 48px; height: 48px; }
-  .lp-cat-label { font-size: 11px; line-height: 1.2; }
+  .lp-cats::-webkit-scrollbar { display: none; }
+  .lp-cat { flex: 0 0 84px; scroll-snap-align: start; font-size: 11px; }
+  .lp-cat-ico { width: 64px; height: 64px; }
 
-  /* The key change: items render small and two-across on phones */
-  .lp-listing-grid { grid-template-columns: repeat(2, 1fr); gap: var(--s-2); }
-  .lp .lcard-img { aspect-ratio: 1/1; }
+  /* Non-scroll shelves: small 2-up cards, like Jumia / Jiji */
+  .lp-rail.cols-4:not(.is-scroll), .lp-rail.cols-6:not(.is-scroll) { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-2); }
   .lp .lcard-body { padding: var(--s-2); gap: 1px; }
   .lp .lcard-title { font-size: var(--fs-xs); line-height: 1.3; }
   .lp .lcard-price { font-size: var(--fs-sm); }
   .lp .lcard-kind .badge { font-size: 9px; padding: 1px 5px; }
   .lp .lcard-foot span:last-child { font-size: 10px; }
-  .lp-sell { padding: var(--s-8) var(--s-4); }
+
+  .lp-sell { padding: var(--s-8) var(--s-5); }
   .lp-sell-inner { flex-direction: column; align-items: flex-start; }
+  .lp-block-last { padding-bottom: var(--s-12); }
 }
 
-@media (max-width: 375px) {
-  /* Tightest screens: shave the gap further so two cards stay comfortable. */
-  .lp-listing-grid { gap: var(--s-1); }
-  .lp .lcard-body { padding: 6px; }
-}
-.lp-how { background: var(--lp-teal-tint); }
-.lp-how-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-6); }
-.lp-how-step {
-  position: relative; background: #fff; border: 1px solid var(--border); border-radius: var(--r-lg);
-  padding: var(--s-6) var(--s-5); text-align: center;
-}
-.lp-how-num {
-  position: absolute; top: var(--s-4); right: var(--s-4);
-  font-family: var(--display); font-size: var(--fs-xl); font-weight: 700; color: var(--lp-teal-tint);
-  -webkit-text-stroke: 1.5px var(--lp-teal);
-}
-.lp-how-step .ic {
-  width: 52px; height: 52px; border-radius: 999px; background: var(--lp-orange-tint);
-  display: grid; place-items: center; font-size: 1.4rem; margin: 0 auto var(--s-4);
-}
-.lp-how-step strong { display: block; font-size: var(--fs-base); margin-bottom: var(--s-2); }
-.lp-how-step p { font-size: var(--fs-sm); color: var(--text-muted); margin: 0; line-height: 1.5; }
-
-@media (max-width: 640px) {
-  .lp-how-grid { grid-template-columns: 1fr; gap: var(--s-4); }
+@media (prefers-reduced-motion: reduce) {
+  .lp-cat:hover .lp-cat-ico, .lp .lcard:hover { transform: none; }
 }
 
 /* ===========================================================================
-   PAID PLACEMENT — VIP and Featured stores
-   
-   VIP is visually louder than Featured because the vendor paid more for
-   exactly that. The gap between the two tiers has to be legible at a glance or
-   the premium price is not defensible.
+   PAID PLACEMENT — VIP and Featured stores (used by FeaturedStores.tsx)
+   Unchanged from the previous stylesheet.
    =========================================================================== */
-
+.lp-section { padding: var(--s-14) 0; position: relative; }
 .lp-promos { padding-top: 0; }
 .pr-head { max-width: 640px; }
 
-.pr-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: var(--s-4);
-}
-/* VIP cards are wider and taller than Featured. The tiers have to be
-   distinguishable at a glance or the premium price is not defensible — and
-   sizing does that more honestly than colour alone, which a colour-blind
-   buyer would miss. auto-fill (not auto-fit) so the card size stays the same
-   whether one store or six bought the tier. */
+.pr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: var(--s-4); }
 .pr-grid-vip { grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }
 .pr-vip { padding: var(--s-5); }
 .pr-vip .pr-logo { width: 72px; height: 72px; font-size: var(--fs-lg); }
 .pr-vip .pr-name { font-size: var(--fs-lg); }
 
 .pr-card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--s-3);
-  padding: var(--s-4);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  background: var(--surface);
-  color: inherit;
-  text-decoration: none;
-  min-width: 0;
-  transition: border-color var(--t) var(--ease), box-shadow var(--t) var(--ease),
-              transform var(--t) var(--ease);
+  position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-3);
+  padding: var(--s-4); border: 1px solid var(--border); border-radius: var(--r-lg);
+  background: var(--surface); color: inherit; text-decoration: none; min-width: 0;
+  transition: border-color var(--t) var(--ease), box-shadow var(--t) var(--ease), transform var(--t) var(--ease);
 }
-.pr-card:hover {
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
-  text-decoration: none;
-}
-
-/* The VIP treatment: gold edge and a warm wash, so it reads as a different
-   product rather than the same card with different words on it. */
+.pr-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-md); transform: translateY(-2px); text-decoration: none; }
 .pr-main { display: flex; align-items: center; gap: var(--s-4); width: 100%; min-width: 0; }
 
 .pr-vip {
-  border-color: var(--gold);
-  box-shadow: 0 0 0 1px var(--gold), var(--shadow-xs);
-  background:
-    linear-gradient(180deg, var(--gold-soft) 0%, var(--surface) 62%);
+  border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold), var(--shadow-xs);
+  background: linear-gradient(180deg, var(--gold-soft) 0%, var(--surface) 62%);
 }
 .pr-vip:hover { box-shadow: 0 0 0 1px var(--gold), var(--shadow-md); }
 
-.pr-badge {
-  align-self: flex-start;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  padding: 3px var(--s-2);
-  border-radius: var(--r-sm);
-  line-height: 1.4;
-}
+.pr-badge { align-self: flex-start; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 3px var(--s-2); border-radius: var(--r-sm); line-height: 1.4; }
 .pr-badge-vip { background: var(--gold); color: #fff; }
-.pr-badge-featured {
-  background: var(--surface-2);
-  color: var(--text-muted);
-  border: 1px solid var(--border);
-}
+.pr-badge-featured { background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border); }
 
 .pr-logo {
-  flex: 0 0 auto;
-  width: 56px; height: 56px;
-  border-radius: var(--r-md);
-  overflow: hidden;
-  display: grid; place-items: center;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  font-family: var(--display);
-  font-weight: 700;
-  color: var(--text-muted);
+  flex: 0 0 auto; width: 56px; height: 56px; border-radius: var(--r-md); overflow: hidden;
+  display: grid; place-items: center; background: var(--surface-2); border: 1px solid var(--border);
+  font-family: var(--display); font-weight: 700; color: var(--text-muted);
 }
 .pr-logo img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
 .pr-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.pr-name {
-  font-family: var(--display);
-  font-size: var(--fs-base);
-  line-height: 1.3;
-  overflow-wrap: anywhere;
-}
+.pr-name { font-family: var(--display); font-size: var(--fs-base); line-height: 1.3; overflow-wrap: anywhere; }
 .pr-meta { font-size: var(--fs-sm); color: var(--text-muted); }
 .pr-dim { opacity: .7; }
-
-.pr-disclosure {
-  margin: var(--s-5) 0 0;
-  font-size: var(--fs-xs);
-  color: var(--text-muted);
-}
+.pr-disclosure { margin: var(--s-5) 0 0; font-size: var(--fs-xs); color: var(--text-muted); }
 
 @media (max-width: 640px) {
-  /* One column rather than two cramped ones: the store name is the point and
-     it must not wrap to three lines. */
   .pr-grid, .pr-grid-vip { grid-template-columns: 1fr; gap: var(--s-3); }
 }
