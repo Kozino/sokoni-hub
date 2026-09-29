@@ -2,14 +2,32 @@ import { createContext, useContext, useEffect, useState, ReactNode, useCallback 
 import { api, setToken, getToken } from '../lib/api';
 import type { User, Vendor } from '../types';
 
+/** What the server wants next after a login call. */
+export type LoginStep =
+  | { step: 'done'; user: User }                                                  // signed in
+  | { step: 'pin'; pinToken: string; fullName: string }                           // ask for the PIN
+  | { step: 'setup'; setupToken: string; needsEmail: boolean; fullName: string }; // create a PIN
+
+interface LoginResp {
+  token?: string; user?: User; vendor?: Vendor | null;
+  pin_required?: boolean; pin_token?: string;
+  pin_setup_required?: boolean; setup_token?: string; needs_email?: boolean;
+  full_name?: string;
+}
+
 interface AuthState {
   user: User | null;
   vendor: Vendor | null;
   loading: boolean;
   /** True while an admin is viewing the site as another user. */
   impersonating: boolean;
-  login: (identifier: string, password: string) => Promise<User>;
-  register: (p: { full_name: string; phone: string; email?: string; password: string; role: 'buyer' | 'vendor' }) => Promise<User>;
+  /** Step 1: identifier + password. May ask for a PIN, or for a PIN to be created. */
+  login: (identifier: string, password: string) => Promise<LoginStep>;
+  /** Step 2: the PIN. */
+  verifyPin: (pinToken: string, pin: string) => Promise<LoginStep>;
+  /** Create a PIN (existing accounts, or after an admin reset). */
+  setupPin: (p: { setupToken: string; pin: string; email?: string }) => Promise<User>;
+  register: (p: { full_name: string; phone: string; email: string; password: string; pin: string; role: 'buyer' | 'vendor' }) => Promise<User>;
   logout: () => void;
   refresh: () => Promise<void>;
   /** Admin only: switch this tab to the given user's session. */
@@ -39,7 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const r = await api.get<{ user: User; vendor: Vendor | null }>('/auth/me');
       setUser(r.user); setVendor(r.vendor);
     } catch {
-      // Token rejected (for example the 1-hour "view as" token expired): sign out fully.
+      // Token rejected (for example the 1-hour "view as" token expired, or the
+      // PIN was changed on another device): sign out fully.
       setToken(null); setUser(null); setVendor(null);
       clearAdminToken(); setImpersonating(false);
     } finally { setLoading(false); }
@@ -47,11 +66,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  const login: AuthState['login'] = async (identifier, password) => {
-    const r = await api.post<{ token: string; user: User; vendor: Vendor | null }>('/auth/login', { identifier, password });
+  /** Turns a server response into either "signed in" or "the next step". */
+  const finish = (r: LoginResp): LoginStep => {
+    if (r.pin_required)
+      return { step: 'pin', pinToken: r.pin_token!, fullName: r.full_name ?? '' };
+    if (r.pin_setup_required)
+      return { step: 'setup', setupToken: r.setup_token!, needsEmail: !!r.needs_email, fullName: r.full_name ?? '' };
     clearAdminToken(); setImpersonating(false);
-    setToken(r.token); setUser(r.user); setVendor(r.vendor ?? null);
-    return r.user;
+    setToken(r.token!); setUser(r.user!); setVendor(r.vendor ?? null);
+    return { step: 'done', user: r.user! };
+  };
+
+  const login: AuthState['login'] = async (identifier, password) =>
+    finish(await api.post<LoginResp>('/auth/login', { identifier, password }));
+
+  const verifyPin: AuthState['verifyPin'] = async (pinToken, pin) =>
+    finish(await api.post<LoginResp>('/auth/login/pin', { pin_token: pinToken, pin }));
+
+  const setupPin: AuthState['setupPin'] = async ({ setupToken, pin, email }) => {
+    const r = await api.post<LoginResp>('/auth/pin/setup', { setup_token: setupToken, pin, email });
+    finish(r);
+    return r.user!;
   };
 
   const register: AuthState['register'] = async (p) => {
@@ -85,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <Ctx.Provider value={{ user, vendor, loading, impersonating, login, register, logout, refresh, impersonate, stopImpersonating }}>
+    <Ctx.Provider value={{ user, vendor, loading, impersonating, login, verifyPin, setupPin, register, logout, refresh, impersonate, stopImpersonating }}>
       {children}
       {impersonating && user && (
         <div
