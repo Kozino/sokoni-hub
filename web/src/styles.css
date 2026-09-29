@@ -1745,27 +1745,7 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
   .burger { display: inline-flex; }
   .nav.open a.btn-primary { justify-content: center; }
 
-   /* Signed-in account section: phones only (desktop uses the avatar dropdown) */
-.mob-only { display: none; }
 
-@media (max-width: 640px) {
-  .desk-only { display: none !important; }
-  .nav.open .mob-only { display: flex; }
-
-  .nav-account {
-    flex-direction: column; gap: 2px;
-    margin-top: var(--s-2); padding-top: var(--s-3);
-    border-top: 1px solid var(--border);
-  }
-  .nav-account-who { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2) var(--s-3) var(--s-3); min-width: 0; }
-  .nav-account-who > div { min-width: 0; }
-  .nav-account-who strong { display: block; color: var(--text); font-size: var(--fs-md); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .nav-account-who span:not(.avatar) { font-size: var(--fs-xs); color: var(--text-muted); text-transform: capitalize; }
-
-  /* Sign out: last row, clearly separate from the navigation links */
-  .nav.open .nav-account button.linkish.danger { color: var(--danger-text); margin-top: var(--s-2); border: 1px solid var(--danger-line); justify-content: center; }
-  .nav.open .nav-account button.linkish.danger:hover { background: var(--danger-soft); }
-}
 
   .grid-stats, .grid-3, .grid-4 { grid-template-columns: minmax(0, 1fr); }
   .form-row, .form-row-3 { grid-template-columns: minmax(0, 1fr); }
@@ -2206,3 +2186,24 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
   .nav.open .lang-menu { position: static; width: 100%; box-shadow: none; margin-top: var(--s-2); }
   .lang-menu button { min-height: 44px; }
 }
+
+/* Signed-in account section in the phone menu (only rendered on phones) */
+.nav-account {
+  display: flex; flex-direction: column; gap: 2px;
+  margin-top: var(--s-2); padding-top: var(--s-3);
+  border-top: 1px solid var(--border);
+}
+.nav-account-who { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2) var(--s-3) var(--s-3); min-width: 0; }
+.nav-account-who > div { min-width: 0; }
+.nav-account-who strong { display: block; color: var(--text); font-size: var(--fs-md); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-account-who span:not(.avatar) { font-size: var(--fs-xs); color: var(--text-muted); text-transform: capitalize; }
+.nav-account a, .nav-account button.linkish {
+  display: flex; align-items: center; width: 100%; min-height: 44px;
+  padding: var(--s-2) var(--s-3); border-radius: var(--r-sm);
+  color: var(--text-2); font-weight: 550; font-size: var(--fs-md);
+  background: none; border: 0; cursor: pointer; font-family: inherit; text-align: start;
+}
+.nav-account a:hover, .nav-account button.linkish:hover { background: var(--surface-3); color: var(--text); text-decoration: none; }
+.nav-account a.active { color: var(--accent-text); background: var(--accent-soft); font-weight: 600; }
+.nav-account button.linkish.danger { color: var(--danger-text); margin-top: var(--s-2); border: 1px solid var(--danger-line); justify-content: center; }
+.nav-account button.linkish.danger:hover { background: var(--danger-soft); }
