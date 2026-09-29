@@ -1324,6 +1324,11 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
   display: flex; justify-content: space-between; gap: var(--s-3); flex-wrap: wrap;
   font-size: var(--fs-xs); color: rgba(255,255,255,.45);
 }
+/* Footer brand: the logo sits on a light tile so the teal stays readable on the dark footer. */
+.footer .footer-brand { display: inline-flex; align-items: center; gap: var(--s-3); padding: 0; margin-bottom: var(--s-4); }
+.footer-logo { width: 44px; height: 44px; border-radius: var(--r-md); background: #fff; display: grid; place-items: center; flex: 0 0 auto; }
+.footer-logo img { width: 32px; height: 32px; object-fit: contain; }
+.footer .footer-brand-name { font-family: var(--display); font-weight: 650; font-size: var(--fs-lg); color: #fff; letter-spacing: -.02em; }
 
 /* ---------------------------------------------------------------------------
    19b. BOOKINGS INBOX
