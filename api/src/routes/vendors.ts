@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { one, query } from '../db';
-import { requireAuth, loadVendor, requireVerifiedVendor } from '../auth';
+import { requireAuth, loadVendor, requireVerifiedVendor, blockImpersonation } from '../auth';
 import { HttpError, audit, slugify, screenProhibited, normalizePhone } from '../utils';
 import { distanceKmSql } from '../delivery';
 
@@ -121,9 +121,10 @@ vendorRouter.get('/me/delivery', requireAuth('vendor'), loadVendor, async (req, 
 
 /**
  * Payout details. Kept apart from /me so a profile edit cannot wipe bank
- * data, and so this endpoint can be audited on its own.
+ * data, and so this endpoint can be audited on its own. Blocked while an
+ * admin is viewing as the vendor.
  */
-vendorRouter.put('/me/payout', requireAuth('vendor'), loadVendor, async (req, res, next) => {
+vendorRouter.put('/me/payout', requireAuth('vendor'), blockImpersonation, loadVendor, async (req, res, next) => {
   try {
     const b = z.object({
       bank_name:         z.string().max(120).nullable().optional(),
@@ -232,14 +233,14 @@ vendorRouter.get('/dashboard', requireAuth('vendor'), loadVendor, async (req, re
     // Where orders actually came from — a vendor's shared link, a QR scan, or
     // plain marketplace discovery. Backs the "your shared link brought in X
     // orders" stat and, later, whatever gets priced around it.
-   const bySource = await query<any>(
-  `select coalesce(source, 'marketplace') as source, count(*)::int as orders,
-          coalesce(sum(total) filter (where status <> 'cancelled'), 0)::float as gmv
-   from orders
-   where vendor_id = $1 and created_at > now() - interval '30 days'
-   group by source`,
-  [vid]
-);
+    const bySource = await query<any>(
+      `select coalesce(source, 'marketplace') as source, count(*)::int as orders,
+              coalesce(sum(total) filter (where status <> 'cancelled'), 0)::float as gmv
+       from orders
+       where vendor_id = $1 and created_at > now() - interval '30 days'
+       group by source`,
+      [vid]
+    );
 
     const recentOrders = await query<any>(
       `select id, code, status, total, currency, contact_name, city, payment_method, created_at
