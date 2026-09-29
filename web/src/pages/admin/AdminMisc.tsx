@@ -5,6 +5,7 @@ import { money, date, dateTime, timeAgo } from '../../lib/format';
 import { Alert, Empty, Field, Modal, StatusBadge, Tabs, useConfirm } from '../../components/ui';
 import { DataTable, DTColumn } from '../../components/DataTable';
 import { useToast } from '../../state/ToastContext';
+import { useAuth } from '../../state/AuthContext';
 import type { Complaint, ComplaintMessage, Listing, Order, User, Category } from '../../types';
 
 /* ================= Listings moderation ================= */
@@ -360,6 +361,7 @@ export function AdminUsers() {
   const [err, setErr] = useState('');
   const { push } = useToast();
   const { confirm, dialog } = useConfirm();
+  const { impersonate } = useAuth();
 
   const load = () => {
     setLoading(true);
@@ -375,6 +377,21 @@ export function AdminUsers() {
     }
     try { await api.patch(`/admin/users/${u.id}`, { is_active: !u.is_active }); push('User updated', 'success'); load(); }
     catch (e) { push(e instanceof ApiError ? e.message : 'Failed', 'error'); }
+  };
+
+  const viewAs = async (u: User) => {
+    const ok = await confirm({
+      title: 'View as user',
+      body: <>Open <strong>{u.full_name}</strong>'s {u.role === 'vendor' ? 'vendor dashboard' : 'account'}? You'll be signed in as them for up to 1 hour. This is recorded in the activity log.</>,
+      confirmLabel: 'View',
+    });
+    if (!ok) return;
+    try {
+      await impersonate(u.id);
+      window.location.assign(u.role === 'vendor' ? '/vendor' : '/');
+    } catch (e) {
+      push(e instanceof ApiError ? e.message : 'Could not open this account', 'error');
+    }
   };
 
   const createAdmin = async () => {
@@ -411,7 +428,14 @@ export function AdminUsers() {
       <DataTable
         columns={columns} rows={items} rowKey={(u) => u.id} loading={loading}
         emptyIcon="👥" emptyTitle="No users found" exportFilename="users" storageKey="admin-users"
-        rowActions={(u) => <button className="btn btn-outline btn-sm" onClick={() => toggle(u)}>{u.is_active ? 'Disable' : 'Enable'}</button>}
+        rowActions={(u) => (
+          <div className="row" style={{ gap: 4 }}>
+            {u.role !== 'admin' && u.is_active && (
+              <button className="btn btn-primary btn-sm" onClick={() => viewAs(u)}>View</button>
+            )}
+            <button className="btn btn-outline btn-sm" onClick={() => toggle(u)}>{u.is_active ? 'Disable' : 'Enable'}</button>
+          </div>
+        )}
       />
 
       <Modal open={showNew} title="Create administrator" onClose={() => setShowNew(false)}
