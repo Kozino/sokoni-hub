@@ -1,251 +1,558 @@
-/**
- * Vendor booking inbox.
- *
- * Bookings are leads, not orders: no money moves through the platform here.
- * The vendor's job is to contact the buyer, agree a time, and record what
- * happened. Those status stamps are what later justify charging for a service
- * listing, so the UI pushes hard toward keeping them accurate.
- *
- * Layout is one DOM that changes shape (see .bk-list in styles.css): an aligned
- * grid on desktop, a stacked card below 860px. Most of this vendor's traffic is
- * a phone between appointments, so the phone layout is the one that has to be
- * right — hence a full-width WhatsApp button per row rather than a table cell.
- */
-
-import { useEffect, useMemo, useState } from 'react';
-import { api, ApiError } from '../../lib/api';
-import { money, dateTime, timeAgo, titleCase, waLink } from '../../lib/format';
-import { Alert, Spinner, Empty, Badge, Modal, Field, Stat } from '../../components/ui';
-import { useToast } from '../../state/ToastContext';
-
-interface Booking {
-  id: string; code: string; status: string;
-  listing_title: string; duration_mins: number | null;
-  contact_name: string; contact_phone: string; contact_email: string | null;
-  preferred_at: string | null; preferred_note: string | null;
-  scheduled_at: string | null;
-  quoted_price: string | null; quoted_price_type: string | null; currency: string;
-  vendor_note: string | null; cancel_reason: string | null;
-  first_viewed_at: string | null; contacted_at: string | null;
-  created_at: string;
-}
-
-const TONE: Record<string, 'grey' | 'green' | 'gold' | 'red' | 'blue' | 'terra'> = {
-  new: 'gold', contacted: 'blue', confirmed: 'green',
-  completed: 'grey', cancelled: 'red', no_show: 'red',
-};
-
-const FILTERS = ['', 'new', 'contacted', 'confirmed', 'completed', 'cancelled'] as const;
-
-/** ISO -> value for <input type="datetime-local">, in the browser's timezone. */
-function toLocalInput(iso: string | null) {
-  const d = iso ? new Date(iso) : new Date(Date.now() + 25 * 3600_000);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { api } from "../../lib/api";
+import {
+  Booking,
+  TimeOff,
+  addDays,
+  qDate,
+  qInput,
+  qISO,
+  qWhen,
+  qTime,
+  live,
+  tone,
+} from "../../lib/booking";
+import { money, waLink } from "../../lib/format";
+import { Alert, Spinner, Empty, Badge, Modal, Stat } from "../../components/ui";
+import { useVendorDashboard } from "../../state/VendorDashboardContext";
+import "../../components/booking.css";
+const FILTERS = [
+  "",
+  "new",
+  "contacted",
+  "confirmed",
+  "completed",
+  "cancelled",
+  "no_show",
+];
+const title = (s: string) => s.replace(/_/g, " ");
 export default function VendorBookings() {
-  const toast = useToast();
-  const [rows, setRows] = useState<Booking[] | null>(null);
-  const [filter, setFilter] = useState<string>('');
-  const [active, setActive] = useState<Booking | null>(null);
-  const [when, setWhen] = useState('');
-  const [note, setNote] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  const load = () =>
-    api.get<{ bookings: Booking[] }>(`/bookings/vendor${filter ? `?status=${filter}` : ''}`)
-      .then((r) => setRows(r.bookings))
-      .catch(() => setRows([]));
-
-  useEffect(() => { setRows(null); load(); /* eslint-disable-next-line */ }, [filter]);
-
-  const counts = useMemo(() => {
-    const r = rows ?? [];
-    return {
-      total: r.length,
-      fresh: r.filter((b) => b.status === 'new').length,
-      upcoming: r.filter((b) => b.status === 'confirmed' && b.scheduled_at && new Date(b.scheduled_at) > new Date()).length,
+  const { refresh: refreshDashboard } = useVendorDashboard();
+  const [rows, setRows] = useState<Booking[]>([]),
+    [counts, setCounts] = useState<{
+      total: number;
+      new: number;
+      upcoming: number;
+    } | null>(null);
+  const [filter, setFilter] = useState(""),
+    [view, setView] = useState<"list" | "day" | "week">("list"),
+    [day, setDay] = useState(qDate());
+  const [events, setEvents] = useState<Booking[]>([]),
+    [off, setOff] = useState<TimeOff[]>([]);
+  const [loading, setLoading] = useState(true),
+    [error, setError] = useState(""),
+    [refresh, setRefresh] = useState(0);
+  const [active, setActive] = useState<Booking | null>(null),
+    [when, setWhen] = useState(""),
+    [note, setNote] = useState(""),
+    [reason, setReason] = useState(""),
+    [busy, setBusy] = useState(false),
+    [saveError, setSaveError] = useState("");
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    setError("");
+    const load = async () => {
+      try {
+        if (view === "list") {
+          const r = await api.get<{ bookings: Booking[] }>(
+            `/bookings/vendor${filter ? "?status=" + filter : ""}`,
+          );
+          if (alive) setRows(r.bookings);
+        } else {
+          const r = await api.get<{ bookings: Booking[]; time_off: TimeOff[] }>(
+            `/bookings/vendor/calendar?from=${day}&to=${addDays(day, view === "week" ? 7 : 1)}`,
+          );
+          if (alive) {
+            setEvents(r.bookings);
+            setOff(r.time_off);
+          }
+        }
+        const c = await api.get<{
+          total: number;
+          new: number;
+          upcoming: number;
+        }>("/bookings/vendor/counts");
+        if (alive) setCounts(c);
+      } catch (e) {
+        if (alive) setError((e as Error).message);
+      } finally {
+        if (alive) setLoading(false);
+      }
     };
-  }, [rows]);
-
+    void load();
+    return () => {
+      alive = false;
+    };
+  }, [filter, view, day, refresh]);
   const open = (b: Booking) => {
     setActive(b);
-    setWhen(toLocalInput(b.scheduled_at || b.preferred_at));
-    setNote(b.vendor_note || '');
-    // Stamp first_viewed_at so response time is measurable. Fire and forget.
-    if (!b.first_viewed_at) api.post(`/bookings/${b.id}/seen`, {}).catch(() => {});
+    setWhen(b.scheduled_at ? qInput(b.scheduled_at) : "");
+    setNote(b.vendor_note || "");
+    setReason(b.cancel_reason || "");
+    setSaveError("");
+    void api.post(`/bookings/${b.id}/seen`).catch(() => {});
   };
-
   const save = async (status?: string) => {
-    if (!active) return;
+    if (!active || busy) return;
+    if (
+      status === "cancelled" &&
+      !window.confirm("Decline / cancel this booking and release its time?")
+    )
+      return;
     setBusy(true);
+    setSaveError("");
     try {
-      const body: Record<string, unknown> = { vendor_note: note.trim() || null };
-      if (status) body.status = status;
-      // Only send a time when one is genuinely set, so a blank field does not
-      // wipe an already-agreed slot.
-      if (when) body.scheduled_at = new Date(when).toISOString();
-      await api.patch(`/bookings/${active.id}`, body);
-      toast.push(status ? `Marked as ${status.replace('_', ' ')}` : 'Booking updated', 'success');
+      await api.patch(`/bookings/${active.id}`, {
+        vendor_note: note.trim() || null,
+        cancel_reason: reason.trim() || null,
+        ...(status ? { status } : {}),
+        ...(!active.slot_starts_at &&
+        when &&
+        when !== (active.scheduled_at ? qInput(active.scheduled_at) : "")
+          ? { scheduled_at: qISO(when) }
+          : {}),
+      });
       setActive(null);
-      await load();
+      setRefresh((n) => n + 1);
+      void refreshDashboard();
     } catch (e) {
-      toast.push(e instanceof ApiError ? e.message : 'Could not update that booking', 'error');
+      setSaveError((e as Error).message);
     } finally {
       setBusy(false);
     }
   };
-
+  const selected = active && (active.slot_starts_at || active.scheduled_at);
   return (
-    <div>
+    <div className="booking-inbox">
       <div className="dash-title">
         <div>
-          <h1 style={{ marginBottom: 4 }}>Bookings</h1>
-          <p style={{ color: 'var(--text-muted)', margin: 0 }}>
-            Requests for your services. Nothing is charged through Sokoni Hub — you agree
-            the time and the price with the customer directly.
+          <h1>Bookings</h1>
+          <p>
+            Manage every service in one diary. All times are Qatar time; payment
+            is arranged directly.
           </p>
         </div>
-      </div>
-
-      <div className="grid grid-stats bk-stats mt-2">
-        <Stat label="All bookings" value={String(counts.total)} />
-        <Stat label="Awaiting your reply" value={String(counts.fresh)} accent={counts.fresh ? 'gold' : undefined} />
-        <Stat label="Upcoming" value={String(counts.upcoming)} />
-      </div>
-
-      {counts.fresh > 0 && (
-        <div className="mt-2">
-          <Alert kind="warn">
-            You have {counts.fresh} request{counts.fresh === 1 ? '' : 's'} you have not replied to yet.
-            Customers usually book elsewhere if they do not hear back the same day.
-          </Alert>
-        </div>
-      )}
-
-      <div className="bk-filters mt-2">
-        {FILTERS.map((f) => (
-          <button key={f || 'all'}
-            className={`btn btn-sm ${filter === f ? 'btn-primary' : ''}`}
-            onClick={() => setFilter(f)}>
-            {f ? titleCase(f.replace('_', ' ')) : 'All'}
+        <div className="actions">
+          <button
+            className="btn btn-outline"
+            disabled={loading}
+            onClick={() => setRefresh((n) => n + 1)}
+          >
+            Refresh
           </button>
-        ))}
+          <Link className="btn btn-primary" to="/vendor/availability">
+            Set availability
+          </Link>
+        </div>
       </div>
-
-      {rows === null ? <Spinner /> : rows.length === 0 ? (
-        <Empty icon="📅" title="No bookings yet"
-          text="When a customer requests one of your services it will appear here." />
-      ) : (
-        <div className="bk-list mt-2">
-          <div className="bk-head" role="presentation">
-            <div>Reference</div>
-            <div>Service</div>
-            <div>Customer</div>
-            <div>Requested for</div>
-            <div>Status</div>
-            <div />
+      <div className="grid grid-stats bk-stats mb-3">
+        <Stat
+          label="All bookings"
+          value={counts ? String(counts.total) : "—"}
+        />
+        <Stat
+          label="Awaiting your reply"
+          value={counts ? String(counts.new) : "—"}
+          accent="gold"
+        />
+        <Stat
+          label="Upcoming"
+          value={counts ? String(counts.upcoming) : "—"}
+          accent="green"
+        />
+      </div>
+      {!!counts?.new && (
+        <Alert kind="warn">
+          {counts.new} request(s) need a response. Pending slot requests reserve
+          your time across all your service listings.
+        </Alert>
+      )}
+      <div className="row-between mb-2">
+        <div className="btn-group" aria-label="Booking view">
+          {(["list", "day", "week"] as const).map((v) => (
+            <button
+              key={v}
+              aria-pressed={view === v}
+              onClick={() => setView(v)}
+            >
+              {v === "list" ? "Inbox" : v === "day" ? "Day" : "Week"}
+            </button>
+          ))}
+        </div>
+        {view !== "list" && (
+          <div className="row wrap">
+            <button
+              className="btn btn-outline btn-sm"
+              aria-label="Previous period"
+              onClick={() => setDay(addDays(day, view === "week" ? -7 : -1))}
+            >
+              ←
+            </button>
+            <input
+              aria-label="Calendar date"
+              type="date"
+              style={{ width: 170 }}
+              value={day}
+              onChange={(e) => {
+                if (e.target.value) setDay(e.target.value);
+              }}
+            />
+            <button
+              className="btn btn-outline btn-sm"
+              aria-label="Next period"
+              onClick={() => setDay(addDays(day, view === "week" ? 7 : 1))}
+            >
+              →
+            </button>
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() => setDay(qDate())}
+            >
+              Today
+            </button>
           </div>
-
-          {rows.map((b) => (
-            <div key={b.id} className={`bk-item${b.status === 'new' ? ' is-new' : ''}`}>
-              <div className="bk-c-ref">
-                <div className="bk-ref">{b.code}</div>
-                <div className="bk-sub">{timeAgo(b.created_at)}</div>
-              </div>
-
-              <div className="bk-c-service">
-                <span className="bk-label">Service</span>
-                {b.listing_title}
-                {b.quoted_price && (
-                  <div className="bk-sub">
-                    {money(Number(b.quoted_price), b.currency)}
-                    {b.quoted_price_type && b.quoted_price_type !== 'fixed' ? ` (${b.quoted_price_type})` : ''}
-                  </div>
-                )}
-              </div>
-
-              <div className="bk-c-customer">
-                <span className="bk-label">Customer</span>
-                {b.contact_name}
-                <div className="bk-sub">
-                  <a href={waLink(b.contact_phone, `Hello ${b.contact_name}, about your booking ${b.code}`)}
-                    target="_blank" rel="noreferrer">{b.contact_phone}</a>
-                </div>
-              </div>
-
-              <div className="bk-c-when bk-when">
-                <span className="bk-label">Requested for</span>
-                {b.scheduled_at
-                  ? <><strong>{dateTime(b.scheduled_at)}</strong><div className="bk-sub">Agreed</div></>
-                  : b.preferred_at
-                    ? <>{dateTime(b.preferred_at)}<div className="bk-sub">Requested</div></>
-                    : <span className="bk-sub">Flexible — just call</span>}
-              </div>
-
-              <div className="bk-c-status">
-                <Badge tone={TONE[b.status] || 'grey'}>{titleCase(b.status.replace('_', ' '))}</Badge>
-              </div>
-
-              <div className="bk-c-action">
-                <button className="btn btn-sm" onClick={() => open(b)}>Manage</button>
-              </div>
-            </div>
+        )}
+      </div>
+      {view === "list" && (
+        <div className="bk-filters mb-2">
+          {FILTERS.map((f) => (
+            <button
+              key={f}
+              aria-pressed={filter === f}
+              className={`btn btn-sm ${filter === f ? "btn-primary" : "btn-outline"}`}
+              onClick={() => setFilter(f)}
+            >
+              {f ? title(f) : "All"}
+            </button>
           ))}
         </div>
       )}
-
+      {error && (
+        <Alert kind="error">
+          {error}
+          <button
+            className="btn btn-outline btn-sm"
+            onClick={() => setRefresh((n) => n + 1)}
+          >
+            Retry
+          </button>
+        </Alert>
+      )}
+      {loading ? (
+        <Spinner />
+      ) : !error && view === "list" ? (
+        rows.length === 0 ? (
+          <Empty
+            icon="📅"
+            title="No bookings in this view"
+            text="Bookings for your services will appear here."
+          />
+        ) : (
+          <>
+            <div className="bk-list">
+              <div className="bk-head">
+                <span>Reference</span>
+                <span>Service</span>
+                <span>Customer</span>
+                <span>When</span>
+                <span>Status</span>
+                <span />
+              </div>
+              {rows.map((b) => (
+                <div
+                  key={b.id}
+                  className={`bk-item ${b.status === "new" ? "is-new" : ""}`}
+                >
+                  <div className="bk-c-ref">
+                    <strong className="bk-ref">{b.code}</strong>
+                  </div>
+                  <div className="bk-c-service">
+                    <span className="bk-label">Service</span>
+                    {b.listing_title}
+                    <div className="bk-sub">
+                      {money(b.quoted_price || 0, b.currency)}
+                      {b.quoted_price_type !== "fixed"
+                        ? ` (${b.quoted_price_type})`
+                        : ""}
+                    </div>
+                  </div>
+                  <div className="bk-c-customer">
+                    <span className="bk-label">Customer</span>
+                    {b.contact_name}
+                    <div className="bk-sub">
+                      <a href={`tel:${b.contact_phone}`}>{b.contact_phone}</a>
+                    </div>
+                  </div>
+                  <div className="bk-c-when">
+                    <span className="bk-label">When</span>
+                    {b.slot_starts_at || b.scheduled_at ? (
+                      <strong>
+                        {qWhen((b.slot_starts_at || b.scheduled_at)!)}
+                      </strong>
+                    ) : b.preferred_at ? (
+                      qWhen(b.preferred_at)
+                    ) : (
+                      "Flexible"
+                    )}
+                    <div className="bk-sub">
+                      {b.slot_starts_at
+                        ? "Fixed slot"
+                        : b.scheduled_at
+                          ? "Agreed"
+                          : "Requested"}{" "}
+                      ·{" "}
+                      {b.location_type === "home"
+                        ? "Home visit"
+                        : "At provider"}
+                    </div>
+                  </div>
+                  <div className="bk-c-status">
+                    <Badge tone={tone(b.status)}>{title(b.status)}</Badge>
+                  </div>
+                  <div className="bk-c-action">
+                    <button
+                      className="btn btn-outline btn-sm"
+                      onClick={() => open(b)}
+                    >
+                      Manage
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="bk-sub mt-2">
+              Latest {rows.length} matching bookings (up to 200). Use Day / Week
+              to see all appointments in a date range.
+            </p>
+          </>
+        )
+      ) : !error && view !== "list" ? (
+        <>
+          <p className="bk-sub">
+            Appointments and time off, grouped by day. Requests without an
+            agreed time remain in the Inbox.
+          </p>
+          <div className="booking-calendar-wrap">
+            <div className={`booking-calendar ${view}`}>
+              {Array.from({ length: view === "week" ? 7 : 1 }, (_, i) =>
+                addDays(day, i),
+              ).map((d) => (
+                <section key={d}>
+                  <h3>
+                    {new Date(d + "T12:00:00Z").toLocaleDateString("en-GB", {
+                      weekday: "long",
+                      day: "numeric",
+                      month: "short",
+                      timeZone: "Asia/Qatar",
+                    })}
+                  </h3>
+                  {off
+                    .filter(
+                      (t) =>
+                        qDate(new Date(t.starts_at)) <= d &&
+                        qDate(new Date(+new Date(t.ends_at) - 1)) >= d,
+                    )
+                    .map((t) => (
+                      <div key={t.id} className="booking-event off">
+                        <strong>Time off</strong>
+                        <small>
+                          {qWhen(t.starts_at)} — {qWhen(t.ends_at)}
+                        </small>
+                        <small>{t.reason}</small>
+                      </div>
+                    ))}
+                  {events
+                    .filter(
+                      (b) =>
+                        qDate(
+                          new Date((b.slot_starts_at || b.scheduled_at)!),
+                        ) === d,
+                    )
+                    .map((b) => (
+                      <button
+                        key={b.id}
+                        className={`booking-event ${live(b.status) ? "" : "closed"}`}
+                        onClick={() => open(b)}
+                      >
+                        <strong>
+                          {qTime((b.slot_starts_at || b.scheduled_at)!)}
+                          {b.slot_ends_at ? " – " + qTime(b.slot_ends_at) : ""}
+                        </strong>
+                        <span>{b.listing_title}</span>
+                        <small>
+                          {b.contact_name} ·{" "}
+                          {b.location_type === "home"
+                            ? "Home visit"
+                            : "At provider"}
+                        </small>
+                        <Badge tone={tone(b.status)}>{title(b.status)}</Badge>
+                      </button>
+                    ))}
+                  {!events.some(
+                    (b) =>
+                      qDate(new Date((b.slot_starts_at || b.scheduled_at)!)) ===
+                      d,
+                  ) && <small>No appointments</small>}
+                </section>
+              ))}
+            </div>
+          </div>
+        </>
+      ) : null}
       <Modal
         open={!!active}
-        title={active ? `Booking ${active.code}` : ''}
-        onClose={() => setActive(null)}
+        onClose={() => {
+          if (!busy) setActive(null);
+        }}
+        title={active ? `Booking ${active.code}` : ""}
         footer={
           <>
-            <button className="btn" onClick={() => setActive(null)} disabled={busy}>Close</button>
-            <button className="btn" onClick={() => save()} disabled={busy}>Save</button>
-            <button className="btn btn-primary" onClick={() => save('confirmed')} disabled={busy}>
-              Confirm booking
+            <button
+              className="btn btn-outline"
+              disabled={busy}
+              onClick={() => setActive(null)}
+            >
+              Close
             </button>
+            <button
+              className="btn btn-outline"
+              disabled={busy}
+              onClick={() => save()}
+            >
+              Save note
+            </button>
+            {active && ["new", "contacted"].includes(active.status) && (
+              <>
+                <button
+                  className="btn btn-danger"
+                  disabled={busy}
+                  onClick={() => save("cancelled")}
+                >
+                  Decline
+                </button>
+                <button
+                  className="btn btn-primary"
+                  disabled={busy}
+                  onClick={() => save("confirmed")}
+                >
+                  Accept booking
+                </button>
+              </>
+            )}
           </>
         }
       >
         {active && (
           <>
-            <p style={{ marginTop: 0 }}>
-              <strong>{active.listing_title}</strong>
-              {active.duration_mins ? <span className="bk-sub"> · about {active.duration_mins} minutes</span> : null}
+            {saveError && <Alert kind="error">{saveError}</Alert>}
+            <p>
+              <strong>{active.listing_title}</strong> ·{" "}
+              {active.duration_mins || 60} minutes
             </p>
             <p>
               {active.contact_name} · {active.contact_phone}
-              {active.contact_email ? ` · ${active.contact_email}` : ''}
             </p>
-
-            {active.preferred_note && <blockquote className="bk-quote">{active.preferred_note}</blockquote>}
-
-            <a className="btn btn-wa btn-block"
-              href={waLink(active.contact_phone, `Hello ${active.contact_name}, about your booking ${active.code} for "${active.listing_title}".`)}
-              target="_blank" rel="noreferrer"
-              onClick={() => { if (active.status === 'new') save('contacted'); }}>
+            <Badge tone={tone(active.status)}>{title(active.status)}</Badge>
+            {active.preferred_note && (
+              <blockquote className="bk-quote">
+                {active.preferred_note}
+              </blockquote>
+            )}
+            <a
+              className="btn btn-wa btn-block mt-2"
+              href={waLink(
+                active.contact_phone,
+                `Hello ${active.contact_name}, about your ${active.listing_title} booking ${active.code}${selected ? " on " + qWhen(selected) + " (Qatar time)" : ""}.`,
+              )}
+              target="_blank"
+              rel="noreferrer"
+            >
               Message on WhatsApp
             </a>
-
-            <div className="mt-2">
-              <Field label="Agreed date and time"
-                hint="Set this once the customer has actually agreed. Required before you can confirm.">
-                <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
-              </Field>
-
-              <Field label="Private note" hint="Only you and the admin can see this.">
-                <textarea rows={2} value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} />
-              </Field>
-            </div>
-
-            <div className="bk-actions mt-2">
-              <button className="btn btn-sm" onClick={() => save('completed')} disabled={busy}>Mark completed</button>
-              <button className="btn btn-sm" onClick={() => save('no_show')} disabled={busy}>No show</button>
-              <button className="btn btn-sm btn-danger" onClick={() => save('cancelled')} disabled={busy}>Cancel</button>
-            </div>
+            {active.slot_starts_at ? (
+              <div className="booking-slot-info">
+                <small>Booked time (Qatar)</small>
+                <div>
+                  <strong>
+                    {qWhen(active.slot_starts_at)} –{" "}
+                    {qTime(active.slot_ends_at!)}
+                  </strong>
+                </div>
+                <p className="bk-sub">
+                  Fixed appointment. To change the time, cancel and ask the
+                  customer to rebook.
+                </p>
+              </div>
+            ) : (
+              <label className="booking-field mt-2">
+                Agreed date and time (Qatar)
+                <input
+                  type="datetime-local"
+                  disabled={!live(active.status)}
+                  value={when}
+                  onChange={(e) => setWhen(e.target.value)}
+                />
+                <small>
+                  {active.preferred_at
+                    ? "Requested: " + qWhen(active.preferred_at)
+                    : "Agree a time before confirming."}
+                </small>
+              </label>
+            )}
+            <p>
+              {active.location_type === "home"
+                ? `Home visit: ${active.address}`
+                : `At provider: ${active.vendor_address || "Confirm the address with the customer."}`}
+            </p>
+            <label className="booking-field">
+              Private note
+              <textarea
+                value={note}
+                maxLength={500}
+                onChange={(e) => setNote(e.target.value)}
+              />
+              <small>Only you and the admin can see this.</small>
+            </label>
+            <label className="booking-field">
+              Reason if you decline or cancel
+              <input
+                maxLength={300}
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+              />
+              <small>The customer can see this reason.</small>
+            </label>
+            {active.status === "confirmed" && (
+              <div className="bk-actions">
+                <button
+                  className="btn btn-outline"
+                  disabled={
+                    busy || (!!selected && +new Date(selected) > Date.now())
+                  }
+                  onClick={() => save("completed")}
+                >
+                  Mark completed
+                </button>
+                <button
+                  className="btn btn-outline"
+                  disabled={
+                    busy || (!!selected && +new Date(selected) > Date.now())
+                  }
+                  onClick={() => save("no_show")}
+                >
+                  No show
+                </button>
+                <button
+                  className="btn btn-danger"
+                  disabled={busy}
+                  onClick={() => save("cancelled")}
+                >
+                  Cancel booking
+                </button>
+              </div>
+            )}
           </>
         )}
       </Modal>
