@@ -241,7 +241,7 @@ const tw: Record<string, string> = {
   'auth.phoneHint': 'Wode bra mu',
   'auth.emailOpt': 'Email (sɛ wopɛ a)',
   'auth.passwordReq': 'Ahintasɛm *',
-  'auth.passwordHint': 'Nkyerɛwde 6 anaa nea ɛboro saa',
+  'auth.passwordHint': 'Nkyerɛwde 12 anaa nea ɛboro saa',
   'auth.confirmPassword': 'Si ahintasɛm no so dua *',
   'auth.rulesConfirm': 'Migye tom sɛ meremfa ahoɔfɛ nnuru anaa nnuru nto hɔ, na megye gua no mmara tom.',
   'auth.alreadyRegistered': 'Woakyerɛw wo din dedaw?',

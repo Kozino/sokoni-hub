@@ -91,7 +91,7 @@ export default function VendorOnboard() {
               <ImageUploader value={logo} onChange={setLogo} max={1} label="Upload logo" />
             </Field>
             <Field label="Identification document *" hint="National ID, driver's licence, voter's card or business registration. Only admins can see this.">
-              <ImageUploader value={doc} onChange={setDoc} max={1} label="Upload ID document" />
+              <ImageUploader purpose="kyc" value={doc} onChange={setDoc} max={1} label="Upload ID document" />
             </Field>
             <div className="row">
               <button type="button" className="btn btn-ghost" onClick={() => setStep(1)}>← Back</button>

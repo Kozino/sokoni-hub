@@ -1,0 +1,37 @@
+import {createRequire} from 'node:module';
+import {readFile} from 'node:fs/promises';
+import {spawnSync} from 'node:child_process';
+import {randomUUID} from 'node:crypto';
+import assert from 'node:assert/strict';
+const root=new URL('../',import.meta.url).pathname;
+const url=new URL(process.env.DATABASE_URL||'postgresql://invalid/invalid');
+if(!['127.0.0.1','localhost'].includes(url.hostname)||!url.pathname.endsWith('_test')||process.env.NODE_ENV==='production')throw Error('Isolated local *_test database required');
+const require=createRequire(new URL('../api/package.json',import.meta.url));
+const {pool,one}=require('../api/dist/db');
+const OTP=require('otpauth');
+let count=0;const ok=(v,m)=>{assert(v,m);count++;console.log('PASS',m);};
+try {
+ const results=await pool.query(await readFile(root+'db/online-setup-generate.sql','utf8'));
+ const generated=results.at(-1).rows[0];
+ ok(/^[A-Z2-7]{32}$/.test(generated.admin_mfa_seed),'online SQL produces a valid authenticator seed');
+ ok(generated.admin_mfa_recovery_codes.split('\n').length===10,'online SQL produces ten recovery codes');
+ const admin=await one("insert into users(full_name,phone,email,password_hash,role) values('Online test',$1,$2,'test-only','admin') returning *",[randomUUID(),randomUUID()+'@example.invalid']);
+ const env={...process.env,NODE_ENV:'maintenance',PGSSL:'false',MFA_ENCRYPTION_KEY:generated.new_mfa_encryption_key,ADMIN_IDENTIFIER:admin.email,ADMIN_MFA_SEED:generated.admin_mfa_seed,ADMIN_MFA_RECOVERY_CODES:generated.admin_mfa_recovery_codes};
+ const run=task=>spawnSync(process.execPath,['dist/scripts/onlineSetup.js'],{cwd:root+'api',env:{...env,ONLINE_TASK:task},encoding:'utf8'});
+ ok(run('check').status===0,'online readiness check succeeds against prepared database');
+ ok(run('migrate').status!==0,'online migration requires explicit historical migration confirmation');
+ const migrated=spawnSync(process.execPath,['dist/scripts/onlineSetup.js'],{cwd:root+'api',env:{...env,ONLINE_TASK:'migrate',CONFIRM_MIGRATION:'I VERIFIED MIGRATIONS THROUGH 011 AND PIN'},encoding:'utf8'});
+ ok(migrated.status===0,'confirmed online migration rerun succeeds');
+ const enrolled=run('enroll');if(enrolled.status!==0)console.error(enrolled.stderr);ok(enrolled.status===0,'online enrollment initializes an existing admin');
+ const text=enrolled.stdout+enrolled.stderr;
+ ok(!text.includes(env.ADMIN_MFA_SEED)&&!text.includes(env.MFA_ENCRYPTION_KEY)&&!text.includes(env.ADMIN_MFA_RECOVERY_CODES.split('\n')[0]),'setup does not print seed, encryption key or recovery codes');
+ const user=await one('select * from users where id=$1',[admin.id]);
+ ok(user.mfa_secret!==generated.admin_mfa_seed&&user.mfa_recovery_hashes.length===10,'seed is encrypted and ten recovery hashes stored');
+ ok(run('enroll').status!==0,'re-running enrollment cannot overwrite existing MFA');
+ process.env.MFA_ENCRYPTION_KEY=env.MFA_ENCRYPTION_KEY;
+ const {adminChallenge,verifyAdmin}=require('../api/dist/mfa');
+ const challenge=adminChallenge(user);
+ const code=new OTP.TOTP({secret:OTP.Secret.fromBase32(env.ADMIN_MFA_SEED)}).generate();
+ ok((await verifyAdmin(challenge.mfa_token,code)).id===user.id,'authenticator generated from online seed completes MFA');
+ console.log(`${count} online setup checks passed.`);
+}finally{await pool.end();}

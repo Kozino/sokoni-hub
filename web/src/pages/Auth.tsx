@@ -83,7 +83,7 @@ function ErrorToast({ message, onClose }: { message: string; onClose: () => void
 
 export function Login() {
   const t = useT();
-  const { login, verifyPin, setupPin } = useAuth();
+  const { login, verifyMfa, verifyPin, setupPin } = useAuth();
   const nav = useNavigate();
   const [params] = useSearchParams();
   const [f, setF] = useState({ identifier: '', password: '' });
@@ -124,7 +124,7 @@ export function Login() {
   ) : null;
 
   const goHome = (u: User) =>
-    nav(params.get('next') || (u.role === 'admin' ? '/admin' : u.role === 'vendor' ? '/vendor' : '/'), { replace: true });
+    nav((/^\/(?![\/\\])[A-Za-z0-9/_?=&%.-]*$/.test(params.get('next')||'') ? params.get('next') : null) || (u.role === 'admin' ? '/admin' : u.role === 'vendor' ? '/vendor' : '/'), { replace: true });
 
   const advance = (r: LoginStep) => {
     if (r.step === 'done') return goHome(r.user);
@@ -151,6 +151,13 @@ export function Login() {
     setPin2('');
     clearAlert();
   };
+
+  if(stage?.step==='mfa') return <div className="container container-narrow"><div className="card card-pad">
+    <h1>Administrator verification</h1><p>Enter the six-digit code from your authenticator, or one of your recovery codes.</p>{errorAlert}
+    <form onSubmit={e=>{e.preventDefault();run(async()=>advance(await verifyMfa(stage.mfaToken,pin)));}}>
+    <Field label="Authenticator or recovery code"><input aria-label="Authenticator or recovery code" autoFocus autoComplete="one-time-code" required value={pin} maxLength={64} onChange={e=>setPin(e.target.value)} /></Field>
+    <button className="btn btn-primary" disabled={busy}>Verify</button> <button type="button" className="btn btn-outline" onClick={startOver}>Start again</button>
+    </form></div></div>;
 
   /* ---- step 2: enter PIN ---- */
   if (stage?.step === 'pin') {
@@ -389,7 +396,7 @@ export function Register() {
 
             <div className="form-row">
               <Field label={t('auth.passwordReq')} hint={t('auth.passwordHint')}>
-                <input required type="password" minLength={6} value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} autoComplete="new-password" />
+                <input required type="password" minLength={12} maxLength={72} value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} autoComplete="new-password" />
               </Field>
               <Field label={t('auth.confirmPassword')}>
                 <input required type="password" value={f.confirm} onChange={(e) => setF({ ...f, confirm: e.target.value })} autoComplete="new-password" />

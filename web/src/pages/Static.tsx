@@ -1,7 +1,9 @@
+import {qWhen} from '../lib/booking';
+import SessionManager from '../components/SessionManager';
 import { TrackBooking } from '../components/TrackBooking';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { api, ApiError } from '../lib/api';
+import { api, ApiError, setToken } from '../lib/api';
 import { Alert, Field, StatusBadge } from '../components/ui';
 import { useAuth } from '../state/AuthContext';
 import { money, dateTime } from '../lib/format';
@@ -101,6 +103,7 @@ export function Support() {
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [track, setTrack] = useState('');
+  const [trackPhone, setTrackPhone] = useState('');
   const [tracked, setTracked] = useState<any>(null);
   const [trackErr, setTrackErr] = useState('');
 
@@ -122,7 +125,7 @@ export function Support() {
 
   const doTrack = async (e: React.FormEvent) => {
     e.preventDefault(); setTrackErr(''); setTracked(null);
-    try { setTracked((await api.get<any>(`/complaints/track/${track.trim()}`)).complaint); }
+    try { setTracked((await api.get<any>(`/complaints/track/${encodeURIComponent(track.trim())}?phone=${encodeURIComponent(trackPhone)}`)).complaint); }
     catch (e) { setTrackErr(e instanceof ApiError ? e.message : 'Not found'); }
   };
 
@@ -158,6 +161,7 @@ export function Support() {
         <h3>Track a complaint</h3>
         <form className="row" onSubmit={doTrack}>
           <input className="grow" placeholder="CMP-XXXXXX" value={track} onChange={(e) => setTrack(e.target.value)} />
+<input aria-label="Full complaint phone number" placeholder="Full phone number used when reporting" value={trackPhone} onChange={e=>setTrackPhone(e.target.value)} />
           <button className="btn btn-outline">Track</button>
         </form>
         {trackErr && <Alert kind="error">{trackErr}</Alert>}
@@ -165,7 +169,7 @@ export function Support() {
           <div className="mt-2">
             <div className="row-between"><strong>{tracked.subject}</strong><StatusBadge status={tracked.status} /></div>
             <p style={{ fontSize: '.85rem', color: 'var(--muted)', margin: '6px 0' }}>Filed {dateTime(tracked.created_at)}</p>
-            {tracked.admin_note && <Alert kind="info"><strong>Admin response:</strong> {tracked.admin_note}</Alert>}
+
           </div>
         )}
       </div>
@@ -252,6 +256,9 @@ export function Account() {
   const { user, refresh } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [msg, setMsg] = useState('');
+  const [bookings,setBookings]=useState<any[]>([]);
+  const [historyError,setHistoryError]=useState('');
+  useEffect(()=>{api.get<{bookings:any[]}>('/bookings/mine').then(r=>setBookings(r.bookings)).catch(e=>setHistoryError(e.message));},[]);
   const [pw, setPw] = useState({ current_password: '', new_password: '' });
   const [name, setName] = useState(user?.full_name || '');
 
@@ -260,6 +267,12 @@ export function Account() {
   return (
     <div className="container container-narrow">
       <h1>My account</h1>
+      <SessionManager />
+      <section className="card card-pad mt-3"><h3>My bookings</h3><p>Bookings made while signed in appear here. Guest bookings remain accessible through <Link to="/track">Track booking</Link>.</p>
+      {historyError&&<p role="alert">{historyError}</p>}
+      {!historyError&&!bookings.length&&<p>No signed-in bookings yet.</p>}
+      {bookings.map(b=><div key={b.id} className="mb-2"><strong>{b.listing_title}</strong> — {b.business_name}<br/><code>{b.code}</code> <StatusBadge status={b.status}/><span> {b.slot_starts_at||b.scheduled_at?qWhen(b.slot_starts_at||b.scheduled_at)+' (Qatar time)':'Awaiting agreed time'}</span></div>)}
+      </section>
       {msg && <Alert kind="success">{msg}</Alert>}
 
       <div className="card card-pad">
@@ -275,12 +288,12 @@ export function Account() {
         <h3>Change password</h3>
         <form onSubmit={async (e) => {
           e.preventDefault();
-          try { await api.post('/auth/change-password', pw); setMsg('Password changed'); setPw({ current_password: '', new_password: '' }); }
+          try { const r=await api.post<{token:string}>('/auth/change-password', pw); setToken(r.token); setMsg('Password changed'); setPw({ current_password: '', new_password: '' }); }
           catch (er) { setMsg(er instanceof ApiError ? er.message : 'Failed'); }
         }}>
           <div className="form-row">
             <Field label="Current password"><input type="password" required value={pw.current_password} onChange={(e) => setPw({ ...pw, current_password: e.target.value })} /></Field>
-            <Field label="New password"><input type="password" required minLength={6} value={pw.new_password} onChange={(e) => setPw({ ...pw, new_password: e.target.value })} /></Field>
+            <Field label="New password"><input type="password" required minLength={12} maxLength={72} value={pw.new_password} onChange={(e) => setPw({ ...pw, new_password: e.target.value })} /></Field>
           </div>
           <button className="btn btn-outline">Update password</button>
         </form>

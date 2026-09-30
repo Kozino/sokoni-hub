@@ -446,7 +446,7 @@ export function AdminUsers() {
         <Field label="Full name"><input value={nf.full_name} onChange={(e) => setNf({ ...nf, full_name: e.target.value })} /></Field>
         <Field label="Phone"><input value={nf.phone} onChange={(e) => setNf({ ...nf, phone: e.target.value })} /></Field>
         <Field label="Email (optional)"><input type="email" value={nf.email} onChange={(e) => setNf({ ...nf, email: e.target.value })} /></Field>
-        <Field label="Password" hint="Minimum 8 characters"><input type="password" value={nf.password} onChange={(e) => setNf({ ...nf, password: e.target.value })} /></Field>
+        <Field label="Password" hint="Minimum 12 characters"><input type="password" minLength={12} maxLength={72} value={nf.password} onChange={(e) => setNf({ ...nf, password: e.target.value })} /></Field>
       </Modal>
       {dialog}
     </>

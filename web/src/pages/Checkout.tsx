@@ -61,7 +61,7 @@ export default function Checkout() {
     e.preventDefault();
     setErr(''); setBusy(true);
     try {
-      const r = await api.post<{ orders: Order[] }>('/orders/checkout', {
+      const payload = {
         items: items.map((i) => ({ listing_id: i.listing_id, qty: i.qty })),
         fulfilment_mode: mode,
         ...form,
@@ -72,7 +72,14 @@ export default function Checkout() {
         // undefined when there's nothing stored — the server treats that as
         // an ordinary marketplace order.
         attribution: getAttribution(),
-      });
+      };
+      const signature=JSON.stringify(payload);
+      let saved: {signature:string;key:string}|null=null;
+      try {saved=JSON.parse(sessionStorage.getItem('sokoni_checkout_retry')||'null');}catch{}
+      const key=saved?.signature===signature?saved.key:crypto.randomUUID();
+      sessionStorage.setItem('sokoni_checkout_retry',JSON.stringify({signature,key}));
+      const r = await api.post<{ orders: Order[] }>('/orders/checkout', {...payload,request_id:key});
+      sessionStorage.removeItem('sokoni_checkout_retry');
       setDone(r.orders);
       clear();
       clearAttribution();

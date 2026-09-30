@@ -1,9 +1,10 @@
+import PrivateDocument from './PrivateDocument';
 import { useRef, useState } from 'react';
 import { api, ApiError } from '../lib/api';
 
 export default function ImageUploader({
-  value, onChange, max = 6, label = 'Upload images',
-}: { value: string[]; onChange: (urls: string[]) => void; max?: number; label?: string }) {
+  value, onChange, max = 6, label = 'Upload images', purpose,
+}: { value: string[]; onChange: (urls: string[]) => void; max?: number; label?: string; purpose?: string }) {
   const ref = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -13,7 +14,7 @@ export default function ImageUploader({
     if (!files?.length) return;
     setErr(''); setBusy(true);
     try {
-      const r = await api.upload(Array.from(files).slice(0, max - value.length));
+      const r = await api.upload(Array.from(files).slice(0, max - value.length), purpose);
       onChange([...value, ...r.urls].slice(0, max));
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : 'Upload failed. You can paste an image URL instead.');
@@ -28,18 +29,18 @@ export default function ImageUploader({
       <input ref={ref} type="file" accept="image/png,image/jpeg,image/webp" multiple hidden onChange={(e) => pick(e.target.files)} />
       {err && <div className="err" style={{ color: 'var(--danger)', fontSize: '.8rem', marginTop: 6 }}>{err}</div>}
 
-      <div className="row mt-1" style={{ gap: 6 }}>
+      {purpose!=='kyc' && <div className="row mt-1" style={{ gap: 6 }}>
         <input placeholder="…or paste an image URL" value={manual} onChange={(e) => setManual(e.target.value)} />
         <button type="button" className="btn btn-outline btn-sm" onClick={() => {
           if (/^https?:\/\//.test(manual)) { onChange([...value, manual].slice(0, max)); setManual(''); }
         }}>Add</button>
-      </div>
+      </div>}
 
       {value.length > 0 && (
         <div className="gallery mt-2">
           {value.map((src, i) => (
             <div key={i} className="g-item">
-              <img src={src} alt="" />
+              <div>{purpose==='kyc'?<PrivateDocument value={src}/>:<img src={src} alt="" />}</div>
               <button type="button" onClick={() => onChange(value.filter((_, j) => j !== i))}>×</button>
             </div>
           ))}

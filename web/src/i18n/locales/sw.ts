@@ -240,7 +240,7 @@ const sw: Record<string, string> = {
   'auth.phoneHint': 'Inatumika kuingia',
   'auth.emailOpt': 'Barua pepe (si lazima)',
   'auth.passwordReq': 'Nenosiri *',
-  'auth.passwordHint': 'Angalau herufi 6',
+  'auth.passwordHint': 'Angalau herufi 12',
   'auth.confirmPassword': 'Thibitisha nenosiri *',
   'auth.rulesConfirm': 'Nathibitisha sitaorodhesha vipodozi wala dawa, na ninakubali sheria za soko.',
   'auth.alreadyRegistered': 'Umeshajisajili?',

@@ -1,14 +1,16 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
-import { api, setToken, getToken } from '../lib/api';
+import { api, setToken, getToken, ApiError } from '../lib/api';
 import type { User, Vendor } from '../types';
 
 /** What the server wants next after a login call. */
 export type LoginStep =
+  | { step: 'mfa'; mfaToken:string; fullName:string }
   | { step: 'done'; user: User }                                                  // signed in
   | { step: 'pin'; pinToken: string; fullName: string }                           // ask for the PIN
   | { step: 'setup'; setupToken: string; needsEmail: boolean; fullName: string }; // create a PIN
 
 interface LoginResp {
+  mfa_required?:boolean; mfa_token?:string;
   token?: string; user?: User; vendor?: Vendor | null;
   pin_required?: boolean; pin_token?: string;
   pin_setup_required?: boolean; setup_token?: string; needs_email?: boolean;
@@ -24,6 +26,7 @@ interface AuthState {
   /** Step 1: identifier + password. May ask for a PIN, or for a PIN to be created. */
   login: (identifier: string, password: string) => Promise<LoginStep>;
   /** Step 2: the PIN. */
+  verifyMfa: (mfaToken:string,code:string)=>Promise<LoginStep>;
   verifyPin: (pinToken: string, pin: string) => Promise<LoginStep>;
   /** Create a PIN (existing accounts, or after an admin reset). */
   setupPin: (p: { setupToken: string; pin: string; email?: string }) => Promise<User>;
@@ -56,7 +59,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const r = await api.get<{ user: User; vendor: Vendor | null }>('/auth/me');
       setUser(r.user); setVendor(r.vendor);
-    } catch {
+    } catch (err) {
+      if (!(err instanceof ApiError) || ![401,403].includes(err.status)) return;
       // Token rejected (for example the 1-hour "view as" token expired, or the
       // PIN was changed on another device): sign out fully.
       setToken(null); setUser(null); setVendor(null);
@@ -68,6 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /** Turns a server response into either "signed in" or "the next step". */
   const finish = (r: LoginResp): LoginStep => {
+    if (r.mfa_required) return {step:'mfa',mfaToken:r.mfa_token!,fullName:r.full_name||''};
     if (r.pin_required)
       return { step: 'pin', pinToken: r.pin_token!, fullName: r.full_name ?? '' };
     if (r.pin_setup_required)
@@ -79,6 +84,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login: AuthState['login'] = async (identifier, password) =>
     finish(await api.post<LoginResp>('/auth/login', { identifier, password }));
+
+  const verifyMfa: AuthState['verifyMfa'] = async(mfaToken,code)=>finish(await api.post<LoginResp>('/auth/login/mfa',{mfa_token:mfaToken,code}));
 
   const verifyPin: AuthState['verifyPin'] = async (pinToken, pin) =>
     finish(await api.post<LoginResp>('/auth/login/pin', { pin_token: pinToken, pin }));
@@ -114,13 +121,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.assign(adminToken ? '/admin/users' : '/');
   };
 
-  const logout = () => {
+  const logout = async () => {
     if (impersonating) { stopImpersonating(); return; }
+    try {await api.post('/auth/logout');} catch { /* local signout still works offline */ }
     setToken(null); setUser(null); setVendor(null);
   };
 
   return (
-    <Ctx.Provider value={{ user, vendor, loading, impersonating, login, verifyPin, setupPin, register, logout, refresh, impersonate, stopImpersonating }}>
+    <Ctx.Provider value={{ user, vendor, loading, impersonating, login, verifyMfa, verifyPin, setupPin, register, logout, refresh, impersonate, stopImpersonating }}>
       {children}
       {impersonating && user && (
         <div

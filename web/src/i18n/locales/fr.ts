@@ -240,7 +240,7 @@ const fr: Record<string, string> = {
   'auth.phoneHint': 'Sert à vous connecter',
   'auth.emailOpt': 'E-mail (facultatif)',
   'auth.passwordReq': 'Mot de passe *',
-  'auth.passwordHint': 'Au moins 6 caractères',
+  'auth.passwordHint': 'Au moins 12 caractères',
   'auth.confirmPassword': 'Confirmer le mot de passe *',
   'auth.rulesConfirm': 'Je confirme que je ne publierai ni cosmétiques ni médicaments, et j\'accepte les règles du marché.',
   'auth.alreadyRegistered': 'Déjà inscrit ?',

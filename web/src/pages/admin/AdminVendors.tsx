@@ -1,3 +1,4 @@
+import PrivateDocument from '../../components/PrivateDocument';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, ApiError, qs } from '../../lib/api';
@@ -181,11 +182,7 @@ export default function AdminVendors() {
                 <h4 className="mt-2">Verification documents</h4>
                 <div className="gallery">
                   {detail.logo_url && <div className="g-item"><a href={detail.logo_url} target="_blank" rel="noreferrer"><img src={detail.logo_url} alt="Logo" /></a></div>}
-                  {detail.id_document_url && (
-                    /\.pdf$/i.test(detail.id_document_url)
-                      ? <a className="btn btn-outline btn-sm" href={detail.id_document_url} target="_blank" rel="noreferrer">Open ID (PDF)</a>
-                      : <div className="g-item"><a href={detail.id_document_url} target="_blank" rel="noreferrer"><img src={detail.id_document_url} alt="ID" /></a></div>
-                  )}
+                  {detail.id_document_url && <PrivateDocument value={detail.id_document_url} />}
                   {!detail.logo_url && !detail.id_document_url && <span style={{ color: 'var(--text-muted)', fontSize: '.85rem' }}>No documents uploaded</span>}
                 </div>
                 {detail.listings.length > 0 && (

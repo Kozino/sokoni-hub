@@ -277,7 +277,7 @@ const en: Record<string, string> = {
   'auth.phoneHint': 'Used to log in',
   'auth.emailOpt': 'Email (optional)',
   'auth.passwordReq': 'Password *',
-  'auth.passwordHint': 'At least 6 characters',
+  'auth.passwordHint': 'At least 12 characters',
   'auth.confirmPassword': 'Confirm password *',
   'auth.rulesConfirm': 'I confirm I will not list cosmetics or medicine/drugs, and I accept the marketplace rules.',
   'auth.alreadyRegistered': 'Already registered?',

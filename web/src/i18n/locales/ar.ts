@@ -241,7 +241,7 @@ const ar: Record<string, string> = {
   'auth.phoneHint': 'يُستخدم لتسجيل الدخول',
   'auth.emailOpt': 'البريد الإلكتروني (اختياري)',
   'auth.passwordReq': 'كلمة المرور *',
-  'auth.passwordHint': '6 أحرف على الأقل',
+  'auth.passwordHint': '12 أحرف على الأقل',
   'auth.confirmPassword': 'تأكيد كلمة المرور *',
   'auth.rulesConfirm': 'أؤكد أنني لن أدرج مستحضرات تجميل أو أدوية، وأوافق على قواعد السوق.',
   'auth.alreadyRegistered': 'مسجَّل بالفعل؟',

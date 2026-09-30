@@ -75,7 +75,7 @@ export default function VendorProfile() {
         <Field label="WhatsApp number *"><input required value={f.whatsapp} onChange={set('whatsapp')} /></Field>
         <Field label="Shop address"><input value={f.address} onChange={set('address')} /></Field>
         <Field label="Store logo"><ImageUploader value={logo} onChange={setLogo} max={1} label="Upload logo" /></Field>
-        <Field label="ID document" hint="Visible to admins only"><ImageUploader value={doc} onChange={setDoc} max={1} label="Upload ID document" /></Field>
+        <Field label="ID document" hint="Visible to admins only"><ImageUploader purpose="kyc" value={doc} onChange={setDoc} max={1} label="Upload ID document" /></Field>
         {vendor.status === 'rejected' && <Alert kind="warn">Saving changes resubmits your store for verification.</Alert>}
         <button className="btn btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</button>
       </form>

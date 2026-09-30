@@ -240,7 +240,7 @@ const lg: Record<string, string> = {
   'auth.phoneHint': 'Ekozesebwa okuyingira',
   'auth.emailOpt': 'Email (bw\'oba oyagala)',
   'auth.passwordReq': 'Ekyama *',
-  'auth.passwordHint': 'Obubonero 6 oba okusingawo',
+  'auth.passwordHint': 'Obubonero 12 oba okusingawo',
   'auth.confirmPassword': 'Kakasa ekyama *',
   'auth.rulesConfirm': 'Nkakasa nti sijja kussaawo bizigo wadde ddagala, era nkkiriza amateeka g\'akatale.',
   'auth.alreadyRegistered': 'Weewandiisa dda?',

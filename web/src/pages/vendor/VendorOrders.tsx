@@ -14,8 +14,8 @@ const TABS: { id: string; label: string }[] = [
 
 const NEXT: Record<string, OrderStatus[]> = {
   pending: ['confirmed', 'cancelled'],
-  confirmed: ['dispatched', 'cancelled'],
-  dispatched: ['delivered', 'cancelled'],
+  confirmed: ['dispatched', 'delivered', 'cancelled'],
+  dispatched: ['delivered'],
   delivered: [], cancelled: [],
 };
 

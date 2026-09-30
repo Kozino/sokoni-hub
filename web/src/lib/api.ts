@@ -43,10 +43,10 @@ export const api = {
   put:   <T>(p: string, body?: unknown) => request<T>(p, { method: 'PUT', body: JSON.stringify(body ?? {}) }),
   patch: <T>(p: string, body?: unknown) => request<T>(p, { method: 'PATCH', body: JSON.stringify(body ?? {}) }),
   del:   <T>(p: string) => request<T>(p, { method: 'DELETE' }),
-  upload: async (files: File[]): Promise<{ urls: string[] }> => {
+  upload: async (files: File[], purpose?: string): Promise<{ urls: string[] }> => {
     const fd = new FormData();
     files.forEach((f) => fd.append('files', f));
-    return request('/uploads', { method: 'POST', body: fd });
+    return request('/uploads'+(purpose?'?purpose='+encodeURIComponent(purpose):''), { method: 'POST', body: fd });
   },
 };
 
