@@ -1,4 +1,6 @@
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState, useRef, useId } from 'react';
+import { createPortal } from 'react-dom';
+import './booking.css';
 import { IconBox, IconReceipt, IconChart, IconCheck, IconInbox, IconAlert, IconSearch } from './icons';
 
 /* Pages pass an emoji to <Empty icon="..."/>. Rather than edit every call site,
@@ -56,24 +58,42 @@ export function Stat({ label, value, sub, accent }: { label: string; value: Reac
 export function Modal({ open, title, onClose, children, footer }: {
   open: boolean; title: string; onClose: () => void; children: ReactNode; footer?: ReactNode;
 }) {
+  const dialog = useRef<HTMLDivElement>(null);
+  const close = useRef(onClose); close.current = onClose;
+  const titleId = useId();
   useEffect(() => {
     if (!open) return;
-    const h = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', h);
-    return () => window.removeEventListener('keydown', h);
-  }, [open, onClose]);
+    const previous = document.activeElement as HTMLElement | null;
+    const overflow = document.body.style.overflow;
+    const appRoot = document.getElementById('root');
+    const wasInert = appRoot?.inert ?? false;
+    if (appRoot) appRoot.inert = true;
+    document.body.style.overflow = 'hidden';
+    dialog.current?.focus();
+    const key = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.preventDefault(); close.current(); }
+      if (e.key !== 'Tab') return;
+      const items = Array.from(dialog.current?.querySelectorAll<HTMLElement>('a[href],button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex="0"]') || []).filter(el => el.getClientRects().length > 0);
+      const first=items[0], last=items[items.length-1];
+      if (!first) { e.preventDefault(); return; }
+      if (e.shiftKey && (document.activeElement===first || document.activeElement===dialog.current)) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && (document.activeElement===last || document.activeElement===dialog.current)) { e.preventDefault(); first.focus(); }
+    };
+    document.addEventListener('keydown', key);
+    return () => { document.removeEventListener('keydown',key); document.body.style.overflow=overflow; if(appRoot)appRoot.inert=wasInert; if(previous?.isConnected)previous.focus(); };
+  }, [open]);
   if (!open) return null;
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-head">
-          <h3>{title}</h3>
-          <button className="x-btn" onClick={onClose} aria-label="Close">×</button>
+  const vendor = !!document.querySelector('.app.vendor-console');
+  return createPortal(
+    <div className={`modal-portal${vendor ? ' vendor-console' : ''}`}>
+      <div className="modal-backdrop" onClick={onClose}>
+        <div ref={dialog} className="modal" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onClick={e=>e.stopPropagation()}>
+          <div className="modal-head"><h3 id={titleId}>{title}</h3><button className="x-btn" type="button" onClick={onClose} aria-label="Close">×</button></div>
+          <div className="modal-body">{children}</div>
+          {footer && <div className="modal-foot">{footer}</div>}
         </div>
-        <div className="modal-body">{children}</div>
-        {footer && <div className="modal-foot">{footer}</div>}
       </div>
-    </div>
+    </div>, document.body,
   );
 }
 

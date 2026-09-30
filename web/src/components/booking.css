@@ -1,0 +1,218 @@
+.booking-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 16px;
+  min-width: 0;
+}
+.booking-label,
+.booking-locations legend {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text);
+  margin: 16px 0 8px;
+}
+.booking-locations {
+  border: 0;
+  padding: 0;
+  margin: 0 0 16px;
+  min-width: 0;
+}
+.booking-days {
+  display: flex;
+  gap: 8px;
+  overflow: auto;
+  margin: 0 0 20px;
+  padding: 2px;
+  max-width: 100%;
+}
+.booking-days button {
+  flex: 0 0 76px;
+  min-height: 64px;
+  white-space: normal;
+  line-height: 1.5;
+}
+.booking-slots {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.booking-days button,
+.booking-slots button {
+  font: inherit;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 10px;
+  cursor: pointer;
+  min-height: 44px;
+}
+.booking-days button:hover,
+.booking-slots button:hover {
+  border-color: var(--accent);
+}
+.booking-days button[aria-pressed="true"],
+.booking-slots button[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-invert);
+}
+.booking-code {
+  overflow-wrap: anywhere;
+  font-family: var(--mono);
+}
+.availability-hours {
+  display: grid;
+  gap: 0;
+}
+.availability-day {
+  display: grid;
+  grid-template-columns: 128px minmax(0, 1fr);
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+.availability-period {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.availability-period input {
+  width: 140px;
+  max-width: 100%;
+  min-width: 0;
+}
+.availability-day .checkbox {
+  margin-top: 4px;
+}
+.booking-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(150px, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+.booking-calendar-wrap {
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+.booking-calendar.day {
+  grid-template-columns: minmax(0, 1fr);
+}
+.booking-calendar section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  min-height: 180px;
+}
+.booking-calendar h3 {
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+.booking-event {
+  display: flex;
+  flex-direction: column;
+  text-align: start;
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 8px;
+  border: 1px solid var(--accent-line);
+  border-inline-start: 3px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent-softer);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.booking-event small {
+  color: var(--text-2);
+}
+.booking-event.off {
+  background: var(--warning-soft);
+  border-color: var(--warning-line);
+  cursor: default;
+}
+.booking-event.closed {
+  opacity: 0.65;
+}
+.booking-slot-info {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  margin: 16px 0;
+}
+.booking-inbox .bk-ref {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.booking-inbox .bk-list {
+  --bk-cols: minmax(160px, 1.2fr) minmax(120px, 1fr) minmax(130px, 1fr)
+    minmax(140px, 1.2fr) 100px 86px;
+  overflow-x: auto;
+}
+.booking-inbox .bk-head,
+.booking-inbox .bk-item {
+  min-width: 820px;
+}
+@media (max-width: 860px) {
+  .booking-inbox .bk-item {
+    min-width: 0;
+  }
+  .booking-inbox .bk-list {
+    overflow: visible;
+  }
+}
+@media (max-width: 600px) {
+  .availability-day {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .availability-period input {
+    flex: 1;
+    max-width: 140px;
+    width: 105px;
+  }
+  .booking-slots {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+/* A portalled modal must stay above the sticky header and sidebar, and its
+   actions remain reachable when the body is longer than a phone viewport. */
+.modal-portal {
+  display: contents;
+}
+.modal-portal .modal-backdrop {
+  z-index: 1000;
+  background: rgba(8, 10, 16, 0.55);
+}
+.modal-portal .modal {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-height: 90dvh;
+}
+.modal-portal .modal-body {
+  overflow-y: auto;
+  min-height: 0;
+  overscroll-behavior: contain;
+}
+.modal-portal .modal-head,
+.modal-portal .modal-foot {
+  flex-shrink: 0;
+}
+@media (max-width: 640px) {
+  .modal-portal .modal {
+    max-height: 94dvh;
+  }
+  .modal-portal .modal-foot {
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+}
