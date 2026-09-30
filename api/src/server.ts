@@ -27,7 +27,8 @@ const app = express();
 app.set('trust proxy', 1);
 app.use(helmet({ crossOriginResourcePolicy: false }));
 app.use(express.json({ limit: '1mb' }));
-app.use(morgan(config.env === 'production' ? 'combined' : 'dev'));
+// Code + phone are guest lookup credentials: do not log their query strings.
+app.use(morgan(config.env === 'production' ? 'combined' : 'dev', { skip: req => /^\/api\/bookings\/(track|ics)(\?|$)/.test(req.originalUrl) }));
 
 app.use(
   cors({
@@ -67,6 +68,8 @@ app.use('/api/admin', adminRouter);
 app.use('/api/uploads', uploadRouter);
 app.use('/api/meta', metaRouter);
 app.use('/api/billing', billingRouter);
+app.post(['/api/bookings', '/api/bookings/cancel'], rateLimit({ windowMs: 15 * 60_000, max: 20, standardHeaders: true, legacyHeaders: false }));
+app.get(['/api/bookings/track', '/api/bookings/ics'], rateLimit({ windowMs: 15 * 60_000, max: 60, standardHeaders: true, legacyHeaders: false }));
 app.use('/api/bookings', bookingRouter);
 app.use('/api/inventory', inventoryRouter);
 app.use('/api/promotions', promotionRouter);
