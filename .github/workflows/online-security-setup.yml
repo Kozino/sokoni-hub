@@ -1,1 +1,50 @@
-
+name: Online security setup
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: 'check = read-only readiness; migrate = apply migration; enroll = enroll one existing admin'
+        required: true
+        default: check
+        type: choice
+        options: [check, migrate, enroll]
+      confirmation:
+        description: 'For migrate only, type: I VERIFIED MIGRATIONS THROUGH 011 AND PIN'
+        required: false
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: online-security-setup
+  cancel-in-progress: false
+jobs:
+  setup:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    environment: production-maintenance
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install and build (no live credentials in this step)
+        working-directory: api
+        run: npm ci && npm run build
+      - name: Run selected maintenance task
+        working-directory: api
+        env:
+          # This is a maintenance process, not the live API. Never copy this NODE_ENV to Render.
+          NODE_ENV: maintenance
+          DATABASE_URL: ${{ secrets.MAINTENANCE_DATABASE_URL }}
+          PGSSL: 'true'
+          PGSSL_CA: ${{ secrets.PGSSL_CA }}
+          MFA_ENCRYPTION_KEY: ${{ secrets.MFA_ENCRYPTION_KEY }}
+          ADMIN_IDENTIFIER: ${{ secrets.ADMIN_IDENTIFIER }}
+          ADMIN_MFA_SEED: ${{ secrets.ADMIN_MFA_SEED }}
+          ADMIN_MFA_RECOVERY_CODES: ${{ secrets.ADMIN_MFA_RECOVERY_CODES }}
+          ONLINE_TASK: ${{ inputs.task }}
+          CONFIRM_MIGRATION: ${{ inputs.confirmation }}
+        run: node dist/scripts/onlineSetup.js

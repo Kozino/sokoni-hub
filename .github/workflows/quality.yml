@@ -1,0 +1,49 @@
+name: Quality and security
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: sokoni_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:ci-only-password@127.0.0.1:5432/sokoni_test
+      PGSSL: 'false'
+      JWT_SECRET: ci-only-session-secret-not-for-production
+      PIN_PEPPER: ci-only-pin-pepper-not-for-production-12345
+      MFA_ENCRYPTION_KEY: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      EMAIL_PROVIDER: none
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            api/package-lock.json
+            web/package-lock.json
+      - run: npm ci && npm run build
+        working-directory: api
+      - run: npm run migrate:prod && npm run migrate:prod
+        working-directory: api
+      - run: node tests/security.mjs
+      - run: node tests/online-setup.mjs
+      - run: node tests/run-bookings.mjs
+      - run: npm ci && npm run build
+        working-directory: web
+      - run: npx playwright install --with-deps chromium
+        working-directory: web
+      - run: node tests/browser-security.mjs
+      - run: npm audit --audit-level=high
+        working-directory: api
+      - run: npm audit --audit-level=high
+        working-directory: web
+      - run: git diff --exit-code -- api/package-lock.json web/package-lock.json
