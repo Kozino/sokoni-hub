@@ -91,3 +91,14 @@ Never add those values to this app, GitHub source, or an `EXPO_PUBLIC_*` variabl
 3. Verify the mail sender domain and send a real password and PIN recovery email.
 4. Use an AAB for Google Play distribution; an APK is only for internal/preview installation.
 5. Run `npm audit` during dependency upgrades. Expo SDK dependencies currently report transitive advisories; use Expo's supported updates rather than forced major upgrades.
+
+## Mobile QA pass (orders, bookings, Android layout, explore)
+
+- **Orders now place.** The app sent an `attribution` object the API rejects (`ref` + `vendorSlug` only), so every checkout failed validation. It is no longer sent. Collection-only orders send a clear address placeholder, retries reuse one idempotency key, and a confirmation screen lists each order with WhatsApp and Track actions. Code: `src/checkout.tsx`.
+- **Bookings use real date and time selection.** `src/booking.tsx` reads `GET /bookings/slots`: calendar vendors show a date strip and live free times (sent as `slot_start`); request-only vendors show a date strip and start times (sent as `preferred_at`, Qatar time). At-provider / at-home options, home address, and a confirmation screen follow the vendor's settings.
+- **Android safe areas.** `react-native-safe-area-context` pads the top (status bar) so back arrows and the notification bell are visible, and the bottom tab bar / cart / checkout / detail action bars clear the gesture bar. Hardware back now steps through screens.
+- **Search and filters.** The search box no longer unmounts while results load, is debounced, and filters (type, category, sort, price, seller city) persist when you return from a listing. Results are paged (20 at a time) with pull-to-refresh.
+- **VIP and sponsored stores** appear on Explore from `GET /promotions` (always labelled Sponsored; impressions and clicks tracked through `/promotions/track`).
+- Also: saved items (heart), a notifications screen built from order/booking status, sign-in returns you to where you were.
+
+No API or database change is required.

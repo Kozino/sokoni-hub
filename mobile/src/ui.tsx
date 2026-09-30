@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps, type ViewStyle } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from './providers';
 import type { ReactNode } from 'react';
 
@@ -40,7 +41,13 @@ export function Chip({ children, selected, onPress }: { children: ReactNode; sel
 
 export function Notice({ type = 'info', children }: { type?: 'info' | 'warning' | 'success' | 'danger'; children: ReactNode }) { const { colors } = useTheme(); const values = type === 'warning' ? [colors.warningSoft, colors.warning, 'warning-outline'] : type === 'success' ? [colors.successSoft, colors.success, 'checkmark-circle-outline'] : type === 'danger' ? [colors.dangerSoft, colors.danger, 'alert-circle-outline'] : [colors.primarySoft, colors.primary, 'information-circle-outline']; return <View style={[styles.notice, { backgroundColor: values[0] as string }]}><Ionicons name={values[2] as keyof typeof Ionicons.glyphMap} size={19} color={values[1] as string}/><Text style={[styles.noticeText, { color: colors.text }]}>{children}</Text></View>; }
 
-export function Sheet({ visible, title, onClose, children }: { visible: boolean; title: string; onClose: () => void; children: ReactNode }) { const { colors } = useTheme(); return <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}><Pressable style={[styles.modalBackdrop, { backgroundColor: colors.overlay }]} onPress={onClose}/><View style={[styles.sheet, { backgroundColor: colors.surface }]}><View style={[styles.sheetHandle, { backgroundColor: colors.border }]} /><View style={styles.sheetTop}><Text style={[styles.sheetTitle, { color: colors.text }]}>{title}</Text><Pressable onPress={onClose}><Ionicons name="close" size={24} color={colors.text}/></Pressable></View><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.sheetContent}>{children}</ScrollView></View></Modal>; }
+export function Sheet({ visible, title, onClose, children }: { visible: boolean; title: string; onClose: () => void; children: ReactNode }) { const { colors } = useTheme(); const insets = useSafeAreaInsets(); return <Modal transparent statusBarTranslucent navigationBarTranslucent visible={visible} animationType="slide" onRequestClose={onClose}><Pressable style={[styles.modalBackdrop, { backgroundColor: colors.overlay }]} onPress={onClose}/><View style={[styles.sheet, { backgroundColor: colors.surface }]}><View style={[styles.sheetHandle, { backgroundColor: colors.border }]} /><View style={styles.sheetTop}><Text style={[styles.sheetTitle, { color: colors.text }]}>{title}</Text><Pressable onPress={onClose}><Ionicons name="close" size={24} color={colors.text}/></Pressable></View><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.sheetContent, { paddingBottom: 28 + insets.bottom }]}>{children}</ScrollView></View></Modal>; }
+
+/** Fixed action bar that always clears the Android gesture/navigation bar and iOS home indicator. */
+export function BottomBar({ children, style }: { children: ReactNode; style?: ViewStyle }) {
+  const { colors } = useTheme(); const insets = useSafeAreaInsets();
+  return <View style={[{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 14, paddingTop: 10, paddingBottom: 10 + insets.bottom, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, backgroundColor: colors.surface }, style]}>{children}</View>;
+}
 
 export function Money({ value, currency = 'QAR', strong = false }: { value: string | number; currency?: string; strong?: boolean }) { const { colors } = useTheme(); const number = Number(value || 0); return <Text style={[strong ? styles.moneyStrong : styles.money, { color: strong ? colors.primary : colors.text }]}>{currency} {number.toFixed(2)}</Text>; }
 
