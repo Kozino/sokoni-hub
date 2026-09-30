@@ -63,6 +63,12 @@ const createSchema = z.object({
   location_type: z.enum(["vendor", "home"]).optional(),
   address: z.string().trim().max(300).optional(),
 });
+bookingRouter.get('/mine',requireAuth(),async(req,res,next)=>{
+ try {const bookings=await query(`select b.id,b.code,b.status,b.preferred_at,b.scheduled_at,b.slot_starts_at,b.slot_ends_at,
+ b.location_type,b.created_at,l.title as listing_title,v.business_name
+ from service_bookings b join listings l on l.id=b.listing_id join vendors v on v.id=b.vendor_id
+ where b.buyer_id=$1 order by b.created_at desc limit 100`,[req.user!.id]);res.json({bookings});}catch(e){next(e);}
+});
 bookingRouter.post("/", async (req, res, next) => {
   try {
     const b = createSchema.parse(req.body),
@@ -88,10 +94,11 @@ bookingRouter.post("/", async (req, res, next) => {
       const l = (
         await c.query(
           `select l.*,v.status as vendor_status,v.user_id as vendor_user_id,v.business_name,v.whatsapp
-    from listings l join vendors v on v.id=l.vendor_id where l.id=$1 for share of l,v`,
+    from listings l join vendors v on v.id=l.vendor_id join categories cat on cat.id=l.category_id where l.id=$1 and cat.is_banned=false for share of l,v,cat`,
           [b.listing_id],
         )
       ).rows[0];
+      if (!l) throw new HttpError(404,"Service not available");
       if (l.kind !== "service")
         throw new HttpError(422, "Products go through the cart, not bookings.");
       if (l.status !== "active" || l.vendor_status !== "verified")
@@ -203,8 +210,8 @@ bookingRouter.get("/slots", async (req, res, next) => {
     const id = uuid.parse(req.query.listing_id),
       date = validDate(String(req.query.date || ""));
     const l = await one<any>(
-      `select l.*,v.address as vendor_address from listings l join vendors v on v.id=l.vendor_id
- where l.id=$1 and l.kind='service' and l.status='active' and v.status='verified'`,
+      `select l.*,v.address as vendor_address from listings l join vendors v on v.id=l.vendor_id join categories cat on cat.id=l.category_id
+ where l.id=$1 and l.kind='service' and l.status='active' and v.status='verified' and cat.is_banned=false`,
       [id],
     );
     if (!l) throw new HttpError(404, "Service not available.");

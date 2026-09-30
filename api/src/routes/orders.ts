@@ -1,3 +1,5 @@
+import { createHash } from 'crypto';
+import { PoolClient } from 'pg';
 import { Router } from 'express';
 import { z } from 'zod';
 import { one, query, tx } from '../db';
@@ -14,10 +16,11 @@ import { attributionSchema, resolveOrderSource } from '../lib/attribution';
 export const orderRouter = Router();
 
 const cartSchema = z.array(
-  z.object({ listing_id: z.string().uuid(), qty: z.number().int().positive() })
-).min(1);
+  z.object({ listing_id: z.string().uuid(), qty: z.number().int().min(1).max(10000) })
+).min(1).max(100).refine(items=>new Set(items.map(i=>i.listing_id)).size===items.length,'Duplicate cart items');
 
 const checkoutSchema = z.object({
+  request_id: z.string().uuid(),
   items: cartSchema,
   contact_name: z.string().min(2).max(120),
   contact_phone: z.string().min(7).max(20),
@@ -35,16 +38,19 @@ const checkoutSchema = z.object({
  * validate availability. Shared by /quote and /checkout so both see exactly
  * the same prices and the same fee rules.
  */
-async function loadCart(items: { listing_id: string; qty: number }[]) {
+async function loadCart(items: { listing_id: string; qty: number }[], c?: PoolClient) {
   const ids = items.map((i) => i.listing_id);
-  const rows = await query<any>(
+  const read = async (sql:string,args:any[]) => c ? (await c.query(sql,args)).rows : query<any>(sql,args);
+  const rows = await read(
     `select l.*, v.id as vid, v.slug as vendor_slug, v.business_name, v.whatsapp, v.status as vendor_status,
             s.offers_pickup, s.offers_delivery, s.delivery_fee as v_delivery_fee,
             s.free_delivery_over, s.delivery_radius_km, s.pickup_address, s.delivery_notes
      from listings l
+     join categories cat on cat.id=l.category_id
      join vendors v on v.id = l.vendor_id
      left join vendor_delivery_settings s on s.vendor_id = v.id
-     where l.id = any($1::uuid[])`,
+     where l.id = any($1::uuid[]) and cat.is_banned=false
+     order by l.id ${c ? 'for update of l for share of v,cat' : ''}`,
     [ids]
   );
   if (rows.length !== ids.length) throw new HttpError(400, 'One or more items are no longer available');
@@ -138,10 +144,13 @@ orderRouter.post('/quote', async (req, res, next) => {
 orderRouter.post('/checkout', optionalAuth, async (req, res, next) => {
   try {
     const b = checkoutSchema.parse(req.body);
-    const byVendor = await loadCart(b.items);
-    const priced = priceCart(byVendor, b.items, b.fulfilment_mode);
-
+    const fingerprint=createHash('sha256').update(JSON.stringify({body:b,buyer:req.user?.id??null})).digest('hex');
     const created = await tx(async (c) => {
+      await c.query('select pg_advisory_xact_lock(hashtextextended($1,0))',['checkout:'+b.request_id]);
+      const prior=(await c.query('select fingerprint,response from checkout_requests where key=$1',[b.request_id])).rows[0];
+      if(prior){if(prior.fingerprint!==fingerprint) throw new HttpError(409,'Checkout key already used for a different request');return prior.response as any[];}
+      const byVendor=await loadCart(b.items,c);
+      const priced=priceCart(byVendor,b.items,b.fulfilment_mode);
       const out: any[] = [];
       for (const { quote, lines, vItems } of priced) {
         const code = randomCode('ORD');
@@ -174,14 +183,14 @@ orderRouter.post('/checkout', optionalAuth, async (req, res, next) => {
             // written, not one recomputed afterwards from a re-read that a
             // concurrent sale could already have moved.
             const upd = await c.query(
-              'update listings set quantity = greatest(quantity - $2, 0) where id = $1 returning quantity',
+              'update listings set quantity = quantity - $2 where id = $1 and quantity >= $2 returning quantity',
               [r.id, qty]
             );
+            if (!upd.rowCount) throw new HttpError(409,'Stock changed. Please check your cart.');
             const after = Number(upd.rows[0].quantity);
             const moved = after - Number(r.quantity);
-            // greatest(...,0) can clamp, so the real movement may be smaller
-            // than qty; and if the product was already at 0 there is nothing to
-            // record, since a movement of 0 is not a movement.
+            // The row is locked and the conditional decrement must succeed;
+            // ledger movement is exactly the quantity reserved by this order.
             if (moved !== 0) {
               await c.query(
                 `insert into stock_movements
@@ -213,6 +222,7 @@ orderRouter.post('/checkout', optionalAuth, async (req, res, next) => {
           vendor: { business_name: vItems[0].business_name, whatsapp: vItems[0].whatsapp },
           whatsapp_url: waLink(vItems[0].whatsapp, text) });
       }
+      await c.query('insert into checkout_requests(key,fingerprint,response) values($1,$2,$3)',[b.request_id,fingerprint,JSON.stringify(out)]);
       return out;
     });
 
@@ -267,11 +277,28 @@ orderRouter.get('/vendor', requireAuth('vendor'), loadVendor, async (req, res, n
 orderRouter.patch('/vendor/:id/status', requireAuth('vendor'), loadVendor, async (req, res, next) => {
   try {
     const b = z.object({ status: z.enum(['pending', 'confirmed', 'dispatched', 'delivered', 'cancelled']) }).parse(req.body);
-    const o = await one<any>('update orders set status=$3::order_status where id=$1 and vendor_id=$2 returning *',
-      [req.params.id, req.vendor!.id, b.status]);
-    if (!o) throw new HttpError(404, 'Order not found');
+    let didChange=false;
+    const o=await tx(async c=>{
+      const row=(await c.query('select * from orders where id=$1 and vendor_id=$2 for update',[req.params.id,req.vendor!.id])).rows[0];
+      if(!row) throw new HttpError(404,'Order not found');
+      if(row.status===b.status) return row;
+      const allowed: Record<string,string[]>={pending:['confirmed','cancelled'],confirmed:['dispatched','delivered','cancelled'],dispatched:['delivered'],delivered:[],cancelled:[]};
+      if(!allowed[row.status]?.includes(b.status)) throw new HttpError(409,'This order status change is not allowed.');
+      if(b.status==='cancelled' && !row.stock_restored_at) {
+       const items=(await c.query('select listing_id,sum(qty)::int as qty from order_items where order_id=$1 and listing_id is not null group by listing_id order by listing_id',[row.id])).rows;
+       for(const item of items) {
+        const stock=(await c.query('update listings set quantity=quantity+$2 where id=$1 and quantity is not null returning quantity',[item.listing_id,item.qty])).rows[0];
+        if(stock) await c.query(`insert into stock_movements(listing_id,vendor_id,delta,balance_after,reason,order_id,actor_id,note)
+         values($1,$2,$3,$4,'return',$5,$6,'Unfulfilled order cancelled')`,[item.listing_id,row.vendor_id,item.qty,stock.quantity,row.id,req.user!.id]);
+       }
+      }
+      didChange=true;
+      return (await c.query(`update orders set status=$2::order_status,
+       stock_restored_at=case when $2='cancelled' then coalesce(stock_restored_at,now()) else stock_restored_at end
+       where id=$1 returning *`,[row.id,b.status])).rows[0];
+    });
     await audit(req.user!.id, 'order.status', 'order', req.params.id, { status: b.status });
-    if (b.status === 'delivered') void emailReceipt(o.id);
+    if (didChange && b.status === 'delivered') void emailReceipt(o.id);
     res.json({ order: o });
   } catch (e) { next(e); }
 });

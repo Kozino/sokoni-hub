@@ -1,3 +1,4 @@
+import { publicListingColumns } from '../security';
 import { Router } from 'express';
 import { z } from 'zod';
 import { one, query } from '../db';
@@ -29,7 +30,7 @@ listingRouter.get('/', async (req, res, next) => {
       : 'l.created_at desc';
 
     const sql = `
-      select l.*, c.name as category_name, c.slug as category_slug,
+      select ${publicListingColumns()}, c.name as category_name, c.slug as category_slug,
              v.business_name, v.slug as vendor_slug, v.city as vendor_city,
              v.country as vendor_country, v.whatsapp,
              -- l.* already carries the LISTING's rating since 009; the store's
@@ -79,12 +80,12 @@ listingRouter.get('/cities', async (_req, res, next) => {
 listingRouter.get('/:id', async (req, res, next) => {
   try {
     const l = await one<any>(
-      `select l.*, c.name as category_name, c.slug as category_slug,
+      `select ${publicListingColumns()}, c.name as category_name, c.slug as category_slug,
               v.business_name, v.slug as vendor_slug, v.whatsapp, v.city as vendor_city,
               v.country as vendor_country, v.logo_url as vendor_logo,
               v.rating_avg as vendor_rating_avg, v.rating_count as vendor_rating_count
        from listings l join vendors v on v.id = l.vendor_id join categories c on c.id = l.category_id
-       where l.id = $1 and l.status = 'active' and v.status = 'verified'`,
+       where l.id = $1 and l.status = 'active' and v.status = 'verified' and c.is_banned=false`,
       [req.params.id]
     );
     if (!l) throw new HttpError(404, 'Listing not found');
@@ -99,7 +100,7 @@ listingRouter.get('/:id', async (req, res, next) => {
        join categories c on c.id = l.category_id
        join vendors v on v.id = l.vendor_id
        where l.category_id = $1 and l.id <> $2 and l.vendor_id <> $3
-         and l.status = 'active' and v.status = 'verified'
+         and l.status = 'active' and v.status = 'verified' and c.is_banned=false
        order by l.views desc, l.created_at desc
        limit 8`,
       [l.category_id, l.id, l.vendor_id]
@@ -112,7 +113,7 @@ listingRouter.get('/:id', async (req, res, next) => {
        from listings l
        join categories c on c.id = l.category_id
        join vendors v on v.id = l.vendor_id
-       where l.vendor_id = $1 and l.id <> $2 and l.status = 'active'
+       where l.vendor_id = $1 and l.id <> $2 and l.status = 'active' and c.is_banned=false
        order by l.created_at desc
        limit 8`,
       [l.vendor_id, l.id]

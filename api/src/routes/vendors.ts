@@ -1,3 +1,5 @@
+import { documentKey } from '../privateDocuments';
+import { publicListingColumns } from '../security';
 import { Router } from 'express';
 import { z } from 'zod';
 import { one, query } from '../db';
@@ -26,6 +28,7 @@ const onboardSchema = z.object({
 vendorRouter.post('/onboard', requireAuth('vendor', 'buyer'), async (req, res, next) => {
   try {
     const b = onboardSchema.parse(req.body);
+    if(b.id_document_url) await documentKey(b.id_document_url,req.user!.id);
     const bad = await screenProhibited(b.business_name, b.description);
     if (bad)
       throw new HttpError(422, `Prohibited category detected ("${bad}"). Cosmetics and medicine are not allowed on this platform.`);
@@ -65,6 +68,7 @@ vendorRouter.get('/me', requireAuth('vendor', 'admin'), loadVendor, async (req, 
 vendorRouter.patch('/me', requireAuth('vendor'), loadVendor, async (req, res, next) => {
   try {
     const b = onboardSchema.partial().parse(req.body);
+    if(b.id_document_url) await documentKey(b.id_document_url,req.user!.id);
     const bad = await screenProhibited(b.business_name, b.description);
     if (bad) throw new HttpError(422, `Prohibited content detected ("${bad}").`);
     const vendor = await one<any>(
@@ -330,7 +334,7 @@ vendorRouter.get('/:slug', async (req, res, next) => {
     );
     if (!vendor) throw new HttpError(404, 'Store not found');
     const listings = await query(
-      `select * from listings where vendor_id = $1 and status = 'active' order by created_at desc`,
+      `select ${publicListingColumns()} from listings l join categories c on c.id=l.category_id where l.vendor_id = $1 and l.status = 'active' and c.is_banned=false order by l.created_at desc`,
       [vendor.id]
     );
     // Hidden reviews are excluded here as well as from the averages.

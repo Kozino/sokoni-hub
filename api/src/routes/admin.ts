@@ -351,7 +351,7 @@ adminRouter.post('/users/:id/impersonate', async (req, res, next) => {
       { role: target.role, phone: target.phone });
 
     res.json({
-      token: signToken(target.id, target.role, { expiresIn: '1h', impersonatedBy: req.user!.id }),
+      token: await signToken(target.id, target.role, { expiresIn: '1h', impersonatedBy: req.user!.id, parentSessionId: req.user!.session_id }),
       user: target,
       vendor,
     });
@@ -362,7 +362,7 @@ adminRouter.post('/users/admin', async (req, res, next) => {
   try {
     const b = z.object({
       full_name: z.string().min(2), phone: z.string().min(7),
-      email: z.string().email().optional(), password: z.string().min(8),
+      email: z.string().email().optional(), password: z.string().min(12).max(72).refine(s=>Buffer.byteLength(s,'utf8')<=72,'Password must be at most 72 UTF-8 bytes'),
     }).parse(req.body);
     const hash = await bcrypt.hash(b.password, 10);
     const u = await one(

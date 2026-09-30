@@ -39,8 +39,11 @@ complaintRouter.post('/', optionalAuth, async (req, res, next) => {
 
 complaintRouter.get('/track/:code', async (req, res, next) => {
   try {
-    const c = await one('select code, subject, status, admin_note, created_at, resolved_at from complaints where code = $1',
-      [req.params.code]);
+    const phone=String(req.query.phone||'').replace(/\D/g,'');
+    if(!req.user && phone.length<7) throw new HttpError(400,'Enter your full phone number and complaint reference');
+    const c=await one(`select code,subject,status,created_at,resolved_at from complaints
+     where code=$1 and (reporter_id=$2 or (length($3)>=7 and regexp_replace(reporter_phone,'\\D','','g')=$3))`,
+     [req.params.code,req.user?.id??null,phone]);
     if (!c) throw new HttpError(404, 'Complaint not found');
     res.json({ complaint: c });
   } catch (e) { next(e); }
@@ -50,7 +53,7 @@ complaintRouter.get('/track/:code', async (req, res, next) => {
 complaintRouter.get('/vendor', requireAuth('vendor'), loadVendor, async (req, res, next) => {
   try {
     const complaints = await query<any>(
-      `select id, code, subject, body, status, admin_note, created_at, resolved_at
+      `select id, code, subject, body, status, created_at, resolved_at
        from complaints where vendor_id = $1 order by created_at desc`,
       [req.vendor!.id]
     );
