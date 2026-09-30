@@ -8,10 +8,10 @@ import { pool, one } from '../db';
   const name = process.env.ADMIN_NAME || (await rl.question('Admin full name: '));
   const phone = (process.env.ADMIN_PHONE || (await rl.question('Admin phone: '))).replace(/\D/g, '');
   const email = process.env.ADMIN_EMAIL || (await rl.question('Admin email (optional): '));
-  const password = process.env.ADMIN_PASSWORD || (await rl.question('Admin password (min 8): '));
+  const password = process.env.ADMIN_PASSWORD || (await rl.question('Admin password (min 12): '));
   rl.close();
 
-  if (password.length < 8) throw new Error('Password must be at least 8 characters');
+  if (password.length < 12 || Buffer.byteLength(password,'utf8') > 72) throw new Error('Password must be 12–72 characters');
   const hash = await bcrypt.hash(password, 10);
   const existing = await one<any>('select id from users where phone = $1', [phone]);
   if (existing) {
