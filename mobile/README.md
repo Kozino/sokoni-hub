@@ -61,6 +61,7 @@ For a no-terminal workflow, the repository also contains `.github/workflows/cons
 
 - `android` + `preview` for an installable internal APK;
 - `android` + `production` for a Google Play AAB; or
+- `ios` + `simulator` for a Mac-only iOS Simulator app (no Apple Developer account is needed);
 - `ios` + `production` for an iOS cloud archive.
 
 The workflow links the Expo project on its first run and EAS displays the build URL in the action log. The token is only an Actions secret; never add it to app source or an Expo public variable.
