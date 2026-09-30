@@ -215,8 +215,8 @@ vendorRouter.get('/dashboard', requireAuth('vendor'), loadVendor, async (req, re
 
     const topListings = await query<any>(
       `select l.id, l.title, l.kind, l.views, l.price, l.quantity, l.unit,
-              coalesce(sum(oi.qty),0)::int as units_sold,
-              coalesce(sum(oi.line_total),0)::float as revenue
+              coalesce(sum(oi.qty) filter (where o.id is not null),0)::int as units_sold,
+              coalesce(sum(oi.line_total) filter (where o.id is not null),0)::float as revenue
        from listings l
        left join order_items oi on oi.listing_id = l.id
        left join orders o on o.id = oi.order_id and o.status <> 'cancelled'
