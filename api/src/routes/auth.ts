@@ -2,11 +2,13 @@ import { adminChallenge, verifyAdmin } from '../mfa';
 // api/src/routes/auth.ts
 import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import { randomInt, randomUUID } from 'crypto';
+import { createHmac, randomInt, randomUUID, timingSafeEqual } from 'crypto';
 import { z } from 'zod';
-import { one, query } from '../db';
+import { one, query, tx } from '../db';
 import { charge } from '../security';
 import { signToken, requireAuth, blockImpersonation } from '../auth';
+import { config } from '../config';
+import { sendMailAsync } from '../mailer';
 import { HttpError, audit, normalizePhone, validateUuidParam } from '../utils';
 import {
   hashPin, checkPin, weakPinReason, chargeAttempt, clearAttempts,
@@ -86,6 +88,102 @@ authRouter.post('/register', async (req, res, next) => {
   } catch (e) {
     next(e);
   }
+});
+
+/* ------------------------------------------------------------------ */
+/* Email recovery: generic replies prevent account enumeration.         */
+/*                                                                      */
+/* A provider is optional. With EMAIL_PROVIDER=none, the mailer records */
+/* a skipped delivery and the client still sees the same success reply. */
+/* Once Resend/Brevo is configured, no mobile release is needed.       */
+/* ------------------------------------------------------------------ */
+const recoveryPurpose = z.enum(['password', 'pin']);
+const recoveryEmail = z.string().trim().email().max(200).transform((v) => v.toLowerCase());
+const recoveryCode = z.string().regex(/^\d{6}$/, 'Recovery code must be six digits');
+const recoveryDigest = (id: string, code: string) =>
+  createHmac('sha256', `${config.jwtSecret}:account-recovery`).update(`${id}:${code}`).digest('hex');
+const recoveryEqual = (a: string, b: string) => {
+  const left = Buffer.from(a, 'hex'); const right = Buffer.from(b, 'hex');
+  return left.length === right.length && timingSafeEqual(left, right);
+};
+const recoveryMail = (code: string, purpose: 'password' | 'pin') => `
+  <div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;color:#171c36">
+    <h2>Sokoni Hub account recovery</h2>
+    <p>Use this one-time code to reset your ${purpose === 'password' ? 'password' : 'four-digit PIN'}:</p>
+    <p style="font-size:28px;letter-spacing:7px;font-weight:700;color:#2b3a72">${code}</p>
+    <p>This code expires in 15 minutes and can only be used once. If you did not request it, you can safely ignore this email.</p>
+    <p>Never share this code, your password, or your PIN.</p>
+  </div>`;
+
+authRouter.post('/recovery/request', async (req, res, next) => {
+  try {
+    const b = z.object({ email: recoveryEmail, purpose: recoveryPurpose }).parse(req.body);
+    // Email-specific limiting gives a six-digit code no useful online guessing
+    // window while keeping the response generic for both unknown and known users.
+    await charge(`recovery:${b.email}`, 5, 900);
+    const user = await one<any>(
+      `select id, email, role, is_active from users
+       where lower(email)=lower($1) and is_active=true and role <> 'admin' limit 1`, [b.email]
+    );
+    if (user?.email) {
+      const id = randomUUID();
+      const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
+      await tx(async (c) => {
+        await c.query(`update account_recovery_tokens set used_at=now()
+                       where user_id=$1 and purpose=$2 and used_at is null`, [user.id, b.purpose]);
+        await c.query(`insert into account_recovery_tokens
+          (id,user_id,purpose,code_hash,expires_at) values ($1,$2,$3,$4,now()+interval '15 minutes')`,
+          [id, user.id, b.purpose, recoveryDigest(id, code)]);
+      });
+      sendMailAsync({ to: user.email, subject: 'Your Sokoni Hub recovery code', html: recoveryMail(code, b.purpose), kind: 'account_recovery', entityId: id });
+      await audit(user.id, 'user.recovery_requested', 'user', user.id, { purpose: b.purpose });
+    }
+    // 202 is intentional even when email delivery is disabled or the account
+    // does not exist. It prevents user enumeration and future-proofs the app.
+    res.status(202).json({ ok: true, message: 'If that email can receive recovery messages, a code has been sent.' });
+  } catch (e) { next(e); }
+});
+
+authRouter.post('/recovery/complete', async (req, res, next) => {
+  try {
+    const b = z.object({
+      email: recoveryEmail, purpose: recoveryPurpose, code: recoveryCode,
+      new_password: z.string().min(12).max(72).optional(), new_pin: pinField.optional(),
+    }).superRefine((value, ctx) => {
+      if (value.purpose === 'password' && (!value.new_password || Buffer.byteLength(value.new_password, 'utf8') > 72))
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['new_password'], message: 'Password must be 12–72 UTF-8 bytes' });
+      if (value.purpose === 'pin' && !value.new_pin)
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['new_pin'], message: 'PIN is required' });
+    }).parse(req.body);
+    await charge(`recovery-verify:${b.email}`, 10, 900);
+    const outcome = await tx(async (c) => {
+      const row = (await c.query<any>(`select r.*, u.id as uid, u.phone, u.role
+        from account_recovery_tokens r join users u on u.id=r.user_id
+        where lower(u.email)=lower($1) and r.purpose=$2 and r.used_at is null
+          and r.expires_at>now() and u.is_active=true and u.role <> 'admin'
+        order by r.created_at desc limit 1 for update of r`, [b.email, b.purpose])).rows[0];
+      if (!row || !recoveryEqual(row.code_hash, recoveryDigest(row.id, b.code))) {
+        if (row) await c.query(`update account_recovery_tokens set attempts=attempts+1,
+          used_at=case when attempts+1 >= 5 then now() else used_at end where id=$1`, [row.id]);
+        return null;
+      }
+      if (b.purpose === 'pin') {
+        const weak = weakPinReason(b.new_pin!, row.phone);
+        if (weak) throw new HttpError(422, weak);
+        await c.query(`update users set pin_hash=$2, must_change_pin=false, pin_temp_expires_at=null,
+          pin_failed_attempts=0, pin_lock_level=0, pin_locked_until=null, sessions_valid_from=now() where id=$1`,
+          [row.uid, await hashPin(row.uid, b.new_pin!)]);
+      } else {
+        await c.query('update users set password_hash=$2, sessions_valid_from=now() where id=$1',
+          [row.uid, await bcrypt.hash(b.new_password!, 10)]);
+      }
+      await c.query('update account_recovery_tokens set used_at=now() where id=$1', [row.id]);
+      return { userId: row.uid };
+    });
+    if (!outcome) throw new HttpError(400, 'Invalid or expired recovery code');
+    await audit(outcome.userId, 'user.recovery_completed', 'user', outcome.userId, { purpose: b.purpose });
+    res.json({ ok: true });
+  } catch (e) { next(e); }
 });
 
 /* ------------------------------------------------------------------ */
