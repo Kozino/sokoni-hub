@@ -29,6 +29,7 @@ import VendorComplaints from './pages/vendor/VendorComplaints';
 import VendorProfile from './pages/vendor/VendorProfile';
 import VendorStatements from './pages/vendor/VendorStatements';
 import VendorBookings from './pages/vendor/VendorBookings';
+import VendorAvailability from './pages/vendor/VendorAvailability';
 import VendorInventory from './pages/vendor/VendorInventory';
 
 import AdminLayout from './pages/admin/AdminLayout';
@@ -89,6 +90,7 @@ export default function App() {
                 <Route path="complaints" element={<VendorComplaints />} />
                 <Route path="statements" element={<VendorStatements />} />
                 <Route path="bookings" element={<VendorBookings />} />
+                <Route path="availability" element={<VendorAvailability />} />
                 <Route path="inventory" element={<VendorInventory />} />
                 <Route path="profile" element={<VendorProfile />} />
                 <Route path="*" element={<Navigate to="/vendor" replace />} />
