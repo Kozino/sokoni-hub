@@ -7,17 +7,19 @@ const THEME_KEY = 'sokoni_mobile_theme';
 const CART_KEY = 'sokoni_mobile_cart';
 
 export const palette = {
+  // Consumer app design system: emerald marketplace, citrus action colour,
+  // generous white surfaces and soft lilac utility panels.
   light: {
-    bg: '#F6F4EE', surface: '#FFFFFF', surface2: '#F7F4EC', text: '#171C36', text2: '#4C5169', muted: '#868B9E',
-    border: '#E3DED0', primary: '#2B3A72', primaryPressed: '#1A2650', primarySoft: '#ECEEF7', primaryLine: '#C7CDE4',
-    gold: '#B5852A', goldSoft: '#FBF2E0', teal: '#1B6473', tealSoft: '#E8F1F2', success: '#1F6B4A', successSoft: '#E9F3EC',
-    warning: '#A9700F', warningSoft: '#FBF1DF', danger: '#9E2B2B', dangerSoft: '#FBECEA', tab: '#FFFFFF', overlay: 'rgba(20,24,51,.46)',
+    bg: '#F8F8FD', surface: '#FFFFFF', surface2: '#F0F2FF', text: '#111827', text2: '#56606D', muted: '#7B8794',
+    border: '#E8EAF3', primary: '#05663F', primaryPressed: '#034D30', primarySoft: '#E1F7E9', primaryLine: '#BDE9CE',
+    gold: '#FF7A00', goldSoft: '#FFF0E2', teal: '#08715B', tealSoft: '#E2F7F0', success: '#078B57', successSoft: '#E5F8EE',
+    warning: '#D26A00', warningSoft: '#FFF2DF', danger: '#C43B3B', dangerSoft: '#FDEBEC', tab: '#FFFFFF', overlay: 'rgba(4,35,23,.56)',
   },
   dark: {
-    bg: '#14151B', surface: '#1D1F28', surface2: '#22242E', text: '#ECEDF2', text2: '#AEB2C2', muted: '#7B8093',
-    border: '#31333F', primary: '#93A0E4', primaryPressed: '#B8C1EF', primarySoft: '#232744', primaryLine: '#3A4067',
-    gold: '#E0BC6A', goldSoft: '#332A18', teal: '#74B6C8', tealSoft: '#142329', success: '#66BE93', successSoft: '#14261E',
-    warning: '#E5C57A', warningSoft: '#332617', danger: '#E2A09A', dangerSoft: '#341B1C', tab: '#1D1F28', overlay: 'rgba(0,0,0,.62)',
+    bg: '#101815', surface: '#18221D', surface2: '#202E27', text: '#F2F8F4', text2: '#B6C5BD', muted: '#84938B',
+    border: '#304238', primary: '#65D89C', primaryPressed: '#93E8B8', primarySoft: '#173B29', primaryLine: '#2A6846',
+    gold: '#FFAA58', goldSoft: '#402A17', teal: '#7CE0BB', tealSoft: '#163E32', success: '#73DCA1', successSoft: '#153525',
+    warning: '#FFC178', warningSoft: '#432E17', danger: '#F2AAA7', dangerSoft: '#432021', tab: '#18221D', overlay: 'rgba(0,0,0,.68)',
   },
 };
 export type Colors = typeof palette.light;
