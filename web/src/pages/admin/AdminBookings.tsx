@@ -13,7 +13,8 @@
 
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
-import { money, dateTime, timeAgo, titleCase, num } from '../../lib/format';
+import { qWhen } from '../../lib/booking';
+import { money, timeAgo, titleCase, num } from '../../lib/format';
 import { Alert, Spinner, Empty, Badge, Tabs, Stat } from '../../components/ui';
 import { DataTable, type DTColumn } from '../../components/DataTable';
 
@@ -22,6 +23,7 @@ interface Booking {
   listing_title: string; business_name: string; vendor_city: string | null;
   contact_name: string; contact_phone: string;
   preferred_at: string | null; scheduled_at: string | null;
+  slot_starts_at: string | null; location_type: 'vendor' | 'home'; address: string | null;
   quoted_price: string | null; currency: string;
   first_viewed_at: string | null; created_at: string;
 }
@@ -65,12 +67,15 @@ export default function AdminBookings() {
     { key: 'contact_name', header: 'Customer',
       render: (b) => <><div>{b.contact_name}</div><div className="bk-sub">{b.contact_phone}</div></>,
       csvValue: (b) => `${b.contact_name} ${b.contact_phone}` },
-    { key: 'scheduled_at', header: 'When',
-      render: (b) => b.scheduled_at ? dateTime(b.scheduled_at)
-        : b.preferred_at ? <span className="bk-sub">{dateTime(b.preferred_at)} (requested)</span>
+    { key: 'scheduled_at', header: 'When (Qatar)',
+      render: (b) => b.slot_starts_at ? <>{qWhen(b.slot_starts_at)}<div className="bk-sub">Fixed slot</div></> : b.scheduled_at ? qWhen(b.scheduled_at)
+        : b.preferred_at ? <span className="bk-sub">{qWhen(b.preferred_at)} (requested)</span>
         : <span className="bk-sub">Flexible</span>,
-      sortAccessor: (b) => b.scheduled_at || b.preferred_at || '',
-      csvValue: (b) => b.scheduled_at || b.preferred_at || '' },
+      sortAccessor: (b) => b.slot_starts_at || b.scheduled_at || b.preferred_at || '',
+      csvValue: (b) => b.slot_starts_at || b.scheduled_at || b.preferred_at || '' },
+    { key: 'location_type', header: 'Location', defaultHidden: true,
+      render: (b) => b.location_type === 'home' ? `Home visit: ${b.address || ''}` : 'At provider',
+      csvValue: (b) => b.location_type === 'home' ? `Home: ${b.address || ''}` : 'At provider' },
     { key: 'quoted_price', header: 'Advertised', align: 'right',
       render: (b) => b.quoted_price ? money(Number(b.quoted_price), b.currency) : '—',
       sortAccessor: (b) => Number(b.quoted_price ?? 0),
