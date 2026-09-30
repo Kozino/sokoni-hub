@@ -10,7 +10,9 @@ export interface DashboardData {
   topListings: { id: string; title: string; kind: string; views: Numeric; price: Numeric; quantity: Numeric | null; unit: string | null; units_sold: Numeric; revenue: Numeric }[];
   byStatus: { status: string; count: number }[];
   recentOrders: { id: string; code: string; status: string; total: Numeric; currency: string; contact_name: string; city: string; payment_method: string; created_at: string }[];
-  vendor: Vendor;
+  // loadVendor intentionally returns only the middleware identity fields.
+  // Slug and ratings come from AuthContext's full /auth/me profile.
+  vendor: Pick<Vendor, 'id' | 'status' | 'business_name'> & { low_stock_threshold?: number };
 }
 interface State {
   data: DashboardData | null;
