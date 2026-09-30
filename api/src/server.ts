@@ -57,7 +57,7 @@ const authAttemptLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
-app.use(['/api/auth/register', '/api/auth/login', '/api/auth/pin', '/api/auth/admin/reset-pin'], authAttemptLimiter);
+app.use(['/api/auth/register', '/api/auth/login', '/api/auth/pin', '/api/auth/recovery', '/api/auth/admin/reset-pin'], authAttemptLimiter);
 app.use('/api', rateLimit({ windowMs: 60_000, max: 300, standardHeaders: true, legacyHeaders: false }));
 app.use(optionalAuth);
 // One policy for every API write: a "view as" session can inspect data but

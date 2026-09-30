@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "Sokoni Hub",
+    "slug": "sokoni-hub",
+    "scheme": "sokonihub",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F6F4EE"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "qa.sokonihub.consumer",
+      "infoPlist": {
+        "NSAppTransportSecurity": { "NSAllowsArbitraryLoads": false }
+      }
+    },
+    "android": {
+      "package": "qa.sokonihub.consumer",
+      "adaptiveIcon": {
+        "backgroundColor": "#F6F4EE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-image",
+      "expo-web-browser"
+    ]
+  }
+}
