@@ -1,47 +1,29 @@
-import { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Header } from '../../components/Layout';
 import DashShell, { DashLink, DashNotification } from '../../components/DashShell';
 import { useAuth } from '../../state/AuthContext';
 import { StatusBadge, Alert } from '../../components/ui';
-import { api } from '../../lib/api';
+import { VendorDashboardProvider, useVendorDashboard } from '../../state/VendorDashboardContext';
+import './vendor-classic.css';
 import { IconChart, IconBox, IconPlus, IconReceipt, IconAlert, IconStore, IconHistory } from '../../components/icons';
 import { EnglishScope } from '../../i18n';
 
 export default function VendorLayout() {
+  return <VendorDashboardProvider><VendorConsole /></VendorDashboardProvider>;
+}
+function VendorConsole() {
   const { user, vendor } = useAuth();
   const name = vendor?.business_name || user?.full_name || 'V';
   const initials = name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
 
-  const [alerts, setAlerts] = useState({ out_of_stock: 0, low_stock: 0, open_complaints: 0, new_bookings: 0, sells_products: false });
-  useEffect(() => {
-    if (!vendor) return;
-    // Sequential, not Promise.all: two concurrent polls every 60s doubles the
-    // connection pressure on a small pool for no perceptible gain, and the
-    // booking count is not urgent enough to race the dashboard for a slot.
-    const load = () => api.get<any>('/vendors/dashboard')
-      .then(async (r) => [
-        r,
-        // A service-only vendor has no stock or orders, so their booking count
-        // must not disappear just because the commerce dashboard failed.
-        await api.get<any>('/bookings/vendor/counts').catch(() => ({ new: 0 })),
-      ] as const)
-      .then(([r, bk]) => setAlerts({
-        out_of_stock: Number(r.stats.out_of_stock || 0),
-        low_stock: Number(r.stats.low_stock || 0),
-        open_complaints: Number(r.stats.open_complaints || 0),
-        new_bookings: Number(bk.new || 0),
-        // Drives whether inventory exists for this vendor at all. A hair salon
-        // or a nail tech has no stock, so they get no Inventory tab and no
-        // stock warnings — not a tab reading zero, which teaches them to
-        // ignore the one alert that would matter if they ever sold a product.
-        sells_products: Number(r.stats.products_tracked || 0) > 0,
-      }))
-      .catch(() => {});
-    load();
-    const t = setInterval(load, 60_000);
-    return () => clearInterval(t);
-  }, [vendor]);
+  const { data, bookings } = useVendorDashboard();
+  const alerts = {
+    out_of_stock: Number(data?.stats.out_of_stock || 0),
+    low_stock: Number(data?.stats.low_stock || 0),
+    open_complaints: Number(data?.stats.open_complaints || 0),
+    new_bookings: bookings?.new || 0,
+    sells_products: Number(data?.stats.products_tracked || 0) > 0,
+  };
 
   const notifications: DashNotification[] = [
     ...(alerts.out_of_stock > 0 ? [{
@@ -116,7 +98,7 @@ export default function VendorLayout() {
           and flipping an unchecked console into RTL is worse than not
           offering it. */}
       <EnglishScope />
-      <div className="app">
+      <div className="app vendor-console">
       <Header />
       <DashShell
         links={links}

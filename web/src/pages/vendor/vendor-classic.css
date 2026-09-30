@@ -1,0 +1,98 @@
+/* Vendor-only classic skin. The existing schema, routes and component primitives
+   remain authoritative. Scope includes header and inline dialogs, never admin. */
+.vendor-console {
+  --bg:#F6F4EE; --bg-subtle:#FBF9F4; --surface:#fff; --surface-2:#F7F4EC;
+  --surface-3:#EFEADF; --elevated:#fff; --sidebar:#1B2145; --header:rgba(246,244,238,.94);
+  --border:#E3DED0; --border-strong:#CBC2AC; --border-subtle:#EEE9DC;
+  --text:#171C36; --text-2:#4C5169; --text-muted:#707489; --text-invert:#fff;
+  --accent:#2B3A72; --accent-hover:#22305F; --accent-active:#1A2650;
+  --accent-soft:#ECEEF7; --accent-softer:#F4F5FA; --accent-line:#C7CDE4; --accent-text:#2B3A72;
+  --ring:rgba(43,58,114,.20); --gold:#B5852A; --gold-bright:#C9A227; --gold-soft:#FBF2E0; --gold-line:#E8D9B4; --gold-deep:#7C5A11;
+  --success:#1F6B4A; --success-soft:#E9F3EC; --success-line:#BFD9C9; --success-text:#175539;
+  --warning:#A9700F; --warning-soft:#FBF1DF; --warning-line:#E9D3A6; --warning-text:#805409;
+  --danger:#9E2B2B; --danger-soft:#FBECEA; --danger-line:#EFC9C4; --danger-text:#85221F;
+  --info:#1B6473; --info-soft:#E8F1F2; --info-line:#C2D9DC; --info-text:#155460;
+  --chart-1:#2B3A72; --chart-2:#1F6B4A; --chart-3:#B5852A; --chart-4:#1B6473; --chart-5:#6B4485;
+  --chart-grid:#E9E3D5; --chart-axis:#797464;
+  /* Rebind aliases here: inherited custom properties resolve at their owner. */
+  --terra:var(--accent); --terra-dark:var(--accent-hover); --terra-soft:var(--accent-soft);
+  --green:var(--success); --green-dark:var(--success-text); --green-soft:var(--success-soft);
+  --ink:var(--text); --body:var(--text-2); --muted:var(--text-muted); --line:var(--border); --card:var(--surface);
+  background:var(--bg); color:var(--text-2);
+}
+:root[data-theme='dark'] .vendor-console {
+  --bg:#14151B; --bg-subtle:#181A21; --surface:#1D1F28; --surface-2:#22242E; --surface-3:#2A2D38;
+  --elevated:#22242E; --sidebar:#0C0E19; --header:rgba(20,21,27,.94);
+  --border:#31333F; --border-strong:#515563; --border-subtle:#292C38;
+  --text:#ECEDF2; --text-2:#B7BBCC; --text-muted:#9A9FB2; --text-invert:#14151B;
+  --accent:#93A0E4; --accent-hover:#A6B1EA; --accent-active:#B8C1EF;
+  --accent-soft:#232744; --accent-softer:#1E2138; --accent-line:#3A4067; --accent-text:#B5BFF3;
+  --ring:rgba(224,188,106,.3); --gold:#D8B25C; --gold-bright:#E0BC6A; --gold-soft:#2A2214; --gold-line:#4C3D1E; --gold-deep:#E5C57A;
+  --success:#66BE93; --success-soft:#14261E; --success-line:#2A4636; --success-text:#7FD0A6;
+  --warning:#DCAE4E; --warning-soft:#2A2113; --warning-line:#4A3A1C; --warning-text:#E6C377;
+  --danger:#E2867B; --danger-soft:#2B1917; --danger-line:#4C2B26; --danger-text:#EEA096;
+  --info:#74B6C8; --info-soft:#142329; --info-line:#264049; --info-text:#93CBD9;
+  --chart-1:#93A0E4; --chart-2:#66BE93; --chart-3:#D8B25C; --chart-4:#74B6C8; --chart-5:#B58FD0;
+  --chart-grid:#2A2C36; --chart-axis:#9A9FB2;
+}
+.vendor-console .header { border-bottom:2px solid var(--gold); }
+.vendor-console .brand small { color:var(--gold-deep); }
+.vendor-console .dash-main { background-image:radial-gradient(color-mix(in srgb,var(--accent) 5%,transparent) 1px,transparent 1px); background-size:22px 22px; }
+.vendor-console .dash-side { scrollbar-color:#515575 transparent; }
+.vendor-console .dash-side .who, .vendor-console .dash-side-foot { border-color:#ffffff20; }
+.vendor-console .dash-side .who strong { color:#fff; }
+.vendor-console .dash-side .who-text > span:not(.badge), .vendor-console .nav-group-label { color:#B0B5CE; }
+.vendor-console .dash-side .avatar { color:#E8CB7E; background:#C9A22725; border-color:#C9A22780; }
+.vendor-console .dash-nav a, .vendor-console .dash-side-foot .menu-item { color:#CCD0E3; }
+.vendor-console .dash-nav a:hover, .vendor-console .dash-side-foot .menu-item:hover { color:#fff; background:#ffffff12; }
+.vendor-console .dash-nav a.active { color:#fff; background:#ffffff1B; box-shadow:inset 0 0 0 1px #ffffff12; }
+.vendor-console .dash-nav a.active .ico { color:#E0BC6A; }
+.vendor-console .dash-nav a.active::before { background:#E0BC6A; }
+.vendor-console .dash-nav a .pill { background:#E0BC6A; color:#2A1E05; }
+.vendor-console .dash-nav a:focus-visible { outline-color:#E0BC6A; }
+.vendor-console .breadcrumb .sep { color:var(--gold); opacity:1; }
+.vendor-console .card { --card-accent:var(--accent); --card-soft:var(--accent-softer); border-top:3px solid var(--card-accent); }
+.vendor-console .grid > .card:nth-child(3n+2) { --card-accent:var(--gold); --card-soft:var(--gold-soft); }
+.vendor-console .grid > .card:nth-child(3n+3) { --card-accent:var(--success); --card-soft:var(--success-soft); }
+.vendor-console .card-head { border-radius:6px 6px 0 0; background:linear-gradient(var(--card-soft),var(--surface)); }
+.vendor-console .card-head h3, .vendor-console .card-head h4 { color:var(--card-accent); }
+.vendor-console .stat { --stat-hue:var(--accent); --stat-soft:var(--accent-softer); background:linear-gradient(var(--stat-soft),var(--surface) 75%); }
+.vendor-console .stat.accent-green { --stat-hue:var(--success); --stat-soft:var(--success-soft); }
+.vendor-console .stat.accent-gold { --stat-hue:var(--gold); --stat-soft:var(--gold-soft); }
+.vendor-console .stat.accent-red { --stat-hue:var(--danger); --stat-soft:var(--danger-soft); }
+.vendor-console .stat.accent-blue { --stat-hue:var(--info); --stat-soft:var(--info-soft); }
+.vendor-console .stat[class*='accent-']::before { background:var(--stat-hue); height:3px; }
+.vendor-console .stat .label { color:var(--text-2); }
+.vendor-console .btn-primary { background:linear-gradient(var(--accent),var(--accent-active)); border-color:var(--accent-active); box-shadow:inset 0 1px 0 #ffffff22; }
+.vendor-console .btn-primary:hover:not(:disabled) { background:var(--accent-hover); }
+.vendor-console .btn-group button[aria-pressed='true'], .vendor-console .btn-group button.active { background:var(--accent); color:var(--text-invert); }
+.vendor-console .tabs button.active { border-bottom-color:var(--gold); }
+.vendor-console table.tbl th, .vendor-console .bk-head { color:var(--accent-text); background:var(--surface-2); border-bottom-color:var(--accent-line); }
+.vendor-console table.tbl tbody tr:nth-child(even) { background:var(--bg-subtle); }
+.vendor-console table.tbl tbody tr:hover { background:var(--accent-softer); }
+.vendor-console .alert { border-inline-start-width:3px; }
+.vendor-console .modal { border-top:3px solid var(--gold); }
+.vendor-console .vendor-welcome h1 { margin:8px 0; overflow-wrap:anywhere; }
+.vendor-console .vendor-welcome h1::after { content:''; display:block; height:3px; width:48px; margin-top:12px; background:linear-gradient(90deg,var(--accent) 60%,var(--gold) 60%); }
+.vendor-console .vendor-eyebrow { font-size:10px; font-weight:700; letter-spacing:.13em; color:var(--gold-deep); }
+.vendor-console .vendor-sync { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin:-8px 0 24px; font-size:12px; color:var(--text-muted); }
+.vendor-console .vendor-task-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(155px,1fr)); }
+.vendor-console .vendor-task-grid a { padding:20px; display:flex; flex-direction:column; border-inline-end:1px solid var(--border); gap:4px; color:var(--text-2); }
+.vendor-console .vendor-task-grid a:hover { background:var(--gold-soft); text-decoration:none; }
+.vendor-console .vendor-task-grid strong { font-size:28px; line-height:1.2; color:var(--text); font-variant-numeric:tabular-nums; }
+.vendor-console .vendor-task-grid span { font-size:13px; font-weight:600; }
+.vendor-console .vendor-task-grid small { color:var(--accent-text); }
+/* Workhorse grids need a card layout before fixed-width columns overflow the
+   CONTENT track (which is narrower than the viewport beside a sidebar). */
+@media (min-width:861px) and (max-width:1280px) {
+  .vendor-console .bk-list { overflow-x:auto; }
+  .vendor-console .bk-head, .vendor-console .bk-item { min-width:890px; }
+}
+@media (max-width:640px) {
+  .vendor-console .vendor-task-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .vendor-console .vendor-task-grid a { padding:16px 12px; border-bottom:1px solid var(--border); }
+  .vendor-console .grid-stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .vendor-console .stat .label { font-size:10px; }
+  .vendor-console .stat .value { white-space:normal; overflow-wrap:anywhere; font-size:20px; }
+  .vendor-console .stat { padding:16px 12px; }
+}

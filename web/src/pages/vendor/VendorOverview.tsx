@@ -1,36 +1,63 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useVendorDashboard } from '../../state/VendorDashboardContext';
 import { Link } from 'react-router-dom';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   BarChart, Bar, PieChart, Pie, Cell, Legend,
 } from 'recharts';
-import { api } from '../../lib/api';
 import { money, num, dateTime } from '../../lib/format';
 import { Empty, Spinner, Stat, StatusBadge } from '../../components/ui';
 
-const COLORS = ['#2E3B6E', '#3D7A4E', '#D98E2B', '#2B5F8A', '#8B84A0'];
+const COLORS = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
 
 export default function VendorOverview() {
-  const [d, setD] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: d, bookings, loading, error, bookingError, updatedAt, refresh } = useVendorDashboard();
+  const [period, setPeriod] = useState(30);
+  if (loading && !d) return <Spinner />;
+  if (!d) return <Empty icon="📊" title="Could not load dashboard" text={error || 'Please try again.'}
+    action={<button className="btn btn-primary" onClick={() => void refresh()}>Try again</button>} />;
 
-  useEffect(() => {
-    api.get<any>('/vendors/dashboard').then(setD).catch(() => setD(null)).finally(() => setLoading(false));
-  }, []);
-
-  if (loading) return <Spinner />;
-  if (!d) return <Empty icon="📊" title="Could not load dashboard" text="Please refresh the page." />;
-
+  const exportSummary = () => {
+    const rows = [['Metric', 'Value'], ...Object.entries(d.stats)];
+    const csv = rows.map(row => row.map(value => '"' + String(value).replace(/"/g, '""') + '"').join(',')).join('\r\n');
+    const url = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }));
+    const link = document.createElement('a'); link.href = url; link.download = 'sokoni-store-summary.csv'; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
   const s = d.stats;
  const cur = 'QAR';
-  const trend = d.salesTrend.map((t: any) => ({ ...t, label: t.day.slice(5) }));
+  const trend = d.salesTrend.slice(-period).map((t: any) => ({ ...t, label: t.day.slice(5) }));
 
   return (
     <>
-      <div className="dash-title">
-        <h1>Overview</h1>
-        <p>How your store is performing over the last 30 days.</p>
+      <div className="dash-title vendor-welcome">
+        <div>
+          <span className="vendor-eyebrow">YOUR STORE AT A GLANCE</span>
+          <h1>{d.vendor.business_name}</h1>
+          <p>Your business, in focus. Store totals are all-time; the revenue chart shows recent activity.</p>
+        </div>
+        <div className="actions">
+          <Link className="btn btn-outline" to={`/store/${d.vendor.slug}`}>View storefront ↗</Link>
+          <Link className="btn btn-primary" to="/vendor/listings/new">+ Add listing</Link>
+        </div>
       </div>
+      <div className="vendor-sync">
+        <span role="status">{loading ? 'Refreshing store data…' : updatedAt ? `Last updated ${updatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Store overview'}</span>
+        <div className="row">
+          <button className="btn btn-ghost btn-sm" disabled={loading} onClick={() => void refresh()}>Refresh</button>
+          <button className="btn btn-outline btn-sm" onClick={exportSummary}>Export summary</button>
+        </div>
+      </div>
+      {(error || bookingError) && <div className="alert alert-warn" role="alert">{error || bookingError} Previously loaded data may be out of date. Use Refresh to retry.</div>}
+      <section className="card vendor-attention mb-3">
+        <div className="card-head"><h3>Needs your attention</h3><span className="vendor-eyebrow">STORE OPERATIONS</span></div>
+        <div className="vendor-task-grid">
+          <Link to="/vendor/orders"><strong>{num(s.orders_pending)}</strong><span>Pending orders</span><small>Review and fulfil →</small></Link>
+          <Link to="/vendor/bookings"><strong>{bookings ? num(bookings.new) : '—'}</strong><span>New booking requests</span><small>{bookingError ? 'Counts unavailable · open inbox →' : 'Open booking inbox →'}</small></Link>
+          {Number(s.products_tracked) > 0 && <Link to="/vendor/inventory"><strong>{num(Number(s.out_of_stock) + Number(s.low_stock))}</strong><span>Stock alerts</span><small>Review reorder points →</small></Link>}
+          <Link to="/vendor/complaints"><strong>{num(s.open_complaints)}</strong><span>Open complaints</span><small>Respond to customers →</small></Link>
+        </div>
+      </section>
 
       <div className="grid grid-stats mb-3">
         <Stat accent="terra" label="Active listings" value={num(s.listings_active)} sub={`${s.products_active} products · ${s.services_active} services`} />
@@ -45,27 +72,28 @@ export default function VendorOverview() {
             label="Stock alerts" value={`${s.out_of_stock} / ${s.low_stock}`}
             sub="Out of stock / at reorder point" />
         )}
+        <Stat accent="gold" label="Store rating" value={Number(d.vendor.rating_count) > 0 ? Number(d.vendor.rating_avg).toFixed(1) : '—'} sub={`${num(d.vendor.rating_count || 0)} customer reviews`} />
         <Stat accent={Number(s.open_complaints) > 0 ? 'red' : 'green'} label="Open complaints" value={num(s.open_complaints)} sub="Filed against your store" />
       </div>
 
       <div className="grid grid-2 mb-3">
         <div className="card">
-          <div className="card-head"><h4>Revenue — last 30 days</h4></div>
+          <div className="card-head"><div><h4>Order value — last {period} days</h4><div className="sub">Excludes cancelled orders · QAR</div></div><div className="btn-group" aria-label="Chart period">{[7, 30].map(days => <button key={days} aria-pressed={period === days} onClick={() => setPeriod(days)}>{days}d</button>)}</div></div>
           <div className="card-body">
             <div className="chart-box">
               <ResponsiveContainer>
                 <AreaChart data={trend}>
                   <defs>
                     <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#2E3B6E" stopOpacity={0.45} />
-                      <stop offset="100%" stopColor="#2E3B6E" stopOpacity={0.02} />
+                      <stop offset="0%" stopColor="var(--chart-1)" stopOpacity={0.45} />
+                      <stop offset="100%" stopColor="var(--chart-1)" stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E6DFCD" vertical={false} />
-                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#8B84A0' }} interval={4} />
-                  <YAxis tick={{ fontSize: 11, fill: '#8B84A0' }} width={48} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--chart-axis)' }} interval={4} />
+                  <YAxis tick={{ fontSize: 11, fill: 'var(--chart-axis)' }} width={48} />
                   <Tooltip formatter={(v: any) => money(v, cur)} />
-                  <Area type="monotone" dataKey="revenue" stroke="#2E3B6E" strokeWidth={2} fill="url(#rev)" />
+                  <Area type="monotone" dataKey="revenue" stroke="var(--chart-1)" strokeWidth={2} fill="url(#rev)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -104,11 +132,11 @@ export default function VendorOverview() {
               <div className="chart-box-sm">
                 <ResponsiveContainer>
                   <BarChart data={d.topListings.slice(0, 6).map((t: any) => ({ ...t, short: t.title.slice(0, 14) }))}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E6DFCD" vertical={false} />
-                    <XAxis dataKey="short" tick={{ fontSize: 11, fill: '#8B84A0' }} />
-                    <YAxis tick={{ fontSize: 11, fill: '#8B84A0' }} width={40} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
+                    <XAxis dataKey="short" tick={{ fontSize: 11, fill: 'var(--chart-axis)' }} />
+                    <YAxis tick={{ fontSize: 11, fill: 'var(--chart-axis)' }} width={40} />
                     <Tooltip />
-                    <Bar dataKey="views" fill="#3D7A4E" radius={[6, 6, 0, 0]} name="Views" />
+                    <Bar dataKey="views" fill="var(--chart-2)" radius={[6, 6, 0, 0]} name="Views" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -119,7 +147,7 @@ export default function VendorOverview() {
                 <tbody>
                   {d.topListings.map((t: any) => (
                     <tr key={t.id}>
-                      <td className="td-strong">{t.title}</td>
+                      <td className="td-strong"><Link to={`/vendor/listings/${t.id}/edit`}>{t.title}</Link></td>
                       <td style={{ textTransform: 'capitalize' }}>{t.kind}</td>
                       <td>{money(t.price, cur)}</td>
                       <td>{t.kind === 'product' ? `${t.quantity ?? 0} ${t.unit || ''}` : '—'}</td>
