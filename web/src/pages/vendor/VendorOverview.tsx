@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useAuth } from '../../state/AuthContext';
 import { useVendorDashboard } from '../../state/VendorDashboardContext';
 import { Link } from 'react-router-dom';
 import {
@@ -11,6 +12,7 @@ import { Empty, Spinner, Stat, StatusBadge } from '../../components/ui';
 const COLORS = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
 
 export default function VendorOverview() {
+  const { vendor } = useAuth();
   const { data: d, bookings, loading, error, bookingError, updatedAt, refresh } = useVendorDashboard();
   const [period, setPeriod] = useState(30);
   if (loading && !d) return <Spinner />;
@@ -24,6 +26,7 @@ export default function VendorOverview() {
     const link = document.createElement('a'); link.href = url; link.download = 'sokoni-store-summary.csv'; link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
+  const storeSlug = vendor?.slug?.trim();
   const s = d.stats;
  const cur = 'QAR';
   const trend = d.salesTrend.slice(-period).map((t: any) => ({ ...t, label: t.day.slice(5) }));
@@ -37,7 +40,11 @@ export default function VendorOverview() {
           <p>Your business, in focus. Store totals are all-time; the revenue chart shows recent activity.</p>
         </div>
         <div className="actions">
-          <Link className="btn btn-outline" to={`/store/${d.vendor.slug}`}>View storefront ↗</Link>
+          {storeSlug ? (
+            <Link className="btn btn-outline" to={`/store/${encodeURIComponent(storeSlug)}`}>View storefront ↗</Link>
+          ) : (
+            <button className="btn btn-outline" disabled title="Your store address is unavailable. Refresh your account or contact support.">Storefront unavailable</button>
+          )}
           <Link className="btn btn-primary" to="/vendor/listings/new">+ Add listing</Link>
         </div>
       </div>
@@ -72,7 +79,7 @@ export default function VendorOverview() {
             label="Stock alerts" value={`${s.out_of_stock} / ${s.low_stock}`}
             sub="Out of stock / at reorder point" />
         )}
-        <Stat accent="gold" label="Store rating" value={Number(d.vendor.rating_count) > 0 ? Number(d.vendor.rating_avg).toFixed(1) : '—'} sub={`${num(d.vendor.rating_count || 0)} customer reviews`} />
+        <Stat accent="gold" label="Store rating" value={Number(vendor?.rating_count) > 0 ? Number(vendor?.rating_avg).toFixed(1) : '—'} sub={`${num(vendor?.rating_count || 0)} customer reviews`} />
         <Stat accent={Number(s.open_complaints) > 0 ? 'red' : 'green'} label="Open complaints" value={num(s.open_complaints)} sub="Filed against your store" />
       </div>
 
