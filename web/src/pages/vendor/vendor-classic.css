@@ -96,3 +96,32 @@
   .vendor-console .stat .value { white-space:normal; overflow-wrap:anywhere; font-size:20px; }
   .vendor-console .stat { padding:16px 12px; }
 }
+
+/* The base skin's `.dash .dash-side .who span` also matches StatusBadge.
+   Override it explicitly: identity badges sit on the dark rail in BOTH themes. */
+.vendor-console .dash .dash-side .who .badge {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 6px;
+  color: #E1E5F3;
+  background: #30374F;
+  border-color: #626B86;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 18px;
+}
+.vendor-console .dash .dash-side .who .badge.badge-green {
+  color: #B8F0CF;
+  background: #173F32;
+  border-color: #417B60;
+}
+.vendor-console .dash .dash-side .who .badge.badge-gold {
+  color: #F4D99A;
+  background: #443719;
+  border-color: #8C7239;
+}
+.vendor-console .dash .dash-side .who .badge.badge-red {
+  color: #FFC7BF;
+  background: #48282C;
+  border-color: #A46466;
+}
