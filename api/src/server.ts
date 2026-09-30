@@ -7,6 +7,7 @@ import { ZodError } from 'zod';
 import { config } from './config';
 import { pool } from './db';
 import { HttpError } from './utils';
+import { limit } from './security';
 import { optionalAuth } from './auth';
 
 import { authRouter } from './routes/auth';
@@ -24,22 +25,19 @@ import { promotionRouter } from './routes/promotions';
 import { reviewRouter } from './routes/reviews';
 
 const app = express();
-app.set('trust proxy', 1);
+app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS || 1));
 app.use(helmet({ crossOriginResourcePolicy: false }));
 app.use(express.json({ limit: '1mb' }));
 // Code + phone are guest lookup credentials: do not log their query strings.
-app.use(morgan(config.env === 'production' ? 'combined' : 'dev', { skip: req => /^\/api\/bookings\/(track|ics)(\?|$)/.test(req.originalUrl) }));
+morgan.token('safe-route', req => {const p=req.url?.split('?')[0]||'';return /^\/api\/complaints\/track\//.test(p)?'/api/complaints/track/[redacted]':p;});
+app.use(morgan(':method :safe-route :status :response-time ms'));
+app.use('/api', (_req,res,next)=>{res.set('Cache-Control','no-store');res.set('Referrer-Policy','no-referrer');next();});
 
 app.use(
   cors({
     origin(origin, cb) {
       if (!origin) return cb(null, true);
-      const ok =
-        config.corsOrigins.includes('*') ||
-        config.corsOrigins.includes(origin) ||
-        /\.netlify\.app$/.test(new URL(origin).hostname) ||
-        /\.e2b\.app$/.test(new URL(origin).hostname) ||
-        /^localhost$|^127\.0\.0\.1$/.test(new URL(origin).hostname);
+      const ok = config.corsOrigins.includes(origin);
       cb(ok ? null : new Error('Not allowed by CORS'), ok);
     },
     credentials: true,
@@ -53,19 +51,20 @@ app.use(optionalAuth);
 app.get('/api/health', async (_req, res) => {
   try {
     await pool.query('select 1');
-    res.json({ ok: true, db: 'up', env: config.env, time: new Date().toISOString() });
+    res.json({ ok: true });
   } catch (e) {
-    res.status(503).json({ ok: false, db: 'down', error: (e as Error).message });
+    res.status(503).json({ ok: false });
   }
 });
 
 app.use('/api/auth', authRouter);
 app.use('/api/vendors', vendorRouter);
 app.use('/api/listings', listingRouter);
+app.post('/api/orders/checkout', limit('checkout',20,900));
 app.use('/api/orders', orderRouter);
-app.use('/api/complaints', complaintRouter);
+app.use('/api/complaints', limit('complaints',30,900), complaintRouter);
 app.use('/api/admin', adminRouter);
-app.use('/api/uploads', uploadRouter);
+app.use('/api/uploads', limit('uploads',20,900), uploadRouter);
 app.use('/api/meta', metaRouter);
 app.use('/api/billing', billingRouter);
 app.post(['/api/bookings', '/api/bookings/cancel'], rateLimit({ windowMs: 15 * 60_000, max: 20, standardHeaders: true, legacyHeaders: false }));
@@ -79,6 +78,7 @@ app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  if (err?.name==='MulterError') return res.status(400).json({error:'Upload exceeds allowed size or file count'});
   if (err instanceof ZodError)
     return res.status(400).json({ error: 'Validation failed', details: err.flatten().fieldErrors });
   if (err instanceof HttpError)
@@ -94,10 +94,15 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   } else if (err?.code === '42P01') {
     console.error('[db] A table is missing — has db/schema.sql been run against this database?');
   }
-  console.error('[error]', err);
+  console.error('[error]', {code: err?.code || 'internal', name: err?.name || 'Error'});
   res.status(500).json({ error: 'Internal server error' });
 });
 
-app.listen(config.port, '0.0.0.0', () => {
+async function start() {
+ const ready=await pool.query("select 1 from public.schema_migrations where name='migrations/012_security.sql'");
+ if(!ready.rowCount)throw new Error('Security migration is missing. Run the documented migration command before startup.');
+ app.listen(config.port, '0.0.0.0', () => {
   console.log(`Sokoni API listening on :${config.port} (${config.env})`);
-});
+ });
+}
+start().catch(()=>{console.error('[startup] Database/schema readiness failed. Check verified DB TLS and apply the security migrations.');process.exitCode=1;void pool.end();});

@@ -1,9 +1,13 @@
 import { Pool, PoolClient } from 'pg';
 import { config } from './config';
 
+const connection = new URL(config.databaseUrl);
+for (const key of ['sslmode','sslcert','sslkey','sslrootcert']) connection.searchParams.delete(key);
 export const pool = new Pool({
-  connectionString: config.databaseUrl,
-  ssl: config.pgSsl ? { rejectUnauthorized: false } : undefined,
+  connectionString: connection.toString(),
+  ssl: config.pgSsl ? { rejectUnauthorized: true, ...(process.env.PGSSL_CA ? {ca: process.env.PGSSL_CA.replace(/\\n/g,'\n')} : {}) } : undefined,
+  connectionTimeoutMillis: 10_000,
+  statement_timeout: 30_000,
   max: 10,
   idleTimeoutMillis: 30_000,
 });

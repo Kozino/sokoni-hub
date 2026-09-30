@@ -83,24 +83,24 @@ export const clearAttempts = (userId: string) =>
 const SETUP_SECRET = `${config.jwtSecret}:pin-setup`;
 const CHALLENGE_SECRET = `${config.jwtSecret}:pin-login`;
 
-function verifyPurpose(token: string, secret: string, purpose: string, message: string): string {
+async function verifyPurpose(token: string, secret: string, purpose: string, message: string): Promise<string> {
   try {
-    const p = jwt.verify(token, secret) as { sub: string; pur?: string };
+    const p = jwt.verify(token, secret) as { sub: string; pur?: string; ver?: number };
     if (p.pur !== purpose) throw new Error('wrong purpose');
+    const u=await one<any>('select session_version,is_active from users where id=$1',[p.sub]);
+    if(!u?.is_active || p.ver!==u.session_version) throw new Error('revoked');
     return p.sub;
   } catch {
     throw new HttpError(400, message);
   }
 }
 
-/** Issued after a correct password when the user must create a PIN. */
-export const signSetupToken = (userId: string) =>
-  jwt.sign({ sub: userId, pur: 'pin_setup' }, SETUP_SECRET, { expiresIn: '10m' });
-export const verifySetupToken = (t: string) =>
-  verifyPurpose(t, SETUP_SECRET, 'pin_setup', 'This step expired. Please sign in again.');
-
-/** Issued after a correct password when the user already has a PIN. */
-export const signChallengeToken = (userId: string) =>
-  jwt.sign({ sub: userId, pur: 'pin_login' }, CHALLENGE_SECRET, { expiresIn: '5m' });
-export const verifyChallengeToken = (t: string) =>
-  verifyPurpose(t, CHALLENGE_SECRET, 'pin_login', 'Your sign-in expired. Please start again.');
+async function stepToken(userId:string, secret:string, pur:string, seconds:number,expectedVersion?:number) {
+ const u=await one<any>('select session_version from users where id=$1',[userId]);
+ if(expectedVersion!==undefined && u.session_version!==expectedVersion)throw new HttpError(400,'Sign-in expired. Start again.');
+ return jwt.sign({sub:userId,pur,ver:u.session_version},secret,{algorithm:'HS256',expiresIn:seconds});
+}
+export const signSetupToken = (id:string,version?:number)=>stepToken(id,SETUP_SECRET,'pin_setup',600,version);
+export const verifySetupToken = (t:string)=>verifyPurpose(t,SETUP_SECRET,'pin_setup','This step expired. Please sign in again.');
+export const signChallengeToken = (id:string,version?:number)=>stepToken(id,CHALLENGE_SECRET,'pin_login',300,version);
+export const verifyChallengeToken = (t:string)=>verifyPurpose(t,CHALLENGE_SECRET,'pin_login','Your sign-in expired. Please start again.');

@@ -38,6 +38,7 @@ export async function uploadObject(
 
   const res = await fetch(url, {
     method: 'POST',
+    signal: AbortSignal.timeout(20000),
     headers: {
       ...authHeaders(),
       'Content-Type': contentType,

@@ -1,4 +1,5 @@
 import { query } from './db';
+import { randomBytes } from 'crypto';
 
 export class HttpError extends Error {
   status: number;
@@ -20,7 +21,7 @@ export const slugify = (s: string) =>
     .slice(0, 60) || 'item';
 
 export const randomCode = (prefix: string) =>
-  `${prefix}-${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
+  `${prefix}-${randomBytes(16).toString('hex').toUpperCase()}`;
 
 /** Normalise a phone to digits only, keeping country code. */
 export const normalizePhone = (p: string) => p.replace(/[^\d]/g, '');

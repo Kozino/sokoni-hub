@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from './config';
 import { one } from './db';
+import { randomUUID } from 'crypto';
 import { HttpError } from './utils';
 
 export type Role = 'buyer' | 'vendor' | 'admin';
@@ -13,6 +14,8 @@ export interface AuthUser {
   phone: string;
   email: string | null;
   is_active: boolean;
+  session_id?: string;
+  session_version?: number;
   /** Set when an admin is viewing as this user; holds the admin's user id. */
   impersonated_by?: string;
 }
@@ -27,40 +30,39 @@ declare global {
   }
 }
 
-export const signToken = (
-  userId: string,
-  role: Role,
-  opts?: { expiresIn?: string; impersonatedBy?: string }
-) =>
-  jwt.sign(
-    { sub: userId, role, ...(opts?.impersonatedBy ? { imp: opts.impersonatedBy } : {}) },
-    config.jwtSecret,
-    { expiresIn: opts?.expiresIn ?? config.jwtExpires } as jwt.SignOptions
-  );
+export const signToken = async (
+ userId: string, role: Role,
+ opts?: { expiresIn?: string; impersonatedBy?: string; parentSessionId?: string; label?: string; expectedVersion?: number }
+) => {
+ const u = await one<any>('select session_version,role,is_active from users where id=$1',[userId]);
+ if(!u?.is_active || u.role!==role || (opts?.expectedVersion!==undefined && opts.expectedVersion!==u.session_version)) throw new HttpError(401,'Sign in again');
+ const sid=randomUUID();
+ const token=jwt.sign({sub:userId,role,ver:u.session_version,sid,...(opts?.impersonatedBy?{imp:opts.impersonatedBy}:{})},
+ config.jwtSecret,{algorithm:'HS256',expiresIn:opts?.expiresIn??config.jwtExpires} as jwt.SignOptions);
+ const p=jwt.decode(token) as jwt.JwtPayload;
+ await one(`insert into auth_sessions(id,user_id,version,expires_at,impersonated_by,parent_session_id,label)
+ values($1,$2,$3,to_timestamp($4),$5,$6,$7) returning id`,
+ [sid,userId,u.session_version,p.exp,opts?.impersonatedBy??null,opts?.parentSessionId??null,(opts?.label||'Web session').slice(0,120)]);
+ return token;
+};
 
 async function loadUser(req: Request): Promise<AuthUser | null> {
-  const header = req.headers.authorization;
-  if (!header?.startsWith('Bearer ')) return null;
-
-  // A bad, expired or forged token is genuinely "not authenticated".
-  let payload: { sub: string; imp?: string };
-  try {
-    payload = jwt.verify(header.slice(7), config.jwtSecret) as { sub: string; imp?: string };
-  } catch {
-    return null;
-  }
-
-  // A database failure is NOT an authentication failure, and must not be
-  // swallowed into a null. The web client clears the stored token on any 401,
-  // so reporting a transient DB blip as 401 silently signs every active user
-  // out — exactly when the database is already struggling. Let it throw and
-  // surface as a 5xx the client will retry instead.
-  const u = await one<AuthUser>(
-    'select id, role, full_name, phone, email, is_active from users where id = $1',
-    [payload.sub]
-  );
-  if (u && payload.imp) u.impersonated_by = payload.imp;
-  return u;
+ const header=req.headers.authorization;
+ if(!header?.startsWith('Bearer ')) return null;
+ let p: any;
+ try {p=jwt.verify(header.slice(7),config.jwtSecret,{algorithms:['HS256']});} catch{return null;}
+ if(!p.sid || !Number.isInteger(p.ver) || !p.exp) return null;
+ const u=await one<AuthUser & {impersonated_by:string|null}>(`
+ select u.id,u.role,u.full_name,u.phone,u.email,u.is_active,u.session_version,
+ s.id as session_id,s.impersonated_by from users u join auth_sessions s on s.user_id=u.id
+ where u.id=$1 and s.id=$2 and u.session_version=$3 and s.version=$3
+ and s.revoked_at is null and s.expires_at>now()
+ and (s.impersonated_by is null or exists(
+ select 1 from auth_sessions parent join users admin on admin.id=parent.user_id
+ where parent.id=s.parent_session_id and parent.user_id=s.impersonated_by
+ and parent.revoked_at is null and parent.expires_at>now() and parent.version=admin.session_version
+ and admin.is_active and admin.role='admin'))`,[p.sub,p.sid,p.ver]);
+ return u;
 }
 
 /** Attaches req.user when a valid token is present, never fails. */
