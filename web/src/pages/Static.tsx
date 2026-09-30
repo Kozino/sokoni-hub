@@ -1,3 +1,4 @@
+import { TrackBooking } from '../components/TrackBooking';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api, ApiError } from '../lib/api';
@@ -241,6 +242,7 @@ export function TrackOrder() {
           </div>
         </div>
       )}
+      <TrackBooking />
     </div>
   );
 }
