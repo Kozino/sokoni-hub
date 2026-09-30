@@ -3,10 +3,11 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { one, query } from '../db';
 import { requireAuth, loadVendor, requireVerifiedVendor } from '../auth';
-import { HttpError, audit, slugify, screenProhibited } from '../utils';
+import { HttpError, audit, slugify, screenProhibited, validateUuidParam } from '../utils';
 import { config } from '../config';
 
 export const listingRouter = Router();
+listingRouter.param('id', validateUuidParam);
 
 /* ------------------------------------------------------------------ */
 /* Public browse / search                                              */
@@ -192,7 +193,7 @@ listingRouter.post('/', requireAuth('vendor'), loadVendor, requireVerifiedVendor
        b.service_area ?? null, b.price_type ?? null, JSON.stringify(b.images ?? []), initialStatus,
        config.defaultCurrency]
     );
-    await audit(req.user!.id, 'listing.create', 'listing', l.id, { title: l.title, status: l.status });
+    await audit(req.user!, 'listing.create', 'listing', l.id, { title: l.title, status: l.status });
     res.status(201).json({ listing: l });
   } catch (e) {
     next(e);
@@ -233,7 +234,7 @@ listingRouter.patch('/:id', requireAuth('vendor'), loadVendor, requireVerifiedVe
        b.volume_l ?? null, b.duration_mins ?? null, b.service_area ?? null, b.price_type ?? null,
        b.images ? JSON.stringify(b.images) : null, nextStatus ?? null]
     );
-    await audit(req.user!.id, 'listing.update', 'listing', l.id, { status: l.status });
+    await audit(req.user!, 'listing.update', 'listing', l.id, { status: l.status });
     res.json({ listing: l });
   } catch (e) {
     next(e);
@@ -255,7 +256,7 @@ listingRouter.delete('/:id', requireAuth('vendor'), loadVendor, async (req, res,
     const l = await one(`update listings set status='removed' where id=$1 and vendor_id=$2 returning id`,
       [req.params.id, req.vendor!.id]);
     if (!l) throw new HttpError(404, 'Listing not found');
-    await audit(req.user!.id, 'listing.delete', 'listing', req.params.id);
+    await audit(req.user!, 'listing.delete', 'listing', req.params.id);
     res.json({ ok: true });
   } catch (e) { next(e); }
 });

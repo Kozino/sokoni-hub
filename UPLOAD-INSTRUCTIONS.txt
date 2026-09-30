@@ -1,0 +1,20 @@
+Sokoni Hub security hardening upload bundle
+
+This ZIP preserves the repository folder structure. In GitHub's web interface,
+upload every included file into the matching folder and choose "Replace" when
+GitHub says a file already exists. Commit all replacements together.
+
+Important deployment requirement
+- db/migrations/014_security_hardening.sql is new and MUST be included. The API
+  now refuses to start until migration 014 has been applied to the production
+  database. If your deployment pipeline already runs "npm run migrate", it
+  will apply it automatically. Otherwise, ask whoever manages the database to
+  run the existing migration workflow before deploying the API.
+
+After deployment
+- Configure your existing external scheduler to make a DAILY POST request to:
+    /api/billing/cron/purge-security-data
+  with the x-cron-secret header set to the existing CRON_SECRET value.
+- Keep the existing monthly statement cron configured separately.
+
+No package.json or lockfile changes are in this bundle.

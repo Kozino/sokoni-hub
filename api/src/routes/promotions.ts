@@ -2,9 +2,10 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { one, query, tx } from '../db';
 import { requireAuth, loadVendor } from '../auth';
-import { HttpError, audit } from '../utils';
+import { HttpError, audit, validateUuidParam } from '../utils';
 
 export const promotionRouter = Router();
+promotionRouter.param('id', validateUuidParam);
 
 /**
  * Paid placement — VIP and Featured stores.
@@ -273,7 +274,7 @@ promotionRouter.post('/admin', adminOnly, async (req, res, next) => {
       return row;
     });
 
-    await audit(req.user!.id, 'promotion.grant', 'vendor', b.vendor_id, {
+    await audit(req.user!, 'promotion.grant', 'vendor', b.vendor_id, {
       tier: b.tier, ends_at: created.ends_at, price: b.price_amount,
     });
 
@@ -326,7 +327,7 @@ promotionRouter.patch('/admin/:id', adminOnly, async (req, res, next) => {
     if (!sets.length) throw new HttpError(400, 'Nothing to update');
 
     await query(`update vendor_promotions set ${sets.join(', ')} where id = $1`, args);
-    await audit(req.user!.id, 'promotion.update', 'vendor', cur.vendor_id, b);
+    await audit(req.user!, 'promotion.update', 'vendor', cur.vendor_id, b);
 
     const full = await one(`select * from promotion_admin where id = $1`, [req.params.id]);
     res.json({ promotion: full });
@@ -352,7 +353,7 @@ promotionRouter.post('/admin/:id/revoke', adminOnly, async (req, res, next) => {
     );
     if (!row) throw new HttpError(404, 'Promotion not found, or already revoked');
 
-    await audit(req.user!.id, 'promotion.revoke', 'vendor', row.vendor_id, {
+    await audit(req.user!, 'promotion.revoke', 'vendor', row.vendor_id, {
       tier: row.tier, reason: b.reason,
     });
 

@@ -31,6 +31,8 @@ async function request<T>(path: string, opts: RequestInit = {}): Promise<T> {
   const isJson = res.headers.get('content-type')?.includes('application/json');
   const data = isJson ? await res.json().catch(() => ({})) : {};
   if (!res.ok) {
+    // A rate limit is a temporary request failure, never evidence that the
+    // stored session is invalid. Only an actual 401 clears the local token.
     if (res.status === 401 && token) setToken(null);
     throw new ApiError(res.status, (data as any).error || `Request failed (${res.status})`, (data as any).details);
   }

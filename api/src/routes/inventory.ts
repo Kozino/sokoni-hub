@@ -2,9 +2,10 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { one, query, tx } from '../db';
 import { requireAuth, loadVendor, requireVerifiedVendor } from '../auth';
-import { HttpError, audit } from '../utils';
+import { HttpError, audit, validateUuidParam } from '../utils';
 
 export const inventoryRouter = Router();
+inventoryRouter.param('id', validateUuidParam);
 
 const vendorOnly = [requireAuth('vendor'), loadVendor, requireVerifiedVendor] as const;
 
@@ -162,7 +163,7 @@ inventoryRouter.post('/:id/adjust', ...vendorOnly, async (req, res, next) => {
       return { before, after, delta, movement: mv.rows[0], title: l.title };
     });
 
-    await audit(req.user!.id, 'inventory.adjust', 'listing', req.params.id, {
+    await audit(req.user!, 'inventory.adjust', 'listing', req.params.id, {
       delta: result.delta, reason: b.reason, before: result.before, after: result.after,
     });
 
@@ -209,7 +210,7 @@ inventoryRouter.patch('/settings', ...vendorOnly, async (req, res, next) => {
       .parse(req.body);
     await one(`update vendors set low_stock_threshold = $2 where id = $1 returning id`,
       [req.vendor!.id, b.low_stock_threshold]);
-    await audit(req.user!.id, 'inventory.default_threshold', 'vendor', req.vendor!.id, b);
+    await audit(req.user!, 'inventory.default_threshold', 'vendor', req.vendor!.id, b);
     res.json({ threshold_default: b.low_stock_threshold });
   } catch (e) { next(e); }
 });

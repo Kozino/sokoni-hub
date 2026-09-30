@@ -81,8 +81,13 @@ export function inject(html: string, m: Meta): string {
   }
 
   if (m.jsonLd) {
+    // JSON-LD is embedded in a script element. JSON.stringify does not escape
+    // '<', so a vendor-controlled value containing '</script>' could terminate
+    // this block and inject markup into bot responses. Escaping '<' preserves
+    // the JSON value while preventing a literal closing script tag.
+    const jsonLd = JSON.stringify(m.jsonLd).replace(/</g, '\\u003c');
     html = html.replace('</head>',
-      `<script type="application/ld+json">${JSON.stringify(m.jsonLd)}</script></head>`);
+      `<script type="application/ld+json">${jsonLd}</script></head>`);
   }
   return html;
 }

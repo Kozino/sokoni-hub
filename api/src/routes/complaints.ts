@@ -2,9 +2,10 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { one, query } from '../db';
 import { optionalAuth, requireAuth, loadVendor } from '../auth';
-import { HttpError, audit, randomCode } from '../utils';
+import { HttpError, audit, randomCode, validateUuidParam } from '../utils';
 
 export const complaintRouter = Router();
+complaintRouter.param('id', validateUuidParam);
 
 const schema = z.object({
   subject: z.string().min(3).max(160),
@@ -32,7 +33,7 @@ complaintRouter.post('/', optionalAuth, async (req, res, next) => {
        b.reporter_phone ?? req.user?.phone ?? null, b.vendor_id ?? null, b.listing_id ?? null,
        orderId, b.subject, b.body]
     );
-    await audit(req.user?.id ?? null, 'complaint.create', 'complaint', c.id);
+    await audit(req.user ?? null, 'complaint.create', 'complaint', c.id);
     res.status(201).json({ complaint: c, message: `Complaint logged. Reference ${c.code}.` });
   } catch (e) { next(e); }
 });
@@ -90,7 +91,7 @@ complaintRouter.post('/:id/messages', requireAuth('vendor'), loadVendor, async (
       await one('update complaints set status = $2 where id = $1', [c.id, 'investigating']);
       status = 'investigating';
     }
-    await audit(req.user!.id, 'complaint.vendor_reply', 'complaint', c.id);
+    await audit(req.user!, 'complaint.vendor_reply', 'complaint', c.id);
     res.status(201).json({ message: m, status });
   } catch (e) { next(e); }
 });

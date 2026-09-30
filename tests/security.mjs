@@ -51,6 +51,8 @@ try {
  const legacy=jwt.sign({sub:buyer.id,role:'buyer'},process.env.JWT_SECRET,{expiresIn:'1h'});
  ok((await call('/auth/me','GET',undefined,legacy)).status===401,'legacy untracked JWT is rejected');
  token=await signToken(buyer.id,'buyer');let second=await signToken(buyer.id,'buyer');
+ const meBurst=await Promise.all(Array.from({length:61},()=>call('/auth/me','GET',undefined,token)));
+ ok(meBurst.every(r=>r.status===200),'GET /auth/me is exempt from the strict authentication-attempt limiter');
  const sessions=await call('/auth/sessions','GET',undefined,token);
  ok(sessions.data.sessions.length===2 && sessions.data.sessions.filter(s=>s.current).length===1,'session list identifies current session');
  await call('/auth/logout-others','POST',{},token);
@@ -97,6 +99,7 @@ try {
  ok((await call('/auth/pin/setup','POST',{setup_token:temporary.data.setup_token,pin:'7391'})).status===400,'used PIN setup token cannot be reused');
  const imp=await call('/admin/users/'+buyer.id+'/impersonate','POST',{},auth.data.token);
  ok(imp.status===200 && (await call('/auth/me','GET',undefined,imp.data.token)).status===200,'admin impersonation uses a tracked parent session');
+ ok((await call('/orders/checkout','POST',{},imp.data.token)).status===403,'impersonation is globally read-only, including unrelated write routes');
  ok((await call('/auth/sessions','GET',undefined,imp.data.token)).status===403,'impersonation cannot manage target security');
  await call('/auth/logout','POST',{},auth.data.token);
  ok((await call('/auth/me','GET',undefined,imp.data.token)).status===401,'revoking admin parent also rejects impersonated session');
@@ -109,6 +112,7 @@ try {
  const listing=await one("insert into listings(vendor_id,category_id,kind,title,slug,price,quantity,status,supplier_note) values($1,$2,'product','Security item','security-item',50,1,'active','PRIVATE SUPPLIER') returning *",[vendor.id,category.id]);
  const publicDetail=await call('/listings/'+listing.id);
  ok(publicDetail.status===200 && !('supplier_note' in publicDetail.data.listing),'public detail excludes supplier notes');
+ ok((await call('/listings/not-a-uuid')).status===400,'malformed UUID route parameters return 400, not 500');
  const store=await call('/vendors/'+vendor.slug);
  ok(store.status===200 && !('supplier_note' in store.data.listings[0]),'storefront excludes supplier notes');
  const orderBody={items:[{listing_id:listing.id,qty:1}],contact_name:'Test Buyer',contact_phone:'97455550002',delivery_address:'Collection from store',city:'Doha',country:'Qatar',fulfilment_mode:'pickup'};
@@ -153,12 +157,13 @@ try {
  ok((await call('/uploads/document?key='+encodeURIComponent(reference),'GET',undefined,auth.data.token)).status===200,'authorised admin can review private document');
  ok((await call('/vendors/me','PATCH',{id_document_url:reference},ot)).status===403,'another vendor cannot attach someone else document');
  ok((await call('/vendors/me','PATCH',{id_document_url:'https://example.com/id.jpg'},vt)).status===422,'public KYC links rejected');
- ok((await call('/vendors/me','PATCH',{id_document_url:reference},vt)).status===200,'owner can attach private document');
+ const resubmitted=await call('/vendors/me','PATCH',{id_document_url:reference},vt);
+ ok(resubmitted.status===200 && resubmitted.data.vendor.status==='pending','verified vendor identity-document changes require re-review');
  ok([...stored.values()].every(v=>v.type==='image/jpeg'&&v.body[0]===255&&v.body[1]===216),'stored images are decoded and re-encoded JPEGs');
  bucketPublic=true;
  ok((await upload(vt,image)).status===503,'misconfigured public KYC bucket fails closed');bucketPublic=false;
  const cors=await fetch(base+'/health',{headers:{Origin:'https://untrusted.netlify.app'}});
- ok(!cors.headers.get('access-control-allow-origin'),'untrusted Netlify origin is not whitelisted');
+ ok(cors.status===403 && !cors.headers.get('access-control-allow-origin'),'untrusted CORS origin returns 403 without an allow header');
  const trusted=await fetch(base+'/health',{headers:{Origin:'https://trusted.example'}});
  ok(trusted.headers.get('access-control-allow-origin')==='https://trusted.example','exact configured origin accepted');
  const configCheck=spawnSync(process.execPath,['-e',"require('./dist/config')"],{cwd:root+'api',env:{...process.env,NODE_ENV:'production',JWT_SECRET:'',CORS_ORIGINS:'https://trusted.example'}});

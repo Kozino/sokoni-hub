@@ -531,11 +531,14 @@ export function AdminAudit() {
       .then((r) => setItems(r.events)).catch(() => setItems([])).finally(() => setLoading(false));
   }, []);
 
+  const actorLabel = (a: any) => a.impersonated_by_name
+    ? `${a.impersonated_by_name} (viewing as ${a.actor || 'deleted user'})`
+    : a.actor || 'system';
   const columns: DTColumn<any>[] = [
     { key: 'when', header: 'When', alwaysVisible: true, sortAccessor: (a) => a.created_at, render: (a) => <span style={{ fontSize: '.8rem' }}>{dateTime(a.created_at)}</span> },
     { key: 'action', header: 'Action', sortAccessor: (a) => a.action, render: (a) => <span className="td-strong">{a.action}</span> },
     { key: 'entity', header: 'Entity', sortAccessor: (a) => a.entity, render: (a) => a.entity },
-    { key: 'actor', header: 'Actor', sortAccessor: (a) => a.actor || '', render: (a) => a.actor || 'system' },
+    { key: 'actor', header: 'Actor', sortAccessor: actorLabel, render: actorLabel },
     {
       key: 'details', header: 'Details', csvValue: (a) => (a.meta ? JSON.stringify(a.meta) : ''),
       render: (a) => (

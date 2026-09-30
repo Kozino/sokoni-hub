@@ -5,11 +5,12 @@ import {randomBytes,randomUUID,createHash} from 'crypto';
 import {PoolClient} from 'pg';
 import {one,query,tx} from '../db';
 import {requireAuth,blockImpersonation} from '../auth';
-import {HttpError,audit,randomCode} from '../utils';
+import {HttpError,audit,randomCode,validateUuidParam} from '../utils';
 import {charge} from '../security';
 import {config} from '../config';
 
 export const deletionRouter=Router();
+deletionRouter.param('id', validateUuidParam);
 const digest=(s:string)=>createHash('sha256').update(s).digest('hex');
 const id=z.string().uuid();
 const open=['pending','in_review','needs_action','processing'];
@@ -43,7 +44,7 @@ deletionRouter.post('/requests',...customerAuth,async(req,res,next)=>{
   return (await c.query(`insert into account_deletion_requests(reference,user_id,access_hash,reason)
     values($1,$2,$3,$4) returning ${publicCols}`,[randomCode('DEL'),current.id,digest(token),b.reason||null])).rows[0];
  });
- await audit(req.user!.id,'privacy.deletion_requested','account_deletion_request',result.id);
+ await audit(req.user!,'privacy.deletion_requested','account_deletion_request',result.id);
  res.status(201).json({request:result,access_token:token});
  }catch(e){next(e);}
 });
@@ -54,7 +55,7 @@ deletionRouter.post('/requests/:id/withdraw',...customerAuth,async(req,res,next)
  try{const r=await one(`update account_deletion_requests set status='withdrawn',updated_at=now(),public_message='Withdrawn by the account holder.'
  where id=$1 and user_id=$2 and status in ('pending','in_review','needs_action') returning ${publicCols}`,[id.parse(req.params.id),req.user!.id]);
  if(!r)throw new HttpError(409,'This request cannot be withdrawn online. Contact support.');
- await audit(req.user!.id,'privacy.deletion_withdrawn','account_deletion_request',req.params.id);res.json({request:r});}catch(e){next(e);}
+ await audit(req.user!,'privacy.deletion_withdrawn','account_deletion_request',req.params.id);res.json({request:r});}catch(e){next(e);}
 });
 // Receipt credentials go in POST body, never a logged URL. No personal/profile/internal notes returned.
 deletionRouter.post('/status',async(req,res,next)=>{
@@ -80,7 +81,7 @@ deletionRouter.patch('/admin/:id',...adminAuth,async(req,res,next)=>{
  try{const b=z.object({status:z.enum(['in_review','needs_action','declined']),public_message:z.string().trim().min(5).max(1000),internal_note:z.string().max(1500).default('')}).parse(req.body);
  const r=await one(`update account_deletion_requests set status=$2,public_message=$3,internal_note=$4,reviewed_by=$5,updated_at=now()
  where id=$1 and status in ('pending','in_review','needs_action') returning ${publicCols}`,[id.parse(req.params.id),b.status,b.public_message,b.internal_note,req.user!.id]);
- if(!r)throw new HttpError(409,'Request is no longer reviewable');await audit(req.user!.id,'privacy.deletion_review','account_deletion_request',req.params.id,{status:b.status});res.json({request:r});}catch(e){next(e);}
+ if(!r)throw new HttpError(409,'Request is no longer reviewable');await audit(req.user!,'privacy.deletion_review','account_deletion_request',req.params.id,{status:b.status});res.json({request:r});}catch(e){next(e);}
 });
 
 async function removeStoredObjects(user:string,renew:()=>Promise<void>){

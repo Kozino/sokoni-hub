@@ -4,7 +4,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { one, query, tx } from '../db';
 import { requireAuth, optionalAuth, loadVendor } from '../auth';
-import { HttpError, audit, randomCode, waLink } from '../utils';
+import { HttpError, audit, randomCode, waLink, validateUuidParam } from '../utils';
 import { sendMailAsync } from '../mailer';
 import { receiptHtml } from '../templates';
 import {
@@ -14,6 +14,7 @@ import {
 import { attributionSchema, resolveOrderSource } from '../lib/attribution';
 
 export const orderRouter = Router();
+orderRouter.param('id', validateUuidParam);
 
 const cartSchema = z.array(
   z.object({ listing_id: z.string().uuid(), qty: z.number().int().min(1).max(10000) })
@@ -226,7 +227,7 @@ orderRouter.post('/checkout', optionalAuth, async (req, res, next) => {
       return out;
     });
 
-    await audit(req.user?.id ?? null, 'order.create', 'order', created.map((o) => o.code).join(','));
+    await audit(req.user ?? null, 'order.create', 'order', created.map((o) => o.code).join(','));
     res.status(201).json({ orders: created });
   } catch (e) {
     next(e);
@@ -239,12 +240,19 @@ orderRouter.get('/track', async (req, res, next) => {
     const code = String(req.query.code || '');
     const phone = String(req.query.phone || '');
     const order = await one<any>(
-      `select o.*, v.business_name, v.whatsapp from orders o join vendors v on v.id = o.vendor_id
-       where o.code = $1 and regexp_replace(o.contact_phone,'\\D','','g') = regexp_replace($2,'\\D','','g')`,
+      `select o.id, o.code, o.vendor_id, o.status, o.payment_method, o.subtotal,
+              o.delivery_fee, o.total, o.currency, o.contact_name, o.contact_phone,
+              o.delivery_address, o.city, o.country, o.note, o.fulfilment_mode,
+              o.created_at, o.updated_at, v.business_name, v.whatsapp
+         from orders o join vendors v on v.id = o.vendor_id
+        where o.code = $1 and regexp_replace(o.contact_phone,'\\D','','g') = regexp_replace($2,'\\D','','g')`,
       [code, phone]
     );
     if (!order) throw new HttpError(404, 'No order found with that code and phone number');
-    order.items = await query('select * from order_items where order_id = $1', [order.id]);
+    order.items = await query(
+      'select id, listing_id, title, unit_price, qty, unit, line_total from order_items where order_id = $1',
+      [order.id]
+    );
     res.json({ order });
   } catch (e) { next(e); }
 });
@@ -297,7 +305,7 @@ orderRouter.patch('/vendor/:id/status', requireAuth('vendor'), loadVendor, async
        stock_restored_at=case when $2='cancelled' then coalesce(stock_restored_at,now()) else stock_restored_at end
        where id=$1 returning *`,[row.id,b.status])).rows[0];
     });
-    await audit(req.user!.id, 'order.status', 'order', req.params.id, { status: b.status });
+    await audit(req.user!, 'order.status', 'order', req.params.id, { status: b.status });
     if (didChange && b.status === 'delivered') void emailReceipt(o.id);
     res.json({ order: o });
   } catch (e) { next(e); }

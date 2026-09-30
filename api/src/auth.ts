@@ -122,11 +122,24 @@ export function requireVerifiedVendor(req: Request, _res: Response, next: NextFu
 }
 
 /**
- * Must come after requireAuth. Blocks sensitive actions (password, email,
- * payout details) while an admin is viewing as another user.
+ * Blocks a specific sensitive action while an admin is viewing as another
+ * user. Kept for routers which may also be mounted independently in tests;
+ * the application-wide write guard below is the primary protection.
  */
 export function blockImpersonation(req: Request, _res: Response, next: NextFunction) {
   if (req.user?.impersonated_by)
     return next(new HttpError(403, 'Not available while viewing as another user'));
+  next();
+}
+
+/**
+ * "View as" is strictly read-only. This is intentionally applied once, after
+ * optionalAuth, rather than relying on every individual write route to remember
+ * blockImpersonation. GET remains available so an administrator can inspect
+ * exactly what the viewed account sees.
+ */
+export function blockImpersonatedWrites(req: Request, _res: Response, next: NextFunction) {
+  if (req.method !== 'GET' && req.user?.impersonated_by)
+    return next(new HttpError(403, 'Viewing as another user is read-only'));
   next();
 }

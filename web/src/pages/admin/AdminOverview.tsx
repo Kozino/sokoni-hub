@@ -139,7 +139,7 @@ export default function AdminOverview() {
                 <tr key={i}>
                   <td className="td-strong">{a.action}</td>
                   <td>{a.entity}{a.meta?.business_name ? ` — ${a.meta.business_name}` : a.meta?.title ? ` — ${a.meta.title}` : ''}</td>
-                  <td>{a.actor || 'system'}</td>
+                  <td>{a.impersonated_by ? `${a.impersonated_by} (viewing as ${a.actor || 'deleted user'})` : a.actor || 'system'}</td>
                   <td>{timeAgo(a.created_at)}</td>
                 </tr>
               ))}

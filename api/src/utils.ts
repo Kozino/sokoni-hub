@@ -1,5 +1,7 @@
+import type { RequestParamHandler } from 'express';
+import type { AuthUser } from './auth';
 import { query } from './db';
-import { randomBytes } from 'crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 
 export class HttpError extends Error {
   status: number;
@@ -10,6 +12,27 @@ export class HttpError extends Error {
     this.details = details;
   }
 }
+
+/**
+ * Shared UUID route-param guard. Register this on every router that exposes
+ * `:id` so malformed IDs fail as a client error before PostgreSQL sees them.
+ */
+export const validateUuidParam: RequestParamHandler = (_req, _res, next, value) => {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value))
+    return next(new HttpError(400, 'Invalid ID parameter'));
+  next();
+};
+
+/**
+ * Compare secrets without an early-exit string comparison. Hashing first gives
+ * timingSafeEqual same-size buffers even when a supplied secret has a different
+ * length from the configured one.
+ */
+export const secretsEqual = (expected: string, supplied: string) =>
+  timingSafeEqual(
+    createHash('sha256').update(expected).digest(),
+    createHash('sha256').update(supplied).digest()
+  );
 
 export const slugify = (s: string) =>
   s
@@ -45,17 +68,28 @@ export async function screenProhibited(...texts: (string | null | undefined)[]):
   return null;
 }
 
+type AuditActor = Pick<AuthUser, 'id' | 'impersonated_by'>;
+
+/**
+ * Record an auditable action. For an impersonated session actor_id remains the
+ * effective account, while impersonated_by identifies the administrator who
+ * actually initiated the request. Audit readers render that relationship
+ * explicitly instead of attributing the action to the viewed account.
+ */
 export async function audit(
-  actorId: string | null,
+  actor: string | AuditActor | null,
   action: string,
   entity: string,
   entityId?: string | null,
   meta: Record<string, unknown> = {}
 ) {
+  const actorId = typeof actor === 'string' ? actor : actor?.id ?? null;
+  const impersonatedBy = typeof actor === 'string' ? null : actor?.impersonated_by ?? null;
   try {
     await query(
-      'insert into audit_log (actor_id, action, entity, entity_id, meta) values ($1,$2,$3,$4,$5)',
-      [actorId, action, entity, entityId ?? null, JSON.stringify(meta)]
+      `insert into audit_log (actor_id, impersonated_by, action, entity, entity_id, meta)
+       values ($1,$2,$3,$4,$5,$6)`,
+      [actorId, impersonatedBy, action, entity, entityId ?? null, JSON.stringify(meta)]
     );
   } catch (e) {
     console.error('[audit] failed', (e as Error).message);

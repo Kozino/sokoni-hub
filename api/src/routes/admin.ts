@@ -3,9 +3,10 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { one, query } from '../db';
 import { requireAuth, signToken } from '../auth';
-import { HttpError, audit } from '../utils';
+import { HttpError, audit, validateUuidParam } from '../utils';
 
 export const adminRouter = Router();
+adminRouter.param('id', validateUuidParam);
 adminRouter.use(requireAuth('admin'));
 
 /* ------------------------------------------------------------------ */
@@ -72,8 +73,11 @@ adminRouter.get('/overview', async (_req, res, next) => {
       order by gmv desc, listings desc limit 10`);
 
     const recentActivity = await query<any>(`
-      select a.action, a.entity, a.entity_id, a.meta, a.created_at, u.full_name as actor
-      from audit_log a left join users u on u.id = a.actor_id
+      select a.action, a.entity, a.entity_id, a.meta, a.created_at,
+             u.full_name as actor, i.full_name as impersonated_by
+      from audit_log a
+      left join users u on u.id = a.actor_id
+      left join users i on i.id = a.impersonated_by
       order by a.created_at desc limit 25`);
 
     res.json({ stats, signupTrend, orderTrend, byCategory, topVendors, recentActivity });
@@ -135,7 +139,7 @@ adminRouter.post('/vendors/:id/verify', async (req, res, next) => {
       `update vendors set status='verified', verified_at=now(), verified_by=$2, rejection_reason=null
        where id=$1 returning *`, [req.params.id, req.user!.id]);
     if (!v) throw new HttpError(404, 'Vendor not found');
-    await audit(req.user!.id, 'vendor.verify', 'vendor', v.id, { business_name: v.business_name });
+    await audit(req.user!, 'vendor.verify', 'vendor', v.id, { business_name: v.business_name });
     res.json({ vendor: v });
   } catch (e) { next(e); }
 });
@@ -148,7 +152,7 @@ adminRouter.post('/vendors/:id/reject', async (req, res, next) => {
       [req.params.id, b.reason, req.user!.id]);
     if (!v) throw new HttpError(404, 'Vendor not found');
     await query(`update listings set status='paused' where vendor_id=$1 and status='active'`, [v.id]);
-    await audit(req.user!.id, 'vendor.reject', 'vendor', v.id, { reason: b.reason });
+    await audit(req.user!, 'vendor.reject', 'vendor', v.id, { reason: b.reason });
     res.json({ vendor: v });
   } catch (e) { next(e); }
 });
@@ -161,7 +165,7 @@ adminRouter.post('/vendors/:id/suspend', async (req, res, next) => {
       [req.params.id, b.reason ?? null]);
     if (!v) throw new HttpError(404, 'Vendor not found');
     await query(`update listings set status='paused' where vendor_id=$1 and status='active'`, [v.id]);
-    await audit(req.user!.id, 'vendor.suspend', 'vendor', v.id, { reason: b.reason });
+    await audit(req.user!, 'vendor.suspend', 'vendor', v.id, { reason: b.reason });
     res.json({ vendor: v });
   } catch (e) { next(e); }
 });
@@ -172,7 +176,7 @@ adminRouter.post('/vendors/:id/reinstate', async (req, res, next) => {
       `update vendors set status='verified', rejection_reason=null, verified_at=now(), verified_by=$2
        where id=$1 returning *`, [req.params.id, req.user!.id]);
     if (!v) throw new HttpError(404, 'Vendor not found');
-    await audit(req.user!.id, 'vendor.reinstate', 'vendor', v.id);
+    await audit(req.user!, 'vendor.reinstate', 'vendor', v.id);
     res.json({ vendor: v });
   } catch (e) { next(e); }
 });
@@ -201,7 +205,7 @@ adminRouter.post('/listings/:id/approve', async (req, res, next) => {
          first_approved_at = coalesce(first_approved_at, now())
        where id=$1 returning *`, [req.params.id, req.user!.id]);
     if (!l) throw new HttpError(404, 'Listing not found');
-    await audit(req.user!.id, 'listing.approve', 'listing', l.id, { title: l.title });
+    await audit(req.user!, 'listing.approve', 'listing', l.id, { title: l.title });
     res.json({ listing: l });
   } catch (e) { next(e); }
 });
@@ -213,7 +217,7 @@ adminRouter.post('/listings/:id/reject', async (req, res, next) => {
       `update listings set status='rejected', rejection_reason=$2, reviewed_by=$3 where id=$1 returning *`,
       [req.params.id, b.reason, req.user!.id]);
     if (!l) throw new HttpError(404, 'Listing not found');
-    await audit(req.user!.id, 'listing.reject', 'listing', l.id, { reason: b.reason });
+    await audit(req.user!, 'listing.reject', 'listing', l.id, { reason: b.reason });
     res.json({ listing: l });
   } catch (e) { next(e); }
 });
@@ -223,7 +227,7 @@ adminRouter.post('/listings/:id/remove', async (req, res, next) => {
     const b = z.object({ reason: z.string().max(300).optional() }).parse(req.body ?? {});
     const l = await one(`update listings set status='removed' where id=$1 returning *`, [req.params.id]);
     if (!l) throw new HttpError(404, 'Listing not found');
-    await audit(req.user!.id, 'listing.admin_remove', 'listing', req.params.id, { reason: b.reason });
+    await audit(req.user!, 'listing.admin_remove', 'listing', req.params.id, { reason: b.reason });
     res.json({ listing: l });
   } catch (e) { next(e); }
 });
@@ -232,7 +236,7 @@ adminRouter.post('/listings/:id/restore', async (req, res, next) => {
   try {
     const l = await one(`update listings set status='active' where id=$1 returning *`, [req.params.id]);
     if (!l) throw new HttpError(404, 'Listing not found');
-    await audit(req.user!.id, 'listing.admin_restore', 'listing', req.params.id);
+    await audit(req.user!, 'listing.admin_restore', 'listing', req.params.id);
     res.json({ listing: l });
   } catch (e) { next(e); }
 });
@@ -276,7 +280,7 @@ adminRouter.patch('/complaints/:id', async (req, res, next) => {
          resolved_at = case when $2::text in ('resolved','dismissed') then now() else null end
        where id=$1 returning *`, [req.params.id, b.status, b.admin_note ?? null]);
     if (!c) throw new HttpError(404, 'Complaint not found');
-    await audit(req.user!.id, 'complaint.update', 'complaint', req.params.id, { status: b.status });
+    await audit(req.user!, 'complaint.update', 'complaint', req.params.id, { status: b.status });
     res.json({ complaint: c });
   } catch (e) { next(e); }
 });
@@ -292,7 +296,7 @@ adminRouter.post('/complaints/:id/messages', async (req, res, next) => {
        values ($1,'admin',$2,$3,$4) returning id, complaint_id, author_role, author_name, body, created_at`,
       [c.id, req.user!.id, req.user!.full_name, b.body]
     );
-    await audit(req.user!.id, 'complaint.admin_reply', 'complaint', c.id);
+    await audit(req.user!, 'complaint.admin_reply', 'complaint', c.id);
     res.status(201).json({ message: m });
   } catch (e) { next(e); }
 });
@@ -323,7 +327,7 @@ adminRouter.patch('/users/:id', async (req, res, next) => {
        where id=$1 and deleted_at is null and not exists(select 1 from account_deletion_requests d where d.user_id=users.id and d.status='processing') returning id, full_name, phone, email, role, is_active`,
       [req.params.id, b.is_active ?? null, b.role ?? null]);
     if (!u) throw new HttpError(404, 'User not found');
-    await audit(req.user!.id, 'user.admin_update', 'user', req.params.id, b as any);
+    await audit(req.user!, 'user.admin_update', 'user', req.params.id, b as any);
     res.json({ user: u });
   } catch (e) { next(e); }
 });
@@ -347,7 +351,7 @@ adminRouter.post('/users/:id/impersonate', async (req, res, next) => {
     const vendor = await one(
       'select id, status, business_name, slug from vendors where user_id = $1', [target.id]);
 
-    await audit(req.user!.id, 'user.impersonate', 'user', target.id,
+    await audit(req.user!, 'user.impersonate', 'user', target.id,
       { role: target.role, phone: target.phone });
 
     res.json({
@@ -369,7 +373,7 @@ adminRouter.post('/users/admin', async (req, res, next) => {
       `insert into users (full_name, phone, email, password_hash, role) values ($1,$2,$3,$4,'admin')
        returning id, full_name, phone, email, role`,
       [b.full_name, b.phone.replace(/\D/g, ''), b.email ?? null, hash]);
-    await audit(req.user!.id, 'user.create_admin', 'user', (u as any).id);
+    await audit(req.user!, 'user.create_admin', 'user', (u as any).id);
     res.status(201).json({ user: u });
   } catch (e) { next(e); }
 });
@@ -419,7 +423,10 @@ adminRouter.patch('/categories/:id', async (req, res, next) => {
 adminRouter.get('/audit', async (req, res, next) => {
   try {
     const rows = await query(`
-      select a.*, u.full_name as actor from audit_log a left join users u on u.id = a.actor_id
+      select a.*, u.full_name as actor, i.full_name as impersonated_by_name
+      from audit_log a
+      left join users u on u.id = a.actor_id
+      left join users i on i.id = a.impersonated_by
       order by a.created_at desc limit $1`, [Math.min(Number(req.query.limit) || 100, 500)]);
     res.json({ events: rows });
   } catch (e) { next(e); }

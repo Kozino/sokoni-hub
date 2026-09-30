@@ -9,6 +9,12 @@ import { distanceKmSql } from '../delivery';
 
 export const vendorRouter = Router();
 
+// Explicit self-profile projection: account owners need their KYC profile,
+// but no caller should receive bank/payout fields through a generic select *.
+const SELF_VENDOR_COLS = `id, user_id, business_name, slug, description, whatsapp,
+  country, city, address, logo_url, id_document_url, status, rejection_reason,
+  verified_at, rating_avg, rating_count, created_at, lat, lng`;
+
 /* ------------------------------------------------------------------ */
 /* Onboarding                                                          */
 /* ------------------------------------------------------------------ */
@@ -49,7 +55,7 @@ vendorRouter.post('/onboard', requireAuth('vendor', 'buyer'), async (req, res, n
     // Every vendor gets a settings row immediately so joins never miss.
     await query(`insert into vendor_delivery_settings (vendor_id) values ($1) on conflict do nothing`, [vendor.id]);
     await query(`update users set role = 'vendor' where id = $1 and role <> 'admin'`, [req.user!.id]);
-    await audit(req.user!.id, 'vendor.onboard', 'vendor', vendor.id, { business_name: vendor.business_name });
+    await audit(req.user!, 'vendor.onboard', 'vendor', vendor.id, { business_name: vendor.business_name });
     res.status(201).json({ vendor, message: 'Submitted. An admin will review your store shortly.' });
   } catch (e) {
     next(e);
@@ -58,7 +64,7 @@ vendorRouter.post('/onboard', requireAuth('vendor', 'buyer'), async (req, res, n
 
 vendorRouter.get('/me', requireAuth('vendor', 'admin'), loadVendor, async (req, res, next) => {
   try {
-    const vendor = await one('select * from vendors where id = $1', [req.vendor!.id]);
+    const vendor = await one(`select ${SELF_VENDOR_COLS} from vendors where id = $1`, [req.vendor!.id]);
     res.json({ vendor });
   } catch (e) {
     next(e);
@@ -68,30 +74,54 @@ vendorRouter.get('/me', requireAuth('vendor', 'admin'), loadVendor, async (req, 
 vendorRouter.patch('/me', requireAuth('vendor'), loadVendor, async (req, res, next) => {
   try {
     const b = onboardSchema.partial().parse(req.body);
-    if(b.id_document_url) await documentKey(b.id_document_url,req.user!.id);
+    if (b.id_document_url) await documentKey(b.id_document_url, req.user!.id);
     const bad = await screenProhibited(b.business_name, b.description);
     if (bad) throw new HttpError(422, `Prohibited content detected ("${bad}").`);
+
+    // Verification covers a vendor's identity and location, not merely their
+    // account. Changing those claims sends a verified store through review
+    // again; description and logo changes remain self-service.
+    const whatsapp = b.whatsapp ? normalizePhone(b.whatsapp) : null;
+    const identityChanged = `
+      coalesce($2, business_name) is distinct from business_name or
+      coalesce($4, whatsapp) is distinct from whatsapp or
+      coalesce($5, country) is distinct from country or
+      coalesce($6, city) is distinct from city or
+      coalesce($7, address) is distinct from address or
+      coalesce($9, id_document_url) is distinct from id_document_url or
+      coalesce($10, lat) is distinct from lat or
+      coalesce($11, lng) is distinct from lng`;
     const vendor = await one<any>(
       `update vendors set
-         business_name = coalesce($2, business_name),
-         description   = coalesce($3, description),
-         whatsapp      = coalesce($4, whatsapp),
-         country       = coalesce($5, country),
-         city          = coalesce($6, city),
-         address       = coalesce($7, address),
-         logo_url      = coalesce($8, logo_url),
+         business_name   = coalesce($2, business_name),
+         description     = coalesce($3, description),
+         whatsapp        = coalesce($4, whatsapp),
+         country         = coalesce($5, country),
+         city            = coalesce($6, city),
+         address         = coalesce($7, address),
+         logo_url        = coalesce($8, logo_url),
          id_document_url = coalesce($9, id_document_url),
-         lat           = coalesce($10, lat),
-         lng           = coalesce($11, lng),
-         status = case when status = 'rejected' then 'pending'::vendor_status else status end,
-         rejection_reason = case when status = 'rejected' then null else rejection_reason end
+         lat             = coalesce($10, lat),
+         lng             = coalesce($11, lng),
+         status = case
+           when status = 'verified' and (${identityChanged}) then 'pending'::vendor_status
+           when status = 'rejected' then 'pending'::vendor_status
+           else status
+         end,
+         verified_at = case when status = 'verified' and (${identityChanged}) then null else verified_at end,
+         verified_by = case when status = 'verified' and (${identityChanged}) then null else verified_by end,
+         rejection_reason = case
+           when (status = 'verified' and (${identityChanged})) or status = 'rejected' then null
+           else rejection_reason
+         end
        where id = $1 returning *`,
       [req.vendor!.id, b.business_name ?? null, b.description ?? null,
-       b.whatsapp ? normalizePhone(b.whatsapp) : null, b.country ?? null, b.city ?? null,
-       b.address ?? null, b.logo_url ?? null, b.id_document_url ?? null,
-       b.lat ?? null, b.lng ?? null]
+       whatsapp, b.country ?? null, b.city ?? null, b.address ?? null,
+       b.logo_url ?? null, b.id_document_url ?? null, b.lat ?? null, b.lng ?? null]
     );
-    await audit(req.user!.id, 'vendor.update', 'vendor', vendor.id);
+    await audit(req.user!, 'vendor.update', 'vendor', vendor.id, {
+      resubmitted_for_review: vendor.status === 'pending' && req.vendor!.status === 'verified',
+    });
     res.json({ vendor });
   } catch (e) {
     next(e);
@@ -147,7 +177,7 @@ vendorRouter.put('/me/payout', requireAuth('vendor'), blockImpersonation, loadVe
       [req.vendor!.id, b.bank_name ?? null, b.bank_account_name ?? null,
        b.bank_iban ?? null, b.payout_notes ?? null]
     );
-    await audit(req.user!.id, 'vendor.payout.update', 'vendor', req.vendor!.id);
+    await audit(req.user!, 'vendor.payout.update', 'vendor', req.vendor!.id);
     res.json({ payout: vendor });
   } catch (e) { next(e); }
 });
@@ -174,7 +204,7 @@ vendorRouter.put('/me/delivery', requireAuth('vendor'), loadVendor, async (req, 
        b.free_delivery_over ?? null, b.delivery_radius_km ?? null,
        b.pickup_address || null, b.delivery_notes || null]
     );
-    await audit(req.user!.id, 'vendor.delivery', 'vendor', req.vendor!.id);
+    await audit(req.user!, 'vendor.delivery', 'vendor', req.vendor!.id);
     res.json({ delivery: s });
   } catch (e) { next(e); }
 });

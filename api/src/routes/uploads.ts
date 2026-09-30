@@ -49,7 +49,7 @@ uploadRouter.get('/document',requireAuth('vendor','buyer','admin'),blockImperson
   const value=String(req.query.key||'');const key=value.startsWith('kyc://')?value.slice(6):value;
   const doc=await one<any>('select user_id from private_uploads where key=$1',[key]);
   if(!doc || (req.user!.role!=='admin' && doc.user_id!==req.user!.id))throw new HttpError(404,'Document not found');
-  const url=await signedDocument(key);await audit(req.user!.id,'document.read','private_upload',key);
+  const url=await signedDocument(key);await audit(req.user!,'document.read','private_upload',key);
   res.set('Cache-Control','no-store').json({url,expires_in:60});
  }catch(e){next(e);}
 });

@@ -6,6 +6,7 @@ import { requireAuth, loadVendor } from "../auth";
 import {
   HttpError,
   audit,
+  validateUuidParam,
   randomCode,
   waLink,
   screenProhibited,
@@ -31,6 +32,7 @@ import {
   atQatar,
 } from "../booking/availability";
 export const bookingRouter = Router();
+bookingRouter.param('id', validateUuidParam);
 bookingRouter.use((_req, res, next) => {
   res.set("Cache-Control", "no-store");
   res.set("Referrer-Policy", "no-referrer");
@@ -549,7 +551,7 @@ bookingRouter.put(
             [id, h.weekday, h.opens, h.closes],
           );
       });
-      await audit(req.user!.id, "vendor.availability", "vendor", id);
+      await audit(req.user!, "vendor.availability", "vendor", id);
       res.json({ ok: true });
     } catch (e) {
       next(e);
@@ -769,7 +771,7 @@ bookingRouter.patch(
           )
         ).rows[0];
       });
-      await audit(req.user!.id, "booking.update", "service_booking", id, {
+      await audit(req.user!, "booking.update", "service_booking", id, {
         status: b.status,
       });
       res.json({ booking: row });

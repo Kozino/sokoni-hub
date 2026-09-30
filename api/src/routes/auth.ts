@@ -7,15 +7,21 @@ import { z } from 'zod';
 import { one, query } from '../db';
 import { charge } from '../security';
 import { signToken, requireAuth, blockImpersonation } from '../auth';
-import { HttpError, audit, normalizePhone } from '../utils';
+import { HttpError, audit, normalizePhone, validateUuidParam } from '../utils';
 import {
   hashPin, checkPin, weakPinReason, chargeAttempt, clearAttempts,
   signSetupToken, verifySetupToken, signChallengeToken, verifyChallengeToken,
 } from '../pin';
 
 export const authRouter = Router();
+authRouter.param('id', validateUuidParam);
 
 const PUBLIC_COLS = 'id, full_name, phone, email, role, is_active, created_at';
+// The signed-in vendor needs their KYC/profile fields but never internal payout
+// details or future columns added to the vendors table.
+const SELF_VENDOR_COLS = `id, user_id, business_name, slug, description, whatsapp,
+  country, city, address, logo_url, id_document_url, status, rejection_reason,
+  verified_at, rating_avg, rating_count, created_at, lat, lng`;
 const pinField = z.string().regex(/^\d{4}$/, 'PIN must be exactly 4 digits');
 const emailField = z.string().trim().email().max(200);
 const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', 10); // equalises timing for unknown accounts
@@ -222,7 +228,7 @@ authRouter.post('/pin/change', requireAuth('buyer', 'vendor'), blockImpersonatio
       [req.user!.id, await hashPin(req.user!.id, b.new_pin), new Date(),row.session_version]
     );
     if(!changed)throw new HttpError(409,'Account changed. Sign in again.');
-    await audit(req.user!.id, 'user.pin_change', 'user', req.user!.id);
+    await audit(req.user!, 'user.pin_change', 'user', req.user!.id);
     // Other devices are signed out; hand this one a fresh token.
     res.json({ ok: true, token: await signToken(req.user!.id, row.role,{expectedVersion:changed.session_version}) });
   } catch (e) {
@@ -250,7 +256,7 @@ authRouter.post('/admin/reset-pin', requireAuth('admin'), blockImpersonation, as
         where id = $1`,
       [target.id, await hashPin(target.id, temp), new Date(Date.now() + 48 * 3600 * 1000), new Date()]
     );
-    await audit(req.user!.id, 'user.pin_reset', 'user', target.id);
+    await audit(req.user!, 'user.pin_reset', 'user', target.id);
     res.json({ temp_pin: temp, expires_in_hours: 48 });
   } catch (e) {
     next(e);
@@ -262,8 +268,11 @@ authRouter.post('/admin/reset-pin', requireAuth('admin'), blockImpersonation, as
 /* ------------------------------------------------------------------ */
 authRouter.get('/me', requireAuth(), async (req, res, next) => {
   try {
-    const vendor = await one('select * from vendors where user_id = $1', [req.user!.id]);
-    res.json({ user: req.user, vendor });
+    // Do not expose session internals from req.user, and do not use select *:
+    // both tables receive operational/security columns over time.
+    const user = await one(`select ${PUBLIC_COLS} from users where id = $1`, [req.user!.id]);
+    const vendor = await one(`select ${SELF_VENDOR_COLS} from vendors where user_id = $1`, [req.user!.id]);
+    res.json({ user, vendor });
   } catch (e) {
     next(e);
   }
@@ -298,7 +307,7 @@ authRouter.post('/change-password', requireAuth(), blockImpersonation, async (re
       await bcrypt.hash(b.new_password, 10),row.session_version,
     ]);
     if(!changed)throw new HttpError(409,'Account changed. Sign in again.');
-    await audit(req.user!.id, 'user.password_change', 'user', req.user!.id);
+    await audit(req.user!, 'user.password_change', 'user', req.user!.id);
     res.json({ ok: true, token: await signToken(req.user!.id, req.user!.role,{expectedVersion:changed.session_version}) });
   } catch (e) {
     next(e);

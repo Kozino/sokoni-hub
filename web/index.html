@@ -75,23 +75,13 @@
     </script>
 
     <!--
-      Fonts. preconnect is kept, but the stylesheet is loaded without blocking
-      first paint: `media=print` + onload is the standard trick, with a
-      <noscript> fallback. The page renders in the fallback stack and swaps,
-      rather than showing nothing until Google Fonts answers — which matters on
-      a mid-range Android over Qatari mobile data.
+      Fonts. Keep this as a normal stylesheet rather than using an inline
+      onload handler so the production CSP can forbid inline scripts. The
+      exact Google Fonts origins are allow-listed in netlify.toml.
     -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap"
-      media="print"
-      onload="this.media='all'"
-    />
-    <noscript>
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" />
-    </noscript>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" />
   </head>
   <body>
     <div id="root"></div>

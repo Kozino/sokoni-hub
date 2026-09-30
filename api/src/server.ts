@@ -8,7 +8,7 @@ import { config } from './config';
 import { pool } from './db';
 import { HttpError } from './utils';
 import { limit } from './security';
-import { optionalAuth } from './auth';
+import { optionalAuth, blockImpersonatedWrites } from './auth';
 
 import { deletionRouter } from './routes/deletion';
 import { authRouter } from './routes/auth';
@@ -39,15 +39,30 @@ app.use(
     origin(origin, cb) {
       if (!origin) return cb(null, true);
       const ok = config.corsOrigins.includes(origin);
-      cb(ok ? null : new Error('Not allowed by CORS'), ok);
+      // Passing a normal Error falls through to the generic 500 handler. A
+      // disallowed browser origin is a policy decision, not a server failure.
+      cb(ok ? null : new HttpError(403, 'Origin is not allowed by CORS'), ok);
     },
     credentials: true,
   })
 );
 
-app.use('/api/auth', rateLimit({ windowMs: 15 * 60_000, max: 60, standardHeaders: true, legacyHeaders: false }));
+// Authentication attempts are intentionally limited separately from the rest
+// of /auth. /auth/me runs at application start on every page load, so placing
+// this limiter on the whole auth namespace turns normal shared-IP traffic into
+// a login outage. Mount paths include the PIN and MFA sub-steps under /login.
+const authAttemptLimiter = rateLimit({
+  windowMs: 15 * 60_000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use(['/api/auth/register', '/api/auth/login', '/api/auth/pin', '/api/auth/admin/reset-pin'], authAttemptLimiter);
 app.use('/api', rateLimit({ windowMs: 60_000, max: 300, standardHeaders: true, legacyHeaders: false }));
 app.use(optionalAuth);
+// One policy for every API write: a "view as" session can inspect data but
+// can never modify the account being viewed.
+app.use('/api', blockImpersonatedWrites);
 
 app.get('/api/health', async (_req, res) => {
   try {
@@ -87,6 +102,9 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
     return res.status(err.status).json({ error: err.message, details: err.details });
   if (err?.code === '23505') return res.status(409).json({ error: 'That record already exists' });
   if (err?.code === '23503') return res.status(400).json({ error: 'Related record not found' });
+  // Defensive fallback for a UUID that reaches PostgreSQL through a route
+  // which has not yet registered validateUuidParam.
+  if (err?.code === '22P02') return res.status(400).json({ error: 'Invalid request parameter' });
   if (err?.message?.includes('does not support SSL')) {
     console.error('[db] SSL mismatch: the database is not accepting SSL connections. Set PGSSL=false for a local/non-SSL database, or PGSSL=true for a hosted one.');
   } else if (err?.code === '28P01' || err?.code === '28000') {
@@ -101,8 +119,8 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 });
 
 async function start() {
- const ready=await pool.query("select 1 from public.schema_migrations where name='migrations/013_account_deletion.sql'");
- if(!ready.rowCount)throw new Error('Account deletion migration 013 is missing. Run the documented migration command before startup.');
+ const ready=await pool.query("select 1 from public.schema_migrations where name='migrations/014_security_hardening.sql'");
+ if(!ready.rowCount)throw new Error('Security hardening migration 014 is missing. Run the documented migration command before startup.');
  app.listen(config.port, '0.0.0.0', () => {
   console.log(`Sokoni API listening on :${config.port} (${config.env})`);
  });

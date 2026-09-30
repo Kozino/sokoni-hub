@@ -1,13 +1,14 @@
-import { Router } from 'express';
+import { Request, Router } from 'express';
 import { z } from 'zod';
 import { one, query, tx } from '../db';
 import { requireAuth, loadVendor } from '../auth';
-import { HttpError, audit } from '../utils';
+import { HttpError, audit, secretsEqual, validateUuidParam } from '../utils';
 import { computeStatement, monthPeriod, formatMoney, type SettleableOrder } from '../billing';
 import { receiptHtml, statementHtml, type PlatformSettings } from '../templates';
 import { sendMail, emailEnabled } from '../mailer';
 
 export const billingRouter = Router();
+billingRouter.param('id', validateUuidParam);
 
 /** Prefixes drive document numbering; the templates never need them. */
 type Settings = PlatformSettings & {
@@ -76,7 +77,7 @@ billingRouter.patch('/settings', requireAuth('admin'), async (req, res, next) =>
        b.cr_number ?? null, b.tax_number ?? null, b.logo_url ?? null,
        b.invoice_prefix ?? null, b.receipt_prefix ?? null, b.invoice_footer ?? null]
     );
-    await audit(req.user!.id, 'billing.settings', 'platform_settings', null, b as any);
+    await audit(req.user!, 'billing.settings', 'platform_settings', null, b as any);
     res.json({ settings: s });
   } catch (e) { next(e); }
 });
@@ -157,7 +158,7 @@ billingRouter.post('/statements/generate', requireAuth('admin'), async (req, res
       return out;
     });
 
-    await audit(req.user!.id, 'billing.statements.generate', 'vendor_statement',
+    await audit(req.user!, 'billing.statements.generate', 'vendor_statement',
       created.map((s) => s.id).join(','), { period_start, period_end, count: created.length });
     res.status(201).json({ statements: created });
   } catch (e) {
@@ -311,7 +312,7 @@ billingRouter.post('/statements/:id/issue', requireAuth('admin'), async (req, re
       );
       return updated;
     });
-    await audit(req.user!.id, 'billing.statement.issue', 'vendor_statement', st.id, { number: st.number });
+    await audit(req.user!, 'billing.statement.issue', 'vendor_statement', st.id, { number: st.number });
     res.json({ statement: st });
   } catch (e) { next(e); }
 });
@@ -330,7 +331,7 @@ billingRouter.post('/statements/:id/pay', requireAuth('admin'), async (req, res,
       [req.params.id, b.payment_reference, b.paid_at ?? null]
     );
     if (!st) throw new HttpError(409, 'Statement not found, or not in the issued state');
-    await audit(req.user!.id, 'billing.statement.pay', 'vendor_statement', st.id, b as any);
+    await audit(req.user!, 'billing.statement.pay', 'vendor_statement', st.id, b as any);
     res.json({ statement: st });
   } catch (e) { next(e); }
 });
@@ -355,7 +356,7 @@ billingRouter.post('/statements/:id/void', requireAuth('admin'), async (req, res
       );
       return updated;
     });
-    await audit(req.user!.id, 'billing.statement.void', 'vendor_statement', st.id, b as any);
+    await audit(req.user!, 'billing.statement.void', 'vendor_statement', st.id, b as any);
     res.json({ statement: st });
   } catch (e) { next(e); }
 });
@@ -435,7 +436,7 @@ billingRouter.post('/statements/:id/send', requireAuth('admin'), async (req, res
       entityId: st.id,
     });
     if (r.ok) await query('update vendor_statements set emailed_at = now() where id = $1', [st.id]);
-    await audit(req.user!.id, 'billing.statement.email', 'vendor_statement', st.id, { to: email, status: r.status });
+    await audit(req.user!, 'billing.statement.email', 'vendor_statement', st.id, { to: email, status: r.status });
     if (!r.ok) throw new HttpError(502, `Email not sent: ${r.error}`);
     res.json({ sent: true, to: email });
   } catch (e) { next(e); }
@@ -541,7 +542,7 @@ billingRouter.post('/payouts/batch', requireAuth('admin'), async (req, res, next
       return { batch, settled: found.length, skipped: b.statement_ids.length - found.length };
     });
 
-    await audit(req.user!.id, 'billing.payout.batch', 'payout_batch', out.batch.id,
+    await audit(req.user!, 'billing.payout.batch', 'payout_batch', out.batch.id,
       { reference: b.reference, settled: out.settled });
     res.status(201).json(out);
   } catch (e) { next(e); }
@@ -560,12 +561,16 @@ billingRouter.post('/payouts/batch', requireAuth('admin'), async (req, res, next
  * on (vendor, period) means a second run for the same month is reported as
  * skipped rather than duplicating anything.
  */
+function requireCronSecret(req: Request) {
+  const secret = process.env.CRON_SECRET || '';
+  if (!secret) throw new HttpError(503, 'CRON_SECRET is not configured on the server');
+  const given = String(req.get('x-cron-secret') || (req.get('authorization') || '').replace(/^Bearer /i, ''));
+  if (!secretsEqual(secret, given)) throw new HttpError(401, 'Bad cron secret');
+}
+
 billingRouter.post('/cron/run-statements', async (req, res, next) => {
   try {
-    const secret = process.env.CRON_SECRET || '';
-    if (!secret) throw new HttpError(503, 'CRON_SECRET is not configured on the server');
-    const given = String(req.get('x-cron-secret') || (req.get('authorization') || '').replace(/^Bearer /i, ''));
-    if (given !== secret) throw new HttpError(401, 'Bad cron secret');
+    requireCronSecret(req);
 
     const b = z.object({
       month: z.string().regex(/^\d{4}-\d{2}$/).optional(),
@@ -641,6 +646,54 @@ billingRouter.post('/cron/run-statements', async (req, res, next) => {
     }
 
     await audit(null, 'billing.cron.run', 'vendor_statement', null, result as any);
+    res.json(result);
+  } catch (e) { next(e); }
+});
+
+/**
+ * Daily housekeeping for short-lived security and idempotency records. This is
+ * deliberately a separate cron target from monthly statement generation: it
+ * should run daily, while the statement job normally runs once per month.
+ */
+billingRouter.post('/cron/purge-security-data', async (req, res, next) => {
+  try {
+    requireCronSecret(req);
+
+    // Limit every delete to a small batch. It makes this endpoint safe to run
+    // frequently on a busy database; repeated calls steadily drain any backlog
+    // without a long table lock. Expired sessions are no longer valid, revoked
+    // sessions get a short troubleshooting window, and checkout retries only
+    // require a short idempotency retention period.
+    const [sessions] = await query<{ deleted: number }>(`
+      with doomed as (
+        select id from auth_sessions
+         where expires_at < now()
+            or revoked_at < now() - interval '7 days'
+         limit 10000
+      ), deleted as (
+        delete from auth_sessions s using doomed d where s.id = d.id returning s.id
+      ) select count(*)::int as deleted from deleted`);
+    const [rateLimits] = await query<{ deleted: number }>(`
+      with doomed as (
+        select key from security_rate_limits where resets_at < now() limit 10000
+      ), deleted as (
+        delete from security_rate_limits r using doomed d where r.key = d.key returning r.key
+      ) select count(*)::int as deleted from deleted`);
+    const [checkoutRequests] = await query<{ deleted: number }>(`
+      with doomed as (
+        select key from checkout_requests
+         where created_at < now() - interval '7 days'
+         limit 10000
+      ), deleted as (
+        delete from checkout_requests r using doomed d where r.key = d.key returning r.key
+      ) select count(*)::int as deleted from deleted`);
+
+    const result = {
+      auth_sessions: sessions?.deleted ?? 0,
+      security_rate_limits: rateLimits?.deleted ?? 0,
+      checkout_requests: checkoutRequests?.deleted ?? 0,
+    };
+    await audit(null, 'security.cron.purge', 'ephemeral_data', null, result);
     res.json(result);
   } catch (e) { next(e); }
 });

@@ -2,9 +2,10 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { one, query, tx } from '../db';
 import { requireAuth, optionalAuth, loadVendor } from '../auth';
-import { HttpError, audit } from '../utils';
+import { HttpError, audit, validateUuidParam } from '../utils';
 
 export const reviewRouter = Router();
+reviewRouter.param('id', validateUuidParam);
 
 /**
  * Reviews for products, services and stores.
@@ -433,7 +434,7 @@ reviewRouter.post('/:id/hide', requireAuth('admin'), async (req, res, next) => {
       [req.params.id, req.user!.id, b.reason]
     );
     if (!row) throw new HttpError(404, 'Review not found, or already hidden');
-    await audit(req.user!.id, 'review.hide', 'review', req.params.id, { reason: b.reason });
+    await audit(req.user!, 'review.hide', 'review', req.params.id, { reason: b.reason });
     res.json({ ok: true });
   } catch (e) { next(e); }
 });
@@ -446,7 +447,7 @@ reviewRouter.post('/:id/unhide', requireAuth('admin'), async (req, res, next) =>
       [req.params.id]
     );
     if (!row) throw new HttpError(404, 'Review not found, or not hidden');
-    await audit(req.user!.id, 'review.unhide', 'review', req.params.id);
+    await audit(req.user!, 'review.unhide', 'review', req.params.id);
     res.json({ ok: true });
   } catch (e) { next(e); }
 });
