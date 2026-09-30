@@ -243,7 +243,11 @@ export function Footer() {
 
           <div>
             <h4>{t('footer.help')}</h4>
-            <Link to="/support">{t('footer.fileComplaint')}</Link>
+            <Link to="/support">Contact &amp; Support</Link>
+            <Link to="/faq">FAQ</Link>
+            <Link to="/terms">Terms of Use</Link>
+            <Link to="/privacy">Privacy Policy</Link>
+            <Link to="/delete-account">Account deletion</Link>
             <Link to="/support#track">{t('footer.trackComplaint')}</Link>
             <Link to="/policy">{t('footer.prohibited')}</Link>
             <a

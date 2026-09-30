@@ -8,7 +8,7 @@ export async function assertPrivateBucket(){
  if(!r.ok || (await r.json() as any).public!==false)throw new HttpError(503,'A private document bucket is required. Contact support.');
 }
 export async function documentKey(value:string,userId:string){
- if(!value.startsWith('kyc://'))throw new HttpError(422,'Please upload your identity document securely again; external/public document links are not accepted.');
+ if(!value.startsWith('kyc://'))throw new HttpError(422,'Please upload your business-registration document securely again; external/public document links are not accepted.');
  const key=value.slice(6);
  if(!await one('select key from private_uploads where key=$1 and user_id=$2',[key,userId]))throw new HttpError(403,'Document does not belong to this account');
  return key;

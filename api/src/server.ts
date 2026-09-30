@@ -10,6 +10,7 @@ import { HttpError } from './utils';
 import { limit } from './security';
 import { optionalAuth } from './auth';
 
+import { deletionRouter } from './routes/deletion';
 import { authRouter } from './routes/auth';
 import { vendorRouter } from './routes/vendors';
 import { listingRouter } from './routes/listings';
@@ -57,6 +58,7 @@ app.get('/api/health', async (_req, res) => {
   }
 });
 
+app.use('/api/account-deletion', deletionRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/vendors', vendorRouter);
 app.use('/api/listings', listingRouter);
@@ -99,8 +101,8 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 });
 
 async function start() {
- const ready=await pool.query("select 1 from public.schema_migrations where name='migrations/012_security.sql'");
- if(!ready.rowCount)throw new Error('Security migration is missing. Run the documented migration command before startup.');
+ const ready=await pool.query("select 1 from public.schema_migrations where name='migrations/013_account_deletion.sql'");
+ if(!ready.rowCount)throw new Error('Account deletion migration 013 is missing. Run the documented migration command before startup.');
  app.listen(config.port, '0.0.0.0', () => {
   console.log(`Sokoni API listening on :${config.port} (${config.env})`);
  });

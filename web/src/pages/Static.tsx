@@ -47,7 +47,7 @@ export function Sell() {
       <div className="grid grid-3 mt-3">
         {[
           ['📋', 'Real product records', 'Name, price, quantity in stock, unit, weight in kg or volume in litres — buyers see exactly what they get.'],
-          ['🛡️', 'Verification badge', 'Admins review your business details and ID before you go live. Buyers trust a verified badge.'],
+          ['🛡️', 'Verification badge', 'Admins review your business details and CR licence before you go live. Buyers trust a verified badge.'],
           ['📈', 'Your own dashboard', 'Track views, stock levels, orders by status, revenue trends and complaints in one place.'],
           ['💵', 'Cash on delivery', 'No payment gateway needed to start. Buyers pay you when goods arrive.'],
           ['💬', 'WhatsApp built in', 'Every listing has a one-tap WhatsApp button with the order details prefilled.'],
@@ -78,7 +78,7 @@ export function Policy() {
         <p>These restrictions exist because safe distribution of such products requires regulatory licensing that this platform does not verify. Listings are screened automatically at upload and reviewed manually by admins.</p>
 
         <h3 className="mt-3">Vendor verification</h3>
-        <p>Every vendor account is reviewed by an administrator before any listing can be published. We check the business name, city, WhatsApp number and an uploaded identification document. Verification can be revoked if a vendor breaks the rules.</p>
+        <p>Every vendor account is reviewed by an administrator before any listing can be published. We check the business name, city, WhatsApp number and an uploaded CR or business-registration licence. Verification can be revoked if a vendor breaks the rules.</p>
 
         <h3 className="mt-3">Payments</h3>
         <p>Sokoni Hub does not currently hold or process funds. Buyers pay <strong>cash on delivery</strong>, arrange payment over <strong>WhatsApp</strong>, or use <strong>bank transfer</strong> directly with the vendor. Always inspect goods before paying.</p>
@@ -131,7 +131,9 @@ export function Support() {
 
   return (
     <div className="container container-narrow">
-      <h1>Support &amp; complaints</h1>
+      <h1>Contact &amp; Support</h1>
+      <p>Contact us on <a href="https://wa.me/97466046431" target="_blank" rel="noopener noreferrer">WhatsApp +974 6604 6431</a>, or use the existing report form below. For privacy or account-access concerns, WhatsApp is the private contact channel; complaint details may be shared with the relevant vendor. Do not include passwords, PINs, MFA codes or unnecessary documents.</p>
+      <p><Link to="/privacy">Draft Privacy Policy</Link> · <Link to="/faq">FAQ</Link> · <Link to="/delete-account">Account deletion</Link></p>
       <p style={{ color: 'var(--muted)' }}>Problem with an order, a store or a listing? Tell us — an admin reviews every report.</p>
 
       <div className="card card-pad">

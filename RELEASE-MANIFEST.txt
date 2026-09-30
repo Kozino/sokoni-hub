@@ -1,0 +1,38 @@
+Sokoni legal/help and reviewed account-deletion release
+Base main: 9cec15d38b1ce73249443ffc64d1424b6e479826
+Local release commit: 77e1919c3d2a64866a7e5c35489a4c730bbd5050
+Source files: 27
+Tests: 207 checks passed; both builds passed; npm audits 0 vulnerabilities.
+No remote push, production deployment or Supabase mutation performed.
+Apply migration 013 before deploying the new API. Keep current MFA unchanged.
+Read docs/ONLINE-LEGAL-HELP-SETUP.md and docs/ACCOUNT-DELETION-RUNBOOK.md.
+Policies remain drafts pending operator details and legal/operational review.
+
+SHA-256 source manifest:
+91d35f4e035da86ed2ca1c1886faafb7ab7a979cffb2967ea5c604cfe5b19e45  .github/workflows/quality.yml
+85ec8e0c7f8dfb631ad007291959820e7f76e818cc1fb7348b9769d24bd29408  api/src/privateDocuments.ts
+44c0874d30e3be7a4c60de3158e3d912927d30334462a5f5fca91f7060a49d16  api/src/routes/admin.ts
+9def39a0282e9565300a4d88fb13452538d16fd056cce57b38f53ec28c108e97  api/src/routes/deletion.ts
+d22e14901aa5cd8f318e7e1409eaaaf1917b2ed1ed65f917546c38a882640511  api/src/routes/uploads.ts
+d0ae674ee9156d6f6e32a2d96b425822c7708839ada975a6e63525ce7cc6e5f6  api/src/server.ts
+de2c5420b9ff92bb389f369b9c42eedcda357274ec9898a52d428861e7ad5af3  db/migrations/013_account_deletion.sql
+f1cd476aeda62b629db4ee3c31e2278c274b908e35423f981a880d00c46cd4b5  docs/ACCOUNT-DELETION-RUNBOOK.md
+bd742002a797c40d4f87eabd6651d797a523ec836e54a1c7d6b73c0872a162f5  docs/ONLINE-LEGAL-HELP-SETUP.md
+7d64718a14abf60ca14fe404c53f7e5a5c599ec46f4b6b9cde09f97ace1b8968  tests/browser-legal.mjs
+ac14ed253bf3a36aa1cc8bcfbeb73c572db2f127e66f5c1f36190fd51bbe61da  tests/deletion.mjs
+0180d3b23f37d91cbbb58967b3e0e4c3acaab098b61c221c2a9e2f2c14e17912  web/src/App.tsx
+4f34e669d3f2051e24e8bf61a64952d5eaaf77bd1cf9370ba47c8dc49779531d  web/src/components/Layout.tsx
+4f8d8ceb743d71da8923f0b8343395a72978c937163b8b4cd5b96042d3bb5159  web/src/components/PrivateDocument.tsx
+ca64737d42998947e5a6a00952b6b497855d9835753173fedb24ee6f98571c8a  web/src/legalConfig.ts
+d3d01c54833dd8777bdece10e69815f85262b4ed5b3a752b129489a5ec2ace40  web/src/pages/Auth.tsx
+26aa5dfd853cb3725a3f23fadcd242988daff7788fe8f55774f9b223c00d66ff  web/src/pages/Checkout.tsx
+2bcc0ad912b628ddc64a4593a7e626769cbd040b6ba77727c30baf58fa7ab425  web/src/pages/DeleteAccount.tsx
+fc80e95cf437c38bb1a7da084e83ac6aa97246d224dc9eba4ae5c3e6cd47f47d  web/src/pages/Legal.tsx
+fffa581257f0fc3a51224f0743ca3f6b0a643e3aee750374e1b8edadf6706588  web/src/pages/Static.tsx
+9c5a5eccc04a2c9875b76081d1d9dd5238f67b220094e2b0c840a9b65dc0e9b1  web/src/pages/admin/AdminDeletion.tsx
+1740777705139edbf43fdac8f1e9d045a5a850918c76fa9368629dc36a950901  web/src/pages/admin/AdminLayout.tsx
+545dad3ad874b172da4253c244b16eb8ace849ed8fd82b88e1121fe94c1af1ac  web/src/pages/admin/AdminVendors.tsx
+e17fe687221faf81c8eab13d8a335a66c211a61bc4e20f7df5793a557bc231f6  web/src/pages/legal.css
+e3795ac6530dcefb14ba08cf9da377bc5fe115cb9b345a95875d2e0ca5ef1d66  web/src/pages/vendor/VendorLayout.tsx
+860dcdb9443d75fd5334f0980ece18f0ade827f1d8d3f4d094f6a67d3131aa1c  web/src/pages/vendor/VendorOnboard.tsx
+b72e0edef61f2250e04ac549a5c6f469aa9f1c8ae2ab904fbbf63d921d477fff  web/src/pages/vendor/VendorProfile.tsx

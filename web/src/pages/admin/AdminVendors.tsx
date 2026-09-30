@@ -161,7 +161,7 @@ export default function AdminVendors() {
               <div className="field">
                 <label>Reason {action === 'reject' ? '*' : '(optional)'}</label>
                 <textarea value={reason} onChange={(e) => setReason(e.target.value)}
-                  placeholder={action === 'reject' ? 'e.g. ID document is unreadable — please re-upload a clear photo.' : 'e.g. Repeated complaints about undelivered orders.'} />
+                  placeholder={action === 'reject' ? 'e.g. CR licence is unreadable — please re-upload a clear photo.' : 'e.g. Repeated complaints about undelivered orders.'} />
                 <div className="hint">The vendor sees this message on their dashboard.</div>
               </div>
             ) : (

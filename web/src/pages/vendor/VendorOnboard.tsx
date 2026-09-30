@@ -61,6 +61,7 @@ export default function VendorOnboard() {
       </div>
 
       <form className="card card-pad" onSubmit={submit}>
+        <p className="muted">How we use these details: <a href="/privacy" target="_blank" rel="noopener noreferrer">draft Privacy Policy</a>. Do not submit personal ID documents or account credentials.</p>
         <Alert kind="error">{err}</Alert>
 
         {step === 1 && (
@@ -90,8 +91,8 @@ export default function VendorOnboard() {
             <Field label="Store logo or shop photo (optional)">
               <ImageUploader value={logo} onChange={setLogo} max={1} label="Upload logo" />
             </Field>
-            <Field label="Identification document *" hint="National ID, driver's licence, voter's card or business registration. Only admins can see this.">
-              <ImageUploader purpose="kyc" value={doc} onChange={setDoc} max={1} label="Upload ID document" />
+            <Field label="CR / business-registration licence *" hint="Upload your commercial registration (CR) or business-registration licence, not a personal ID. Access is restricted to you and authorised admins.">
+              <ImageUploader purpose="kyc" value={doc} onChange={setDoc} max={1} label="Upload CR licence" />
             </Field>
             <div className="row">
               <button type="button" className="btn btn-ghost" onClick={() => setStep(1)}>← Back</button>
@@ -108,7 +109,7 @@ export default function VendorOnboard() {
               <dt>Location</dt><dd>{f.city}, {f.country}</dd>
               <dt>WhatsApp</dt><dd>{f.whatsapp}</dd>
               <dt>Logo</dt><dd>{logo[0] ? 'Uploaded' : 'Not provided'}</dd>
-              <dt>ID document</dt><dd>{doc[0] ? 'Uploaded' : 'Not provided — may delay verification'}</dd>
+              <dt>CR licence</dt><dd>{doc[0] ? 'Uploaded' : 'Not provided — may delay verification'}</dd>
             </dl>
             <div className="prohibited mb-2">
               <strong>Reminder:</strong> cosmetics and medicine/drugs are strictly prohibited. Listing them

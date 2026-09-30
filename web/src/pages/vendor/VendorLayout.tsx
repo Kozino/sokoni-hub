@@ -1,5 +1,5 @@
 import { Outlet } from 'react-router-dom';
-import { Header } from '../../components/Layout';
+import { Header, Footer } from '../../components/Layout';
 import DashShell, { DashLink, DashNotification } from '../../components/DashShell';
 import { useAuth } from '../../state/AuthContext';
 import { StatusBadge, Alert } from '../../components/ui';
@@ -118,6 +118,7 @@ function VendorConsole() {
       >
         <Outlet />
       </DashShell>
+      <Footer />
     </div>
   </>
   );

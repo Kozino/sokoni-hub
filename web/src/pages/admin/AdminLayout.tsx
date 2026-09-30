@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
-import { Header } from '../../components/Layout';
+import { Header, Footer } from '../../components/Layout';
 import DashShell, { DashLink, DashNotification } from '../../components/DashShell';
 import { useAuth } from '../../state/AuthContext';
 import { api } from '../../lib/api';
@@ -31,6 +31,7 @@ export default function AdminLayout() {
     { to: '/admin/bookings', ico: IconHistory, label: 'Service bookings', group: 'Commerce' },
     { to: '/admin/promotions', ico: IconStar, label: 'Placements', group: 'Commerce' },
     { to: '/admin/categories', ico: IconFolder, label: 'Categories', group: 'Configuration' },
+    { to: '/admin/deletion', ico: IconShield, label: 'Privacy requests', group: 'Moderation' },
     { to: '/admin/audit', ico: IconHistory, label: 'Activity log', group: 'Configuration' },
   ];
 
@@ -73,6 +74,7 @@ export default function AdminLayout() {
       >
         <Outlet />
       </DashShell>
+      <Footer />
     </div>
   </>
   );

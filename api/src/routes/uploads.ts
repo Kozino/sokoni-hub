@@ -7,7 +7,7 @@ import { requireAuth, blockImpersonation } from '../auth';
 import { HttpError, audit } from '../utils';
 import { storageEnabled, uploadObject } from '../storage';
 import { assertPrivateBucket, signedDocument } from '../privateDocuments';
-import { one, query } from '../db';
+import { one, tx } from '../db';
 import { charge } from '../security';
 export const uploadRouter=Router();
 const upload=multer({storage:multer.memoryStorage(),limits:{fileSize:5*1024*1024,files:6,fields:0}});
@@ -17,10 +17,13 @@ uploadRouter.post('/',requireAuth(),blockImpersonation,upload.array('files',6),a
   const privateDoc=req.query.purpose==='kyc';
   if(req.query.purpose && !privateDoc)throw new HttpError(400,'Unknown upload purpose');
   const files=(req.files as Express.Multer.File[])||[];
-  if(!files.length || (privateDoc && files.length!==1))throw new HttpError(400,'Choose a supported image (one image for identity documents)');
+  if(!files.length || (privateDoc && files.length!==1))throw new HttpError(400,'Choose a supported image (one image for business-registration documents)');
   if(privateDoc)await assertPrivateBucket();
   // At most 60 image files per account/day, shared across server instances.
   const urls:string[]=[];
+  await tx(async c=>{
+  const owner=(await c.query("select is_active from users where id=$1 for share",[req.user!.id])).rows[0];
+  if(!owner?.is_active)throw new HttpError(403,"Account is no longer active");
   for(const file of files){
    await charge('upload-file:'+req.user!.id,60,86400);
    let body:Buffer;
@@ -33,10 +36,11 @@ uploadRouter.post('/',requireAuth(),blockImpersonation,upload.array('files',6),a
    const key=`${req.user!.id}/${randomUUID()}.jpg`;
    try {
     const result=await uploadObject(privateDoc?config.privateBucket:config.supabaseBucket,key,body,'image/jpeg');
-    if(privateDoc){await query('insert into private_uploads(key,user_id,bytes) values($1,$2,$3)',[key,req.user!.id,body.length]);urls.push('kyc://'+key);}
+    if(privateDoc){await c.query('insert into private_uploads(key,user_id,bytes) values($1,$2,$3)',[key,req.user!.id,body.length]);urls.push('kyc://'+key);}
     else urls.push(result.publicUrl);
    }catch(err){if(err instanceof HttpError)throw err;throw new HttpError(503,'Upload failed. Please try again later.');}
   }
+  });
   res.status(201).json({urls});
  }catch(e){next(e);}
 });

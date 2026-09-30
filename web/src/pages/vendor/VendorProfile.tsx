@@ -65,6 +65,7 @@ export default function VendorProfile() {
       )}
 
       <form className="card card-pad" onSubmit={submit} style={{ maxWidth: 780 }}>
+        <p className="muted">How we use these details: <a href="/privacy" target="_blank" rel="noopener noreferrer">draft Privacy Policy</a>. Do not submit personal ID documents or account credentials.</p>
         <Alert kind="error">{err}</Alert>
         <Field label="Business name *"><input required value={f.business_name} onChange={set('business_name')} /></Field>
         <Field label="Description"><textarea value={f.description} onChange={set('description')} style={{ minHeight: 110 }} /></Field>
@@ -75,7 +76,7 @@ export default function VendorProfile() {
         <Field label="WhatsApp number *"><input required value={f.whatsapp} onChange={set('whatsapp')} /></Field>
         <Field label="Shop address"><input value={f.address} onChange={set('address')} /></Field>
         <Field label="Store logo"><ImageUploader value={logo} onChange={setLogo} max={1} label="Upload logo" /></Field>
-        <Field label="ID document" hint="Visible to admins only"><ImageUploader purpose="kyc" value={doc} onChange={setDoc} max={1} label="Upload ID document" /></Field>
+        <Field label="CR licence" hint="CR or business-registration licence only — not personal ID. Restricted to you and authorised admins."><ImageUploader purpose="kyc" value={doc} onChange={setDoc} max={1} label="Upload CR licence" /></Field>
         {vendor.status === 'rejected' && <Alert kind="warn">Saving changes resubmits your store for verification.</Alert>}
         <button className="btn btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</button>
       </form>

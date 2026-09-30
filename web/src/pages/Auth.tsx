@@ -365,6 +365,7 @@ export function Register() {
       <div className="container container-narrow">
         <div className="card card-pad">
           <h1>{t('auth.register.title')}</h1>
+          <p className="muted">Read our <Link to="/terms">draft Terms</Link> and <Link to="/privacy">draft Privacy Policy</Link> for account and data information. These drafts are still awaiting finalisation.</p>
           <form onSubmit={submit}>
             <Field label={t('auth.iWantTo')}>
               <div className="grid grid-2" style={{ gap: 10 }}>

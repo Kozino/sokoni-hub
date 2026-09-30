@@ -17,6 +17,9 @@ import StorePage from './pages/StorePage';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import { Login, Register } from './pages/Auth';
+import { Terms, Privacy, FAQ } from './pages/Legal';
+import DeleteAccount from './pages/DeleteAccount';
+import AdminDeletion from './pages/admin/AdminDeletion';
 import { Sell, Policy, Support, TrackOrder, Account, NotFound } from './pages/Static';
 
 import VendorLayout from './pages/vendor/VendorLayout';
@@ -62,6 +65,10 @@ export default function App() {
               </Route>
 
               <Route element={<Layout />}>
+                <Route path="/terms" element={<Terms />} />
+                <Route path="/privacy" element={<Privacy />} />
+                <Route path="/faq" element={<FAQ />} />
+                <Route path="/delete-account" element={<DeleteAccount />} />
                 <Route path="/browse" element={<Browse />} />
                 <Route path="/s/:slug" element={<ShortStoreRedirect />} />
                 <Route path="/listing/:id" element={<ListingDetail />} />
@@ -108,6 +115,7 @@ export default function App() {
                 <Route path="bookings" element={<AdminBookings />} />
                 <Route path="promotions" element={<AdminPromotions />} />
                 <Route path="categories" element={<AdminCategories />} />
+                <Route path="deletion" element={<AdminDeletion />} />
                 <Route path="audit" element={<AdminAudit />} />
                 <Route path="*" element={<Navigate to="/admin" replace />} />
               </Route>

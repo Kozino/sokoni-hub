@@ -320,7 +320,7 @@ adminRouter.patch('/users/:id', async (req, res, next) => {
       throw new HttpError(400, 'You cannot disable your own account');
     const u = await one(
       `update users set is_active = coalesce($2, is_active), role = coalesce($3::user_role, role)
-       where id=$1 returning id, full_name, phone, email, role, is_active`,
+       where id=$1 and deleted_at is null and not exists(select 1 from account_deletion_requests d where d.user_id=users.id and d.status='processing') returning id, full_name, phone, email, role, is_active`,
       [req.params.id, b.is_active ?? null, b.role ?? null]);
     if (!u) throw new HttpError(404, 'User not found');
     await audit(req.user!.id, 'user.admin_update', 'user', req.params.id, b as any);
