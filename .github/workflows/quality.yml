@@ -35,6 +35,7 @@ jobs:
       - run: npm run migrate:prod && npm run migrate:prod
         working-directory: api
       - run: node tests/security.mjs
+      - run: node tests/deletion.mjs
       - run: node tests/online-setup.mjs
       - run: node tests/run-bookings.mjs
       - run: npm ci && npm run build
@@ -42,6 +43,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
         working-directory: web
       - run: node tests/browser-security.mjs
+      - run: node tests/browser-legal.mjs
       - run: npm audit --audit-level=high
         working-directory: api
       - run: npm audit --audit-level=high
