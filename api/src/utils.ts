@@ -43,8 +43,13 @@ export const slugify = (s: string) =>
     .replace(/\s+/g, '-')
     .slice(0, 60) || 'item';
 
-export const randomCode = (prefix: string) =>
-  `${prefix}-${randomBytes(16).toString('hex').toUpperCase()}`;
+/**
+ * Human-facing reference. Callers can request fewer random bytes for a code
+ * that has to fit comfortably on a mobile dashboard. Eight bytes still gives
+ * 64 bits of unpredictability (over 18 quintillion possible values).
+ */
+export const randomCode = (prefix: string, bytes = 16) =>
+  `${prefix}-${randomBytes(bytes).toString('hex').toUpperCase()}`;
 
 /** Normalise a phone to digits only, keeping country code. */
 export const normalizePhone = (p: string) => p.replace(/[^\d]/g, '');

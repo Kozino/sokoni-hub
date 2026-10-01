@@ -6,7 +6,7 @@ import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   BarChart, Bar, PieChart, Pie, Cell, Legend,
 } from 'recharts';
-import { money, num, dateTime } from '../../lib/format';
+import { money, num, dateTime, compactReference } from '../../lib/format';
 import { Empty, Spinner, Stat, StatusBadge } from '../../components/ui';
 import { exportExcel, exportPdf } from '../../lib/exporting';
 
@@ -186,7 +186,12 @@ export default function VendorOverview() {
               {d.recentOrders.length === 0 && <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--muted)' }}>No orders yet</td></tr>}
               {d.recentOrders.map((o: any) => (
                 <tr key={o.id}>
-                  <td className="td-mono">{o.code}</td>
+                  <td>
+                    <span className="td-mono order-code" title={o.code} aria-label={`Order code ${o.code}`}>
+                      <span className="order-code-full" aria-hidden="true">{o.code}</span>
+                      <span className="order-code-compact" aria-hidden="true">{compactReference(o.code)}</span>
+                    </span>
+                  </td>
                   <td>{o.contact_name}</td>
                   <td>{o.city}</td>
                   <td style={{ textTransform: 'capitalize', fontSize: '.8rem' }}>{o.payment_method.replace(/_/g, ' ')}</td>

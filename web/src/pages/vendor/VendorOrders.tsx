@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '../../lib/api';
-import { money, dateTime, waLink } from '../../lib/format';
+import { money, dateTime, waLink, compactReference } from '../../lib/format';
 import { StatusBadge, Tabs, Modal } from '../../components/ui';
 import { DataTable, DTColumn } from '../../components/DataTable';
 import { useToast } from '../../state/ToastContext';
@@ -43,7 +43,12 @@ export default function VendorOrders() {
   };
 
   const columns: DTColumn<Order>[] = [
-    { key: 'code', header: 'Code', alwaysVisible: true, sortAccessor: (o) => o.code, render: (o) => <span className="td-mono td-strong">{o.code}</span> },
+    { key: 'code', header: 'Code', alwaysVisible: true, sortAccessor: (o) => o.code, render: (o) => (
+      <span className="td-mono td-strong order-code" title={o.code} aria-label={`Order code ${o.code}`}>
+        <span className="order-code-full" aria-hidden="true">{o.code}</span>
+        <span className="order-code-compact" aria-hidden="true">{compactReference(o.code)}</span>
+      </span>
+    ) },
     { key: 'buyer', header: 'Buyer', sortAccessor: (o) => o.contact_name, render: (o) => <>{o.contact_name}<div style={{ fontSize: '.76rem', color: 'var(--text-muted)' }}>{o.contact_phone}</div></> },
     { key: 'items', header: 'Items', align: 'right', sortAccessor: (o) => o.items?.length ?? 0, render: (o) => o.items?.length ?? 0 },
     { key: 'total', header: 'Total', align: 'right', sortAccessor: (o) => Number(o.total), render: (o) => <span className="td-strong">{money(o.total, o.currency)}</span> },

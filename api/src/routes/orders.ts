@@ -163,7 +163,9 @@ orderRouter.post('/checkout', optionalAuth, async (req, res, next) => {
       const contactEmail = b.contact_email || accountEmail || null;
       const out: any[] = [];
       for (const { quote, lines, vItems } of priced) {
-        const code = randomCode('ORD');
+        // Short enough to read in a mobile dashboard, while 64 random bits
+        // still make a collision extraordinarily unlikely for order volume.
+        const code = randomCode('ORD', 8);
         // Which channel actually brought this buyer to this vendor. A shared
         // link/QR only counts for the vendor it names — every other vendor in
         // a multi-vendor cart still gets 'marketplace'.

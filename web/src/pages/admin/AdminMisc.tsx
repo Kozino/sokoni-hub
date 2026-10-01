@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, ApiError, qs } from '../../lib/api';
-import { money, date, dateTime, timeAgo } from '../../lib/format';
+import { money, date, dateTime, timeAgo, compactReference } from '../../lib/format';
 import { Alert, Empty, Field, Modal, StatusBadge, Tabs, useConfirm } from '../../components/ui';
 import { DataTable, DTColumn } from '../../components/DataTable';
 import { useToast } from '../../state/ToastContext';
@@ -323,7 +323,12 @@ export function AdminOrders() {
   useEffect(load, [status]);
 
   const columns: DTColumn<Order>[] = [
-    { key: 'code', header: 'Code', alwaysVisible: true, render: (o) => <span className="td-mono td-strong">{o.code}</span> },
+    { key: 'code', header: 'Code', alwaysVisible: true, render: (o) => (
+      <span className="td-mono td-strong order-code" title={o.code} aria-label={`Order code ${o.code}`}>
+        <span className="order-code-full" aria-hidden="true">{o.code}</span>
+        <span className="order-code-compact" aria-hidden="true">{compactReference(o.code)}</span>
+      </span>
+    ) },
     { key: 'store', header: 'Store', sortAccessor: (o) => o.business_name || '', render: (o) => o.business_name },
     { key: 'buyer', header: 'Buyer', render: (o) => <>{o.contact_name}<div style={{ fontSize: '.75rem', color: 'var(--text-muted)' }}>{o.contact_phone}</div></> },
     { key: 'city', header: 'City', defaultHidden: true, sortAccessor: (o) => o.city, render: (o) => o.city },

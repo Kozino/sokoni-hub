@@ -31,6 +31,14 @@ export const waLink = (phone: string, text: string) =>
 export const titleCase = (s: string) => s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
 /**
+ * Preserve an identifier's recognisable beginning and ending when horizontal
+ * space is tight. The full reference remains available in the element title
+ * and accessibility label; this is presentation-only and never changes data.
+ */
+export const compactReference = (value: string, start = 8, end = 5) =>
+  value.length > start + end + 1 ? `${value.slice(0, start)}…${value.slice(-end)}` : value;
+
+/**
  * `t` is optional so this stays a plain helper usable outside React. Callers
  * inside a component pass the translator; anything else falls back to English
  * rather than forcing every call site through a hook.
