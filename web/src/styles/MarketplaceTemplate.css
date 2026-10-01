@@ -1,0 +1,234 @@
+/*
+ * Consumer marketplace template
+ * --------------------------------------------------------------------------
+ * An original Sokoni Hub implementation inspired by a clean, image-led
+ * grocery-marketplace layout: notice bar, compact commerce header, generous
+ * product photography, category browsing, campaign-like shelves and clear
+ * store cards. It is deliberately scoped to .marketplace-app, leaving the
+ * vendor and administrator dashboards unchanged.
+ */
+
+.marketplace-app {
+  --market-teal: #006c56;
+  --market-teal-deep: #004e40;
+  --market-mint: #edf7f3;
+  --market-orange: #ff7a00;
+  --market-orange-deep: #d96300;
+  --market-cream: #fffaf4;
+  --market-ink: #15231e;
+  --market-copy: #52635d;
+  --market-line: #dfe9e4;
+  --accent: var(--market-teal);
+  --accent-hover: var(--market-teal-deep);
+  --accent-active: #003f33;
+  --accent-soft: #e5f3ed;
+  --accent-softer: #f3faf7;
+  --accent-line: #b7d9cc;
+  --accent-text: var(--market-teal-deep);
+  --display: 'Inter', var(--sans);
+  --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  background: #fff;
+}
+
+.marketplace-app .page { background: #fff; padding-top: 38px; }
+.marketplace-app .page > .container > h1,
+.marketplace-app .page > .container > h2 {
+  color: var(--market-ink);
+  font-weight: 750;
+  letter-spacing: -.04em;
+}
+.marketplace-app .page > .container > h1 + p { color: var(--market-copy) !important; }
+
+/* --------------------------------------------------------------------------
+   Announcement + commerce navigation
+   -------------------------------------------------------------------------- */
+.market-announcement {
+  background: var(--market-teal-deep);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: .015em;
+}
+.market-announcement .container {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.market-announcement strong { color: #ffb15f; font-weight: 800; }
+
+.marketplace-app .header {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  background: rgba(255,255,255,.96);
+  border-bottom: 1px solid var(--market-line);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.marketplace-app .header-inner { min-height: 76px; gap: 30px; }
+.marketplace-app .brand { color: var(--market-ink); min-width: max-content; }
+.marketplace-app .brand img { width: 39px; height: 39px; }
+.marketplace-app .brand > span { font-size: 18px; font-weight: 800; letter-spacing: -.045em; }
+.marketplace-app .brand small { color: #728078; font-size: 10px; font-weight: 600; letter-spacing: .02em; }
+.marketplace-app .nav { gap: 21px; }
+.marketplace-app .nav > a:not(.btn) { color: #40534c; font-size: 13px; font-weight: 650; }
+.marketplace-app .nav > a:not(.btn):hover,
+.marketplace-app .nav > a.active { color: var(--market-teal); }
+.marketplace-app .nav > a.active::after { background: var(--market-orange); }
+.marketplace-app .nav .btn-primary { background: var(--market-teal); border-color: var(--market-teal); color: #fff; }
+.marketplace-app .nav .btn-primary:hover { background: var(--market-teal-deep); }
+.marketplace-app .cart-btn { color: var(--market-teal-deep); background: var(--market-mint); border: 1px solid #d4e9e0; }
+.marketplace-app .cart-btn:hover { background: #dcefe7; color: var(--market-teal-deep); }
+.marketplace-app .cart-badge { background: var(--market-orange); color: #fff; }
+
+/* --------------------------------------------------------------------------
+   Landing: bright commerce shelves with the Sokoni teal + orange system
+   -------------------------------------------------------------------------- */
+.marketplace-app .lp { background: #fff; }
+.marketplace-app .lp-hero { background: var(--market-teal-deep); }
+.marketplace-app .lp-hero::before {
+  background:
+    linear-gradient(90deg, rgba(0,78,64,.95) 0%, rgba(0,92,73,.88) 42%, rgba(0,92,73,.42) 78%, rgba(0,78,64,.20) 100%),
+    linear-gradient(180deg, rgba(0,45,36,.08), rgba(0,45,36,.56));
+}
+.marketplace-app .lp-hero-inner { min-height: 478px; }
+.marketplace-app .lp-hero h1 {
+  font-family: var(--display);
+  font-size: clamp(2.25rem, 4.8vw, 4.15rem);
+  font-weight: 800;
+  letter-spacing: -.065em;
+  max-width: 13ch;
+}
+.marketplace-app .lp-hero p.lede { font-size: 1.04rem; max-width: 50ch; }
+.marketplace-app .lp-searchbar {
+  border-radius: 12px;
+  padding: 7px;
+  box-shadow: 0 18px 42px rgba(0,33,26,.30);
+}
+.marketplace-app .lp-searchbar .btn-primary {
+  background: var(--market-orange);
+  border-color: var(--market-orange);
+  border-radius: 8px;
+  font-weight: 750;
+}
+.marketplace-app .lp-searchbar .btn-primary:hover { background: var(--market-orange-deep); }
+.marketplace-app .lp-searchbar:focus-within { box-shadow: 0 0 0 3px rgba(255,122,0,.35),0 18px 42px rgba(0,33,26,.30); }
+.marketplace-app .lp-chip:hover { border-color: #ffbd78; color: #fff; }
+.marketplace-app .lp-trust-row { border-radius: 12px; border-color: var(--market-line); box-shadow: 0 14px 38px rgba(12,70,53,.10); }
+.marketplace-app .lp-trust-row .ic { border-radius: 50%; background: #edf8f3; color: var(--market-teal); }
+.marketplace-app .lp-trust-row li:nth-child(even) .ic { background: #fff0e2; color: var(--market-orange-deep); }
+.marketplace-app .lp-shelf-head { border-bottom: 1px solid var(--market-line); padding-bottom: 14px; margin-bottom: 22px; }
+.marketplace-app .lp-shelf-head h2,
+.marketplace-app .lp-block h2 { color: var(--market-ink); font-size: clamp(1.35rem,2vw,1.75rem); font-weight: 800; letter-spacing: -.045em; }
+.marketplace-app .lp-viewall { color: var(--market-teal); font-weight: 750; }
+.marketplace-app .lp-cat { font-size: 12px; color: var(--market-ink); font-weight: 700; }
+.marketplace-app .lp-cat-ico { border-radius: 18px; border: 0; box-shadow: none; background: var(--market-mint); }
+.marketplace-app .lp-cat:hover .lp-cat-ico { box-shadow: 0 0 0 2px var(--market-orange); transform: translateY(-3px); }
+.marketplace-app .lp-shelf.is-tint { background: #f5fbf8; }
+.marketplace-app .lp-sell { border-radius: 18px; background: linear-gradient(120deg, #004e40 0%, #08735c 100%); }
+.marketplace-app .lp-sell .btn-primary { background: var(--market-orange); border-color: var(--market-orange); }
+
+/* Product cards are intentionally product-first: image, price, title, store. */
+.marketplace-app .lcard {
+  border: 1px solid #e5ece8;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: none;
+  overflow: hidden;
+}
+.marketplace-app .lcard:hover { border-color: #c5ddd2; box-shadow: 0 12px 28px rgba(18,77,59,.12); transform: translateY(-3px); }
+.marketplace-app .lcard-img { background: #f8faf8; aspect-ratio: 1 / .93; }
+.marketplace-app .lcard-img img { transition: transform 250ms ease; }
+.marketplace-app .lcard:hover .lcard-img img { transform: scale(1.035); }
+.marketplace-app .lcard-kind { inset: 10px auto auto 10px; }
+.marketplace-app .lcard-kind .badge { background: rgba(0,92,73,.90); border: 0; color: #fff; border-radius: 999px; font-size: 10px; letter-spacing: .04em; }
+.marketplace-app .lcard-body { padding: 13px 14px 11px; }
+.marketplace-app .lcard-title { font-size: 14px; line-height: 1.38; font-weight: 700; color: var(--market-ink); }
+.marketplace-app .lcard-meta { color: #819088; font-size: 11px; }
+.marketplace-app .lcard-price { color: var(--market-teal-deep); font-size: 16px; font-weight: 800; }
+.marketplace-app .lcard-foot { border-top: 0; color: #718178; font-size: 11px; padding-top: 4px; margin-top: 1px; }
+.marketplace-app .lcard-actions { padding: 0 13px 13px; }
+.marketplace-app .lcard-cart { background: #edf8f3; border: 0; border-radius: 8px; color: var(--market-teal-deep); min-height: 38px; font-weight: 750; }
+.marketplace-app .lcard-cart:hover { background: var(--market-teal); color: #fff; }
+.marketplace-app .lcard-cart.added { background: var(--market-teal); color: #fff; }
+
+/* --------------------------------------------------------------------------
+   Public catalog, store, detail, cart and checkout surfaces
+   -------------------------------------------------------------------------- */
+.marketplace-app .browse-page > h1 { margin-bottom: 4px; }
+.marketplace-app .fp,
+.marketplace-app .filters,
+.marketplace-app .card {
+  border-color: var(--market-line);
+  box-shadow: none;
+}
+.marketplace-app .fp,
+.marketplace-app .filters {
+  background: #f7fbf9;
+  border-radius: 12px;
+}
+.marketplace-app .fp-top input,
+.marketplace-app .filters input,
+.marketplace-app .filters select,
+.marketplace-app .fp select,
+.marketplace-app .fp input {
+  background: #fff;
+  border-color: #d4e3dc;
+}
+.marketplace-app .btn-primary { background: var(--market-teal); border-color: var(--market-teal); }
+.marketplace-app .btn-primary:hover { background: var(--market-teal-deep); border-color: var(--market-teal-deep); }
+.marketplace-app .btn-outline { border-color: #bdd8cd; color: var(--market-teal-deep); background: #fff; }
+.marketplace-app .btn-outline:hover { border-color: var(--market-teal); color: var(--market-teal-deep); background: #eff8f4; }
+.marketplace-app .btn-wa { background: #1d9a61; border-color: #1d9a61; }
+.marketplace-app .badge-terra { background: #e4f3ed; color: var(--market-teal-deep); border-color: #b8d9cc; }
+.marketplace-app .card-hover:hover { border-color: #bbdacd; box-shadow: 0 12px 28px rgba(18,77,59,.12); }
+
+.marketplace-app .vc { border-radius: 14px; overflow: hidden; }
+.marketplace-app .vc .avatar { background: var(--market-mint); color: var(--market-teal); }
+.marketplace-app .store-page > .card:first-child,
+.marketplace-app .listing-detail-page .ld-buybox > .card:first-child {
+  border-radius: 16px;
+  border-color: var(--market-line);
+}
+.marketplace-app .ld-main-img { background: #f7faf8; }
+.marketplace-app .ld-tabs { border-radius: 14px; }
+.marketplace-app .tabs { border-bottom-color: var(--market-line); }
+.marketplace-app .tabs button[aria-selected='true'] { color: var(--market-teal-deep); border-bottom-color: var(--market-orange); }
+.marketplace-app .cart-layout .card,
+.marketplace-app .checkout-layout .card,
+.marketplace-app .container-narrow .card { border-radius: 14px; }
+.marketplace-app .qty button:hover { background: var(--market-mint); color: var(--market-teal-deep); }
+
+/* Footer takes the broad, calm marketplace-directory role instead of a dashboard footer. */
+.marketplace-app .footer { background: #f2f8f5; border-top: 1px solid var(--market-line); color: #52635d; }
+.marketplace-app .footer h4 { color: var(--market-ink); }
+.marketplace-app .footer a { color: #4c6258; }
+.marketplace-app .footer a:hover { color: var(--market-teal); }
+.marketplace-app .footer-bottom { border-top-color: #d7e6df; }
+
+@media (max-width: 768px) {
+  .market-announcement .container { min-height: 30px; font-size: 10px; padding-inline: 14px; }
+  .marketplace-app .header-inner { min-height: 62px; }
+  .marketplace-app .brand img { width: 34px; height: 34px; }
+  .marketplace-app .brand > span { font-size: 16px; }
+  .marketplace-app .page { padding-top: 24px; }
+  .marketplace-app .lp-hero-inner { min-height: 440px; }
+  .marketplace-app .lp-hero h1 { font-size: clamp(2.2rem, 11vw, 3rem); max-width: 12ch; }
+  .marketplace-app .lcard { border-radius: 10px; }
+}
+
+@media (max-width: 640px) {
+  .marketplace-app .lp-hero::before {
+    background: linear-gradient(180deg, rgba(0,78,64,.84) 0%, rgba(0,78,64,.76) 58%, rgba(0,62,51,.91) 100%);
+  }
+  .marketplace-app .lp-hero-inner { min-height: 480px; }
+  .marketplace-app .lp-searchbar { border-radius: 10px; }
+  .marketplace-app .lp-trust-row { border-radius: 10px; }
+  .marketplace-app .lp-cat-ico { border-radius: 14px; }
+  .marketplace-app .lcard-body { padding: 10px 10px 8px; }
+  .marketplace-app .lcard-actions { padding: 0 10px 10px; }
+  .marketplace-app .lcard-title { font-size: 12px; }
+  .marketplace-app .lcard-price { font-size: 14px; }
+}

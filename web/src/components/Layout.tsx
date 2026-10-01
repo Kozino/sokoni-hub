@@ -5,6 +5,7 @@ import { useCart } from '../state/CartContext';
 import { ThemeToggle } from '../state/ThemeContext';
 import LanguageSwitcher from './LanguageSwitcher';
 import { useT } from '../i18n';
+import '../styles/MarketplaceTemplate.css';
 
 const initialsOf = (name?: string) =>
   (name || '?').split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
@@ -154,8 +155,12 @@ export function Header() {
   const browseActive = onBrowse && !servicesActive;
 
   return (
-    <header className="header">
-      <div className="container header-inner">
+    <>
+      <div className="market-announcement" role="status">
+        <div className="container"><strong>SHOP LOCAL.</strong>&nbsp; Discover verified foodstuff sellers and service providers across Qatar.</div>
+      </div>
+      <header className="header">
+        <div className="container header-inner">
         <Link to="/" className="brand" onClick={close}>
           <img src="/logo.png" alt="Sokoni Hub" />
           <span>Sokoni Hub<small>Sell beyond status</small></span>
@@ -198,9 +203,10 @@ export function Header() {
           <ThemeToggle />
 
           {user && (isPhone ? <MobileAccount onNavigate={close} /> : <ProfileMenu onNavigate={close} />)}
-        </nav>
-      </div>
-    </header>
+          </nav>
+        </div>
+      </header>
+    </>
   );
 }
 
@@ -276,7 +282,7 @@ export default function Layout() {
   const isUserDashboard = pathname === '/account';
 
   return (
-    <div className="app">
+    <div className="app marketplace-app">
       <Header />
       <main className="page"><Outlet /></main>
       {!isUserDashboard && <Footer />}
@@ -287,7 +293,7 @@ export default function Layout() {
 /** Layout without the page padding (for the hero landing page). */
 export function BareLayout() {
   return (
-    <div className="app">
+    <div className="app marketplace-app">
       <Header />
       <main style={{ flex: 1 }}><Outlet /></main>
       <Footer />

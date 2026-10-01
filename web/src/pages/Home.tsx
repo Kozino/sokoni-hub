@@ -141,6 +141,7 @@ export default function Home() {
              fetchPriority="high" decoding="async" />
         <div className="container lp-hero-inner">
           <div className="lp-hero-copy">
+            <div className="lp-hero-tag"><span className="dot" />Qatar's marketplace for foodstuff &amp; services</div>
             <h1>{t('home.hero.title')} {t('home.hero.titleAccent')}</h1>
             <p className="lede">{t('home.hero.lede')}</p>
 
