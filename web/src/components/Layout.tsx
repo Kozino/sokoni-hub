@@ -157,9 +157,7 @@ export function Header() {
 
   return (
     <>
-      <div className="market-announcement" role="status">
-        <div className="container"><strong>SHOP LOCAL.</strong>&nbsp; Discover verified foodstuff sellers and service providers across Qatar.</div>
-      </div>
+     
       <header className="header">
         <div className="container header-inner">
         <Link to="/" className="brand" onClick={close}>
