@@ -1,62 +1,93 @@
+
 import type { Config, Context } from 'https://edge.netlify.com';
 
 /**
- * Per-page social previews for a JavaScript SPA.
+ * Per-page SEO + social previews for Sokoni Hub.
  *
- * WhatsApp, Facebook, X, LinkedIn, Slack and Telegram scrapers do not execute
- * JavaScript. For a Vite build that means every URL on the site — every
- * listing, every store — shares the one set of tags in index.html, so a vendor
- * sharing a link to their product in a WhatsApp group gets a generic card, or
- * with no tags at all, a naked blue URL.
+ * This edge function gives each listing and store its own:
  *
- * Setting <head> from React does not fix it, because the scraper never runs
- * React. The tags have to exist in the HTML that comes off the wire, which
- * means doing it at the edge.
+ * - <title>
+ * - meta description
+ * - canonical URL
+ * - Open Graph metadata
+ * - Twitter metadata
+ * - JSON-LD structured data
  *
- * Deliberately narrow:
- *
- *   - Only crawlers are rewritten. A real visitor gets the untouched SPA and
- *     pays nothing for this, and there is no risk of showing humans a
- *     server-rendered page that disagrees with the client.
- *   - Any failure — no API URL, network error, unknown id — falls through to
- *     the original response. A broken preview is a bad day; a broken product
- *     page is a worse one.
+ * This is important because Sokoni Hub is a JavaScript SPA.
+ * Social crawlers and some search crawlers need the metadata in the
+ * HTML response itself rather than waiting for React to execute.
  */
 
-export const BOTS = /facebookexternalhit|WhatsApp|Twitterbot|LinkedInBot|Slackbot|TelegramBot|Discordbot|Googlebot|bingbot|Applebot|redditbot|Pinterest|SkypeUriPreview|vkShare|W3C_Validator/i;
+export const BOTS =
+  /facebookexternalhit|WhatsApp|Twitterbot|LinkedInBot|Slackbot|TelegramBot|Discordbot|Googlebot|bingbot|Applebot|redditbot|Pinterest|SkypeUriPreview|vkShare|W3C_Validator/i;
 
-const SITE = 'https://sokonihub.com';
+/**
+ * IMPORTANT:
+ * Sokoni Hub's live/public domain.
+ */
+const SITE = 'https://sokonihub.qa';
 
-/** Escapes a value for use inside a double-quoted HTML attribute. */
+/**
+ * Escapes a value for use inside a double-quoted HTML attribute.
+ */
 const attr = (s: string) =>
   String(s ?? '')
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 
-/** Collapses a description to something a preview card can actually show. */
+/**
+ * Collapses a description to something search engines and preview cards
+ * can actually display.
+ */
 const clamp = (s: string | null | undefined, n = 200) => {
   const t = String(s ?? '').replace(/\s+/g, ' ').trim();
   return t.length <= n ? t : `${t.slice(0, n - 1).trimEnd()}…`;
 };
 
 export interface Meta {
-  title: string; description: string; image: string; url: string;
-  type: 'product' | 'website'; jsonLd?: unknown;
+  title: string;
+  description: string;
+  image: string;
+  url: string;
+  type: 'product' | 'website';
+  jsonLd?: unknown;
 }
 
 /**
- * Replaces the tags index.html already ships rather than appending new ones.
- * Appending leaves two og:title elements and scrapers differ on which wins.
+ * Replaces metadata already present in index.html.
+ *
+ * We replace rather than append so crawlers don't have to choose between
+ * multiple og:title / description / canonical tags.
  */
 export function inject(html: string, m: Meta): string {
   const swap = (pattern: RegExp, replacement: string) => {
     html = html.replace(pattern, replacement);
   };
 
-  swap(/<title>[\s\S]*?<\/title>/, `<title>${attr(m.title)}</title>`);
-  swap(/<meta name="description"[^>]*>/, `<meta name="description" content="${attr(m.description)}" />`);
-  swap(/<link rel="canonical"[^>]*>/, `<link rel="canonical" href="${attr(m.url)}" />`);
+  /*
+   * Basic SEO
+   */
+  swap(
+    /<title>[\s\S]*?<\/title>/,
+    `<title>${attr(m.title)}</title>`
+  );
 
+  swap(
+    /<meta name="description"[^>]*>/,
+    `<meta name="description" content="${attr(m.description)}" />`
+  );
+
+  swap(
+    /<link rel="canonical"[^>]*>/,
+    `<link rel="canonical" href="${attr(m.url)}" />`
+  );
+
+  /*
+   * Open Graph
+   */
   for (const [prop, val] of [
     ['og:type', m.type === 'product' ? 'product' : 'website'],
     ['og:url', m.url],
@@ -64,143 +95,343 @@ export function inject(html: string, m: Meta): string {
     ['og:description', m.description],
     ['og:image', m.image],
   ] as const) {
-    swap(new RegExp(`<meta property="${prop}"[^>]*>`), `<meta property="${prop}" content="${attr(val)}" />`);
+    swap(
+      new RegExp(`<meta property="${prop}"[^>]*>`),
+      `<meta property="${prop}" content="${attr(val)}" />`
+    );
   }
-  // A listing photo is not 1200x630; stating the wrong size is worse than
-  // stating none, so the dimension hints are dropped for those.
+
+  /*
+   * Listing images are usually not 1200x630.
+   * Only keep the dimension hints for the default OG image.
+   */
   if (m.image !== `${SITE}/og-image.png`) {
     swap(/<meta property="og:image:width"[^>]*>/, '');
     swap(/<meta property="og:image:height"[^>]*>/, '');
   }
+
+  /*
+   * Twitter
+   */
   for (const [name, val] of [
     ['twitter:title', m.title],
     ['twitter:description', m.description],
     ['twitter:image', m.image],
   ] as const) {
-    swap(new RegExp(`<meta name="${name}"[^>]*>`), `<meta name="${name}" content="${attr(val)}" />`);
+    swap(
+      new RegExp(`<meta name="${name}"[^>]*>`),
+      `<meta name="${name}" content="${attr(val)}" />`
+    );
   }
 
+  /*
+   * JSON-LD structured data
+   */
   if (m.jsonLd) {
-    // JSON-LD is embedded in a script element. JSON.stringify does not escape
-    // '<', so a vendor-controlled value containing '</script>' could terminate
-    // this block and inject markup into bot responses. Escaping '<' preserves
-    // the JSON value while preventing a literal closing script tag.
+    /*
+     * JSON.stringify does not escape '<'.
+     *
+     * Escaping it prevents a vendor-controlled value such as
+     * </script> from terminating the script block.
+     */
     const jsonLd = JSON.stringify(m.jsonLd).replace(/</g, '\\u003c');
-    html = html.replace('</head>',
-      `<script type="application/ld+json">${jsonLd}</script></head>`);
+
+    html = html.replace(
+      '</head>',
+      `<script type="application/ld+json">${jsonLd}</script></head>`
+    );
   }
+
   return html;
 }
 
 export default async (request: Request, context: Context) => {
   const ua = request.headers.get('user-agent') ?? '';
-  if (!BOTS.test(ua)) return;                       // humans: untouched SPA
 
+  /*
+   * Humans receive the normal React SPA.
+   * Crawlers receive the SEO-enhanced HTML.
+   */
+  if (!BOTS.test(ua)) return;
+
+  /*
+   * Your backend API URL should be configured in Netlify environment
+   * variables as API_URL.
+   */
   const api = Netlify.env.get('API_URL');
-  if (!api) return;                                  // not configured: no-op
+
+  if (!api) return;
 
   const url = new URL(request.url);
+
+  /*
+   * Supported SEO routes:
+   *
+   * /listing/:id
+   * /store/:slug
+   */
   const listing = url.pathname.match(/^\/listing\/([^/]+)$/);
   const store = url.pathname.match(/^\/store\/([^/]+)$/);
+
   if (!listing && !store) return;
 
   let meta: Meta | null = null;
 
   try {
-    // A scraper that waits is a scraper that gives up and shows nothing.
+    /*
+     * Do not allow the crawler to wait indefinitely for the API.
+     */
     const signal = AbortSignal.timeout(2500);
 
+    /*
+     * ============================================================
+     * LISTING / PRODUCT SEO
+     * ============================================================
+     */
     if (listing) {
-      const r = await fetch(`${api}/api/listings/${listing[1]}`, { signal });
+      const listingId = decodeURIComponent(listing[1]);
+
+      const r = await fetch(
+        `${api}/api/listings/${encodeURIComponent(listingId)}`,
+        { signal }
+      );
+
       if (!r.ok) return;
-      const l = (await r.json()).listing;
+
+      const data = await r.json();
+      const l = data.listing;
+
       if (!l) return;
 
       const price = `${l.currency ?? 'QAR'} ${Number(l.price).toFixed(2)}`;
-      const img = Array.isArray(l.images) && l.images[0] ? l.images[0] : `${SITE}/og-image.png`;
-      meta = {
-        title: `${l.title} — ${price} · ${l.business_name ?? 'Sokoni Hub'}`,
-        description: clamp(l.description) ||
-          `${l.title} from ${l.business_name ?? 'a verified store'} in ${l.vendor_city ?? 'Qatar'}.`,
-        image: img,
-        url: `${SITE}/listing/${l.id}`,
-        type: 'product',
-        jsonLd: {
-          '@context': 'https://schema.org',
-          '@type': l.kind === 'service' ? 'Service' : 'Product',
-          name: l.title,
-          description: clamp(l.description, 400) || undefined,
-          image: img,
-          ...(l.kind === 'service' ? {} : {
-            offers: {
-              '@type': 'Offer',
-              price: Number(l.price),
-              priceCurrency: l.currency ?? 'QAR',
-              availability: (l.quantity ?? 0) > 0
-                ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
-              url: `${SITE}/listing/${l.id}`,
-            },
-          }),
-          // Only emitted when real: fabricating an aggregateRating is both a
-          // Google penalty and a lie to the buyer.
-          ...(Number(l.rating_count) > 0 ? {
-            aggregateRating: {
-              '@type': 'AggregateRating',
-              ratingValue: Number(l.rating_avg),
-              reviewCount: Number(l.rating_count),
-            },
-          } : {}),
-          brand: { '@type': 'Brand', name: l.business_name ?? 'Sokoni Hub' },
-        },
-      };
-    } else if (store) {
-      const r = await fetch(`${api}/api/vendors/${store[1]}`, { signal });
-      if (!r.ok) return;
-      const v = (await r.json()).vendor;
-      if (!v) return;
+
+      const img =
+        Array.isArray(l.images) && l.images[0]
+          ? l.images[0]
+          : `${SITE}/og-image.png`;
+
+      const listingUrl = `${SITE}/listing/${encodeURIComponent(l.id)}`;
+
+      const title =
+        `${l.title} — ${price} · ${l.business_name ?? 'Sokoni Hub'}`;
+
+      const description =
+        clamp(l.description) ||
+        `${l.title} from ${
+          l.business_name ?? 'a verified store'
+        } in ${l.vendor_city ?? 'Qatar'}.`;
 
       meta = {
-        title: `${v.business_name} — verified store in ${v.city ?? 'Qatar'} · Sokoni Hub`,
-        description: clamp(v.description) ||
-          `${v.business_name} sells on Sokoni Hub. Verified store in ${v.city ?? 'Qatar'}.`,
-        image: v.logo_url || `${SITE}/og-image.png`,
-        url: `${SITE}/store/${v.slug}`,
-        type: 'website',
+        title,
+        description,
+        image: img,
+        url: listingUrl,
+        type: 'product',
+
         jsonLd: {
           '@context': 'https://schema.org',
+
+          '@type':
+            l.kind === 'service'
+              ? 'Service'
+              : 'Product',
+
+          name: l.title,
+
+          description:
+            clamp(l.description, 400) || undefined,
+
+          image: img,
+
+          url: listingUrl,
+
+          ...(l.kind === 'service'
+            ? {}
+            : {
+                offers: {
+                  '@type': 'Offer',
+
+                  price: Number(l.price),
+
+                  priceCurrency:
+                    l.currency ?? 'QAR',
+
+                  availability:
+                    (l.quantity ?? 0) > 0
+                      ? 'https://schema.org/InStock'
+                      : 'https://schema.org/OutOfStock',
+
+                  url: listingUrl,
+                },
+              }),
+
+          /*
+           * Only include ratings when the database actually has reviews.
+           */
+          ...(Number(l.rating_count) > 0
+            ? {
+                aggregateRating: {
+                  '@type': 'AggregateRating',
+
+                  ratingValue:
+                    Number(l.rating_avg),
+
+                  reviewCount:
+                    Number(l.rating_count),
+                },
+              }
+            : {}),
+
+          brand: {
+            '@type': 'Brand',
+
+            name:
+              l.business_name ??
+              'Sokoni Hub',
+          },
+        },
+      };
+    }
+
+    /*
+     * ============================================================
+     * STORE SEO
+     * ============================================================
+     */
+    else if (store) {
+      const storeSlug = decodeURIComponent(store[1]);
+
+      const r = await fetch(
+        `${api}/api/vendors/${encodeURIComponent(storeSlug)}`,
+        { signal }
+      );
+
+      if (!r.ok) return;
+
+      const data = await r.json();
+      const v = data.vendor;
+
+      if (!v) return;
+
+      const storeUrl =
+        `${SITE}/store/${encodeURIComponent(v.slug ?? storeSlug)}`;
+
+      const title =
+        `${v.business_name} — Verified Store in ${
+          v.city ?? 'Qatar'
+        } | Sokoni Hub`;
+
+      const description =
+        clamp(v.description) ||
+        `Discover ${v.business_name} on Sokoni Hub. Browse products and services from this verified store in ${
+          v.city ?? 'Qatar'
+        }.`;
+
+      const image =
+        v.logo_url ||
+        `${SITE}/og-image.png`;
+
+      meta = {
+        title,
+
+        description,
+
+        image,
+
+        url: storeUrl,
+
+        type: 'website',
+
+        jsonLd: {
+          '@context': 'https://schema.org',
+
           '@type': 'Store',
+
+          '@id': `${storeUrl}#store`,
+
           name: v.business_name,
-          description: clamp(v.description, 400) || undefined,
-          image: v.logo_url || undefined,
-          address: { '@type': 'PostalAddress', addressLocality: v.city, addressCountry: v.country },
-          ...(Number(v.rating_count) > 0 ? {
-            aggregateRating: {
-              '@type': 'AggregateRating',
-              ratingValue: Number(v.rating_avg),
-              reviewCount: Number(v.rating_count),
-            },
-          } : {}),
+
+          description:
+            clamp(v.description, 400) ||
+            undefined,
+
+          image,
+
+          url: storeUrl,
+
+          address: {
+            '@type': 'PostalAddress',
+
+            addressLocality:
+              v.city || undefined,
+
+            addressCountry:
+              v.country || 'Qatar',
+          },
+
+          ...(Number(v.rating_count) > 0
+            ? {
+                aggregateRating: {
+                  '@type': 'AggregateRating',
+
+                  ratingValue:
+                    Number(v.rating_avg),
+
+                  reviewCount:
+                    Number(v.rating_count),
+                },
+              }
+            : {}),
         },
       };
     }
   } catch {
-    return;                                          // any failure: pass through
+    /*
+     * If the API fails, let the normal SPA response through.
+     * Never break the actual website just because SEO metadata failed.
+     */
+    return;
   }
 
   if (!meta) return;
 
+  /*
+   * Get the normal Vite/React HTML from Netlify.
+   */
   const res = await context.next();
-  const type = res.headers.get('content-type') ?? '';
-  if (!type.includes('text/html')) return res;
 
-  const html = inject(await res.text(), meta);
+  const type =
+    res.headers.get('content-type') ?? '';
+
+  if (!type.includes('text/html')) {
+    return res;
+  }
+
+  /*
+   * Inject the store/listing-specific SEO into the HTML.
+   */
+  const html = inject(
+    await res.text(),
+    meta
+  );
+
   return new Response(html, {
     status: res.status,
-    headers: { ...Object.fromEntries(res.headers), 'content-type': 'text/html; charset=utf-8' },
+
+    headers: {
+      ...Object.fromEntries(res.headers),
+
+      'content-type':
+        'text/html; charset=utf-8',
+    },
   });
 };
 
 export const config: Config = {
-  path: ['/listing/*', '/store/*'],
+  path: [
+    '/listing/*',
+    '/store/*',
+  ],
+
   cache: 'manual',
 };
