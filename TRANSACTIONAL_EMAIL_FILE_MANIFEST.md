@@ -24,6 +24,7 @@ This is the small replacement-file package for the transactional-email release a
 - `web/src/pages/Checkout.tsx` — optional checkout recipient email field.
 - `web/src/components/BookServiceModal.tsx` — pre-fills optional booking email for signed-in users.
 - `web/src/pages/Legal.tsx` — updates the email-notification FAQ copy.
+- `tests/security.mjs` — updates the security integration test for mandatory email verification after registration.
 
 ## Receipt-email correction
 
