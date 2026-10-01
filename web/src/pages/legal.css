@@ -84,3 +84,19 @@
 @media(max-width:600px){
   .privacy-form>.btn,.privacy-form>button{justify-self:stretch}
 }
+
+/* Tables used in Privacy and Cookie policies */
+.legal-table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px;line-height:1.6}
+.legal-table th,.legal-table td{text-align:start;vertical-align:top;padding:10px 12px;border:1px solid var(--border,#d8e2dd)}
+.legal-table th{background:var(--surface-2,#eef5f1);font-weight:650}
+.legal-table code{font-size:12.5px;overflow-wrap:anywhere}
+@media(max-width:600px){.legal-table{display:block;overflow-x:auto}}
+.legal-content .muted{color:var(--text-muted,#6a7a73);font-size:13px}
+
+/* Support page contact cards */
+.support-contacts{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin:18px 0}
+.support-contact{display:flex;flex-direction:column;gap:4px;text-decoration:none;color:inherit}
+.support-contact strong{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--accent-text,#0b5d4a)}
+.support-contact span{font-size:18px;font-weight:700;color:var(--text,#15231e);overflow-wrap:anywhere}
+.support-contact small{color:var(--text-muted,#6a7a73)}
+.support-contact:hover{border-color:var(--accent,#006c56)}

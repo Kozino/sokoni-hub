@@ -18,7 +18,8 @@ import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import { Login, Register } from './pages/Auth';
 import VerifyEmail from './pages/VerifyEmail';
-import { Terms, Privacy, FAQ } from './pages/Legal';
+import { Terms, Privacy, FAQ, Cookies } from './pages/Legal';
+import CookieConsent from './components/CookieConsent';
 import DeleteAccount from './pages/DeleteAccount';
 import AdminDeletion from './pages/admin/AdminDeletion';
 import { Sell, Policy, Support, TrackOrder, Account, NotFound } from './pages/Static';
@@ -69,6 +70,7 @@ export default function App() {
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/faq" element={<FAQ />} />
+                <Route path="/cookies" element={<Cookies />} />
                 <Route path="/delete-account" element={<DeleteAccount />} />
                 <Route path="/browse" element={<Browse />} />
                 <Route path="/s/:slug" element={<ShortStoreRedirect />} />
@@ -123,6 +125,7 @@ export default function App() {
                 <Route path="*" element={<Navigate to="/admin" replace />} />
               </Route>
             </Routes>
+            <CookieConsent />
           </LocationProvider>
           </CartProvider>
         </AuthProvider>

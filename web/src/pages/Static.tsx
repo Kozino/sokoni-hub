@@ -1,3 +1,4 @@
+import { legalConfig as c } from '../legalConfig';
 import {qWhen} from '../lib/booking';
 import SessionManager from '../components/SessionManager';
 import { TrackBooking } from '../components/TrackBooking';
@@ -134,9 +135,13 @@ export function Support() {
   return (
     <div className="container container-narrow">
       <h1>Contact &amp; Support</h1>
-      <p>Contact us on <a href="https://wa.me/97466046431" target="_blank" rel="noopener noreferrer">WhatsApp +974 6604 6431</a>, or use the existing report form below. For privacy or account-access concerns, WhatsApp is the private contact channel; complaint details may be shared with the relevant vendor. Do not include passwords, PINs, MFA codes or unnecessary documents.</p>
-      <p><Link to="/privacy">Draft Privacy Policy</Link> · <Link to="/faq">FAQ</Link> · <Link to="/delete-account">Account deletion</Link></p>
-      <p style={{ color: 'var(--muted)' }}>Problem with an order, a store or a listing? Tell us — an admin reviews every report.</p>
+      <p>We are here {c.supportHours}, and we aim to reply within {c.responseTime}. Choose whichever is easiest for you.</p>
+      <div className="support-contacts">
+        <a className="card card-pad support-contact" href={`mailto:${c.supportEmail}`}><strong>Email</strong><span>{c.supportEmail}</span><small>Best for account, privacy and deletion requests</small></a>
+        <a className="card card-pad support-contact" href={`https://wa.me/${c.supportWhatsApp}`} target="_blank" rel="noopener noreferrer"><strong>WhatsApp</strong><span>{c.supportDisplay}</span><small>Quick help with orders and bookings</small></a>
+      </div>
+      <p style={{ color: 'var(--muted)' }}>Problem with an order, a store or a listing? Use the form below — an admin reviews every report and you get a reference code to track it. Complaint details may be shared with the vendor involved. Never send passwords, PINs, MFA codes or unnecessary documents.</p>
+      <p><Link to="/faq">FAQ</Link> · <Link to="/terms">Terms</Link> · <Link to="/privacy">Privacy Policy</Link> · <Link to="/cookies">Cookie Policy</Link> · <Link to="/delete-account">Account deletion</Link></p>
 
       <div className="card card-pad">
         {ref ? (

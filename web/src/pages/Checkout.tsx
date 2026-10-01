@@ -135,7 +135,7 @@ export default function Checkout() {
       <h1>Checkout</h1>
       <div className="checkout-layout">
         <form className="card card-pad" onSubmit={submit}>
-        <p className="muted">How we use these details: <a href="/privacy" target="_blank" rel="noopener noreferrer">draft Privacy Policy</a>. Do not submit personal ID documents or account credentials.</p>
+        <p className="muted">How we use these details: <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>. Do not submit personal ID documents or account credentials.</p>
           <Alert kind="error">{err}</Alert>
 
           <h3>How would you like to receive this?</h3>

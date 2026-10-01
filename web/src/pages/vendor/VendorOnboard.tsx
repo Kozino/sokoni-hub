@@ -61,7 +61,7 @@ export default function VendorOnboard() {
       </div>
 
       <form className="card card-pad" onSubmit={submit}>
-        <p className="muted">How we use these details: <a href="/privacy" target="_blank" rel="noopener noreferrer">draft Privacy Policy</a>. Do not submit personal ID documents or account credentials.</p>
+        <p className="muted">How we use these details: <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>. Do not submit personal ID documents or account credentials.</p>
         <Alert kind="error">{err}</Alert>
 
         {step === 1 && (

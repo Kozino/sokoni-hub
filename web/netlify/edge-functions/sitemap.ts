@@ -23,6 +23,10 @@ const STATIC: Array<[string, string, string]> = [
   ['/vendors', 'daily', '0.8'],
   ['/sell', 'monthly', '0.7'],
   ['/support', 'monthly', '0.4'],
+  ['/faq', 'monthly', '0.3'],
+  ['/terms', 'yearly', '0.2'],
+  ['/privacy', 'yearly', '0.2'],
+  ['/cookies', 'yearly', '0.2'],
   ['/prohibited', 'yearly', '0.3'],
 ];
 

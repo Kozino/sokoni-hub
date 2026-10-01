@@ -5,7 +5,10 @@ import { useCart } from '../state/CartContext';
 import { ThemeToggle } from '../state/ThemeContext';
 import LanguageSwitcher from './LanguageSwitcher';
 import { useT } from '../i18n';
+import { analyticsAvailable, openCookieSettings } from '../lib/analytics';
+import { legalConfig } from '../legalConfig';
 import '../styles/MarketplaceTemplate.css';
+import './CookieConsent.css';
 
 const initialsOf = (name?: string) =>
   (name || '?').split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
@@ -250,9 +253,12 @@ export function Footer() {
           <div>
             <h4>{t('footer.help')}</h4>
             <Link to="/support">Contact &amp; Support</Link>
+            <a href={`mailto:${legalConfig.supportEmail}`}>{legalConfig.supportEmail}</a>
             <Link to="/faq">FAQ</Link>
             <Link to="/terms">Terms of Use</Link>
             <Link to="/privacy">Privacy Policy</Link>
+            <Link to="/cookies">Cookie Policy</Link>
+            {analyticsAvailable && <button type="button" className="footer-linkbtn" onClick={openCookieSettings}>Cookie settings</button>}
             <Link to="/delete-account">Account deletion</Link>
             <Link to="/support#track">{t('footer.trackComplaint')}</Link>
             <Link to="/policy">{t('footer.prohibited')}</Link>

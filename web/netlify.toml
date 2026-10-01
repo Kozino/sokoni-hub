@@ -22,4 +22,4 @@
     Permissions-Policy = "camera=(), microphone=(), payment=()"
     # Enforced policy. Re-verify browser flows in staging whenever these
     # directives change; the SPA token lives in localStorage.
-    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; connect-src 'self' https:; font-src 'self' data: https://fonts.gstatic.com; form-action 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; connect-src 'self' https:; font-src 'self' data: https://fonts.gstatic.com; form-action 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'"
