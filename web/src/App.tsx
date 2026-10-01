@@ -5,6 +5,7 @@ import { CartProvider } from './state/CartContext';
 import { LocationProvider } from './state/LocationContext';
 import { ToastProvider } from './state/ToastContext';
 import { ThemeProvider } from './state/ThemeContext';
+import { AnalyticsProvider } from './analytics';
 import Layout, { BareLayout } from './components/Layout';
 import { RequireAuth, RequireVendor } from './components/Guards';
 
@@ -18,8 +19,8 @@ import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import { Login, Register } from './pages/Auth';
 import VerifyEmail from './pages/VerifyEmail';
-import { Terms, Privacy, FAQ, Cookies } from './pages/Legal';
-import CookieConsent from './components/CookieConsent';
+import { Terms, Privacy, FAQ } from './pages/Legal';
+import CookieSettings from './pages/CookieSettings';
 import DeleteAccount from './pages/DeleteAccount';
 import AdminDeletion from './pages/admin/AdminDeletion';
 import { Sell, Policy, Support, TrackOrder, Account, NotFound } from './pages/Static';
@@ -54,6 +55,7 @@ function ScrollTop() {
 export default function App() {
   return (
     <BrowserRouter>
+      <AnalyticsProvider>
       <ThemeProvider>
       <ToastProvider>
         <AuthProvider>
@@ -69,8 +71,8 @@ export default function App() {
               <Route element={<Layout />}>
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/privacy" element={<Privacy />} />
+                <Route path="/cookies" element={<CookieSettings />} />
                 <Route path="/faq" element={<FAQ />} />
-                <Route path="/cookies" element={<Cookies />} />
                 <Route path="/delete-account" element={<DeleteAccount />} />
                 <Route path="/browse" element={<Browse />} />
                 <Route path="/s/:slug" element={<ShortStoreRedirect />} />
@@ -125,12 +127,12 @@ export default function App() {
                 <Route path="*" element={<Navigate to="/admin" replace />} />
               </Route>
             </Routes>
-            <CookieConsent />
           </LocationProvider>
           </CartProvider>
         </AuthProvider>
       </ToastProvider>
       </ThemeProvider>
+      </AnalyticsProvider>
     </BrowserRouter>
   );
 }

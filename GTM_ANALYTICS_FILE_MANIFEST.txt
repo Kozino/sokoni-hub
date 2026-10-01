@@ -1,0 +1,15 @@
+GTM consent-gated analytics patch
+
+Upload/replace these files in the corresponding repository paths:
+- GTM_ANALYTICS_SETUP.md
+- web/.env.example
+- web/netlify.toml
+- web/src/analytics.tsx
+- web/src/App.tsx
+- web/src/components/Layout.tsx
+- web/src/pages/CookieSettings.tsx
+- web/src/pages/Legal.tsx
+- web/src/styles/AnalyticsConsent.css
+
+After merging, add VITE_GTM_CONTAINER_ID=GTM-TJL3GPXP to Netlify and redeploy.
+Complete the GTM workspace configuration described in GTM_ANALYTICS_SETUP.md before expecting GA4 reports.
