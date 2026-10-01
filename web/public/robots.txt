@@ -13,4 +13,4 @@ Disallow: /login
 Disallow: /register
 
 # Generated at the edge from live listings — see netlify/edge-functions/sitemap.ts
-Sitemap: https://sokonihub.com/sitemap.xml
+Sitemap: https://sokonihub.qa/sitemap.xml
