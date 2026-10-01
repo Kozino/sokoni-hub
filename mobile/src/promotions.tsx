@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from './icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -39,7 +39,7 @@ const click = (promo: Promo) => { void api.post('/promotions/track', { event: 'c
 function Logo({ promo, size }: { promo: Promo; size: number }) {
   const { colors } = useTheme();
   return <View style={[styles.logo, { width: size, height: size, borderRadius: size * .28, backgroundColor: colors.primarySoft }]}>
-    {promo.logo_url ? <Image source={{ uri: promo.logo_url }} style={{ width: '100%', height: '100%' }} /> : <Ionicons name="storefront" size={size * .48} color={colors.primary} />}
+    {promo.logo_url ? <Image source={{ uri: promo.logo_url }} style={{ width: '100%', height: '100%' }} /> : <Icon name="storefront" size={size * .48} color={colors.primary} />}
   </View>;
 }
 
@@ -50,20 +50,20 @@ export function VipStores({ stores, onOpen }: { stores: Promo[]; onOpen: (slug: 
   if (!stores.length) return null;
   return <View>
     <View style={styles.head}>
-      <View style={styles.headTitle}><Ionicons name="diamond" size={17} color={colors.gold} /><Text style={[styles.heading, { color: colors.text }]}>VIP stores</Text></View>
+      <View style={styles.headTitle}><Icon name="diamond" size={17} color={colors.gold} /><Text style={[styles.heading, { color: colors.text }]}>VIP stores</Text></View>
       <Text style={[styles.sponsored, { color: colors.muted }]}>Sponsored</Text>
     </View>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
       {stores.map((promo) => (
         <Pressable key={promo.id} accessibilityRole="button" accessibilityLabel={`VIP store ${promo.business_name}`} onPress={() => { click(promo); onOpen(promo.slug); }}>
           <LinearGradient colors={['#1C1B17', '#3A2B10']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.vipCard}>
-            <View style={styles.vipBadge}><Ionicons name="diamond" size={10} color="#1C1B17" /><Text style={styles.vipBadgeText}>VIP</Text></View>
+            <View style={styles.vipBadge}><Icon name="diamond" size={10} color="#1C1B17" /><Text style={styles.vipBadgeText}>VIP</Text></View>
             <Logo promo={promo} size={54} />
             <Text numberOfLines={1} style={styles.vipName}>{promo.business_name}</Text>
-            <Text numberOfLines={1} style={styles.vipMeta}><Ionicons name="location-outline" size={11} /> {place(promo)}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}><Icon name="location-outline" size={12} color="#D9F5E5" /><Text numberOfLines={1} style={[styles.vipMeta, { flexShrink: 1 }]}>{place(promo)}</Text></View>
             <View style={styles.vipFoot}>
-              <View style={styles.rating}><Ionicons name="star" size={12} color="#FFC178" /><Text style={styles.vipRating}>{Number(promo.rating_avg || 0).toFixed(1)}</Text><Text style={styles.vipMeta}>({promo.rating_count || 0})</Text></View>
-              <View style={styles.visit}><Text style={styles.visitText}>Visit</Text><Ionicons name="arrow-forward" size={12} color="#1C1B17" /></View>
+              <View style={styles.rating}><Icon name="star" size={12} color="#FFC178" /><Text style={styles.vipRating}>{Number(promo.rating_avg || 0).toFixed(1)}</Text><Text style={styles.vipMeta}>({promo.rating_count || 0})</Text></View>
+              <View style={styles.visit}><Text style={styles.visitText}>Visit</Text><Icon name="arrow-forward" size={12} color="#1C1B17" /></View>
             </View>
           </LinearGradient>
         </Pressable>
@@ -77,7 +77,7 @@ export function FeaturedStores({ stores, onOpen }: { stores: Promo[]; onOpen: (s
   if (!stores.length) return null;
   return <View>
     <View style={styles.head}>
-      <View style={styles.headTitle}><Ionicons name="ribbon" size={17} color={colors.primary} /><Text style={[styles.heading, { color: colors.text }]}>Featured stores</Text></View>
+      <View style={styles.headTitle}><Icon name="ribbon" size={17} color={colors.primary} /><Text style={[styles.heading, { color: colors.text }]}>Featured stores</Text></View>
       <Text style={[styles.sponsored, { color: colors.muted }]}>Sponsored</Text>
     </View>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
@@ -87,7 +87,7 @@ export function FeaturedStores({ stores, onOpen }: { stores: Promo[]; onOpen: (s
           <View style={[styles.featTag, { backgroundColor: colors.goldSoft }]}><Text style={[styles.featTagText, { color: colors.gold }]}>SPONSORED</Text></View>
           <Text numberOfLines={1} style={[styles.featName, { color: colors.text }]}>{promo.business_name}</Text>
           <Text numberOfLines={1} style={[styles.featMeta, { color: colors.text2 }]}>{place(promo)}</Text>
-          <View style={styles.rating}><Ionicons name="star" size={11} color={colors.gold} /><Text style={[styles.featMeta, { color: colors.text2, marginTop: 0 }]}>{Number(promo.rating_avg || 0).toFixed(1)} · {promo.listing_count} listings</Text></View>
+          <View style={styles.rating}><Icon name="star" size={11} color={colors.gold} /><Text style={[styles.featMeta, { color: colors.text2, marginTop: 0 }]}>{Number(promo.rating_avg || 0).toFixed(1)} · {promo.listing_count} listings</Text></View>
         </Pressable>
       ))}
     </ScrollView>

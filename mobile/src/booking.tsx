@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Icon, type IconName } from './icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Image, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { api, ApiError, query } from './api';
@@ -103,7 +103,7 @@ export function BookService({ listing, go, back, tab }: { listing?: Listing; go:
       <Header title="Booking" />
       <ScrollView contentContainerStyle={styles.doneScroll}>
         <View style={[styles.doneIcon, { backgroundColor: done.auto_confirmed ? colors.successSoft : colors.warningSoft }]}>
-          <Ionicons name={done.auto_confirmed ? 'checkmark-circle' : 'time'} size={44} color={done.auto_confirmed ? colors.success : colors.warning} />
+          <Icon name={done.auto_confirmed ? 'checkmark-circle' : 'time'} size={44} color={done.auto_confirmed ? colors.success : colors.warning} />
         </View>
         <Text style={[styles.doneTitle, { color: colors.text }]}>{done.auto_confirmed ? 'Booking confirmed' : 'Booking requested'}</Text>
         <Text style={[styles.doneCopy, { color: colors.text2 }]}>{done.auto_confirmed ? 'Your time is reserved.' : `${listing.business_name || 'The provider'} will confirm your appointment with you shortly.`}</Text>
@@ -159,12 +159,12 @@ export function BookService({ listing, go, back, tab }: { listing?: Listing; go:
     <Header title="Book a service" back={back} />
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scroll}>
       <View style={styles.profile}>
-        {listing.images?.[0] ? <Image source={{ uri: listing.images[0] }} style={styles.avatar} /> : <View style={[styles.avatar, { backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }]}><Ionicons name="construct-outline" size={30} color={colors.primary} /></View>}
+        {listing.images?.[0] ? <Image source={{ uri: listing.images[0] }} style={styles.avatar} /> : <View style={[styles.avatar, { backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }]}><Icon name="construct-outline" size={30} color={colors.primary} /></View>}
         <View style={{ flex: 1 }}>
           <Text numberOfLines={2} style={[styles.name, { color: colors.text }]}>{listing.title}</Text>
           <Text numberOfLines={1} style={[styles.sub, { color: colors.text2 }]}>{listing.business_name || 'Verified local provider'} · {listing.vendor_city || 'Doha'}</Text>
           <View style={styles.tags}>
-            <View style={[styles.tag, { backgroundColor: colors.surface2 }]}><Ionicons name="time-outline" size={13} color={colors.text2} /><Text style={[styles.tagText, { color: colors.text2 }]}>{config.duration_mins} min</Text></View>
+            <View style={[styles.tag, { backgroundColor: colors.surface2 }]}><Icon name="time-outline" size={13} color={colors.text2} /><Text style={[styles.tagText, { color: colors.text2 }]}>{config.duration_mins} min</Text></View>
             <Money value={listing.price} currency={listing.currency} strong />
           </View>
         </View>
@@ -210,11 +210,11 @@ export function BookService({ listing, go, back, tab }: { listing?: Listing; go:
         {([['vendor', 'At the provider', 'storefront-outline', config.options.offers_at_vendor], ['home', 'At my address', 'home-outline', config.options.offers_home_service]] as const).map(([value, label, icon, enabled]) => {
           const active = location === value;
           return <Pressable key={value} disabled={!enabled} onPress={() => setLocation(value)} style={[styles.toggleOption, { opacity: enabled ? 1 : .4, backgroundColor: active ? colors.primary : 'transparent' }]}>
-            <Ionicons name={icon} size={16} color={active ? '#fff' : colors.text2} /><Text style={[styles.toggleText, { color: active ? '#fff' : colors.text2 }]}>{label}</Text>
+            <Icon name={icon} size={16} color={active ? '#fff' : colors.text2} /><Text style={[styles.toggleText, { color: active ? '#fff' : colors.text2 }]}>{label}</Text>
           </Pressable>;
         })}
       </View>
-      {location === 'vendor' && config.options.vendor_address ? <Text style={[styles.caption, { color: colors.text2 }]}><Ionicons name="location-outline" size={12} /> {config.options.vendor_address}</Text> : null}
+      {location === 'vendor' && config.options.vendor_address ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}><Icon name="location-outline" size={13} color={colors.text2} /><Text style={[styles.caption, { color: colors.text2, marginTop: 0, flexShrink: 1 }]}>{config.options.vendor_address}</Text></View> : null}
       {location === 'home' ? <View style={{ marginTop: 10 }}>
         {config.options.home_service_notes ? <Notice>{config.options.home_service_notes}</Notice> : null}
         <Field label="Your address" value={form.address} onChangeText={set('address')} multiline placeholder="Building, street, zone, Doha" style={{ minHeight: 70, textAlignVertical: 'top', paddingTop: 12 }} />

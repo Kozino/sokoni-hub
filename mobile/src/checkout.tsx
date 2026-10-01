@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Icon, type IconName } from './icons';
 import { randomUUID } from 'expo-crypto';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -8,7 +8,7 @@ import type { CartQuote, FulfilmentMode, Order, PaymentMethod } from './types';
 import { BottomBar, Button, Card, Divider, EmptyState, Field, Header, Money, Notice, Spinner } from './ui';
 
 const errorText = (e: unknown) => (e instanceof ApiError || e instanceof Error) ? e.message : 'Something went wrong. Please try again.';
-const PAYMENTS: [PaymentMethod, string, string, keyof typeof Ionicons.glyphMap][] = [
+const PAYMENTS: [PaymentMethod, string, string, IconName][] = [
   ['cash_on_delivery', 'Cash on delivery', 'Pay the seller when you receive or collect your order', 'cash-outline'],
   ['whatsapp', 'Confirm on WhatsApp', 'Agree payment with the seller in a WhatsApp chat', 'logo-whatsapp'],
   ['bank_transfer', 'Bank transfer', 'The seller shares their account details after you order', 'business-outline'],
@@ -98,7 +98,7 @@ export function Checkout({ go, back, tab }: { go: (screen: any, params?: any) =>
     return <View style={styles.page}>
       <Header title="Order placed" />
       <ScrollView contentContainerStyle={styles.doneScroll}>
-        <View style={[styles.doneIcon, { backgroundColor: colors.successSoft }]}><Ionicons name="checkmark-circle" size={46} color={colors.success} /></View>
+        <View style={[styles.doneIcon, { backgroundColor: colors.successSoft }]}><Icon name="checkmark-circle" size={46} color={colors.success} /></View>
         <Text style={[styles.doneTitle, { color: colors.text }]}>Thank you, {form.contact_name.split(' ')[0] || 'friend'}!</Text>
         <Text style={[styles.doneCopy, { color: colors.text2 }]}>{placed.orders.length === 1 ? 'Your order has been sent to the seller.' : `Your cart was split into ${placed.orders.length} orders, one per seller.`}</Text>
         {placed.orders.map((item) => <Card key={item.id} style={{ width: '100%', marginTop: 14 }}>
@@ -141,7 +141,7 @@ export function Checkout({ go, back, tab }: { go: (screen: any, params?: any) =>
         {([['delivery', 'Delivery', 'bicycle-outline'], ['pickup', 'Pick up', 'walk-outline']] as const).map(([value, label, icon]) => {
           const active = mode === value;
           return <Pressable key={value} onPress={() => setMode(value)} style={[styles.toggleOption, { backgroundColor: active ? colors.primary : 'transparent' }]}>
-            <Ionicons name={icon} size={17} color={active ? '#fff' : colors.text2} /><Text style={[styles.toggleText, { color: active ? '#fff' : colors.text2 }]}>{label}</Text>
+            <Icon name={icon} size={17} color={active ? '#fff' : colors.text2} /><Text style={[styles.toggleText, { color: active ? '#fff' : colors.text2 }]}>{label}</Text>
           </Pressable>;
         })}
       </View>
@@ -163,9 +163,9 @@ export function Checkout({ go, back, tab }: { go: (screen: any, params?: any) =>
       {PAYMENTS.map(([value, label, hint, icon]) => {
         const active = form.payment_method === value;
         return <Pressable key={value} onPress={() => setForm((old) => ({ ...old, payment_method: value }))} style={[styles.payment, { backgroundColor: colors.surface, borderColor: active ? colors.primary : colors.border }]}>
-          <View style={[styles.payIcon, { backgroundColor: active ? colors.primarySoft : colors.surface2 }]}><Ionicons name={icon} size={19} color={active ? colors.primary : colors.text2} /></View>
+          <View style={[styles.payIcon, { backgroundColor: active ? colors.primarySoft : colors.surface2 }]}><Icon name={icon} size={19} color={active ? colors.primary : colors.text2} /></View>
           <View style={{ flex: 1 }}><Text style={[styles.payTitle, { color: colors.text }]}>{label}</Text><Text style={[styles.payHint, { color: colors.text2 }]}>{hint}</Text></View>
-          <Ionicons name={active ? 'radio-button-on' : 'radio-button-off'} size={21} color={active ? colors.primary : colors.muted} />
+          <Icon name={active ? 'radio-button-on' : 'radio-button-off'} size={21} color={active ? colors.primary : colors.muted} />
         </Pressable>;
       })}
       <Field label="Note for the seller (optional)" value={form.note} onChangeText={set('note')} multiline placeholder="Any helpful instructions" style={{ minHeight: 70, textAlignVertical: 'top', paddingTop: 12 }} />
