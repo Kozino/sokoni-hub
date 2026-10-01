@@ -24,7 +24,13 @@ async function settings(): Promise<Settings> {
   return { ...s, commission_rate: Number(s.commission_rate) };
 }
 
-const html = (res: any, body: string) => res.type('html').send(body);
+// Receipt/statement HTML is a self-contained document. Helmet's application
+// CSP correctly blocks inline handlers by default, so this document-only CSP
+// explicitly permits its tiny print-button listener and embedded brand mark.
+const html = (res: any, body: string) => res
+  .set('Content-Security-Policy', "default-src 'none'; img-src data: https:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
+  .type('html')
+  .send(body);
 
 /* ============================ settings ============================ */
 

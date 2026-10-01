@@ -8,12 +8,15 @@
  */
 
 import { formatMoney } from './billing';
+import { sokoniLogoDataUrl } from './sokoniBrand';
 
 const esc = (s: unknown): string =>
   String(s ?? '').replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
 
-const INDIGO = '#2E3B6E';
+const EMERALD = '#006C56';
+const DEEP_EMERALD = '#004E40';
+const ORANGE = '#FF7A00';
 
 const fmtDate = (d: string | Date | null | undefined) =>
   d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
@@ -35,62 +38,76 @@ function shell(title: string, body: string) {
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
 <title>${esc(title)}</title>
 <style>
   *{box-sizing:border-box}
-  body{margin:0;padding:32px 16px;background:#F3F4F6;
+  body{margin:0;padding:28px 16px;background:#EEF4F1;
        font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-       color:#111827;line-height:1.5;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .sheet{max-width:760px;margin:0 auto;background:#fff;padding:40px;
-         border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.1)}
-  .head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;
-        border-bottom:3px solid ${INDIGO};padding-bottom:20px;margin-bottom:24px}
-  .logo{max-height:60px;max-width:220px;width:auto;height:auto;display:block;margin-bottom:10px}
-  .brand{font-size:22px;font-weight:700;color:${INDIGO};margin:0}
-  .muted{color:#6B7280;font-size:13px}
-  .doctype{text-align:right}
-  .doctype h2{margin:0;font-size:15px;letter-spacing:.14em;text-transform:uppercase;color:#6B7280;font-weight:600}
-  .docnum{font-size:19px;font-weight:700;margin-top:4px}
-  .cols{display:flex;flex-wrap:wrap;gap:32px;margin-bottom:28px}
-  .col{flex:1;min-width:200px}
-  .label{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#6B7280;font-weight:600;margin-bottom:6px}
+       color:#16231F;line-height:1.5;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .actions{max-width:780px;margin:0 auto 14px;display:flex;justify-content:flex-end;gap:8px}
+  .btn{appearance:none;background:${EMERALD};color:#fff;border:0;padding:10px 18px;border-radius:8px;
+       font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 2px 5px rgba(0,78,64,.18)}
+  .btn:hover{background:${DEEP_EMERALD}}
+  .sheet{max-width:780px;margin:0 auto;background:#fff;padding:42px;
+         border:1px solid #D8E6DF;border-radius:14px;box-shadow:0 12px 30px rgba(0,60,45,.10)}
+  .head{position:relative;display:flex;justify-content:space-between;align-items:flex-start;gap:24px;
+        padding-bottom:22px;margin-bottom:28px;border-bottom:1px solid #D8E6DF}
+  .head:after{content:"";position:absolute;left:0;bottom:-1px;width:152px;height:4px;border-radius:4px;
+              background:linear-gradient(90deg,${EMERALD} 0 72%,${ORANGE} 72%)}
+  .sokoni-logo{display:block;width:205px;height:auto;margin:0 0 10px}
+  .brand{font-size:14px;font-weight:800;letter-spacing:.02em;color:${DEEP_EMERALD};margin:0 0 3px}
+  .brand-sub{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:#71817A;font-weight:700;margin:0 0 10px}
+  .muted{color:#62716B;font-size:13px}
+  .doctype{text-align:right;min-width:150px}
+  .doctype h2{margin:0;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:${EMERALD};font-weight:800}
+  .docnum{font-size:20px;font-weight:800;color:#182B24;margin-top:4px;letter-spacing:.02em}
+  .cols{display:flex;flex-wrap:wrap;gap:26px;margin-bottom:28px}
+  .col{flex:1;min-width:190px}
+  .label{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#71817A;font-weight:800;margin-bottom:7px}
   table{width:100%;border-collapse:collapse;margin-bottom:20px;font-size:14px}
-  th{text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#6B7280;
-     border-bottom:2px solid #E5E7EB;padding:8px 10px;font-weight:600}
-  td{padding:10px;border-bottom:1px solid #F3F4F6;vertical-align:top}
+  th{text-align:left;font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:${DEEP_EMERALD};
+     background:#F0F7F3;border-bottom:2px solid #CDE2D8;padding:10px;font-weight:800}
+  td{padding:11px 10px;border-bottom:1px solid #E7EFEB;vertical-align:top}
+  tbody tr:nth-child(even){background:#FBFDFC}
   .r{text-align:right;white-space:nowrap}
-  .totals{margin-left:auto;width:min(320px,100%)}
-  .totals td{border:none;padding:6px 10px}
-  .totals .grand td{border-top:2px solid ${INDIGO};font-weight:700;font-size:16px;padding-top:12px}
-  .pill{display:inline-block;padding:3px 12px;border-radius:999px;font-size:12px;font-weight:600}
-  .pill-paid{background:#DCFCE7;color:#166534}
-  .pill-due{background:#FEF3C7;color:#92400E}
-  .pill-void{background:#F3F4F6;color:#6B7280}
-  .note{background:#F9FAFB;border-left:3px solid ${INDIGO};padding:12px 16px;font-size:13px;margin-bottom:20px}
-  .foot{margin-top:28px;padding-top:16px;border-top:1px solid #E5E7EB;font-size:12px;color:#6B7280}
-  .actions{max-width:760px;margin:0 auto 16px;text-align:right}
-  .btn{background:${INDIGO};color:#fff;border:0;padding:9px 18px;border-radius:8px;
-       font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+  .totals{margin-left:auto;width:min(330px,100%)}
+  .totals td{border:none;padding:7px 10px;background:transparent}
+  .totals .grand td{border-top:2px solid ${EMERALD};font-weight:800;font-size:17px;padding-top:13px;color:${DEEP_EMERALD}}
+  .pill{display:inline-block;padding:4px 12px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.02em}
+  .pill-paid{background:#DDF5E7;color:#166534}
+  .pill-due{background:#FFF0D8;color:#9A4E00}
+  .pill-void{background:#F1F4F2;color:#63736B}
+  .note{background:#FFF8EC;border-left:4px solid ${ORANGE};padding:12px 16px;font-size:13px;margin-bottom:20px}
+  .foot{margin-top:30px;padding-top:17px;border-top:1px solid #D8E6DF;font-size:12px;color:#62716B}
+  .foot strong{color:${DEEP_EMERALD}}
+  @media(max-width:620px){
+    body{padding:0;background:#fff}.actions{padding:12px 14px;margin:0}.sheet{padding:26px 20px;border:0;border-radius:0;box-shadow:none}
+    .head{gap:18px;flex-direction:column}.doctype{text-align:left}.cols{gap:20px}.col{min-width:100%}.sokoni-logo{width:185px}
+  }
   @media print{
-    body{background:#fff;padding:0}
-    .sheet{box-shadow:none;border-radius:0;max-width:none;padding:0}
-    .actions{display:none}
-    @page{margin:18mm}
+    body{background:#fff;padding:0}.sheet{box-shadow:none;border:0;border-radius:0;max-width:none;padding:0}.actions{display:none}
+    @page{margin:14mm}
   }
 </style></head>
 <body>
-<div class="actions"><button class="btn" onclick="window.print()">Print / Save as PDF</button></div>
+<div class="actions"><button id="print-document" class="btn" type="button">Print / Save as PDF</button></div>
 <div class="sheet">${body}</div>
+<script>
+  (function(){
+    var button=document.getElementById('print-document');
+    if(button) button.addEventListener('click',function(){ window.print(); });
+  }());
+</script>
 </body></html>`;
 }
 
 function header(s: PlatformSettings, docType: string, docNumber: string, extra = '') {
   return `<div class="head">
     <div>
-      ${s.logo_url
-        ? `<img class="logo" src="${esc(s.logo_url)}" alt="${esc(s.business_name)}">`
-        : ''}
-      <p class="brand">${esc(s.business_name)}</p>
+      <img class="sokoni-logo" src="${sokoniLogoDataUrl}" width="205" height="85" alt="Sokoni Hub">
+      <p class="brand">${esc(s.business_name || 'Sokoni Hub')}</p>
+      <p class="brand-sub">Marketplace ${esc(docType).toLowerCase()}</p>
       <div class="muted">
         ${s.business_address ? esc(s.business_address) + '<br>' : ''}
         ${s.business_phone ? esc(s.business_phone) + '<br>' : ''}
