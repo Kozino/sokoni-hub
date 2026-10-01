@@ -1,8 +1,7 @@
+
 [build]
   command = "npm run build"
   publish = "dist"
-  # Per-page social previews and the live sitemap. Both no-op safely when
-  # API_URL is unset, so a deploy without it behaves exactly as before.
   edge_functions = "netlify/edge-functions"
 
 [build.environment]
@@ -15,11 +14,12 @@
 
 [[headers]]
   for = "/*"
+
   [headers.values]
     X-Content-Type-Options = "nosniff"
     X-Frame-Options = "DENY"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), payment=()"
-    # Enforced policy. Re-verify browser flows in staging whenever these
-    # directives change; the SPA token lives in localStorage.
-    Content-Security-Policy = "default-src 'self'; script-src 'self' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; connect-src 'self' https:; font-src 'self' data: https://fonts.gstatic.com; form-action 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'"
+
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; connect-src 'self' https:; font-src 'self' data: https://fonts.gstatic.com; form-action 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'"
+
