@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, ApiError } from "../lib/api";
+import { useAuth } from "../state/AuthContext";
 import { Modal, Alert } from "./ui";
 import { money } from "../lib/format";
 import {
@@ -28,6 +29,7 @@ interface Props {
   };
 }
 export function BookServiceModal({ open, onClose, listing }: Props) {
+  const { user } = useAuth();
   const [day, setDay] = useState(qDate()),
     [slot, setSlot] = useState(""),
     [data, setData] = useState<Slots | null>(null);
@@ -58,8 +60,11 @@ export function BookServiceModal({ open, onClose, listing }: Props) {
       setSlot("");
       setDay(qDate());
       setData(null);
+      setName(user?.full_name || "");
+      setEmail(user?.email || "");
+      setPhone(user?.phone || "");
     }
-  }, [open, listing.id]);
+  }, [open, listing.id, user?.full_name, user?.email, user?.phone]);
   useEffect(() => {
     if (!open) return;
     let active = true;

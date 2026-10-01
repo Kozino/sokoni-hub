@@ -12,6 +12,9 @@ import {
   screenProhibited,
 } from "../utils";
 import { DEFAULT_CURRENCY } from "../delivery";
+import { config } from "../config";
+import { sendMailAsync } from "../mailer";
+import { bookingCustomerEmail, bookingVendorEmail } from "../transactionalEmail";
 import {
   LIVE,
   DAY,
@@ -42,6 +45,65 @@ const SELECT = `select b.*,l.title as listing_title,l.slug as listing_slug,l.kin
  v.business_name,v.whatsapp as vendor_whatsapp,v.city as vendor_city,v.address as vendor_address
  from service_bookings b join listings l on l.id=b.listing_id join vendors v on v.id=b.vendor_id`;
 const uuid = z.string().uuid();
+
+async function notificationBooking(bookingId: string) {
+  return one<any>(
+    `select b.*,l.title as listing_title,v.business_name,
+            buyer.email as buyer_email,vendor_user.email as vendor_email
+       from service_bookings b
+       join listings l on l.id=b.listing_id
+       join vendors v on v.id=b.vendor_id
+       left join users buyer on buyer.id=b.buyer_id
+       join users vendor_user on vendor_user.id=v.user_id
+      where b.id=$1`,
+    [bookingId],
+  );
+}
+
+async function emailBookingCreated(bookingId: string) {
+  try {
+    const booking = await notificationBooking(bookingId);
+    if (!booking) return;
+    const customerEmail = booking.contact_email || booking.buyer_email;
+    const track = `${config.appUrl}/track`;
+    if (customerEmail) sendMailAsync({
+      to: customerEmail,
+      subject: `${booking.status === 'confirmed' ? 'Booking confirmed' : 'Booking request received'} — ${booking.code}`,
+      html: bookingCustomerEmail(booking, booking.status, track),
+      kind: 'booking_confirmation',
+      entityId: booking.id,
+    });
+    if (booking.vendor_email) sendMailAsync({
+      to: booking.vendor_email,
+      subject: `New booking request — ${booking.code}`,
+      html: bookingVendorEmail(booking, `${config.appUrl}/vendor/bookings`),
+      kind: 'vendor_booking_alert',
+      entityId: booking.id,
+    });
+  } catch (error) { console.error('[booking created email]', (error as Error).message); }
+}
+
+async function emailBookingUpdate(
+  bookingId: string,
+  status: string,
+  note?: string | null,
+  scheduleChanged = false,
+) {
+  try {
+    const booking = await notificationBooking(bookingId);
+    const customerEmail = booking?.contact_email || booking?.buyer_email;
+    if (!booking || !customerEmail) return;
+    const emailStatus = scheduleChanged ? 'rescheduled' : status;
+    sendMailAsync({
+      to: customerEmail,
+      subject: `Booking ${emailStatus.replace(/_/g, ' ')} — ${booking.code}`,
+      html: bookingCustomerEmail(booking, emailStatus, `${config.appUrl}/track`, note),
+      kind: 'booking_status',
+      entityId: booking.id,
+    });
+  } catch (error) { console.error('[booking status email]', (error as Error).message); }
+}
+
 const statuses = z.enum([
   "new",
   "contacted",
@@ -198,6 +260,7 @@ bookingRouter.post("/", async (req, res, next) => {
           : null,
       };
     });
+    void emailBookingCreated(result.booking.id);
     res.status(201).json(result);
   } catch (e: any) {
     next(
@@ -309,12 +372,12 @@ bookingRouter.post("/cancel", async (req, res, next) => {
         reason: z.string().max(300).optional(),
       })
       .parse(req.body);
-    res.json({
-      booking: await cancel(
-        await lookup(b.code, b.phone),
-        b.reason || "Cancelled by buyer",
-      ),
-    });
+    const booking = await cancel(
+      await lookup(b.code, b.phone),
+      b.reason || "Cancelled by buyer",
+    );
+    void emailBookingUpdate(booking.id, 'cancelled');
+    res.json({ booking });
   } catch (e) {
     next(e);
   }
@@ -333,9 +396,9 @@ bookingRouter.post(
       const reason =
         z.string().max(300).optional().parse(req.body.reason) ||
         "Cancelled by buyer";
-      res.json({
-        booking: await cancel(b, reason, req.user!.role === "admin"),
-      });
+      const booking = await cancel(b, reason, req.user!.role === "admin");
+      void emailBookingUpdate(booking.id, 'cancelled');
+      res.json({ booking });
     } catch (e) {
       next(e);
     }
@@ -679,7 +742,7 @@ bookingRouter.patch(
       ]);
       if (req.user!.role !== "admin" && owner?.user_id !== req.user!.id)
         throw new HttpError(403, "This booking belongs to another provider.");
-      const row = await tx(async (c) => {
+      const outcome = await tx(async (c) => {
         await lockVendor(c, found.vendor_id);
         const current = (
           await c.query(`${SELECT} where b.id=$1 for update of b`, [id])
@@ -752,7 +815,7 @@ bookingRouter.patch(
             c,
             id,
           );
-        return (
+        const booking = (
           await c.query(
             `update service_bookings set status=$2::text::booking_status,scheduled_at=$3,
    vendor_note=case when $4 then $5 else vendor_note end,cancel_reason=case when $6 then $7 else cancel_reason end,
@@ -770,11 +833,23 @@ bookingRouter.patch(
             ],
           )
         ).rows[0];
+        return {
+          booking,
+          statusChanged: nextStatus !== current.status,
+          scheduleChanged: Boolean(changed),
+        };
       });
       await audit(req.user!, "booking.update", "service_booking", id, {
         status: b.status,
       });
-      res.json({ booking: row });
+      if (outcome.statusChanged || outcome.scheduleChanged)
+        void emailBookingUpdate(
+          id,
+          outcome.booking.status,
+          b.vendor_note ?? null,
+          outcome.scheduleChanged,
+        );
+      res.json({ booking: outcome.booking });
     } catch (e: any) {
       next(
         e.code === "23P01"

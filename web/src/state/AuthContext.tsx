@@ -30,7 +30,7 @@ interface AuthState {
   verifyPin: (pinToken: string, pin: string) => Promise<LoginStep>;
   /** Create a PIN (existing accounts, or after an admin reset). */
   setupPin: (p: { setupToken: string; pin: string; email?: string }) => Promise<User>;
-  register: (p: { full_name: string; phone: string; email: string; password: string; pin: string; role: 'buyer' | 'vendor' }) => Promise<User>;
+  register: (p: { full_name: string; phone: string; email: string; password: string; pin: string; role: 'buyer' | 'vendor' }) => Promise<{ email: string }>;
   logout: () => void;
   refresh: () => Promise<void>;
   /** Admin only: switch this tab to the given user's session. */
@@ -97,9 +97,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const register: AuthState['register'] = async (p) => {
-    const r = await api.post<{ token: string; user: User }>('/auth/register', p);
-    setToken(r.token); setUser(r.user); setVendor(null);
-    return r.user;
+    const r = await api.post<{ verification_required: true; email: string }>('/auth/register', p);
+    return { email: r.email };
   };
 
   const impersonate: AuthState['impersonate'] = async (userId) => {

@@ -13,7 +13,7 @@ export default function Checkout() {
   const { user } = useAuth();
   const [mode, setMode] = useState<FulfilmentMode>('delivery');
   const [form, setForm] = useState({
-    contact_name: user?.full_name || '', contact_phone: user?.phone || '',
+    contact_name: user?.full_name || '', contact_phone: user?.phone || '', contact_email: user?.email || '',
     delivery_address: '', city: '', country: '', note: '',
     payment_method: 'cash_on_delivery' as PaymentMethod,
   });
@@ -173,6 +173,9 @@ export default function Checkout() {
             <Field label="Full name *"><input required value={form.contact_name} onChange={set('contact_name')} placeholder="Amina Bello" /></Field>
             <Field label="Phone number *" hint="The vendor will call this number"><input required value={form.contact_phone} onChange={set('contact_phone')} placeholder="+974 5512 8890" /></Field>
           </div>
+          <Field label="Email for order updates (optional)" hint="We will send your confirmation, delivery updates, and branded receipt here.">
+            <input type="email" autoComplete="email" value={form.contact_email} onChange={set('contact_email')} placeholder="you@example.com" />
+          </Field>
 
           {needsAddress && (
             <>

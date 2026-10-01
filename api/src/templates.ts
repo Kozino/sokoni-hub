@@ -2,9 +2,10 @@
  * Printable documents: buyer receipts and vendor commission statements.
  *
  * Plain server-rendered HTML with inline CSS and an @media print block, rather
- * than a PDF library. It renders in any browser, prints to PDF via Ctrl/Cmd+P,
- * attaches to an email, and adds no dependency or build step. If a true PDF
- * byte stream is ever needed, this HTML is what you would feed the renderer.
+ * than a PDF library. The browser version prints to PDF via Ctrl/Cmd+P without
+ * a dependency or build step. The compact email-safe receipt renderer below is
+ * intentionally separate because mailbox clients do not support browser HTML
+ * features such as scripts or large data-URI images.
  */
 
 import { formatMoney } from './billing';
@@ -135,6 +136,59 @@ export interface ReceiptOrder {
   city: string; country: string; note?: string | null;
   business_name: string; vendor_whatsapp?: string | null; pickup_address?: string | null;
   items: { title: string; qty: number; unit_price: number | string; unit?: string | null; line_total: number | string }[];
+}
+
+/**
+ * Email-safe version of a delivered-order receipt.
+ *
+ * This deliberately does not reuse receiptHtml(): email clients strip scripts,
+ * handle document-level CSS inconsistently, and do not reliably support large
+ * data-URI images. Those behaviours can turn an embedded logo into visible
+ * base64/HTML source. The browser receipt remains printable; this function is
+ * intentionally composed only of small, inline-styled email HTML.
+ */
+export function receiptEmailHtml(o: ReceiptOrder, s: PlatformSettings): string {
+  const cur = o.currency || s.currency;
+  const rows = o.items.map((i) => `
+    <tr>
+      <td style="padding:10px 8px;border-bottom:1px solid #e4ece8;color:#18322a">${esc(i.title)}${i.unit ? ` <span style="color:#6d7e76;font-size:12px">(${esc(i.unit)})</span>` : ''}</td>
+      <td style="padding:10px 8px;border-bottom:1px solid #e4ece8;text-align:center;color:#18322a">${esc(i.qty)}</td>
+      <td style="padding:10px 8px;border-bottom:1px solid #e4ece8;text-align:right;color:#18322a;white-space:nowrap">${esc(formatMoney(i.line_total, cur))}</td>
+    </tr>`).join('');
+  const address = [o.delivery_address, o.city, o.country].filter(Boolean).map(esc).join(', ');
+  const deliveryLabel = o.fulfilment_mode === 'pickup' ? 'Collection' : 'Delivery';
+
+  return `<!doctype html><html lang="en"><body style="margin:0;padding:24px 12px;background:#edf4f0;font-family:Arial,Helvetica,sans-serif;color:#18322a">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;margin:0 auto;background:#ffffff;border:1px solid #d8e6df;border-radius:12px;overflow:hidden">
+      <tr><td style="padding:24px 28px;background:#006c56;color:#ffffff">
+        <div style="font-size:25px;line-height:1;font-weight:800;letter-spacing:-.5px">Sokoni<span style="color:#ff9b35">Hub</span></div>
+        <div style="margin-top:7px;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;opacity:.86">Delivered-order receipt</div>
+      </td></tr>
+      <tr><td style="padding:29px 28px">
+        <h1 style="margin:0 0 9px;font-size:23px;line-height:1.3;color:#004e40">Your order has been delivered</h1>
+        <p style="margin:0 0 22px;color:#49645a;line-height:1.55">Thank you for shopping with ${esc(o.business_name)}. Keep this receipt for your records.</p>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 22px;background:#f4f8f6;border:1px solid #d8e6df;border-radius:8px">
+          <tr><td style="padding:12px 14px;border-bottom:1px solid #d8e6df;color:#6d7e76;font-size:12px">RECEIPT</td><td style="padding:12px 14px;border-bottom:1px solid #d8e6df;text-align:right;font-weight:700">${esc(o.receipt_number)}</td></tr>
+          <tr><td style="padding:12px 14px;border-bottom:1px solid #d8e6df;color:#6d7e76;font-size:12px">ORDER</td><td style="padding:12px 14px;border-bottom:1px solid #d8e6df;text-align:right;font-weight:700">${esc(o.code)}</td></tr>
+          <tr><td style="padding:12px 14px;color:#6d7e76;font-size:12px">ISSUED</td><td style="padding:12px 14px;text-align:right">${esc(fmtDate(o.receipt_issued_at))}</td></tr>
+        </table>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 23px">
+          <tr><td style="width:50%;padding:0 12px 0 0;vertical-align:top"><div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#6d7e76">BILLED TO</div><p style="margin:6px 0 0;line-height:1.55"><strong>${esc(o.contact_name)}</strong><br>${esc(o.contact_phone)}${address ? `<br>${address}` : ''}</p></td><td style="width:50%;padding:0 0 0 12px;vertical-align:top"><div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#6d7e76">SOLD BY</div><p style="margin:6px 0 0;line-height:1.55"><strong>${esc(o.business_name)}</strong>${o.vendor_whatsapp ? `<br>${esc(o.vendor_whatsapp)}` : ''}</p></td></tr>
+        </table>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin:0 0 20px">
+          <thead><tr><th style="padding:10px 8px;background:#f0f7f3;border-bottom:2px solid #cde2d8;text-align:left;font-size:11px;color:#004e40">ITEM</th><th style="padding:10px 8px;background:#f0f7f3;border-bottom:2px solid #cde2d8;text-align:center;font-size:11px;color:#004e40">QTY</th><th style="padding:10px 8px;background:#f0f7f3;border-bottom:2px solid #cde2d8;text-align:right;font-size:11px;color:#004e40">AMOUNT</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 4px">
+          <tr><td style="padding:5px 0;color:#49645a">Subtotal</td><td style="padding:5px 0;text-align:right">${esc(formatMoney(o.subtotal, cur))}</td></tr>
+          <tr><td style="padding:5px 0;color:#49645a">${esc(deliveryLabel)}</td><td style="padding:5px 0;text-align:right">${Number(o.delivery_fee) === 0 ? 'Free' : esc(formatMoney(o.delivery_fee, cur))}</td></tr>
+          <tr><td style="padding:13px 0 4px;border-top:2px solid #006c56;font-size:17px;font-weight:800;color:#004e40">Total</td><td style="padding:13px 0 4px;border-top:2px solid #006c56;text-align:right;font-size:17px;font-weight:800;color:#004e40">${esc(formatMoney(o.total, cur))}</td></tr>
+        </table>
+        <p style="margin:24px 0 0;color:#6d7e76;font-size:12px;line-height:1.5">Payment is made directly to the vendor. This receipt confirms that the order was marked delivered.</p>
+      </td></tr>
+      <tr><td style="padding:16px 28px;border-top:1px solid #d8e6df;color:#6d7e76;font-size:12px;line-height:1.45">Sokoni Hub · Doha, Qatar<br>For your security, never share your password, PIN, or verification links.</td></tr>
+    </table>
+  </body></html>`;
 }
 
 export function receiptHtml(o: ReceiptOrder, s: PlatformSettings): string {

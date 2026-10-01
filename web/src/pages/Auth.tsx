@@ -276,7 +276,7 @@ export function Login() {
             </button>
           </form>
           <p className="center mt-3" style={{ margin: 0 }}>
-            {t('auth.noAccount')} <Link to="/register">{t('auth.createOne')}</Link> · <Link to="/sell">{t('auth.sellOn')}</Link>
+            {t('auth.noAccount')} <Link to="/register">{t('auth.createOne')}</Link> · <Link to="/verify-email">Verify email</Link> · <Link to="/sell">{t('auth.sellOn')}</Link>
           </p>
         </div>
       </div>
@@ -339,7 +339,7 @@ export function Register() {
 
     setBusy(true);
     try {
-      const u = await register({
+      const result = await register({
         full_name: f.full_name,
         phone: f.phone,
         email: f.email,
@@ -347,7 +347,7 @@ export function Register() {
         pin: f.pin,
         role: f.role,
       });
-      nav(u.role === 'vendor' ? '/vendor/onboard' : '/', { replace: true });
+      nav(`/verify-email?email=${encodeURIComponent(result.email)}`, { replace: true });
     } catch (e) {
       showAlert(e instanceof ApiError ? e.message : 'Registration failed');
     } finally {

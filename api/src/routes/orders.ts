@@ -6,7 +6,9 @@ import { one, query, tx } from '../db';
 import { requireAuth, optionalAuth, loadVendor } from '../auth';
 import { HttpError, audit, randomCode, waLink, validateUuidParam } from '../utils';
 import { sendMailAsync } from '../mailer';
-import { receiptHtml } from '../templates';
+import { receiptEmailHtml } from '../templates';
+import { orderCustomerEmail, orderVendorEmail } from '../transactionalEmail';
+import { config } from '../config';
 import {
   quoteVendorOrder, cartTotals, round2, DEFAULT_CURRENCY,
   type FulfilmentMode, type VendorDeliverySettings,
@@ -25,6 +27,7 @@ const checkoutSchema = z.object({
   items: cartSchema,
   contact_name: z.string().min(2).max(120),
   contact_phone: z.string().min(7).max(20),
+  contact_email: z.string().trim().email().max(200).optional().or(z.literal('')),
   delivery_address: z.string().min(5).max(300),
   city: z.string().min(2).max(60),
   country: z.string().min(2).max(60),
@@ -152,6 +155,12 @@ orderRouter.post('/checkout', optionalAuth, async (req, res, next) => {
       if(prior){if(prior.fingerprint!==fingerprint) throw new HttpError(409,'Checkout key already used for a different request');return prior.response as any[];}
       const byVendor=await loadCart(b.items,c);
       const priced=priceCart(byVendor,b.items,b.fulfilment_mode);
+      // Snapshot the address supplied at checkout. A guest can opt in, while a
+      // signed-in buyer falls back to their verified account email.
+      const accountEmail = req.user?.id
+        ? (await c.query('select email from users where id=$1', [req.user.id])).rows[0]?.email
+        : null;
+      const contactEmail = b.contact_email || accountEmail || null;
       const out: any[] = [];
       for (const { quote, lines, vItems } of priced) {
         const code = randomCode('ORD');
@@ -163,11 +172,11 @@ orderRouter.post('/checkout', optionalAuth, async (req, res, next) => {
         // constraint on the table enforces this, so a regression fails loudly.
         const { rows: [order] } = await c.query(
           `insert into orders (code, buyer_id, vendor_id, payment_method, subtotal, delivery_fee, total, currency,
-             contact_name, contact_phone, delivery_address, city, country, note, fulfilment_mode, source)
-           values ($1,$2,$3,$4::payment_method,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15::fulfilment_mode,$16) returning *`,
+             contact_name, contact_phone, contact_email, delivery_address, city, country, note, fulfilment_mode, source)
+           values ($1,$2,$3,$4::payment_method,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16::fulfilment_mode,$17) returning *`,
           [code, req.user?.id ?? null, quote.vendor_id, b.payment_method,
            quote.subtotal, quote.delivery_fee, quote.total, quote.currency,
-           b.contact_name, b.contact_phone,
+           b.contact_name, b.contact_phone, contactEmail,
            b.delivery_address, b.city, b.country, b.note || null, quote.mode, source]
         );
         for (const { r, qty, line } of lines) {
@@ -228,6 +237,8 @@ orderRouter.post('/checkout', optionalAuth, async (req, res, next) => {
     });
 
     await audit(req.user ?? null, 'order.create', 'order', created.map((o) => o.code).join(','));
+    // Notifications are best-effort and deliberately never delay checkout.
+    created.forEach((order) => { void emailOrderCreated(order.id); });
     res.status(201).json({ orders: created });
   } catch (e) {
     next(e);
@@ -306,11 +317,68 @@ orderRouter.patch('/vendor/:id/status', requireAuth('vendor'), loadVendor, async
        where id=$1 returning *`,[row.id,b.status])).rows[0];
     });
     await audit(req.user!, 'order.status', 'order', req.params.id, { status: b.status });
-    if (didChange && b.status === 'delivered') void emailReceipt(o.id);
+    if (didChange) {
+      if (b.status === 'delivered') void emailReceipt(o.id);
+      else void emailOrderStatus(o.id, b.status);
+    }
     res.json({ order: o });
   } catch (e) { next(e); }
 });
 
+
+async function notificationOrder(orderId: string) {
+  return one<any>(
+    `select o.*, v.business_name, v.user_id as vendor_user_id,
+            coalesce(nullif(o.contact_email,''),buyer.email) as customer_email,
+            vendor_user.email as vendor_email
+       from orders o
+       join vendors v on v.id=o.vendor_id
+       left join users buyer on buyer.id=o.buyer_id
+       join users vendor_user on vendor_user.id=v.user_id
+      where o.id=$1`,
+    [orderId],
+  );
+}
+
+async function emailOrderCreated(orderId: string) {
+  try {
+    const order = await notificationOrder(orderId);
+    if (!order) return;
+    const track = `${config.appUrl}/track`;
+    if (order.customer_email) {
+      sendMailAsync({
+        to: order.customer_email,
+        subject: `Order received — ${order.code}`,
+        html: orderCustomerEmail(order, track),
+        kind: 'order_confirmation',
+        entityId: order.id,
+      });
+    }
+    if (order.vendor_email) {
+      sendMailAsync({
+        to: order.vendor_email,
+        subject: `New order — ${order.code}`,
+        html: orderVendorEmail(order, `${config.appUrl}/vendor/orders`),
+        kind: 'vendor_order_alert',
+        entityId: order.id,
+      });
+    }
+  } catch (error) { console.error('[order email]', (error as Error).message); }
+}
+
+async function emailOrderStatus(orderId: string, status: string) {
+  try {
+    const order = await notificationOrder(orderId);
+    if (!order?.customer_email) return;
+    sendMailAsync({
+      to: order.customer_email,
+      subject: `Order ${status.replace(/_/g, ' ')} — ${order.code}`,
+      html: orderCustomerEmail({ ...order, status }, `${config.appUrl}/track`),
+      kind: 'order_status',
+      entityId: order.id,
+    });
+  } catch (error) { console.error('[order status email]', (error as Error).message); }
+}
 
 /**
  * Email the buyer their receipt once an order is delivered.
@@ -326,13 +394,14 @@ async function emailReceipt(orderId: string) {
     if (!cfg) return;
 
     const o = await one<any>(
-      `select o.*, v.business_name, v.whatsapp as vendor_whatsapp, s.pickup_address, u.email
+      `select o.*, v.business_name, v.whatsapp as vendor_whatsapp, s.pickup_address,
+              coalesce(nullif(o.contact_email,''),u.email) as email
        from orders o
        join vendors v on v.id = o.vendor_id
        left join vendor_delivery_settings s on s.vendor_id = v.id
        left join users u on u.id = o.buyer_id
        where o.id = $1`, [orderId]);
-    if (!o?.email) return;   // guest checkout: nothing to send to
+    if (!o?.email) return;   // no opted-in guest email or signed-in buyer email
 
     if (!o.receipt_number) {
       const up = await one<any>(
@@ -347,7 +416,7 @@ async function emailReceipt(orderId: string) {
     sendMailAsync({
       to: o.email,
       subject: `Your receipt ${o.receipt_number} — ${o.business_name}`,
-      html: receiptHtml(o, cfg),
+      html: receiptEmailHtml(o, cfg),
       kind: 'receipt',
       entityId: orderId,
     });

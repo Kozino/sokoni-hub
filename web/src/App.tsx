@@ -17,6 +17,7 @@ import StorePage from './pages/StorePage';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import { Login, Register } from './pages/Auth';
+import VerifyEmail from './pages/VerifyEmail';
 import { Terms, Privacy, FAQ } from './pages/Legal';
 import DeleteAccount from './pages/DeleteAccount';
 import AdminDeletion from './pages/admin/AdminDeletion';
@@ -78,6 +79,7 @@ export default function App() {
                 <Route path="/checkout" element={<Checkout />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
+                <Route path="/verify-email" element={<VerifyEmail />} />
                 <Route path="/sell" element={<Sell />} />
                 <Route path="/policy" element={<Policy />} />
                 <Route path="/support" element={<Support />} />

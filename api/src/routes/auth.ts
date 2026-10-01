@@ -2,13 +2,14 @@ import { adminChallenge, verifyAdmin } from '../mfa';
 // api/src/routes/auth.ts
 import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import { createHmac, randomInt, randomUUID, timingSafeEqual } from 'crypto';
+import { createHash, createHmac, randomBytes, randomInt, randomUUID, timingSafeEqual } from 'crypto';
 import { z } from 'zod';
 import { one, query, tx } from '../db';
 import { charge } from '../security';
 import { signToken, requireAuth, blockImpersonation } from '../auth';
 import { config } from '../config';
 import { sendMailAsync } from '../mailer';
+import { verificationEmail } from '../transactionalEmail';
 import { HttpError, audit, normalizePhone, validateUuidParam } from '../utils';
 import {
   hashPin, checkPin, weakPinReason, chargeAttempt, clearAttempts,
@@ -50,6 +51,74 @@ const needsSetup = async (res: Response, user: any) =>
   });
 
 /* ------------------------------------------------------------------ */
+/* Email verification                                                   */
+/* ------------------------------------------------------------------ */
+const verificationHash = (token: string) => createHash('sha256').update(token).digest('hex');
+
+async function issueVerification(userId: string, email: string) {
+  const token = randomBytes(32).toString('base64url');
+  await tx(async (c) => {
+    await c.query('update email_verification_tokens set used_at=now() where user_id=$1 and used_at is null', [userId]);
+    await c.query(
+      `insert into email_verification_tokens(id,user_id,token_hash,expires_at)
+       values($1,$2,$3,now()+interval '24 hours')`,
+      [randomUUID(), userId, verificationHash(token)],
+    );
+  });
+  const verificationUrl = `${config.appUrl}/verify-email?token=${encodeURIComponent(token)}`;
+  sendMailAsync({
+    to: email,
+    subject: 'Verify your Sokoni Hub email address',
+    html: verificationEmail(verificationUrl),
+    kind: 'email_verification',
+    entityId: userId,
+  });
+}
+
+const verificationToken = z.string().min(40).max(200);
+const verificationEmailAddress = z.string().trim().email().max(200).transform((value) => value.toLowerCase());
+
+authRouter.post('/verify-email', async (req, res, next) => {
+  try {
+    const token = verificationToken.parse(req.body?.token);
+    const result = await tx(async (c) => {
+      const row = (await c.query<any>(
+        `select t.id,t.user_id from email_verification_tokens t
+         join users u on u.id=t.user_id
+         where t.token_hash=$1 and t.used_at is null and t.expires_at>now()
+         for update of t,u`,
+        [verificationHash(token)],
+      )).rows[0];
+      if (!row) return null;
+      await c.query('update email_verification_tokens set used_at=now() where id=$1', [row.id]);
+      await c.query('update users set email_verified_at=coalesce(email_verified_at,now()) where id=$1', [row.user_id]);
+      return row.user_id as string;
+    });
+    if (!result) throw new HttpError(400, 'This verification link is invalid or has expired. Request a new link.');
+    await audit(result, 'user.email_verified', 'user', result);
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
+authRouter.post('/verify-email/resend', async (req, res, next) => {
+  try {
+    const email = verificationEmailAddress.parse(req.body?.email);
+    await charge(`verify-email:${email}`, 5, 900);
+    const user = await one<any>(
+      `select id,email from users where lower(email)=lower($1) and is_active=true
+       and email_verified_at is null and role <> 'admin' limit 1`,
+      [email],
+    );
+    if (user?.email) {
+      await issueVerification(user.id, user.email);
+      await audit(user.id, 'user.email_verification_resent', 'user', user.id);
+    }
+    // Generic response prevents address enumeration.
+    res.status(202).json({ ok: true, message: 'If that address needs verification, a new link has been sent.' });
+  } catch (e) { next(e); }
+});
+
+/* ------------------------------------------------------------------ */
 /* Register: phone, email, password AND a PIN are all required         */
 /* ------------------------------------------------------------------ */
 const registerSchema = z.object({
@@ -84,7 +153,10 @@ authRouter.post('/register', async (req, res, next) => {
       [id, b.full_name.trim(), phone, email, passwordHash, pinHash, b.role]
     );
     await audit(user.id, 'user.register', 'user', user.id, { role: b.role });
-    res.status(201).json({ token: await signToken(user.id, user.role), user });
+    await issueVerification(user.id, user.email);
+    // Do not create a session until the address has been proven. This prevents
+    // disposable/typo addresses from becoming active marketplace accounts.
+    res.status(201).json({ verification_required: true, email: user.email });
   } catch (e) {
     next(e);
   }
@@ -214,6 +286,12 @@ authRouter.post('/login', async (req, res, next) => {
     if (!(await bcrypt.compare(b.password, user.password_hash)))
       throw new HttpError(401, 'Invalid credentials');
     if (!user.is_active) throw new HttpError(403, 'Account disabled. Contact support.');
+    // Accounts that predate required email addresses may not yet have an email.
+    // Do not lock those established users out; the migration marks all existing
+    // email-bearing accounts as verified, while new registrations always have
+    // an email and must verify it before signing in.
+    if (user.role !== 'admin' && user.email && !user.email_verified_at)
+      throw new HttpError(403, 'Verify your email address before signing in. Open your verification email or request a new link.');
 
     if (user.role === 'admin') return res.json(adminChallenge(user));
     if (!user.pin_hash) return await needsSetup(res, user);

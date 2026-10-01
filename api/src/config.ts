@@ -60,6 +60,9 @@ export const config = {
   privateBucket: process.env.SUPABASE_PRIVATE_BUCKET || 'vendor-documents',
   defaultCurrency: process.env.DEFAULT_CURRENCY || 'QAR',
   platformWhatsapp: process.env.PLATFORM_WHATSAPP || '',
+  // Public website origin used only to generate transactional links. Keep this
+  // server-only; it is not a browser VITE_ setting.
+  appUrl: (process.env.APP_URL || process.env.CORS_ORIGINS?.split(',')[0] || 'http://localhost:5173').replace(/\/$/, ''),
 };
 
 if (production && (!config.pgSsl || config.corsOrigins.some(o=>{try{return new URL(o).origin!==o || !o.startsWith('https://');}catch{return true;}}))) throw new Error('Production requires verified database TLS and exact HTTPS CORS origins');
