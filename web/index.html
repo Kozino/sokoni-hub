@@ -1,3 +1,4 @@
+```html
 <!doctype html>
 <html lang="en">
   <head>
@@ -5,7 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <title>Sokoni Hub — Sell beyond WhatsApp status</title>
-    <meta name="description" content="Sokoni Hub — the marketplace where African food-stuff sellers and service providers get discovered beyond WhatsApp status. Verified stores, cash on delivery, WhatsApp checkout." />
+    <meta
+      name="description"
+      content="Sokoni Hub — the marketplace where African food-stuff sellers and service providers get discovered beyond WhatsApp status. Verified stores, cash on delivery, WhatsApp checkout."
+    />
 
     <!--
       SOCIAL PREVIEW.
@@ -21,24 +25,48 @@
       server-side for crawler requests. This file is the fallback every other
       URL gets.
     -->
-    <link rel="canonical" href="https://sokoni-hub.netlify.app/" />
+
+    <link rel="canonical" href="https://sokonihub.qa/" />
+
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Sokoni Hub" />
-    <meta property="og:url" content="https://sokoni-hub.netlify.app/" />
-    <meta property="og:title" content="Sokoni Hub — Sell beyond WhatsApp status" />
-    <meta property="og:description" content="Food stuff by the kg and the services that keep life moving — from verified sellers near you. Cash on delivery or one tap on WhatsApp." />
-    <meta property="og:image" content="https://sokoni-hub.netlify.app/og-image.png" />
+    <meta property="og:url" content="https://sokonihub.qa/" />
+    <meta
+      property="og:title"
+      content="Sokoni Hub — Sell beyond WhatsApp status"
+    />
+    <meta
+      property="og:description"
+      content="Food stuff by the kg and the services that keep life moving — from verified sellers near you. Cash on delivery or one tap on WhatsApp."
+    />
+    <meta
+      property="og:image"
+      content="https://sokonihub.qa/og-image.png"
+    />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Sokoni Hub — food stuff and services from verified sellers near you" />
+    <meta
+      property="og:image:alt"
+      content="Sokoni Hub — food stuff and services from verified sellers near you"
+    />
     <meta property="og:locale" content="en_US" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Sokoni Hub — Sell beyond WhatsApp status" />
-    <meta name="twitter:description" content="Food stuff by the kg and the services that keep life moving — from verified sellers near you." />
-    <meta name="twitter:image" content="https://sokoni-hub.netlify.app/og-image.png" />
+    <meta
+      name="twitter:title"
+      content="Sokoni Hub — Sell beyond WhatsApp status"
+    />
+    <meta
+      name="twitter:description"
+      content="Food stuff by the kg and the services that keep life moving — from verified sellers near you."
+    />
+    <meta
+      name="twitter:image"
+      content="https://sokonihub.qa/og-image.png"
+    />
 
     <meta name="theme-color" content="#2E3B6E" />
+
     <link rel="icon" type="image/png" href="/logo.png" />
     <link rel="apple-touch-icon" href="/logo.png" />
 
@@ -52,21 +80,29 @@
       "@graph": [
         {
           "@type": "Organization",
-          "@id": "https://sokoni-hub.netlify.app/#org",
+          "@id": "https://sokonihub.qa/#org",
           "name": "Sokoni Hub",
-          "url": "https://sokoni-hub.netlify.app/",
-          "logo": "https://sokoni-hub.netlify.app/logo.png",
-          "areaServed": { "@type": "Country", "name": "Qatar" }
+          "url": "https://sokonihub.qa/",
+          "logo": "https://sokonihub.qa/logo.png",
+          "areaServed": {
+            "@type": "Country",
+            "name": "Qatar"
+          }
         },
         {
           "@type": "WebSite",
-          "@id": "https://sokoni-hub.netlify.app/#site",
-          "url": "https://sokoni-hub.netlify.app/",
+          "@id": "https://sokonihub.qa/#site",
+          "url": "https://sokonihub.qa/",
           "name": "Sokoni Hub",
-          "publisher": { "@id": "https://sokoni-hub.netlify.app/#org" },
+          "publisher": {
+            "@id": "https://sokonihub.qa/#org"
+          },
           "potentialAction": {
             "@type": "SearchAction",
-            "target": { "@type": "EntryPoint", "urlTemplate": "https://sokoni-hub.netlify.app/browse?q={search_term_string}" },
+            "target": {
+              "@type": "EntryPoint",
+              "urlTemplate": "https://sokonihub.qa/browse?q={search_term_string}"
+            },
             "query-input": "required name=search_term_string"
           }
         }
@@ -76,28 +112,26 @@
 
     <!--
       Fonts. Keep this as a normal stylesheet rather than using an inline
-      onload handler so the production CSP can forbid inline scripts. The
-      exact Google Fonts origins are allow-listed in netlify.toml.
+      onload handler so the production CSP can forbid inline scripts.
     -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" />
-
-    <!-- Google Tag Manager -->
-<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-})(window,document,'script','dataLayer','GTM-TJL3GPXP');</script>
-<!-- End Google Tag Manager -->
+    <link
+      rel="preconnect"
+      href="https://fonts.gstatic.com"
+      crossorigin
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap"
+    />
   </head>
-  <body>
 
-    <!-- Google Tag Manager (noscript) -->
-<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-TJL3GPXP"
-height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
-<!-- End Google Tag Manager (noscript) -->
+  <body>
     <div id="root"></div>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
+```
+
+One important thing: your comments still mention `netlify/edge-functions/social-preview.ts`. **That is fine if you're still using Netlify for hosting**, even though your public domain is now `sokonihub.qa`. The domain change itself doesn't require removing Netlify references from your project architecture.
