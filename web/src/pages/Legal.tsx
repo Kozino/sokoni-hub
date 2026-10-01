@@ -1,52 +1,228 @@
-import {ReactNode} from 'react';
-import {Link} from 'react-router-dom';
-import {EnglishScope} from '../i18n';
-import {legalConfig as c} from '../legalConfig';
+import { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
+import { EnglishScope } from '../i18n';
+import { legalConfig as c } from '../legalConfig';
 import { analyticsConfigured } from '../analytics';
 import './legal.css';
 
-export function HelpPage({title,subtitle,children,draft=false}:{title:string;subtitle:string;children:ReactNode;draft?:boolean}){
- return <article className="legal-page" lang="en" dir="ltr"><EnglishScope/><header className="legal-hero"><span className="legal-eyebrow">SOKONI HUB · HELP &amp; TRUST</span><h1>{title}</h1><p>{subtitle}</p></header>
- <nav className="legal-nav" aria-label="Help and legal pages"><Link to="/terms">Terms</Link><Link to="/privacy">Privacy</Link><Link to="/cookies">Cookie settings</Link><Link to="/support">Contact &amp; Support</Link><Link to="/faq">FAQ</Link><Link to="/delete-account">Account deletion</Link></nav>
- {/* A page marked as a draft must always show this notice. The route/page
-     declaration is the source of truth; a configuration toggle must never
-     silently turn a review draft into an apparently final legal notice. */}
- {draft&&<aside className="legal-warning" role="note"><strong>Draft — not finalised for publication</strong><p>Operator details and operational policies still need confirmation. This is a review draft, not an effective contract or a certification of Qatar legal compliance.</p><details><summary>What must be completed before publication?</summary><ul>{c.outstanding.map(x=><li key={x}>{x}</li>)}</ul></details></aside>}
- <div className="legal-content">{children}</div></article>;
+export function HelpPage({ title, subtitle, children, draft = false }: { title: string; subtitle: string; children: ReactNode; draft?: boolean }) {
+  return (
+    <article className="legal-page" lang="en" dir="ltr">
+      <EnglishScope />
+      <header className="legal-hero">
+        <span className="legal-eyebrow">SOKONI HUB · HELP &amp; TRUST</span>
+        <h1>{title}</h1>
+        <p>{subtitle}</p>
+      </header>
+      <nav className="legal-nav" aria-label="Help and legal pages">
+        <Link to="/terms">Terms</Link>
+        <Link to="/privacy">Privacy</Link>
+        <Link to="/cookies">Cookie settings</Link>
+        <Link to="/support">Contact &amp; Support</Link>
+        <Link to="/faq">FAQ</Link>
+        <Link to="/delete-account">Account deletion</Link>
+      </nav>
+      {/* The draft banner is controlled by `draft` in legalConfig.ts. Set it to
+          true there to show the review-draft notice on the Terms and Privacy pages. */}
+      {draft && (
+        <aside className="legal-warning" role="note">
+          <strong>Draft — not finalised for publication</strong>
+          <p>Operator details and operational policies still need confirmation. This is a review draft, not an effective contract or a certification of Qatar legal compliance.</p>
+          <details>
+            <summary>What must be completed before publication?</summary>
+            <ul>{c.outstanding.map((x) => <li key={x}>{x}</li>)}</ul>
+          </details>
+        </aside>
+      )}
+      <div className="legal-content">{children}</div>
+    </article>
+  );
 }
-function Operator(){return <section><h2>Who operates Sokoni Hub?</h2><dl><dt>Legal operator</dt><dd>{c.operatorName||'Not yet confirmed — to be supplied before publication.'}</dd><dt>Commercial registration</dt><dd>{c.operatorCR||'Not yet confirmed.'}</dd><dt>Postal address</dt><dd>{c.operatorAddress||'Not yet confirmed.'}</dd></dl><p>Contact us through the existing <Link to="/support">Support form</Link> or <a href={`https://wa.me/${c.supportWhatsApp}`} target="_blank" rel="noopener noreferrer">WhatsApp {c.supportDisplay}</a>. No support email is currently published.</p><p className="muted">Version: {c.version} · {c.effectiveDate?`Effective date: ${c.effectiveDate}`:'No effective date — draft only.'}</p></section>;}
-export function Terms(){return <HelpPage title="Terms of Use" subtitle="How the marketplace works, and what buyers and vendors can expect." draft><Operator/>
- <section><h2>1. Our marketplace role</h2><p>Sokoni Hub connects buyers with independent vendors selling products and offering services. Unless a particular offer expressly states otherwise, the vendor is the seller or service provider and is responsible for its offer, fulfilment and customer remedies. Sokoni Hub provides marketplace, order, booking and support tools; it does not itself supply every advertised item or service.</p><p>Service appointments are for Qatar. Check the vendor’s listed location, delivery area, service options and availability before placing a request.</p></section>
- <section><h2>2. Accounts and security</h2><p>Provide accurate account and contact details, use only an account you are entitled to operate, and protect your password and PIN. Administrators use additional authentication. Tell Support promptly if your account is compromised. Do not share credentials, impersonate others, evade restrictions or misuse another person’s information.</p></section>
- <section><h2>3. Vendor obligations and verification</h2><p>Vendors must be legally entitled to conduct the advertised business, hold required registrations and permissions, and publish accurate prices, descriptions, availability and terms. Verification requests a commercial registration (CR) or business-registration licence — not a personal national ID, passport or driving licence.</p><p>A verified badge indicates that an administrator has reviewed the submitted business information. It is not a government endorsement or a guarantee of quality, safety, licensing for every activity or future performance.</p><p>Follow the <Link to="/policy">marketplace and prohibited-items policy</Link>. Unlawful, misleading, infringing or prohibited listings may be removed. Do not upload material you do not have the right to use. You permit us to display submitted listing content as needed to operate your store; ownership of your material is not transferred.</p></section>
- <section><h2>4. Orders, prices and payments</h2><p>Review the vendor, items, currency, quantity, delivery arrangements and total shown before ordering. Current payment arrangements include cash on delivery, vendor-arranged bank transfer and WhatsApp coordination where offered. Sokoni Hub does not currently hold or process buyers’ payment funds. Do not send payment credentials, card security codes, passwords or PINs in order notes or support messages.</p><p>Vendors must disclose applicable charges and relevant fulfilment, cancellation, return and refund conditions before a transaction. Any marketplace charges payable by vendors are governed by their separately disclosed arrangements and statements, not by an invented fee in these draft terms.</p></section>
- <section><h2>5. Service bookings and cancellations</h2><p>The default booking mode requires vendor confirmation; a vendor may enable auto-accept. Check the actual booking status rather than treating a pending request as confirmed. Location may be the vendor’s premises or a home-service option where the vendor offers it.</p><p>Buyer cancellation availability depends on the vendor’s configured notice period and the appointment time shown in the booking flow. If self-service cancellation is no longer available, contact the vendor or Support. Changes and cancellations do not automatically create or settle a payment refund.</p></section>
- <section><h2>6. Problems, returns and consumer rights</h2><p>Contact the vendor about fulfilment, defects, returns or refunds, and use <Link to="/support">Support</Link> if assistance is needed. Provide an order or booking reference and relevant facts, without unnecessary sensitive documents. Our complaint process helps review reported issues but does not guarantee recovery of money paid directly to a vendor.</p><p>Nothing in these terms removes mandatory rights or remedies under applicable Qatar law, prevents a complaint to a competent authority, or prevents access to a competent court. A vendor’s own conditions cannot override mandatory consumer protections.</p></section>
- <section><h2>7. Platform access and responsibility</h2><p>We may investigate misuse, restrict accounts or remove content to address security risks, prohibited activity or breaches, subject to applicable law. Use Support to query an action. Availability can be affected by maintenance, technical failures and third-party services. Each party remains responsible for its own conduct; nothing here excludes liability that cannot lawfully be excluded.</p></section>
- <section><h2>8. Privacy, deletion and changes</h2><p>See the <Link to="/privacy">Privacy Policy</Link> for data practices and the <Link to="/delete-account">account-deletion page</Link> to request reviewed closure. Logging out does not delete your account. Open obligations and justified retention may affect which records can be erased.</p><p>These drafts are intended for a Qatar-facing service and require review against applicable Qatar law before publication. Material changes to final terms should be notified appropriately; any agreement required for a change must be obtained. No exclusive foreign forum or blanket waiver is imposed by this draft.</p></section>
- </HelpPage>;}
-export function Privacy(){return <HelpPage title="Privacy Policy" subtitle="The information used to run your account, store, orders and service bookings." draft><Operator/>
- <section><h2>1. Information we handle</h2><ul><li><strong>Accounts:</strong> name, phone number, email address, role, password and PIN hashes, account status and security/session records. Administrator security includes MFA information.</li><li><strong>Vendor business records:</strong> store name, description, location, contact details, images, CR or business-registration documents, verification decisions, and bank/payout information where supplied.</li><li><strong>Marketplace activity:</strong> listings, order and booking details, buyer contact information, selected service location, notes, cancellations, reviews, statements and related records.</li><li><strong>Support and safety:</strong> complaints, messages, deletion requests, review outcomes, security/rate-limit records and audit logs. Operational providers may also process technical connection and access logs.</li><li><strong>Location:</strong> a city you select, or coordinates requested when you choose a location feature and grant browser permission. These support nearby-store discovery; home-service details you submit are handled as booking information.</li></ul><p>Verification is for business registration, not personal identity-document collection. However, a CR can contain an individual’s name or contact details and may still include personal data. Do not upload a passport, national ID, driving licence or unrelated sensitive information for this purpose.</p></section>
- <section><h2>2. Why we use it</h2><p>Information is used to create and protect accounts, review vendor businesses, publish stores and listings, arrange orders and bookings, maintain marketplace and financial records, handle complaints and privacy requests, prevent misuse, and meet applicable legal obligations.</p><p><strong>Processing grounds:</strong> {c.processingGrounds||'To be confirmed before publication, purpose by purpose, including any consent requirements and the way consent can be withdrawn. This draft does not treat consent as a blanket basis for every use.'}</p></section>
- <section><h2>3. Who can receive information</h2><p>Store profiles, listings and published reviews are visible to visitors. Relevant vendors receive the buyer/contact/order/booking information needed to handle their transactions. Authorised administrators can access records for moderation, support, security and business administration. Verification documents are not intended to be public listings; the current upload flow uses restricted private-document access.</p><p>Hosting, database, file-storage and other operational providers process information for the service. Information may also be disclosed when legally required or to protect lawful rights. When you choose WhatsApp or pay a vendor directly, the vendor and third-party provider handle information under their own practices; do not send unnecessary sensitive data.</p></section>
- <section><h2>4. Hosting and international transfers</h2><p>{c.hostingAndTransfers||'The actual hosting regions, provider list, international data flows and applicable safeguards have not yet been confirmed. These details must be verified and inserted before this notice is finalised. We do not currently represent that all data remains in Qatar.'}</p></section>
- <section><h2>5. Browser storage and location controls</h2><p>The application uses browser storage for functions including sign-in, cart state, interface preferences and saved location choices. Administrator impersonation uses per-tab session storage. These are not all cookies; local and session storage can also retain information on your device. Logging out or clearing browser storage does not erase server-side records.</p><p>You can deny or revoke browser geolocation permission and clear or change saved location through the location controls. Clearing site storage can also sign you out and remove local preferences or cart contents. External services you open, such as WhatsApp, have their own storage practices.</p></section>
- <section><h2>6. Retention and account deletion</h2><p>{c.retentionSchedule||'A category-specific retention schedule is still awaiting operator and legal approval. No fixed statutory retention period is asserted in this draft.'}</p><p>You can submit an authenticated <Link to="/delete-account">account-deletion request</Link>. An administrator reviews open orders, bookings, complaints and financial matters first. Completion removes account-profile contact details and credentials from active use, closes the store where applicable, revokes sessions and removes known account-owned uploaded files through the configured storage service.</p><p>This is not a blind deletion of every linked database row. Transaction/financial records, dispute evidence, security records and a minimal request/closure record may need to remain, with a stated reason and review date. Administrators must review historical free-text, guest records, legacy/public file copies and externally held copies separately. Other customers’ records are not deleted just because your account is closed.</p><p>Provider backups, caches and copies independently held by vendors or WhatsApp are not automatically erased by the account-closure button. Their treatment and retention must be covered by the approved procedure; the request outcome should explain relevant exceptions. A retention review date is a manual follow-up, not an automatic purge.</p></section>
- <section><h2>7. Requests, corrections and concerns</h2><p>Contact <Link to="/support">Support</Link> or WhatsApp {c.supportDisplay} to ask about your information, request access or correction, raise an objection or make an applicable erasure/consent-withdrawal request. We may need proportionate verification of your authority, not your password, PIN, MFA code or an unsolicited identity-document upload. Rights and exceptions depend on applicable law.</p><p>If you cannot sign in, use Support rather than creating a request in someone else’s account. Keep your deletion receipt credentials private: they let you see the request outcome after account access ends. You may also raise unresolved concerns with the competent authority under Qatar’s personal-data protection framework.</p></section>
- <section><h2>8. Optional analytics and cookies</h2>{analyticsConfigured ? <><p>With your consent, Sokoni Hub loads Google Tag Manager to send limited use measurements from public marketplace pages to the Google Analytics 4 property configured inside that container. Google Tag Manager and analytics are not loaded until you choose “Accept analytics”.</p><p>Our implementation does not send its public-page measurement events from sign-in, account, vendor, or administrator routes. We do not use this optional measurement for advertising personalisation. The Google Analytics property must be configured with Google signals and ads personalisation disabled, and with a 14-month data-retention setting.</p><p>You can change or withdraw your choice at any time through <Link to="/cookies">Cookie settings</Link>.</p></> : <><p>Sokoni Hub does not currently load optional Google Analytics or Google Tag Manager measurement on this site.</p><p>If optional analytics is enabled in the future, this notice and <Link to="/cookies">Cookie settings</Link> will be updated before it is used.</p></>}</section>
- <section><h2>9. Security and notice updates</h2><p>Controls include access restrictions, hashed account credentials, administrator MFA, revocable sessions and short-lived access to private verification files. No system is risk-free. Historical public documents require separate cleanup; changing a label does not protect an old public URL.</p><p>Do not share credentials in support messages. We will update the final notice when material practices change, with an appropriate version/date and notification process. This English-first draft requires operational and legal review before it is presented as a final notice.</p></section>
- </HelpPage>;}
-const faqs=[
- ['How do I contact Sokoni Hub?','Use the existing Support page to submit and track a complaint, or WhatsApp +974 6604 6431. No support email is currently published. Never share your password, PIN, MFA code or recovery codes.'],
- ['What must a vendor upload for verification?','A clear image of the commercial registration (CR) or business-registration licence. Do not upload a personal national ID, passport or driving licence. The current image uploader accepts supported image files, not PDF documents. Verification is reviewed by administrators.'],
- ['What does the verified badge mean?','An administrator has reviewed the submitted business information. The badge is not a government endorsement, a guarantee of every licence required for an activity, or a guarantee of a successful transaction.'],
- ['Does Sokoni Hub hold my payment?','The current marketplace does not hold or process buyers’ payment funds. Check the vendor’s available arrangements, such as cash on delivery, bank transfer or WhatsApp coordination, before paying.'],
- ['Is a service booking confirmed immediately?','Normally the vendor must confirm it. Some vendors enable auto-accept. Check the status shown in your booking rather than assuming a pending request is confirmed. Service appointments are Qatar-only.'],
- ['Can I choose home service?','Where the vendor offers it, select home service or the vendor’s premises in the booking flow. Check the service area and supply only the location details needed for the appointment.'],
- ['Can I cancel my appointment?','The vendor’s configured cancellation-notice period controls buyer self-service cancellation. Check your booking and contact the vendor or Support if the online cancellation option is unavailable. Cancellation does not itself process a refund.'],
- ['How do I report a problem?','Use Support and retain the tracking reference and required lookup details. Include your order or booking reference where available, without unnecessary sensitive information. You can contact the vendor first; statutory complaint and consumer remedies remain available.'],
- ['How do I delete my account?','Open Account deletion, sign in, confirm your current password and submit a request. Download the private receipt. An administrator reviews the request and any outstanding obligations. You can withdraw while it is pending, in review or awaiting your action; processing/completed requests cannot be withdrawn online.'],
- ['Does deletion remove every record immediately?','No. Reviewed completion removes the active account profile and known uploaded files, and ends access. Historical transactions, justified retained records, backups and third-party copies require separate handling. Your request outcome records retention exceptions and a review date.'],
- ['Will I receive email updates?','If you provide a valid email address, Sokoni Hub sends account-verification, booking and order confirmations, relevant status updates, and delivered-order receipts. WhatsApp API reminders are not enabled, so check the live order or booking status and use a calendar reminder where available.'],
+
+function Operator() {
+  const pending = 'Registration in progress — this will be published once the Qatar company registration is complete.';
+  return (
+    <section>
+      <h2>Who operates Sokoni Hub?</h2>
+      <dl>
+        <dt>Legal operator</dt>
+        <dd>{c.operatorName || pending}</dd>
+        <dt>Commercial registration</dt>
+        <dd>{c.operatorCR || pending}</dd>
+        <dt>Postal address</dt>
+        <dd>{c.operatorAddress || pending}</dd>
+      </dl>
+      <p>
+        Contact us through the <Link to="/support">Support form</Link>, by email at{' '}
+        <a href={`mailto:${c.supportEmail}`}>{c.supportEmail}</a>, or on{' '}
+        <a href={`https://wa.me/${c.supportWhatsApp}`} target="_blank" rel="noopener noreferrer">WhatsApp {c.supportDisplay}</a>.
+        Support hours: {c.supportHours}. Typical response time: {c.responseTime}.
+      </p>
+      <p className="muted">
+        Version: {c.version} · {c.effectiveDate ? `Effective date: ${c.effectiveDate}` : 'No effective date — draft only.'}
+      </p>
+    </section>
+  );
+}
+
+export function Terms() {
+  return (
+    <HelpPage title="Terms of Use" subtitle="How the marketplace works, and what buyers and vendors can expect." draft={c.draft}>
+      <Operator />
+      <section>
+        <h2>1. Our marketplace role</h2>
+        <p>Sokoni Hub connects buyers with independent vendors selling products and offering services. Unless a particular offer expressly states otherwise, the vendor is the seller or service provider and is responsible for its offer, fulfilment and customer remedies. Sokoni Hub provides marketplace, order, booking and support tools; it does not itself supply every advertised item or service.</p>
+        <p>Service appointments are for Qatar. Check the vendor’s listed location, delivery area, service options and availability before placing a request.</p>
+      </section>
+      <section>
+        <h2>2. Accounts and security</h2>
+        <p>Provide accurate account and contact details, use only an account you are entitled to operate, and protect your password and PIN. Administrators use additional authentication. Tell Support promptly if your account is compromised. Do not share credentials, impersonate others, evade restrictions or misuse another person’s information.</p>
+      </section>
+      <section>
+        <h2>3. Vendor obligations and verification</h2>
+        <p>Vendors must be legally entitled to conduct the advertised business, hold required registrations and permissions, and publish accurate prices, descriptions, availability and terms. Verification requests a commercial registration (CR) or business-registration licence — not a personal national ID, passport or driving licence.</p>
+        <p>A verified badge indicates that an administrator has reviewed the submitted business information. It is not a government endorsement or a guarantee of quality, safety, licensing for every activity or future performance.</p>
+        <p>Follow the <Link to="/policy">marketplace and prohibited-items policy</Link>. Unlawful, misleading, infringing or prohibited listings may be removed. Do not upload material you do not have the right to use. You permit us to display submitted listing content as needed to operate your store; ownership of your material is not transferred.</p>
+      </section>
+      <section>
+        <h2>4. Orders, prices and payments</h2>
+        <p>Review the vendor, items, currency, quantity, delivery arrangements and total shown before ordering. Current payment arrangements include cash on delivery, vendor-arranged bank transfer and WhatsApp coordination where offered. Sokoni Hub does not currently hold or process buyers’ payment funds. Do not send payment credentials, card security codes, passwords or PINs in order notes or support messages.</p>
+        <p>Vendors must disclose applicable charges and relevant fulfilment, cancellation, return and refund conditions before a transaction. Any marketplace charges payable by vendors are governed by their separately disclosed arrangements and statements, not by an invented fee in these terms.</p>
+      </section>
+      <section>
+        <h2>5. Service bookings and cancellations</h2>
+        <p>The default booking mode requires vendor confirmation; a vendor may enable auto-accept. Check the actual booking status rather than treating a pending request as confirmed. Location may be the vendor’s premises or a home-service option where the vendor offers it.</p>
+        <p>Buyer cancellation availability depends on the vendor’s configured notice period and the appointment time shown in the booking flow. If self-service cancellation is no longer available, contact the vendor or Support. Changes and cancellations do not automatically create or settle a payment refund.</p>
+      </section>
+      <section>
+        <h2>6. Problems, returns and consumer rights</h2>
+        <p>Contact the vendor about fulfilment, defects, returns or refunds, and use <Link to="/support">Support</Link> if assistance is needed. Provide an order or booking reference and relevant facts, without unnecessary sensitive documents. Our complaint process helps review reported issues but does not guarantee recovery of money paid directly to a vendor.</p>
+        <p>Nothing in these terms removes mandatory rights or remedies under applicable Qatar law, prevents a complaint to a competent authority, or prevents access to a competent court. A vendor’s own conditions cannot override mandatory consumer protections.</p>
+      </section>
+      <section>
+        <h2>7. Platform access and responsibility</h2>
+        <p>We may investigate misuse, restrict accounts or remove content to address security risks, prohibited activity or breaches, subject to applicable law. Use Support to query an action. Availability can be affected by maintenance, technical failures and third-party services. Each party remains responsible for its own conduct; nothing here excludes liability that cannot lawfully be excluded.</p>
+      </section>
+      <section>
+        <h2>8. Privacy, deletion and changes</h2>
+        <p>See the <Link to="/privacy">Privacy Policy</Link> for data practices and the <Link to="/delete-account">account-deletion page</Link> to request reviewed closure. Logging out does not delete your account. Open obligations and justified retention may affect which records can be erased.</p>
+        <p>These terms are intended for a Qatar-facing service and should be reviewed against applicable Qatar law. Material changes to these terms will be notified appropriately; any agreement required for a change will be obtained. No exclusive foreign forum or blanket waiver is imposed.</p>
+      </section>
+    </HelpPage>
+  );
+}
+
+export function Privacy() {
+  return (
+    <HelpPage title="Privacy Policy" subtitle="The information used to run your account, store, orders and service bookings." draft={c.draft}>
+      <Operator />
+      <section>
+        <h2>1. Information we handle</h2>
+        <ul>
+          <li><strong>Accounts:</strong> name, phone number, email address, role, password and PIN hashes, account status and security/session records. Administrator security includes MFA information.</li>
+          <li><strong>Vendor business records:</strong> store name, description, location, contact details, images, CR or business-registration documents, verification decisions, and bank/payout information where supplied.</li>
+          <li><strong>Marketplace activity:</strong> listings, order and booking details, buyer contact information, selected service location, notes, cancellations, reviews, statements and related records.</li>
+          <li><strong>Support and safety:</strong> complaints, messages, deletion requests, review outcomes, security/rate-limit records and audit logs. Operational providers may also process technical connection and access logs.</li>
+          <li><strong>Location:</strong> a city you select, or coordinates requested when you choose a location feature and grant browser permission. These support nearby-store discovery; home-service details you submit are handled as booking information.</li>
+        </ul>
+        <p>Verification is for business registration, not personal identity-document collection. However, a CR can contain an individual’s name or contact details and may still include personal data. Do not upload a passport, national ID, driving licence or unrelated sensitive information for this purpose.</p>
+      </section>
+      <section>
+        <h2>2. Why we use it</h2>
+        <p>Information is used to create and protect accounts, review vendor businesses, publish stores and listings, arrange orders and bookings, maintain marketplace and financial records, handle complaints and privacy requests, prevent misuse, and meet applicable legal obligations.</p>
+        <p>Where consent is required, such as for optional analytics cookies, we ask for it separately and you can withdraw it at any time. We do not treat consent as a blanket basis for every use of your information.</p>
+      </section>
+      <section>
+        <h2>3. Who can receive information</h2>
+        <p>Store profiles, listings and published reviews are visible to visitors. Relevant vendors receive the buyer/contact/order/booking information needed to handle their transactions. Authorised administrators can access records for moderation, support, security and business administration. Verification documents are not intended to be public listings; the current upload flow uses restricted private-document access.</p>
+        <p>Hosting, database, file-storage and other operational providers process information for the service. Information may also be disclosed when legally required or to protect lawful rights. When you choose WhatsApp or pay a vendor directly, the vendor and third-party provider handle information under their own practices; do not send unnecessary sensitive data.</p>
+      </section>
+      <section>
+        <h2>4. Service providers and international transfers</h2>
+        <p>We use these providers to run the service:</p>
+        <ul>
+          {c.providers.map(([name, role]) => (
+            <li key={name}><strong>{name}:</strong> {role}</li>
+          ))}
+        </ul>
+        <p>The regions where each provider stores data are still being confirmed, and some processing may take place outside Qatar. We do not represent that all data remains in Qatar.</p>
+      </section>
+      <section>
+        <h2>5. Browser storage and location controls</h2>
+        <p>The application uses browser storage for functions including sign-in, cart state, interface preferences and saved location choices. Administrator impersonation uses per-tab session storage. These are not all cookies; local and session storage can also retain information on your device. Logging out or clearing browser storage does not erase server-side records.</p>
+        <p>You can deny or revoke browser geolocation permission and clear or change saved location through the location controls. Clearing site storage can also sign you out and remove local preferences or cart contents. External services you open, such as WhatsApp, have their own storage practices.</p>
+      </section>
+      <section>
+        <h2>6. Retention and account deletion</h2>
+        <p>We keep information for these periods:</p>
+        <ul>
+          {c.retention.map(([what, how]) => (
+            <li key={what}><strong>{what}:</strong> {how}</li>
+          ))}
+        </ul>
+        <p>You can submit an authenticated <Link to="/delete-account">account-deletion request</Link>. An administrator reviews open orders, bookings, complaints and financial matters first. Completion removes account-profile contact details and credentials from active use, closes the store where applicable, revokes sessions and removes known account-owned uploaded files through the configured storage service.</p>
+        <p>This is not a blind deletion of every linked database row. Transaction/financial records, dispute evidence, security records and a minimal request/closure record may need to remain, with a stated reason and review date. Administrators must review historical free-text, guest records, legacy/public file copies and externally held copies separately. Other customers’ records are not deleted just because your account is closed.</p>
+        <p>Provider backups, caches and copies independently held by vendors or WhatsApp are not automatically erased by the account-closure button. Their treatment and retention must be covered by the approved procedure; the request outcome should explain relevant exceptions. A retention review date is a manual follow-up, not an automatic purge.</p>
+      </section>
+      <section>
+        <h2>7. Requests, corrections and concerns</h2>
+        <p>Contact <Link to="/support">Support</Link>, email <a href={`mailto:${c.supportEmail}`}>{c.supportEmail}</a> or WhatsApp {c.supportDisplay} to ask about your information, request access or correction, raise an objection or make an applicable erasure/consent-withdrawal request. We may need proportionate verification of your authority, not your password, PIN, MFA code or an unsolicited identity-document upload. Rights and exceptions depend on applicable law.</p>
+        <p>If you cannot sign in, use Support rather than creating a request in someone else’s account. Keep your deletion receipt credentials private: they let you see the request outcome after account access ends. You may also raise unresolved concerns with the competent authority under Qatar’s personal-data protection framework.</p>
+      </section>
+      <section>
+        <h2>8. Optional analytics and cookies</h2>
+        {analyticsConfigured ? (
+          <>
+            <p>With your consent, Sokoni Hub loads Google Tag Manager to send limited use measurements from public marketplace pages to the Google Analytics 4 property configured inside that container. Google Tag Manager and analytics are not loaded until you choose “Accept analytics”.</p>
+            <p>Our implementation does not send its public-page measurement events from sign-in, account, vendor, or administrator routes. We do not use this optional measurement for advertising personalisation. The Google Analytics property must be configured with Google signals and ads personalisation disabled, and with a 14-month data-retention setting.</p>
+            <p>You can change or withdraw your choice at any time through <Link to="/cookies">Cookie settings</Link>.</p>
+          </>
+        ) : (
+          <>
+            <p>Sokoni Hub does not currently load optional Google Analytics or Google Tag Manager measurement on this site.</p>
+            <p>If optional analytics is enabled in the future, this notice and <Link to="/cookies">Cookie settings</Link> will be updated before it is used.</p>
+          </>
+        )}
+      </section>
+      <section>
+        <h2>9. Security and notice updates</h2>
+        <p>Controls include access restrictions, hashed account credentials, administrator MFA, revocable sessions and short-lived access to private verification files. No system is risk-free. Historical public documents require separate cleanup; changing a label does not protect an old public URL.</p>
+        <p>Do not share credentials in support messages. We will update this notice when material practices change, with an appropriate version/date and notification process.</p>
+      </section>
+    </HelpPage>
+  );
+}
+
+const faqs: [string, string][] = [
+  ['How do I contact Sokoni Hub?', `Use the Support page to submit and track a complaint, email ${c.supportEmail}, or WhatsApp ${c.supportDisplay}. Never share your password, PIN, MFA code or recovery codes.`],
+  ['What must a vendor upload for verification?', 'A clear image of the commercial registration (CR) or business-registration licence. Do not upload a personal national ID, passport or driving licence. The current image uploader accepts supported image files, not PDF documents. Verification is reviewed by administrators.'],
+  ['What does the verified badge mean?', 'An administrator has reviewed the submitted business information. The badge is not a government endorsement, a guarantee of every licence required for an activity, or a guarantee of a successful transaction.'],
+  ['Does Sokoni Hub hold my payment?', 'The current marketplace does not hold or process buyers’ payment funds. Check the vendor’s available arrangements, such as cash on delivery, bank transfer or WhatsApp coordination, before paying.'],
+  ['Is a service booking confirmed immediately?', 'Normally the vendor must confirm it. Some vendors enable auto-accept. Check the status shown in your booking rather than assuming a pending request is confirmed. Service appointments are Qatar-only.'],
+  ['Can I choose home service?', 'Where the vendor offers it, select home service or the vendor’s premises in the booking flow. Check the service area and supply only the location details needed for the appointment.'],
+  ['Can I cancel my appointment?', 'The vendor’s configured cancellation-notice period controls buyer self-service cancellation. Check your booking and contact the vendor or Support if the online cancellation option is unavailable. Cancellation does not itself process a refund.'],
+  ['How do I report a problem?', 'Use Support and retain the tracking reference and required lookup details. Include your order or booking reference where available, without unnecessary sensitive information. You can contact the vendor first; statutory complaint and consumer remedies remain available.'],
+  ['How do I delete my account?', 'Open Account deletion, sign in, confirm your current password and submit a request. Download the private receipt. An administrator reviews the request and any outstanding obligations. You can withdraw while it is pending, in review or awaiting your action; processing/completed requests cannot be withdrawn online.'],
+  ['Does deletion remove every record immediately?', 'No. Reviewed completion removes the active account profile and known uploaded files, and ends access. Historical transactions, justified retained records, backups and third-party copies require separate handling. Your request outcome records retention exceptions and a review date.'],
+  ['Will I receive email updates?', 'If you provide a valid email address, Sokoni Hub sends account-verification, booking and order confirmations, relevant status updates, and delivered-order receipts. WhatsApp API reminders are not enabled, so check the live order or booking status and use a calendar reminder where available.'],
 ];
-export function FAQ(){return <HelpPage title="Frequently asked questions" subtitle="Quick answers about buying, selling, verification and account support."><div className="faq-list">{faqs.map(([q,a])=><details key={q}><summary>{q}</summary><p>{a}</p></details>)}</div><section><h2>Still need help?</h2><p><Link className="btn btn-primary" to="/support">Open Contact &amp; Support</Link></p><p>The <Link to="/policy">marketplace rules</Link>, <Link to="/terms">draft Terms</Link> and <Link to="/privacy">draft Privacy Policy</Link> provide more detail.</p></section></HelpPage>;}
+
+export function FAQ() {
+  return (
+    <HelpPage title="Frequently asked questions" subtitle="Quick answers about buying, selling, verification and account support.">
+      <div className="faq-list">
+        {faqs.map(([q, a]) => (
+          <details key={q}>
+            <summary>{q}</summary>
+            <p>{a}</p>
+          </details>
+        ))}
+      </div>
+      <section>
+        <h2>Still need help?</h2>
+        <p><Link className="btn btn-primary" to="/support">Open Contact &amp; Support</Link></p>
+        <p>The <Link to="/policy">marketplace rules</Link>, <Link to="/terms">Terms</Link> and <Link to="/privacy">Privacy Policy</Link> provide more detail.</p>
+      </section>
+    </HelpPage>
+  );
+}
