@@ -27,10 +27,35 @@
   --accent-text: var(--market-teal-deep);
   --display: 'Inter', var(--sans);
   --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
-  background: #fff;
+
+  /* Page surfaces: a soft tinted canvas with white cards on top (standard marketplace look). */
+  --mk-canvas: #f1f6f3;
+  --mk-band: #e5efea;
+  --mk-card: #ffffff;
+  --mk-header: rgba(255,255,255,.96);
+  --mk-field: #ffffff;
+  --mk-soft: #f7fbf9;
+  --mk-footer: #00382e;
+  --mk-footer-deep: #002a23;
+  background: var(--mk-canvas);
+}
+:root[data-theme='dark'] .marketplace-app {
+  --market-ink: #eef4f1;
+  --market-copy: #aebcb5;
+  --market-line: #2a3a33;
+  --market-mint: #1b2b25;
+  --accent-text: #8fe0bd;
+  --mk-canvas: var(--bg);
+  --mk-band: #121a16;
+  --mk-card: var(--surface);
+  --mk-header: rgba(18,22,29,.94);
+  --mk-field: var(--surface-2);
+  --mk-soft: var(--surface-2);
+  --mk-footer: #0b1713;
+  --mk-footer-deep: #07100d;
 }
 
-.marketplace-app .page { background: #fff; padding-top: 38px; }
+.marketplace-app .page { background: transparent; padding-top: 38px; }
 .marketplace-app .page > .container > h1,
 .marketplace-app .page > .container > h2 {
   color: var(--market-ink);
@@ -62,7 +87,7 @@
   position: sticky;
   top: 0;
   z-index: 60;
-  background: rgba(255,255,255,.96);
+  background: var(--mk-header);
   border-bottom: 1px solid var(--market-line);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -73,7 +98,7 @@
 .marketplace-app .brand > span { font-size: 18px; font-weight: 800; letter-spacing: -.045em; }
 .marketplace-app .brand small { color: #728078; font-size: 10px; font-weight: 600; letter-spacing: .02em; }
 .marketplace-app .nav { gap: 21px; }
-.marketplace-app .nav > a:not(.btn) { color: #40534c; font-size: 13px; font-weight: 650; }
+.marketplace-app .nav > a:not(.btn) { color: var(--market-copy); font-size: 13px; font-weight: 650; }
 .marketplace-app .nav > a:not(.btn):hover,
 .marketplace-app .nav > a.active { color: var(--market-teal); }
 .marketplace-app .nav > a.active::after { background: var(--market-orange); }
@@ -86,7 +111,7 @@
 /* --------------------------------------------------------------------------
    Landing: bright commerce shelves with the Sokoni teal + orange system
    -------------------------------------------------------------------------- */
-.marketplace-app .lp { background: #fff; }
+.marketplace-app .lp { background: var(--mk-canvas); }
 .marketplace-app .lp-hero { background: var(--market-teal-deep); }
 .marketplace-app .lp-hero::before {
   background:
@@ -126,7 +151,7 @@
 .marketplace-app .lp-cat { font-size: 12px; color: var(--market-ink); font-weight: 700; }
 .marketplace-app .lp-cat-ico { border-radius: 18px; border: 0; box-shadow: none; background: var(--market-mint); }
 .marketplace-app .lp-cat:hover .lp-cat-ico { box-shadow: 0 0 0 2px var(--market-orange); transform: translateY(-3px); }
-.marketplace-app .lp-shelf.is-tint { background: #f5fbf8; }
+.marketplace-app .lp-shelf.is-tint { background: var(--mk-band); }
 .marketplace-app .lp-sell { border-radius: 18px; background: linear-gradient(120deg, #004e40 0%, #08735c 100%); }
 .marketplace-app .lp-sell .btn-primary { background: var(--market-orange); border-color: var(--market-orange); }
 
@@ -134,12 +159,12 @@
 .marketplace-app .lcard {
   border: 1px solid #e5ece8;
   border-radius: 12px;
-  background: #fff;
-  box-shadow: none;
+  background: var(--mk-card);
+  box-shadow: 0 1px 2px rgba(15,60,45,.05);
   overflow: hidden;
 }
 .marketplace-app .lcard:hover { border-color: #c5ddd2; box-shadow: 0 12px 28px rgba(18,77,59,.12); transform: translateY(-3px); }
-.marketplace-app .lcard-img { background: #f8faf8; aspect-ratio: 1 / .93; }
+.marketplace-app .lcard-img { background: var(--mk-soft); aspect-ratio: 1 / .93; }
 .marketplace-app .lcard-img img { transition: transform 250ms ease; }
 .marketplace-app .lcard:hover .lcard-img img { transform: scale(1.035); }
 .marketplace-app .lcard-kind { inset: 10px auto auto 10px; }
@@ -162,11 +187,12 @@
 .marketplace-app .filters,
 .marketplace-app .card {
   border-color: var(--market-line);
-  box-shadow: none;
+  background: var(--mk-card);
+  box-shadow: 0 1px 2px rgba(15,60,45,.05);
 }
 .marketplace-app .fp,
 .marketplace-app .filters {
-  background: #f7fbf9;
+  background: var(--mk-card);
   border-radius: 12px;
 }
 .marketplace-app .fp-top input,
@@ -174,12 +200,13 @@
 .marketplace-app .filters select,
 .marketplace-app .fp select,
 .marketplace-app .fp input {
-  background: #fff;
-  border-color: #d4e3dc;
+  background: var(--mk-field);
+  border-color: var(--market-line);
 }
 .marketplace-app .btn-primary { background: var(--market-teal); border-color: var(--market-teal); }
 .marketplace-app .btn-primary:hover { background: var(--market-teal-deep); border-color: var(--market-teal-deep); }
-.marketplace-app .btn-outline { border-color: #bdd8cd; color: var(--market-teal-deep); background: #fff; }
+.marketplace-app .btn-outline { border-color: #bdd8cd; color: var(--market-teal-deep); background: var(--mk-card); }
+:root[data-theme='dark'] .marketplace-app .btn-outline { color: #8fe0bd; border-color: #2a5545; }
 .marketplace-app .btn-outline:hover { border-color: var(--market-teal); color: var(--market-teal-deep); background: #eff8f4; }
 .marketplace-app .btn-wa { background: #1d9a61; border-color: #1d9a61; }
 .marketplace-app .badge-terra { background: #e4f3ed; color: var(--market-teal-deep); border-color: #b8d9cc; }
@@ -192,7 +219,7 @@
   border-radius: 16px;
   border-color: var(--market-line);
 }
-.marketplace-app .ld-main-img { background: #f7faf8; }
+.marketplace-app .ld-main-img { background: var(--mk-soft); }
 .marketplace-app .ld-tabs { border-radius: 14px; }
 .marketplace-app .tabs { border-bottom-color: var(--market-line); }
 .marketplace-app .tabs button[aria-selected='true'] { color: var(--market-teal-deep); border-bottom-color: var(--market-orange); }
@@ -201,12 +228,27 @@
 .marketplace-app .container-narrow .card { border-radius: 14px; }
 .marketplace-app .qty button:hover { background: var(--market-mint); color: var(--market-teal-deep); }
 
-/* Footer takes the broad, calm marketplace-directory role instead of a dashboard footer. */
-.marketplace-app .footer { background: #f2f8f5; border-top: 1px solid var(--market-line); color: #52635d; }
-.marketplace-app .footer h4 { color: var(--market-ink); }
-.marketplace-app .footer a { color: #4c6258; }
-.marketplace-app .footer a:hover { color: var(--market-teal); }
-.marketplace-app .footer-bottom { border-top-color: #d7e6df; }
+/* Footer: dark teal band with light text. Every text role is set explicitly so nothing inherits an unreadable colour. */
+.marketplace-app .footer {
+  background: linear-gradient(180deg, var(--mk-footer) 0%, var(--mk-footer-deep) 100%);
+  border-top: 4px solid var(--market-orange);
+  color: rgba(255,255,255,.78);
+  margin-top: 0;
+}
+.marketplace-app .footer h4 { color: #fff; }
+.marketplace-app .footer p { color: rgba(255,255,255,.72); }
+.marketplace-app .footer a { color: rgba(255,255,255,.82); }
+.marketplace-app .footer a:hover { color: #ffb15f; text-decoration: none; }
+.marketplace-app .footer .footer-brand-name { color: #fff; }
+.marketplace-app .footer .footer-pay-badge { background: rgba(255,255,255,.10); border-color: rgba(255,255,255,.22); color: #fff; }
+.marketplace-app .footer-payments { border-top-color: rgba(255,255,255,.16); }
+.marketplace-app .footer-bottom { border-top-color: rgba(255,255,255,.16); color: rgba(255,255,255,.68); }
+.marketplace-app .footer-bottom a { color: rgba(255,255,255,.82); display: inline; padding: 0; }
+
+/* Keep the page body tall enough that the footer always sits at the bottom, below the content. */
+.marketplace-app { min-height: 100%; }
+.marketplace-app > main { flex: 1 0 auto; }
+.marketplace-app > .footer { flex-shrink: 0; }
 
 @media (max-width: 768px) {
   .market-announcement .container { min-height: 30px; font-size: 10px; padding-inline: 14px; }
