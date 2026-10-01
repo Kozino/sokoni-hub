@@ -540,7 +540,7 @@ export function AdminAudit() {
     { key: 'entity', header: 'Entity', sortAccessor: (a) => a.entity, render: (a) => a.entity },
     { key: 'actor', header: 'Actor', sortAccessor: actorLabel, render: actorLabel },
     {
-      key: 'details', header: 'Details', csvValue: (a) => (a.meta ? JSON.stringify(a.meta) : ''),
+      key: 'details', header: 'Details', exportValue: (a) => (a.meta ? JSON.stringify(a.meta) : ''),
       render: (a) => (
         <span style={{ fontSize: '.78rem', color: 'var(--text-muted)', maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>
           {a.meta && Object.keys(a.meta).length ? JSON.stringify(a.meta) : '—'}

@@ -1,6 +1,7 @@
 import { ReactNode, cloneElement, useEffect, useMemo, useRef, useState } from 'react';
 import { Empty } from './ui';
 import { IconChevronUp, IconChevronDown, IconColumns, IconDownload } from './icons';
+import { exportExcel, exportPdf } from '../lib/exporting';
 
 const sizeIcon = (el: JSX.Element, px: number) => cloneElement(el, { width: px, height: px });
 
@@ -10,8 +11,8 @@ export interface DTColumn<T> {
   render: (row: T) => ReactNode;
   /** Enables click-to-sort on this column. Return a comparable primitive. */
   sortAccessor?: (row: T) => string | number | Date;
-  /** Value written to the exported CSV. Falls back to sortAccessor, else blank. */
-  csvValue?: (row: T) => string | number;
+  /** Value written to Excel/PDF exports. Falls back to sortAccessor, else blank. */
+  exportValue?: (row: T) => string | number;
   align?: 'left' | 'right';
   /** Hidden by default; the viewer can bring it back via the Columns menu. */
   defaultHidden?: boolean;
@@ -45,16 +46,11 @@ function Popover({ trigger, children, align = 'right' }: { trigger: ReactNode; c
   );
 }
 
-function toCsv<T>(columns: DTColumn<T>[], rows: T[]): string {
-  const cols = columns.filter((c) => c.csvValue || c.sortAccessor);
-  const esc = (v: unknown) => {
-    const s = String(v ?? '');
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  const head = cols.map((c) => esc(c.header)).join(',');
-  const body = rows.map((r) => cols.map((c) => esc((c.csvValue ?? c.sortAccessor)?.(r))).join(',')).join('\n');
-  return `${head}\n${body}`;
-}
+const reportTitle = (filename: string) => filename
+  .split(/[-_]/)
+  .filter(Boolean)
+  .map((word) => word[0].toUpperCase() + word.slice(1))
+  .join(' ');
 
 export function DataTable<T>({
   columns, rows, rowKey, loading, error, emptyIcon, emptyTitle = 'Nothing here yet', emptyText,
@@ -147,14 +143,21 @@ export function DataTable<T>({
   };
   const selectedRows = rows.filter((r) => selected.has(rowKey(r)));
 
-  const doExport = () => {
-    const csv = toCsv(columns, sorted);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `${exportFilename || 'export'}.csv`; a.click();
-    URL.revokeObjectURL(url);
+  const exportColumns = columns
+    .filter((column) => column.exportValue || column.sortAccessor)
+    .map((column) => ({
+      header: column.header,
+      value: (row: T) => (column.exportValue ?? column.sortAccessor)?.(row) ?? '',
+    }));
+  const exportReport = {
+    filename: exportFilename || 'sokoni-hub-report',
+    title: reportTitle(exportFilename || 'Sokoni Hub Report'),
+    subtitle: `${sorted.length} record${sorted.length === 1 ? '' : 's'} · Dashboard export`,
+    columns: exportColumns,
+    rows: sorted,
   };
+  const doExportExcel = () => exportExcel(exportReport);
+  const doExportPdf = () => { void exportPdf(exportReport); };
 
   const showToolbar = selectable || exportFilename || columns.some((c) => !c.alwaysVisible);
 
@@ -192,7 +195,14 @@ export function DataTable<T>({
               </Popover>
             )}
             {selectedRows.length === 0 && exportFilename && (
-              <button type="button" className="btn btn-outline btn-sm" onClick={doExport}>{sizeIcon(IconDownload, 16)}Export</button>
+              <>
+                <button type="button" className="btn btn-outline btn-sm" onClick={doExportExcel} title="Download a formatted Excel workbook">
+                  {sizeIcon(IconDownload, 16)}Excel
+                </button>
+                <button type="button" className="btn btn-outline btn-sm" onClick={doExportPdf} title="Download a branded PDF report">
+                  {sizeIcon(IconDownload, 16)}PDF
+                </button>
+              </>
             )}
           </div>
         </div>

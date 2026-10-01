@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
-import { Header, Footer } from '../../components/Layout';
+import { Header } from '../../components/Layout';
 import DashShell, { DashLink, DashNotification } from '../../components/DashShell';
 import { useAuth } from '../../state/AuthContext';
 import { api } from '../../lib/api';
@@ -74,7 +74,6 @@ export default function AdminLayout() {
       >
         <Outlet />
       </DashShell>
-      <Footer />
     </div>
   </>
   );

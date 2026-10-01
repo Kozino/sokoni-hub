@@ -8,6 +8,7 @@ import {
 } from 'recharts';
 import { money, num, dateTime } from '../../lib/format';
 import { Empty, Spinner, Stat, StatusBadge } from '../../components/ui';
+import { exportExcel, exportPdf } from '../../lib/exporting';
 
 const COLORS = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
 
@@ -19,13 +20,18 @@ export default function VendorOverview() {
   if (!d) return <Empty icon="📊" title="Could not load dashboard" text={error || 'Please try again.'}
     action={<button className="btn btn-primary" onClick={() => void refresh()}>Try again</button>} />;
 
-  const exportSummary = () => {
-    const rows = [['Metric', 'Value'], ...Object.entries(d.stats)];
-    const csv = rows.map(row => row.map(value => '"' + String(value).replace(/"/g, '""') + '"').join(',')).join('\r\n');
-    const url = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }));
-    const link = document.createElement('a'); link.href = url; link.download = 'sokoni-store-summary.csv'; link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  const summaryReport = {
+    filename: 'sokoni-store-summary',
+    title: `${d.vendor.business_name} — Store summary`,
+    subtitle: 'Store performance snapshot · All-time totals unless noted',
+    columns: [
+      { header: 'Metric', value: (row: [string, unknown]) => row[0].replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()) },
+      { header: 'Value', value: (row: [string, unknown]) => row[1] },
+    ],
+    rows: Object.entries(d.stats) as [string, unknown][],
   };
+  const exportSummaryExcel = () => exportExcel(summaryReport);
+  const exportSummaryPdf = () => { void exportPdf(summaryReport); };
   const storeSlug = vendor?.slug?.trim();
   const s = d.stats;
  const cur = 'QAR';
@@ -52,7 +58,8 @@ export default function VendorOverview() {
         <span role="status">{loading ? 'Refreshing store data…' : updatedAt ? `Last updated ${updatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Store overview'}</span>
         <div className="row">
           <button className="btn btn-ghost btn-sm" disabled={loading} onClick={() => void refresh()}>Refresh</button>
-          <button className="btn btn-outline btn-sm" onClick={exportSummary}>Export summary</button>
+          <button className="btn btn-outline btn-sm" onClick={exportSummaryExcel}>Export Excel</button>
+          <button className="btn btn-outline btn-sm" onClick={exportSummaryPdf}>Export PDF</button>
         </div>
       </div>
       {(error || bookingError) && <div className="alert alert-warn" role="alert">{error || bookingError} Previously loaded data may be out of date. Use Refresh to retry.</div>}

@@ -4,6 +4,7 @@ import { money, date, titleCase } from '../../lib/format';
 import { Alert, Spinner, Empty, Field, Modal, Stat, Badge, Tabs, useConfirm } from '../../components/ui';
 import { useToast } from '../../state/ToastContext';
 import ImageUploader from '../../components/ImageUploader';
+import { exportExcel, exportPdf } from '../../lib/exporting';
 
 /* ------------------------------------------------------------------ */
 /* Documents are HTML behind an Authorization header, so a plain <a> will
@@ -20,16 +21,6 @@ async function openDocument(path: string) {
   if (!w) throw new ApiError(0, 'Your browser blocked the popup — allow popups for this site');
   // Revoke once the new tab has had time to load, otherwise it renders blank.
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
-}
-
-async function downloadCsv(path: string, filename: string) {
-  const base = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
-  const res = await fetch(`${base}/api${path}`, { headers: { Authorization: `Bearer ${getToken()}` } });
-  if (!res.ok) throw new ApiError(res.status, 'Export failed');
-  const url = URL.createObjectURL(await res.blob());
-  const a = document.createElement('a');
-  a.href = url; a.download = filename; a.click();
-  URL.revokeObjectURL(url);
 }
 
 interface Statement {
@@ -354,6 +345,21 @@ function Payouts({ onDone }: { onDone: () => void }) {
   };
 
   const missingBank = data.pay_out.filter((r: any) => !r.bank_iban);
+  const payoutReport = {
+    filename: 'sokoni-payouts',
+    title: 'Vendor payout register',
+    subtitle: 'Outstanding transfers for review and bank processing',
+    columns: [
+      { header: 'Statement', value: (row: any) => row.number || '—' },
+      { header: 'Vendor', value: (row: any) => row.business_name },
+      { header: 'Account name', value: (row: any) => row.bank_account_name || '—' },
+      { header: 'Bank', value: (row: any) => row.bank_name || '—' },
+      { header: 'IBAN', value: (row: any) => row.bank_iban || 'Missing' },
+      { header: 'Currency', value: (row: any) => row.currency },
+      { header: 'Amount', value: (row: any) => Number(row.net_due_to_vendor || 0).toFixed(2) },
+    ],
+    rows: data.pay_out,
+  };
 
   return (
     <div>
@@ -367,11 +373,16 @@ function Payouts({ onDone }: { onDone: () => void }) {
           Sokoni Hub cannot move money — there is no payment gateway connected. Make the
           transfer in your bank, then record it here so the statement is closed and traceable.
         </p>
-        <button className="btn btn-outline btn-sm"
-          onClick={() => downloadCsv('/billing/payouts/export.csv', 'sokoni-payouts.csv')
-            .catch((e) => toast.push(e.message, 'error'))}>
-          Download bank transfer CSV
-        </button>
+        <div className="row wrap" style={{ gap: 8 }}>
+          <button className="btn btn-outline btn-sm" disabled={!data.pay_out.length}
+            onClick={() => exportExcel(payoutReport)}>
+            Export Excel
+          </button>
+          <button className="btn btn-outline btn-sm" disabled={!data.pay_out.length}
+            onClick={() => { void exportPdf(payoutReport); }}>
+            Export PDF
+          </button>
+        </div>
       </div>
 
       {missingBank.length > 0 && (

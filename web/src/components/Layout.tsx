@@ -270,11 +270,16 @@ export function Footer() {
 }
 
 export default function Layout() {
+  const { pathname } = useLocation();
+  // The buyer account centre is a dashboard surface, not a marketing page.
+  // Its focused account navigation replaces the public-site footer.
+  const isUserDashboard = pathname === '/account';
+
   return (
     <div className="app">
       <Header />
       <main className="page"><Outlet /></main>
-      <Footer />
+      {!isUserDashboard && <Footer />}
     </div>
   );
 }

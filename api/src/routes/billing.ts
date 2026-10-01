@@ -485,29 +485,11 @@ billingRouter.get('/payouts/outstanding', requireAuth('admin'), async (_req, res
   } catch (e) { next(e); }
 });
 
-/** CSV for a bank bulk-transfer upload. */
-billingRouter.get('/payouts/export.csv', requireAuth('admin'), async (_req, res, next) => {
-  try {
-    const rows = await query<any>(
-      `select s.number, s.currency, s.net_due_to_vendor,
-              v.business_name, v.bank_name, v.bank_account_name, v.bank_iban
-       from vendor_statements s join vendors v on v.id = s.vendor_id
-       where s.status = 'issued' and s.net_due_to_vendor > 0
-       order by v.business_name`
-    );
-    const cell = (v: unknown) => {
-      const s = String(v ?? '');
-      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-    };
-    const header = ['statement', 'vendor', 'account_name', 'bank', 'iban', 'currency', 'amount'];
-    const csv = [header.join(',')]
-      .concat(rows.map((r) => [r.number, r.business_name, r.bank_account_name, r.bank_name,
-                               r.bank_iban, r.currency, Number(r.net_due_to_vendor).toFixed(2)]
-        .map(cell).join(',')))
-      .join('\n');
-    res.type('text/csv').attachment(`sokoni-payouts-${new Date().toISOString().slice(0, 10)}.csv`).send(csv);
-  } catch (e) { next(e); }
-});
+/**
+ * Payout exports are generated in the authenticated admin dashboard as a
+ * branded PDF or a native XLSX workbook. Keeping the data here in the normal
+ * outstanding-payouts response avoids maintaining a second, stale export.
+ */
 
 /** Mark several statements paid under one bank reference. */
 billingRouter.post('/payouts/batch', requireAuth('admin'), async (req, res, next) => {

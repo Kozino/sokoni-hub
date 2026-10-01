@@ -7,6 +7,7 @@ import {
 import { api } from '../../lib/api';
 import { money, num, timeAgo } from '../../lib/format';
 import { Empty, Spinner, Stat } from '../../components/ui';
+import { exportExcel, exportPdf } from '../../lib/exporting';
 
 export default function AdminOverview() {
   const [d, setD] = useState<any>(null);
@@ -17,10 +18,26 @@ export default function AdminOverview() {
   if (loading) return <Spinner />;
   if (!d) return <Empty icon="📈" title="Could not load analytics" />;
   const s = d.stats;
+  const summaryReport = {
+    filename: 'sokoni-platform-summary',
+    title: 'Sokoni Hub — Platform overview',
+    subtitle: 'Live marketplace performance summary',
+    columns: [
+      { header: 'Metric', value: (row: [string, unknown]) => row[0].replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()) },
+      { header: 'Value', value: (row: [string, unknown]) => row[1] },
+    ],
+    rows: Object.entries(s) as [string, unknown][],
+  };
 
   return (
     <>
-      <div className="dash-title"><h1>Platform overview</h1><p>Everything happening on Sokoni Hub right now.</p></div>
+      <div className="dash-title">
+        <div><h1>Platform overview</h1><p>Everything happening on Sokoni Hub right now.</p></div>
+        <div className="actions">
+          <button className="btn btn-outline btn-sm" onClick={() => exportExcel(summaryReport)}>Export Excel</button>
+          <button className="btn btn-outline btn-sm" onClick={() => { void exportPdf(summaryReport); }}>Export PDF</button>
+        </div>
+      </div>
 
       {Number(s.vendors_pending) > 0 && (
         <div className="alert alert-warn row-between">
