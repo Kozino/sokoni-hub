@@ -1,11 +1,11 @@
 import { Outlet } from 'react-router-dom';
-import { Header, Footer } from '../../components/Layout';
+import { Header } from '../../components/Layout';
 import DashShell, { DashLink, DashNotification } from '../../components/DashShell';
 import { useAuth } from '../../state/AuthContext';
 import { StatusBadge, Alert } from '../../components/ui';
 import { VendorDashboardProvider, useVendorDashboard } from '../../state/VendorDashboardContext';
 import './vendor-classic.css';
-import { IconChart, IconBox, IconPlus, IconReceipt, IconAlert, IconStore, IconHistory } from '../../components/icons';
+import { IconChart, IconBox, IconPlus, IconReceipt, IconAlert, IconStore, IconHistory, IconTrash } from '../../components/icons';
 import { EnglishScope } from '../../i18n';
 
 export default function VendorLayout() {
@@ -65,6 +65,7 @@ function VendorConsole() {
     { to: '/vendor/complaints', ico: IconAlert, label: 'Complaints', pill: alerts.open_complaints, group: 'Sales' },
     { to: '/vendor/statements', ico: IconReceipt, label: 'Statements', group: 'Sales' },
     { to: '/vendor/profile', ico: IconStore, label: 'Store profile', group: 'Settings' },
+    { to: '/vendor/delete-account', ico: IconTrash, label: 'Account deletion', group: 'Settings' },
   ];
 
   const banner = (
@@ -118,7 +119,6 @@ function VendorConsole() {
       >
         <Outlet />
       </DashShell>
-      <Footer />
     </div>
   </>
   );

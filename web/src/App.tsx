@@ -100,6 +100,7 @@ export default function App() {
                 <Route path="availability" element={<VendorAvailability />} />
                 <Route path="inventory" element={<VendorInventory />} />
                 <Route path="profile" element={<VendorProfile />} />
+                <Route path="delete-account" element={<DeleteAccount />} />
                 <Route path="*" element={<Navigate to="/vendor" replace />} />
               </Route>
 

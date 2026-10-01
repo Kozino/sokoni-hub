@@ -8,6 +8,8 @@ import { Alert, Field, StatusBadge } from '../components/ui';
 import { useAuth } from '../state/AuthContext';
 import { money, dateTime } from '../lib/format';
 import type { Order } from '../types';
+import { IconBox, IconHistory, IconSettings, IconTrash } from '../components/icons';
+import './account.css';
 
 /* ------------------------------------------------------------------ */
 export function Sell() {
@@ -267,17 +269,36 @@ export function Account() {
   useEffect(() => { api.get<{ orders: Order[] }>('/orders/mine').then((r) => setOrders(r.orders)).catch(() => {}); }, []);
 
   return (
-    <div className="container container-narrow">
-      <h1>My account</h1>
-      <SessionManager />
-      <section className="card card-pad mt-3"><h3>My bookings</h3><p>Bookings made while signed in appear here. Guest bookings remain accessible through <Link to="/track">Track booking</Link>.</p>
+    <div className="container account-page">
+      <div className="account-heading">
+        <div className="account-heading-avatar" aria-hidden="true">{(user?.full_name || '?').split(' ').map((part) => part[0]).slice(0, 2).join('').toUpperCase()}</div>
+        <div>
+          <p className="eyebrow">Account centre</p>
+          <h1>My account</h1>
+          <p>Manage your profile, bookings, orders and security in one place.</p>
+        </div>
+      </div>
+
+      <div className="account-shell">
+        <aside className="account-sidebar" aria-label="Account navigation">
+          <span className="account-nav-label">Account</span>
+          <a href="#profile" className="account-nav-link">{IconSettings}<span>Profile &amp; security</span></a>
+          <a href="#bookings" className="account-nav-link">{IconHistory}<span>My bookings</span></a>
+          <a href="#orders" className="account-nav-link">{IconBox}<span>My orders</span></a>
+          <div className="account-nav-separator" />
+          <Link to="/delete-account" className="account-nav-link account-nav-danger">{IconTrash}<span>Account deletion</span></Link>
+        </aside>
+
+        <div className="account-content">
+          <SessionManager />
+          <section id="bookings" className="card card-pad mt-3"><h3>My bookings</h3><p>Bookings made while signed in appear here. Guest bookings remain accessible through <Link to="/track">Track booking</Link>.</p>
       {historyError&&<p role="alert">{historyError}</p>}
       {!historyError&&!bookings.length&&<p>No signed-in bookings yet.</p>}
       {bookings.map(b=><div key={b.id} className="mb-2"><strong>{b.listing_title}</strong> — {b.business_name}<br/><code>{b.code}</code> <StatusBadge status={b.status}/><span> {b.slot_starts_at||b.scheduled_at?qWhen(b.slot_starts_at||b.scheduled_at)+' (Qatar time)':'Awaiting agreed time'}</span></div>)}
       </section>
       {msg && <Alert kind="success">{msg}</Alert>}
 
-      <div className="card card-pad">
+      <div id="profile" className="card card-pad">
         <h3>Profile</h3>
         <form onSubmit={async (e) => { e.preventDefault(); await api.patch('/auth/me', { full_name: name }); await refresh(); setMsg('Profile updated'); }}>
           <Field label="Full name"><input value={name} onChange={(e) => setName(e.target.value)} /></Field>
@@ -301,7 +322,7 @@ export function Account() {
         </form>
       </div>
 
-      <div className="card mt-3">
+      <div id="orders" className="card mt-3">
         <div className="card-head"><h3>My orders</h3></div>
         <div className="table-wrap">
           <table className="tbl">
@@ -319,6 +340,8 @@ export function Account() {
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
         </div>
       </div>
     </div>
