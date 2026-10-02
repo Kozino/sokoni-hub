@@ -1,5 +1,6 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Alert, BackHandler, FlatList, ImageBackground, KeyboardAvoidingView, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, useWindowDimensions, View, Platform } from 'react-native';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -36,6 +37,7 @@ const statusLabel = (value: string) => value.replace(/_/g, ' ').replace(/\b\w/g,
 export const ToastContext = createContext<{ show: (text: string, cartLink?: boolean) => void }>({ show: () => {} });
 export const useToast = () => useContext(ToastContext);
 
+import { Welcome } from './Welcome';
 import { Tabs } from './Tabs';
 import { Home } from './Home';
 import { TrustTile } from './TrustTile';
@@ -55,7 +57,6 @@ import { ListingDetail } from './ListingDetail';
 import { DetailFact } from './DetailFact';
 import { StoreDetail } from './StoreDetail';
 import { Cart } from './Cart';
-import { Orders } from './Orders';
 import { Bookings } from './Bookings';
 import { Status } from './Status';
 import { Track } from './Track';
@@ -63,13 +64,4 @@ import { Account } from './Account';
 import { AccountRow } from './AccountRow';
 import { Support } from './Support';
 import { GuestGate } from './GuestGate';
-import { WebOnlyAccount } from './WebOnlyAccount';export function Welcome({ onDone }: { onDone: (screen?: Screen) => void }) {
-  const { colors } = useTheme(); const insets = useSafeAreaInsets(); const { width } = useWindowDimensions(); const slideWidth = width - 48; const [page, setPage] = useState(0); const ref = useRef<FlatList>(null);
-  const slides = [
-    ['A market made for your neighbourhood', 'Find trusted local products and services, all in one simple place.', 'storefront-outline'],
-    ['Shop with confidence', 'Clear prices, direct vendors, secure sign-in and status updates from checkout to delivery.', 'shield-checkmark-outline'],
-    ['Your next find is nearby', 'Browse as a guest or create your free buyer account to order, book and track with ease.', 'heart-outline'],
-  ] as const;
-  return <ImageBackground source={require('../../assets/hero.jpg')} resizeMode="cover" style={styles.welcomeBg}><View style={[styles.welcomeOverlay, { backgroundColor: colors.overlay }]}><View style={[styles.welcomeTop, { paddingTop: insets.top + 16 }]}><BrandMark /></View><FlatList ref={ref} data={slides} horizontal pagingEnabled showsHorizontalScrollIndicator={false} getItemLayout={(_, index) => ({ length: slideWidth, offset: slideWidth * index, index })} onMomentumScrollEnd={(e) => setPage(Math.round(e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width))} renderItem={({ item }) => <View style={[styles.welcomeSlide, { width: slideWidth }]}><View style={[styles.welcomeIcon, { backgroundColor: colors.goldSoft }]}><Icon name={item[2]} size={40} color={colors.gold}/></View><Text style={styles.welcomeTitle}>{item[0]}</Text><Text style={styles.welcomeText}>{item[1]}</Text></View>} keyExtractor={(_, index) => String(index)}/><View style={styles.dots}>{slides.map((_, index) => <View key={index} style={[styles.dot, { backgroundColor: index === page ? colors.gold : 'rgba(255,255,255,.45)' }]} />)}</View><View style={[styles.welcomeActions, { paddingBottom: 22 + insets.bottom }]}>{page < 2 ? <Button onPress={() => ref.current?.scrollToIndex({ index: page + 1 })} variant="gold">Continue</Button> : <><Button onPress={() => onDone('register')} variant="gold">Create a buyer account</Button><Button onPress={() => onDone('login')} variant="secondary">Sign in</Button></>}<Pressable accessibilityRole="button" onPress={() => onDone('home')}><Text style={styles.browseGuest}>Browse as a guest</Text></Pressable></View></View></ImageBackground>;
-}
-
+import { WebOnlyAccount } from './WebOnlyAccount';export function Orders({ go, back }: any) { const { colors } = useTheme(); const { user } = useAuth(); const [orders, setOrders] = useState<Order[]>([]); const [loading, setLoading] = useState(true); const load = useCallback(async () => { if (!user) return; setLoading(true); try { setOrders((await api.get<{orders: Order[]}>('/orders/mine')).orders); } catch (e) { Alert.alert('Could not load orders', message(e)); } finally { setLoading(false); } }, [user]); useEffect(() => { void load(); }, [load]); if (!user) return <GuestGate heading="My orders" title="Sign in to see orders" text="Your order history and status are stored securely in your buyer account." go={go} back={back}/>; return <View style={styles.page}><Header title="My orders" back={back}/>{loading ? <Spinner label="Loading your orders…"/> : <FlatList data={orders} keyExtractor={(order) => order.id} contentContainerStyle={styles.ordersList} refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.primary}/>} renderItem={({ item }) => <Card style={styles.orderCard}><View style={styles.orderTop}><View><Text style={[styles.orderCode, { color: colors.text }]}>{item.code}</Text><Text style={[styles.orderDate, { color: colors.text2 }]}>{date(item.created_at)} · {item.business_name || item.vendor?.business_name}</Text></View><Status value={item.status}/></View><Divider/><View style={styles.orderBottom}><Money value={item.total} currency={item.currency} strong/><Pressable accessibilityRole="button" onPress={() => go('track', { code: item.code, phone: user.phone })}><Text style={[styles.trackLink, { color: colors.primary }]}>Track order</Text></Pressable></View></Card>} ListEmptyComponent={<EmptyState title="No orders yet" text="When you purchase a local product, its status will appear here." action={<Button onPress={() => go('browse')}>Start browsing</Button>}/>}/>}</View>; }

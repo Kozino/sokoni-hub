@@ -36,6 +36,7 @@ const statusLabel = (value: string) => value.replace(/_/g, ' ').replace(/\b\w/g,
 export const ToastContext = createContext<{ show: (text: string, cartLink?: boolean) => void }>({ show: () => {} });
 export const useToast = () => useContext(ToastContext);
 
+import { Welcome } from './Welcome';
 import { Tabs } from './Tabs';
 import { Home } from './Home';
 import { TrustTile } from './TrustTile';
@@ -45,7 +46,6 @@ import { ListingImage } from './ListingImage';
 import { ListingCard } from './ListingCard';
 import { Browse } from './Browse';
 import { Saved } from './Saved';
-import { Notifications } from './Notifications';
 import { AuthScaffold } from './AuthScaffold';
 import { Login } from './Login';
 import { Register } from './Register';
@@ -63,13 +63,31 @@ import { Account } from './Account';
 import { AccountRow } from './AccountRow';
 import { Support } from './Support';
 import { GuestGate } from './GuestGate';
-import { WebOnlyAccount } from './WebOnlyAccount';export function Welcome({ onDone }: { onDone: (screen?: Screen) => void }) {
-  const { colors } = useTheme(); const insets = useSafeAreaInsets(); const { width } = useWindowDimensions(); const slideWidth = width - 48; const [page, setPage] = useState(0); const ref = useRef<FlatList>(null);
-  const slides = [
-    ['A market made for your neighbourhood', 'Find trusted local products and services, all in one simple place.', 'storefront-outline'],
-    ['Shop with confidence', 'Clear prices, direct vendors, secure sign-in and status updates from checkout to delivery.', 'shield-checkmark-outline'],
-    ['Your next find is nearby', 'Browse as a guest or create your free buyer account to order, book and track with ease.', 'heart-outline'],
-  ] as const;
-  return <ImageBackground source={require('../../assets/hero.jpg')} resizeMode="cover" style={styles.welcomeBg}><View style={[styles.welcomeOverlay, { backgroundColor: colors.overlay }]}><View style={[styles.welcomeTop, { paddingTop: insets.top + 16 }]}><BrandMark /></View><FlatList ref={ref} data={slides} horizontal pagingEnabled showsHorizontalScrollIndicator={false} getItemLayout={(_, index) => ({ length: slideWidth, offset: slideWidth * index, index })} onMomentumScrollEnd={(e) => setPage(Math.round(e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width))} renderItem={({ item }) => <View style={[styles.welcomeSlide, { width: slideWidth }]}><View style={[styles.welcomeIcon, { backgroundColor: colors.goldSoft }]}><Icon name={item[2]} size={40} color={colors.gold}/></View><Text style={styles.welcomeTitle}>{item[0]}</Text><Text style={styles.welcomeText}>{item[1]}</Text></View>} keyExtractor={(_, index) => String(index)}/><View style={styles.dots}>{slides.map((_, index) => <View key={index} style={[styles.dot, { backgroundColor: index === page ? colors.gold : 'rgba(255,255,255,.45)' }]} />)}</View><View style={[styles.welcomeActions, { paddingBottom: 22 + insets.bottom }]}>{page < 2 ? <Button onPress={() => ref.current?.scrollToIndex({ index: page + 1 })} variant="gold">Continue</Button> : <><Button onPress={() => onDone('register')} variant="gold">Create a buyer account</Button><Button onPress={() => onDone('login')} variant="secondary">Sign in</Button></>}<Pressable accessibilityRole="button" onPress={() => onDone('home')}><Text style={styles.browseGuest}>Browse as a guest</Text></Pressable></View></View></ImageBackground>;
+import { WebOnlyAccount } from './WebOnlyAccount';export function Notifications({ go, back }: any) {
+  const { colors } = useTheme(); const { user } = useAuth();
+  type Note = { id: string; icon: IconName; title: string; text: string; at: string; onPress: () => void };
+  const [notes, setNotes] = useState<Note[]>([]); const [loading, setLoading] = useState(!!user); const [error, setError] = useState('');
+  const load = useCallback(async () => {
+    if (!user) return; setLoading(true); setError('');
+    try {
+      const [orders, bookings] = await Promise.all([api.get<{ orders: Order[] }>('/orders/mine'), api.get<{ bookings: Booking[] }>('/bookings/mine')]);
+      const list: Note[] = [
+        ...orders.orders.map((o): Note => ({ id: `o-${o.id}`, icon: 'receipt-outline', title: `Order ${o.code}`, text: `${statusLabel(o.status)} · ${o.business_name || o.vendor?.business_name || 'Seller'}`, at: o.created_at, onPress: () => go('track', { code: o.code, phone: user.phone }) })),
+        ...bookings.bookings.map((b): Note => ({ id: `b-${b.id}`, icon: 'calendar-outline', title: b.listing_title || `Booking ${b.code}`, text: `${statusLabel(b.status)} · ${dateTime(b.slot_starts_at || b.scheduled_at || b.preferred_at)}`, at: b.created_at, onPress: () => go('track', { bookingCode: b.code, phone: user.phone }) })),
+      ].sort((a, b) => +new Date(b.at) - +new Date(a.at));
+      setNotes(list);
+    } catch (e) { setError(message(e)); } finally { setLoading(false); }
+  }, [user, go]);
+  useEffect(() => { void load(); }, [load]);
+  if (!user) return <GuestGate heading="Notifications" title="Sign in for updates" text="Order and booking updates appear here once you have a buyer account." go={go} back={back} />;
+  return <View style={styles.page}>
+    <Header title="Notifications" back={back} />
+    {loading ? <Spinner label="Checking for updates…" /> : error ? <EmptyState icon="cloud-offline-outline" title="Could not load updates" text={error} action={<Button style={{ marginTop: 8 }} onPress={() => void load()}>Try again</Button>} /> :
+      <FlatList data={notes} keyExtractor={(n) => n.id} contentContainerStyle={styles.ordersList} refreshControl={<RefreshControl refreshing={false} onRefresh={() => void load()} tintColor={colors.primary} />}
+        renderItem={({ item }) => <Pressable accessibilityRole="button" onPress={item.onPress}><Card style={ex.noteCard}><View style={[ex.noteIcon, { backgroundColor: colors.primarySoft }]}><Icon name={item.icon} size={20} color={colors.primary} /></View><View style={{ flex: 1 }}><Text style={[ex.noteTitle, { color: colors.text }]}>{item.title}</Text><Text style={[ex.noteText, { color: colors.text2 }]}>{item.text}</Text></View><Text style={[ex.noteAgo, { color: colors.muted }]}>{date(item.at)}</Text></Card></Pressable>}
+        ListEmptyComponent={<EmptyState icon="notifications-outline" title="You're all caught up" text="When you order or book, every status change will show up here." />} />}
+  </View>;
 }
+
+
 

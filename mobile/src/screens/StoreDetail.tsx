@@ -36,6 +36,7 @@ const statusLabel = (value: string) => value.replace(/_/g, ' ').replace(/\b\w/g,
 export const ToastContext = createContext<{ show: (text: string, cartLink?: boolean) => void }>({ show: () => {} });
 export const useToast = () => useContext(ToastContext);
 
+import { Welcome } from './Welcome';
 import { Tabs } from './Tabs';
 import { Home } from './Home';
 import { TrustTile } from './TrustTile';
@@ -53,7 +54,6 @@ import { Pin } from './Pin';
 import { Recovery } from './Recovery';
 import { ListingDetail } from './ListingDetail';
 import { DetailFact } from './DetailFact';
-import { StoreDetail } from './StoreDetail';
 import { Cart } from './Cart';
 import { Orders } from './Orders';
 import { Bookings } from './Bookings';
@@ -63,13 +63,8 @@ import { Account } from './Account';
 import { AccountRow } from './AccountRow';
 import { Support } from './Support';
 import { GuestGate } from './GuestGate';
-import { WebOnlyAccount } from './WebOnlyAccount';export function Welcome({ onDone }: { onDone: (screen?: Screen) => void }) {
-  const { colors } = useTheme(); const insets = useSafeAreaInsets(); const { width } = useWindowDimensions(); const slideWidth = width - 48; const [page, setPage] = useState(0); const ref = useRef<FlatList>(null);
-  const slides = [
-    ['A market made for your neighbourhood', 'Find trusted local products and services, all in one simple place.', 'storefront-outline'],
-    ['Shop with confidence', 'Clear prices, direct vendors, secure sign-in and status updates from checkout to delivery.', 'shield-checkmark-outline'],
-    ['Your next find is nearby', 'Browse as a guest or create your free buyer account to order, book and track with ease.', 'heart-outline'],
-  ] as const;
-  return <ImageBackground source={require('../../assets/hero.jpg')} resizeMode="cover" style={styles.welcomeBg}><View style={[styles.welcomeOverlay, { backgroundColor: colors.overlay }]}><View style={[styles.welcomeTop, { paddingTop: insets.top + 16 }]}><BrandMark /></View><FlatList ref={ref} data={slides} horizontal pagingEnabled showsHorizontalScrollIndicator={false} getItemLayout={(_, index) => ({ length: slideWidth, offset: slideWidth * index, index })} onMomentumScrollEnd={(e) => setPage(Math.round(e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width))} renderItem={({ item }) => <View style={[styles.welcomeSlide, { width: slideWidth }]}><View style={[styles.welcomeIcon, { backgroundColor: colors.goldSoft }]}><Icon name={item[2]} size={40} color={colors.gold}/></View><Text style={styles.welcomeTitle}>{item[0]}</Text><Text style={styles.welcomeText}>{item[1]}</Text></View>} keyExtractor={(_, index) => String(index)}/><View style={styles.dots}>{slides.map((_, index) => <View key={index} style={[styles.dot, { backgroundColor: index === page ? colors.gold : 'rgba(255,255,255,.45)' }]} />)}</View><View style={[styles.welcomeActions, { paddingBottom: 22 + insets.bottom }]}>{page < 2 ? <Button onPress={() => ref.current?.scrollToIndex({ index: page + 1 })} variant="gold">Continue</Button> : <><Button onPress={() => onDone('register')} variant="gold">Create a buyer account</Button><Button onPress={() => onDone('login')} variant="secondary">Sign in</Button></>}<Pressable accessibilityRole="button" onPress={() => onDone('home')}><Text style={styles.browseGuest}>Browse as a guest</Text></Pressable></View></View></ImageBackground>;
-}
+import { WebOnlyAccount } from './WebOnlyAccount';export function StoreDetail({ slug, go, back }: any) { const { colors } = useTheme(); const [vendor, setVendor] = useState<Vendor | null>(null); const [listings, setListings] = useState<Listing[]>([]); const [loading, setLoading] = useState(true); const [refreshing, setRefreshing] = useState(false); const [error, setError] = useState('');
+  const load = useCallback(async (pull = false) => { if (pull) setRefreshing(true); else setLoading(true); setError(''); try { const data = await api.get<{vendor: Vendor; listings: Listing[]}>(`/vendors/${encodeURIComponent(slug)}`); setVendor(data.vendor); setListings(data.listings); } catch (e) { if (pull) Alert.alert('Could not refresh', message(e)); else setError(message(e)); } finally { setLoading(false); setRefreshing(false); } }, [slug]);
+  useEffect(() => { void load(); }, [load]);
+  if (error && !vendor) return <View style={styles.page}><Header title="Store" back={back}/><EmptyState icon="cloud-offline-outline" title="Store unavailable" text={error} action={<Button style={{ marginTop: 8 }} onPress={() => void load()}>Try again</Button>}/></View>; if (loading || !vendor) return <View style={styles.page}><Header title="Store" back={back}/><Spinner label="Loading store…"/></View>; return <View style={styles.page}><Header title="Store" back={back}/><ScrollView contentContainerStyle={styles.detailScroll} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.primary}/>}><View style={{ height: 110, backgroundColor: colors.primary, overflow: 'hidden' }}>{vendor.logo_url && <Image contentFit="cover" transition={200} source={{ uri: vendor.logo_url }} style={{ width: '100%', height: '100%', opacity: 0.4 }} blurRadius={10} />}</View><View style={styles.storeInfo}><View style={{ flexDirection: 'row', alignItems: 'center', marginTop: -35, marginBottom: 10 }}><View style={{ width: 70, height: 70, borderRadius: 12, backgroundColor: '#fff', padding: 3, elevation: 4 }}>{vendor.logo_url ? <Image contentFit="cover" transition={200} source={{ uri: vendor.logo_url}} style={{width: '100%', height: '100%', borderRadius: 9}} /> : <Icon name="storefront" size={48} color={colors.primary}/>}</View></View><Text style={[styles.detailTitle, { color: colors.text }]}>{vendor.business_name}</Text><Text style={[styles.detailDescription, { color: colors.text2 }]}>{vendor.description || 'A verified local Sokoni Hub seller.'}</Text><View style={styles.storeMeta}><Icon name="location-outline" size={17} color={colors.muted}/><Text style={[styles.vendorMeta, { color: colors.text2 }]}>{vendor.city}, {vendor.country}</Text></View><Button variant="secondary" onPress={() => Linking.openURL(`https://wa.me/${String(vendor.whatsapp || '').replace(/\D/g, '')}`)}>Message store on WhatsApp</Button><SectionTitle title="Available listings"/>{listings.length ? listings.map((listing) => <ListingCard key={listing.id} listing={listing} onPress={() => go('listing', { id: listing.id })}/>) : <EmptyState title="No current listings" text="Check back soon for this seller's latest products and services."/>}</View></ScrollView></View>; }
 

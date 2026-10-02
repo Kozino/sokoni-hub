@@ -36,13 +36,13 @@ const statusLabel = (value: string) => value.replace(/_/g, ' ').replace(/\b\w/g,
 export const ToastContext = createContext<{ show: (text: string, cartLink?: boolean) => void }>({ show: () => {} });
 export const useToast = () => useContext(ToastContext);
 
+import { Welcome } from './Welcome';
 import { Tabs } from './Tabs';
 import { Home } from './Home';
 import { TrustTile } from './TrustTile';
 import { SectionTitle } from './SectionTitle';
 import { ListingRail } from './ListingRail';
 import { ListingImage } from './ListingImage';
-import { ListingCard } from './ListingCard';
 import { Browse } from './Browse';
 import { Saved } from './Saved';
 import { Notifications } from './Notifications';
@@ -63,13 +63,27 @@ import { Account } from './Account';
 import { AccountRow } from './AccountRow';
 import { Support } from './Support';
 import { GuestGate } from './GuestGate';
-import { WebOnlyAccount } from './WebOnlyAccount';export function Welcome({ onDone }: { onDone: (screen?: Screen) => void }) {
-  const { colors } = useTheme(); const insets = useSafeAreaInsets(); const { width } = useWindowDimensions(); const slideWidth = width - 48; const [page, setPage] = useState(0); const ref = useRef<FlatList>(null);
-  const slides = [
-    ['A market made for your neighbourhood', 'Find trusted local products and services, all in one simple place.', 'storefront-outline'],
-    ['Shop with confidence', 'Clear prices, direct vendors, secure sign-in and status updates from checkout to delivery.', 'shield-checkmark-outline'],
-    ['Your next find is nearby', 'Browse as a guest or create your free buyer account to order, book and track with ease.', 'heart-outline'],
-  ] as const;
-  return <ImageBackground source={require('../../assets/hero.jpg')} resizeMode="cover" style={styles.welcomeBg}><View style={[styles.welcomeOverlay, { backgroundColor: colors.overlay }]}><View style={[styles.welcomeTop, { paddingTop: insets.top + 16 }]}><BrandMark /></View><FlatList ref={ref} data={slides} horizontal pagingEnabled showsHorizontalScrollIndicator={false} getItemLayout={(_, index) => ({ length: slideWidth, offset: slideWidth * index, index })} onMomentumScrollEnd={(e) => setPage(Math.round(e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width))} renderItem={({ item }) => <View style={[styles.welcomeSlide, { width: slideWidth }]}><View style={[styles.welcomeIcon, { backgroundColor: colors.goldSoft }]}><Icon name={item[2]} size={40} color={colors.gold}/></View><Text style={styles.welcomeTitle}>{item[0]}</Text><Text style={styles.welcomeText}>{item[1]}</Text></View>} keyExtractor={(_, index) => String(index)}/><View style={styles.dots}>{slides.map((_, index) => <View key={index} style={[styles.dot, { backgroundColor: index === page ? colors.gold : 'rgba(255,255,255,.45)' }]} />)}</View><View style={[styles.welcomeActions, { paddingBottom: 22 + insets.bottom }]}>{page < 2 ? <Button onPress={() => ref.current?.scrollToIndex({ index: page + 1 })} variant="gold">Continue</Button> : <><Button onPress={() => onDone('register')} variant="gold">Create a buyer account</Button><Button onPress={() => onDone('login')} variant="secondary">Sign in</Button></>}<Pressable accessibilityRole="button" onPress={() => onDone('home')}><Text style={styles.browseGuest}>Browse as a guest</Text></Pressable></View></View></ImageBackground>;
+import { WebOnlyAccount } from './WebOnlyAccount';export function ListingCard({ listing, onPress, compact = false, fluid = false }: { listing: Listing; onPress: () => void; compact?: boolean; fluid?: boolean }) {
+  const { colors } = useTheme(); const image = listing.images?.[0]; const fav = useFavourites(); const saved = fav.has(listing.id); const { add } = useCart(); const toast = useToast();
+  const isService = listing.kind === 'service';
+  const addToCart = () => {
+    if (listing.quantity !== null && listing.quantity <= 0) return toast.show('This item is out of stock');
+    add({ listing_id: listing.id, vendor_id: listing.vendor_id, vendor_name: listing.business_name || 'Local seller', title: listing.title, price: Number(listing.price), currency: listing.currency, image: listing.images?.[0], qty: 1, max: listing.quantity ?? undefined, kind: listing.kind });
+    success(); toast.show('Added to cart', true);
+  };
+  return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={listing.title} style={[styles.listingCard, compact && styles.listingCardCompact, fluid && { width: '48.5%' }, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={styles.listingVisual}><ListingImage uri={image} style={[styles.listingImage, compact && styles.listingImageCompact]} icon={isService ? 'construct-outline' : 'basket-outline'}/><Pressable onPress={() => { tap(); fav.toggle(listing); }} hitSlop={8} accessibilityRole="button" accessibilityLabel={saved ? 'Remove from saved' : 'Save for later'} style={[styles.favouriteButton,{backgroundColor:'rgba(255,255,255,.94)'}]}><Icon name={saved ? 'heart' : 'heart-outline'} size={17} color={saved ? '#D9304F' : colors.primary}/></Pressable>{isService ? <View style={[styles.itemRibbon,{backgroundColor:colors.primary}]}><Text style={styles.itemRibbonText}>HOME SERVICE</Text></View> : <View style={[styles.itemRibbon,{backgroundColor:colors.teal}]}><Text style={styles.itemRibbonText}>LOCAL PICK</Text></View>}</View>
+    <View style={styles.listingInfo}>
+      <Text numberOfLines={2} style={[styles.listingTitle, { color: colors.text }]}>{listing.title}</Text>
+      <View style={nx.inline}><Icon name="storefront-outline" size={12} color={colors.text2}/><Text numberOfLines={1} style={[styles.listingVendor, { color: colors.text2, flex: 1 }]}>{listing.business_name || listing.vendor_city || 'Verified local seller'}</Text></View>
+      <View style={styles.ratingLine}><Icon name="star" size={12} color={colors.gold}/><Text style={[styles.ratingText,{color:colors.text2}]}>{Number(listing.rating_avg || listing.vendor_rating_avg || 0).toFixed(1)} ({listing.rating_count || listing.vendor_rating_count || 0})</Text></View>
+      <View style={nx.priceRow}>
+        <Money value={listing.price} currency={listing.currency} strong/>
+        {isService
+          ? <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel="Book service" style={[nx.bookPill,{backgroundColor:colors.primary}]}><Icon name="calendar-outline" size={13} color="#fff"/><Text style={nx.bookPillText}>Book</Text></Pressable>
+          : <Pressable onPress={addToCart} hitSlop={6} accessibilityRole="button" accessibilityLabel="Add to cart" style={[nx.cartCircle,{backgroundColor:colors.primary}]}><Icon name="cart-outline" size={17} color="#fff"/></Pressable>}
+      </View>
+    </View>
+  </Pressable>;
 }
 

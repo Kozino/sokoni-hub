@@ -36,7 +36,7 @@ const statusLabel = (value: string) => value.replace(/_/g, ' ').replace(/\b\w/g,
 export const ToastContext = createContext<{ show: (text: string, cartLink?: boolean) => void }>({ show: () => {} });
 export const useToast = () => useContext(ToastContext);
 
-import { Tabs } from './Tabs';
+import { Welcome } from './Welcome';
 import { Home } from './Home';
 import { TrustTile } from './TrustTile';
 import { SectionTitle } from './SectionTitle';
@@ -63,13 +63,16 @@ import { Account } from './Account';
 import { AccountRow } from './AccountRow';
 import { Support } from './Support';
 import { GuestGate } from './GuestGate';
-import { WebOnlyAccount } from './WebOnlyAccount';export function Welcome({ onDone }: { onDone: (screen?: Screen) => void }) {
-  const { colors } = useTheme(); const insets = useSafeAreaInsets(); const { width } = useWindowDimensions(); const slideWidth = width - 48; const [page, setPage] = useState(0); const ref = useRef<FlatList>(null);
-  const slides = [
-    ['A market made for your neighbourhood', 'Find trusted local products and services, all in one simple place.', 'storefront-outline'],
-    ['Shop with confidence', 'Clear prices, direct vendors, secure sign-in and status updates from checkout to delivery.', 'shield-checkmark-outline'],
-    ['Your next find is nearby', 'Browse as a guest or create your free buyer account to order, book and track with ease.', 'heart-outline'],
-  ] as const;
-  return <ImageBackground source={require('../../assets/hero.jpg')} resizeMode="cover" style={styles.welcomeBg}><View style={[styles.welcomeOverlay, { backgroundColor: colors.overlay }]}><View style={[styles.welcomeTop, { paddingTop: insets.top + 16 }]}><BrandMark /></View><FlatList ref={ref} data={slides} horizontal pagingEnabled showsHorizontalScrollIndicator={false} getItemLayout={(_, index) => ({ length: slideWidth, offset: slideWidth * index, index })} onMomentumScrollEnd={(e) => setPage(Math.round(e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width))} renderItem={({ item }) => <View style={[styles.welcomeSlide, { width: slideWidth }]}><View style={[styles.welcomeIcon, { backgroundColor: colors.goldSoft }]}><Icon name={item[2]} size={40} color={colors.gold}/></View><Text style={styles.welcomeTitle}>{item[0]}</Text><Text style={styles.welcomeText}>{item[1]}</Text></View>} keyExtractor={(_, index) => String(index)}/><View style={styles.dots}>{slides.map((_, index) => <View key={index} style={[styles.dot, { backgroundColor: index === page ? colors.gold : 'rgba(255,255,255,.45)' }]} />)}</View><View style={[styles.welcomeActions, { paddingBottom: 22 + insets.bottom }]}>{page < 2 ? <Button onPress={() => ref.current?.scrollToIndex({ index: page + 1 })} variant="gold">Continue</Button> : <><Button onPress={() => onDone('register')} variant="gold">Create a buyer account</Button><Button onPress={() => onDone('login')} variant="secondary">Sign in</Button></>}<Pressable accessibilityRole="button" onPress={() => onDone('home')}><Text style={styles.browseGuest}>Browse as a guest</Text></Pressable></View></View></ImageBackground>;
+import { WebOnlyAccount } from './WebOnlyAccount';export function Tabs({ active, tab, kind }: { active: Screen; tab: (screen: Screen, params?: Record<string, any>) => void; kind?: string }) {
+  const { colors } = useTheme(); const { count } = useCart(); const insets = useSafeAreaInsets();
+  const items: [Screen, IconName, string][] = [['home','storefront-outline','Explore'],['browse','grid-outline','Categories'],['browse','construct-outline','Services'],['cart','bag-handle-outline','Cart'],['account','person-outline','Profile']];
+  // The bar sits in normal layout flow and pads for the Android gesture/navigation bar, so it is never covered.
+  return <View style={[styles.tabs, { backgroundColor: colors.tab, borderColor: colors.border, height: 62 + insets.bottom, paddingBottom: insets.bottom }]}>{items.map(([screen, icon, label]) => {
+    const selected = label === 'Services' ? active === 'browse' && kind === 'service' : label === 'Categories' ? active === 'browse' && kind !== 'service' : active === screen;
+    const service = label === 'Services';
+    return <Pressable key={label} onPress={() => { tap(); tab(screen, service ? { kind: 'service' } : screen === 'browse' ? {} : undefined); }} style={styles.tab} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected }}>
+      <View style={[service && styles.tabCenterIcon, service && { backgroundColor: colors.gold, borderColor: colors.surface }]}><Icon name={icon} solid={selected && !service} size={service ? 23 : 21} color={service ? '#fff' : selected ? colors.primary : colors.muted}/>{screen === 'cart' && count > 0 ? <View style={[styles.tabBadge, { backgroundColor: colors.gold }]}><Text style={styles.tabBadgeText}>{count}</Text></View> : null}</View><Text style={[styles.tabText, { color: selected ? colors.primary : colors.muted }]}>{label}</Text>
+    </Pressable>;
+  })}</View>;
 }
 
