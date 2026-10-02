@@ -111,7 +111,7 @@ export function BottomBar({ children, style }: { children: ReactNode; style?: Vi
   return <View style={[{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 14, paddingTop: 10, paddingBottom: 10 + insets.bottom, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, backgroundColor: colors.surface }, style]}>{children}</View>;
 }
 
-export function Money({ value, currency = 'QAR', strong = false }: { value: string | number; currency?: string; strong?: boolean }) { const { colors } = useTheme(); const number = Number(value || 0); return <Text style={[strong ? styles.moneyStrong : styles.money, { color: strong ? colors.primary : colors.text }]}>{currency} {number.toFixed(2)}</Text>; }
+export function Money({ value, currency = 'QAR', strong = false }: { value: string | number; currency?: string; strong?: boolean }) { const { colors } = useTheme(); const number = Number(value || 0); return <Text adjustsFontSizeToFit numberOfLines={1} style={[strong ? styles.moneyStrong : styles.money, { color: strong ? colors.primary : colors.text, flexShrink: 1 }]}>{currency} {number.toFixed(2)}</Text>; }
 
 const styles = StyleSheet.create({
   brand: { flexDirection: 'row', alignItems: 'center', gap: 10 }, brandSmall: { gap: 7 }, logo: { width: 45, height: 45, resizeMode: 'contain' }, logoSmall: { width: 31, height: 31 }, brandTitle: { fontSize: 21, fontWeight: '800', letterSpacing: -.5 }, brandTitleSmall: { fontSize: 17 }, tagline: { fontSize: 11, marginTop: 1 },
