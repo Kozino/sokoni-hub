@@ -1,9 +1,39 @@
 import { Icon, type IconName } from './icons';
-import { useRef, useState } from 'react';
-import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View, type ImageSourcePropType, type TextInputProps, type ViewStyle } from 'react-native';
+import { createContext, forwardRef, useContext, useRef, useState } from 'react';
+import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text as RNText, TextInput as RNTextInput, useWindowDimensions, View, type ImageSourcePropType, type StyleProp, type TextInputProps, type TextProps, type TextStyle, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from './providers';
 import type { ReactNode } from 'react';
+import { tap } from './haptics';
+
+// ---- Inter typography -------------------------------------------------------------------------------------------
+// Custom fonts have no automatic bold on Android, so every fontWeight in the app maps to a loaded Inter file here.
+export type FontStatus = 'loading' | 'ready' | 'failed';
+export const FontContext = createContext<FontStatus>('loading');
+const InsideText = createContext(false);
+const interFor = (weight: TextStyle['fontWeight']) => {
+  const w = weight === 'bold' ? 700 : weight === undefined || weight === 'normal' ? 400 : Number(weight);
+  return w >= 800 ? 'Inter_800ExtraBold' : w >= 700 ? 'Inter_700Bold' : w >= 600 ? 'Inter_600SemiBold' : 'Inter_400Regular';
+};
+function useInter(style: StyleProp<TextStyle>, nested: boolean): StyleProp<TextStyle> {
+  const status = useContext(FontContext);
+  if (status !== 'ready') return style;
+  const flat = StyleSheet.flatten(style) || {};
+  if (flat.fontFamily) return style;
+  if (nested && flat.fontWeight === undefined) return style; // inherits the weight of the surrounding text
+  return [style, { fontFamily: interFor(flat.fontWeight), fontWeight: 'normal' }];
+}
+export function Text(props: TextProps) {
+  const nested = useContext(InsideText);
+  const style = useInter(props.style, nested);
+  return <InsideText.Provider value><RNText {...props} style={style} /></InsideText.Provider>;
+}
+export const TextInput = forwardRef<RNTextInput, TextInputProps>(function TextInput(props, ref) {
+  const style = useInter(props.style as StyleProp<TextStyle>, false);
+  return <RNTextInput ref={ref} {...props} style={style} />;
+});
+export type TextInput = RNTextInput;
+
 
 export function BrandMark({ small = false }: { small?: boolean }) {
   const { colors } = useTheme();
@@ -15,17 +45,17 @@ export function Button({ children, onPress, variant = 'primary', disabled, loadi
   const bg = variant === 'primary' ? colors.primary : variant === 'gold' ? colors.gold : variant === 'danger' ? colors.danger : variant === 'secondary' ? colors.surface : 'transparent';
   const text = variant === 'primary' || variant === 'danger' ? '#FFFFFF' : variant === 'gold' ? '#1C1B17' : colors.primary;
   const borderColor = variant === 'secondary' ? colors.primaryLine : variant === 'ghost' ? 'transparent' : bg;
-  return <Pressable accessibilityRole="button" disabled={disabled || loading} onPress={onPress} style={({ pressed }) => [{ backgroundColor: bg, borderColor, opacity: disabled ? .52 : pressed ? .84 : 1 }, styles.button, style]}>{loading ? <ActivityIndicator color={text} /> : <View style={styles.buttonInner}><Text style={[styles.buttonText, { color: text }]}>{children}</Text>{icon ? <Icon name={icon} size={18} color={text} /> : null}</View>}</Pressable>;
+  return <Pressable accessibilityRole="button" disabled={disabled || loading} onPress={() => { tap(); onPress(); }} style={({ pressed }) => [{ backgroundColor: bg, borderColor, opacity: disabled ? .52 : pressed ? .84 : 1 }, styles.button, style]}>{loading ? <ActivityIndicator color={text} /> : <View style={styles.buttonInner}><Text style={[styles.buttonText, { color: text }]}>{children}</Text>{icon ? <Icon name={icon} size={18} color={text} /> : null}</View>}</Pressable>;
 }
 
 export function IconButton({ icon, onPress, label, badge }: { icon: IconName; onPress: () => void; label: string; badge?: number }) {
   const { colors } = useTheme();
-  return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} hitSlop={10} style={[styles.iconButton, { borderColor: colors.border, backgroundColor: colors.surface }]}><Icon name={icon} size={20} color={colors.text} />{!!badge && <View style={[styles.badge, { backgroundColor: colors.gold }]}><Text style={styles.badgeText}>{badge > 9 ? '9+' : badge}</Text></View>}</Pressable>;
+  return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={() => { tap(); onPress(); }} hitSlop={10} style={[styles.iconButton, { borderColor: colors.border, backgroundColor: colors.surface }]}><Icon name={icon} size={20} color={colors.text} />{!!badge && <View style={[styles.badge, { backgroundColor: colors.gold }]}><Text style={styles.badgeText}>{badge > 9 ? '9+' : badge}</Text></View>}</Pressable>;
 }
 
 export function Field({ label, error, style, ...props }: TextInputProps & { label: string; error?: string; style?: ViewStyle }) {
   const { colors } = useTheme();
-  return <View style={styles.fieldWrap}>{label ? <Text style={[styles.fieldLabel, { color: colors.text }]}>{label}</Text> : null}<TextInput placeholderTextColor={colors.muted} style={[styles.field, { color: colors.text, backgroundColor: colors.surface, borderColor: error ? colors.danger : colors.border }, style]} {...props} />{error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}</View>;
+  return <View style={styles.fieldWrap}>{label ? <Text style={[styles.fieldLabel, { color: colors.text }]}>{label}</Text> : null}<TextInput accessibilityLabel={label || props.placeholder} placeholderTextColor={colors.muted} style={[styles.field, { color: colors.text, backgroundColor: colors.surface, borderColor: error ? colors.danger : colors.border }, style]} {...props} />{error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}</View>;
 }
 
 export function Card({ children, style }: { children: ReactNode; style?: ViewStyle }) { const { colors } = useTheme(); return <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }, style]}>{children}</View>; }
@@ -38,11 +68,11 @@ export function EmptyState({ icon = 'basket-outline', title, text, action }: { i
 
 export function Header({ title, back, right }: { title: string; back?: () => void; right?: ReactNode }) { const { colors } = useTheme(); return <View style={[styles.header, { backgroundColor: colors.bg }]}>{back ? <Pressable onPress={back} accessibilityLabel="Go back" style={styles.back}><Icon name="arrow-back" size={24} color={colors.text} /></Pressable> : <View style={styles.back}/>}<Text numberOfLines={1} style={[styles.headerTitle, { color: colors.text }]}>{title}</Text><View style={styles.headerRight}>{right}</View></View>; }
 
-export function Chip({ children, selected, onPress, image }: { children: ReactNode; selected?: boolean; onPress?: () => void; image?: ImageSourcePropType }) { const { colors } = useTheme(); return <Pressable disabled={!onPress} onPress={onPress} style={[styles.chip, image ? styles.chipWithImage : null, { borderColor: selected ? colors.primary : colors.border, backgroundColor: selected ? colors.primary : colors.surface }]}>{image ? <Image source={image} style={styles.chipImage} /> : null}<Text style={[styles.chipText, { color: selected ? '#fff' : colors.text2 }]}>{children}</Text></Pressable>; }
+export function Chip({ children, selected, onPress, image }: { children: ReactNode; selected?: boolean; onPress?: () => void; image?: ImageSourcePropType }) { const { colors } = useTheme(); return <Pressable accessibilityRole="button" accessibilityState={{ selected: !!selected }} disabled={!onPress} onPress={() => { tap(); onPress?.(); }} style={[styles.chip, image ? styles.chipWithImage : null, { borderColor: selected ? colors.primary : colors.border, backgroundColor: selected ? colors.primary : colors.surface }]}>{image ? <Image source={image} style={styles.chipImage} /> : null}<Text style={[styles.chipText, { color: selected ? '#fff' : colors.text2 }]}>{children}</Text></Pressable>; }
 
 export function Notice({ type = 'info', children }: { type?: 'info' | 'warning' | 'success' | 'danger'; children: ReactNode }) { const { colors } = useTheme(); const values = type === 'warning' ? [colors.warningSoft, colors.warning, 'warning-outline'] : type === 'success' ? [colors.successSoft, colors.success, 'checkmark-circle-outline'] : type === 'danger' ? [colors.dangerSoft, colors.danger, 'alert-circle-outline'] : [colors.primarySoft, colors.primary, 'information-circle-outline']; return <View style={[styles.notice, { backgroundColor: values[0] as string }]}><Icon name={values[2] as IconName} size={19} color={values[1] as string}/><Text style={[styles.noticeText, { color: colors.text }]}>{children}</Text></View>; }
 
-export function Sheet({ visible, title, onClose, children }: { visible: boolean; title: string; onClose: () => void; children: ReactNode }) { const { colors } = useTheme(); const insets = useSafeAreaInsets(); return <Modal transparent statusBarTranslucent navigationBarTranslucent visible={visible} animationType="slide" onRequestClose={onClose}><Pressable style={[styles.modalBackdrop, { backgroundColor: colors.overlay }]} onPress={onClose}/><View style={[styles.sheet, { backgroundColor: colors.surface }]}><View style={[styles.sheetHandle, { backgroundColor: colors.border }]} /><View style={styles.sheetTop}><Text style={[styles.sheetTitle, { color: colors.text }]}>{title}</Text><Pressable onPress={onClose}><Icon name="close" size={24} color={colors.text}/></Pressable></View><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.sheetContent, { paddingBottom: 28 + insets.bottom }]}>{children}</ScrollView></View></Modal>; }
+export function Sheet({ visible, title, onClose, children }: { visible: boolean; title: string; onClose: () => void; children: ReactNode }) { const { colors } = useTheme(); const insets = useSafeAreaInsets(); return <Modal transparent statusBarTranslucent navigationBarTranslucent visible={visible} animationType="slide" onRequestClose={onClose}><Pressable accessibilityRole="button" accessibilityLabel="Close" style={[styles.modalBackdrop, { backgroundColor: colors.overlay }]} onPress={onClose}/><View style={[styles.sheet, { backgroundColor: colors.surface }]}><View style={[styles.sheetHandle, { backgroundColor: colors.border }]} /><View style={styles.sheetTop}><Text style={[styles.sheetTitle, { color: colors.text }]}>{title}</Text><Pressable accessibilityRole="button" accessibilityLabel="Close" hitSlop={10} onPress={onClose}><Icon name="close" size={24} color={colors.text}/></Pressable></View><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.sheetContent, { paddingBottom: 28 + insets.bottom }]}>{children}</ScrollView></View></Modal>; }
 
 export type DropdownOption = { value: string; label: string; image?: ImageSourcePropType };
 /** A real dropdown: tapping the trigger opens a menu anchored right under it; choosing an option closes it. */
@@ -59,11 +89,11 @@ export function Dropdown({ value, options, onChange, renderTrigger, style, menuW
     <Pressable ref={ref} collapsable={false} onPress={open} style={style} accessibilityRole="button" accessibilityLabel={label}>{renderTrigger(label, !!anchor)}</Pressable>
     <Modal transparent statusBarTranslucent visible={!!anchor} animationType="fade" onRequestClose={() => setAnchor(null)}>
       <View style={{ flex: 1 }}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={() => setAnchor(null)} />
+        <Pressable accessibilityRole="button" accessibilityLabel="Close menu" style={StyleSheet.absoluteFill} onPress={() => setAnchor(null)} />
         {anchor ? <View style={[styles.dropMenu, { top, left, width, maxHeight, backgroundColor: colors.surface, borderColor: colors.border }]}>
           <ScrollView keyboardShouldPersistTaps="handled">{options.map((option) => {
             const selected = option.value === value;
-            return <Pressable key={option.value || '_all'} onPress={() => { onChange(option.value); setAnchor(null); }} style={[styles.dropItem, selected && { backgroundColor: colors.primarySoft }]}>
+            return <Pressable key={option.value || '_all'} accessibilityRole="button" accessibilityState={{ selected }} onPress={() => { tap(); onChange(option.value); setAnchor(null); }} style={[styles.dropItem, selected && { backgroundColor: colors.primarySoft }]}>
               {option.image ? <Image source={option.image} style={styles.dropImage} /> : null}
               <Text numberOfLines={1} style={[styles.dropText, { color: selected ? colors.primary : colors.text }]}>{option.label}</Text>
               {selected ? <Icon name="checkmark-circle" size={18} color={colors.primary} /> : null}

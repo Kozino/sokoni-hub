@@ -1,10 +1,10 @@
 import { Icon, type IconName } from './icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Image, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { api, ApiError, query } from './api';
 import { useAuth, useTheme } from './providers';
 import type { Booking, Listing } from './types';
-import { BottomBar, Button, Card, EmptyState, Field, Header, Money, Notice, Spinner } from './ui';
+import { BottomBar, Button, Card, EmptyState, Field, Header, Money, Notice, Spinner, Text } from './ui';
 
 /** Qatar has no daylight saving, so a fixed +03:00 offset is always correct. */
 const QATAR = '+03:00';
@@ -187,7 +187,7 @@ export function BookService({ listing, go, back, tab }: { listing?: Listing; go:
         slotsLoading ? <Spinner label="Loading times…" /> :
         slots.length ? <View style={styles.timeGrid}>{slots.map((slot) => {
           const active = slot.start === time;
-          return <Pressable key={slot.start} onPress={() => setTime(slot.start)} style={[styles.timeChip, { backgroundColor: active ? colors.primary : colors.surface, borderColor: active ? colors.primary : colors.border }]}>
+          return <Pressable key={slot.start} accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => setTime(slot.start)} style={[styles.timeChip, { backgroundColor: active ? colors.primary : colors.surface, borderColor: active ? colors.primary : colors.border }]}>
             <Text style={[styles.timeText, { color: active ? '#fff' : colors.text }]}>{slot.label}</Text>
           </Pressable>;
         })}</View> : <Notice type="warning">No times are free on {dayParts(day).long}. Try another day.</Notice>
@@ -197,7 +197,7 @@ export function BookService({ listing, go, back, tab }: { listing?: Listing; go:
           <View style={[styles.timeGrid, { marginTop: 10 }]}>{REQUEST_TIMES.map((value) => {
             const active = value === time;
             const past = +new Date(`${day}T${value}:00${QATAR}`) < Date.now() + config.options.min_notice_hours * 3600000;
-            return <Pressable key={value} disabled={past} onPress={() => setTime(value)} style={[styles.timeChip, { opacity: past ? .35 : 1, backgroundColor: active ? colors.primary : colors.surface, borderColor: active ? colors.primary : colors.border }]}>
+            return <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: active, disabled: past }} disabled={past} onPress={() => setTime(value)} style={[styles.timeChip, { opacity: past ? .35 : 1, backgroundColor: active ? colors.primary : colors.surface, borderColor: active ? colors.primary : colors.border }]}>
               <Text style={[styles.timeText, { color: active ? '#fff' : colors.text }]}>{value}</Text>
             </Pressable>;
           })}</View>
@@ -209,7 +209,7 @@ export function BookService({ listing, go, back, tab }: { listing?: Listing; go:
       <View style={[styles.toggle, { backgroundColor: colors.surface2 }]}>
         {([['vendor', 'At the provider', 'storefront-outline', config.options.offers_at_vendor], ['home', 'At my address', 'home-outline', config.options.offers_home_service]] as const).map(([value, label, icon, enabled]) => {
           const active = location === value;
-          return <Pressable key={value} disabled={!enabled} onPress={() => setLocation(value)} style={[styles.toggleOption, { opacity: enabled ? 1 : .4, backgroundColor: active ? colors.primary : 'transparent' }]}>
+          return <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: active, disabled: !enabled }} disabled={!enabled} onPress={() => setLocation(value)} style={[styles.toggleOption, { opacity: enabled ? 1 : .4, backgroundColor: active ? colors.primary : 'transparent' }]}>
             <Icon name={icon} size={16} color={active ? '#fff' : colors.text2} /><Text style={[styles.toggleText, { color: active ? '#fff' : colors.text2 }]}>{label}</Text>
           </Pressable>;
         })}

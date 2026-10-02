@@ -1,11 +1,11 @@
 import { Icon, type IconName } from './icons';
 import { randomUUID } from 'expo-crypto';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { api, ApiError } from './api';
 import { useAuth, useCart, useTheme } from './providers';
 import type { CartQuote, FulfilmentMode, Order, PaymentMethod } from './types';
-import { BottomBar, Button, Card, Divider, EmptyState, Field, Header, Money, Notice, Spinner } from './ui';
+import { BottomBar, Button, Card, Divider, EmptyState, Field, Header, Money, Notice, Spinner, Text } from './ui';
 
 const errorText = (e: unknown) => (e instanceof ApiError || e instanceof Error) ? e.message : 'Something went wrong. Please try again.';
 const PAYMENTS: [PaymentMethod, string, string, IconName][] = [
@@ -140,7 +140,7 @@ export function Checkout({ go, back, tab }: { go: (screen: any, params?: any) =>
       <View style={[styles.toggle, { backgroundColor: colors.surface2 }]}>
         {([['delivery', 'Delivery', 'bicycle-outline'], ['pickup', 'Pick up', 'walk-outline']] as const).map(([value, label, icon]) => {
           const active = mode === value;
-          return <Pressable key={value} onPress={() => setMode(value)} style={[styles.toggleOption, { backgroundColor: active ? colors.primary : 'transparent' }]}>
+          return <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => setMode(value)} style={[styles.toggleOption, { backgroundColor: active ? colors.primary : 'transparent' }]}>
             <Icon name={icon} size={17} color={active ? '#fff' : colors.text2} /><Text style={[styles.toggleText, { color: active ? '#fff' : colors.text2 }]}>{label}</Text>
           </Pressable>;
         })}
@@ -162,7 +162,7 @@ export function Checkout({ go, back, tab }: { go: (screen: any, params?: any) =>
       <Text style={[styles.heading, { color: colors.text }]}>Payment</Text>
       {PAYMENTS.map(([value, label, hint, icon]) => {
         const active = form.payment_method === value;
-        return <Pressable key={value} onPress={() => setForm((old) => ({ ...old, payment_method: value }))} style={[styles.payment, { backgroundColor: colors.surface, borderColor: active ? colors.primary : colors.border }]}>
+        return <Pressable key={value} accessibilityRole="radio" accessibilityState={{ checked: active }} onPress={() => setForm((old) => ({ ...old, payment_method: value }))} style={[styles.payment, { backgroundColor: colors.surface, borderColor: active ? colors.primary : colors.border }]}>
           <View style={[styles.payIcon, { backgroundColor: active ? colors.primarySoft : colors.surface2 }]}><Icon name={icon} size={19} color={active ? colors.primary : colors.text2} /></View>
           <View style={{ flex: 1 }}><Text style={[styles.payTitle, { color: colors.text }]}>{label}</Text><Text style={[styles.payHint, { color: colors.text2 }]}>{hint}</Text></View>
           <Icon name={active ? 'radio-button-on' : 'radio-button-off'} size={21} color={active ? colors.primary : colors.muted} />

@@ -7,16 +7,14 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#F6F4EE"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "qa.sokonihub.consumer",
       "infoPlist": {
-        "NSAppTransportSecurity": { "NSAllowsArbitraryLoads": false }
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": false
+        },
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -36,7 +34,20 @@
     "plugins": [
       "expo-secure-store",
       "expo-image",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#F8F8FD",
+          "dark": {
+            "image": "./assets/splash-icon.png",
+            "backgroundColor": "#101815"
+          }
+        }
+      ]
     ]
   }
 }
