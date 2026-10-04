@@ -26,6 +26,7 @@ import AdminDeletion from './pages/admin/AdminDeletion';
 import { Sell, Policy, Support, TrackOrder, Account, NotFound } from './pages/Static';
 
 import VendorLayout from './pages/vendor/VendorLayout';
+import VendorPlans from './pages/vendor/VendorPlans';
 import VendorOnboard from './pages/vendor/VendorOnboard';
 import VendorOverview from './pages/vendor/VendorOverview';
 import VendorListings from './pages/vendor/VendorListings';
@@ -102,6 +103,7 @@ export default function App() {
                 <Route path="orders" element={<VendorOrders />} />
                 <Route path="complaints" element={<VendorComplaints />} />
                 <Route path="statements" element={<VendorStatements />} />
+            <Route path="plans" element={<VendorPlans />} />
                 <Route path="bookings" element={<VendorBookings />} />
                 <Route path="availability" element={<VendorAvailability />} />
                 <Route path="inventory" element={<VendorInventory />} />

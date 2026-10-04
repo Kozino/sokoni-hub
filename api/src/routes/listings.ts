@@ -6,6 +6,32 @@ import { requireAuth, loadVendor, requireVerifiedVendor } from '../auth';
 import { HttpError, audit, slugify, screenProhibited, validateUuidParam } from '../utils';
 import { config } from '../config';
 
+
+export const DEFAULT_PLAN_LIMITS = {
+  product: {
+    free: { listings: 10, photos: 3, options: 3 },
+    standard: { listings: 50, photos: 6, options: 10 },
+    pro: { listings: 999999, photos: 6, options: 999999 }
+  },
+  service: {
+    free: { listings: 3, photos: 3, options: 3 },
+    standard: { listings: 10, photos: 6, options: 10 },
+    pro: { listings: 999999, photos: 6, options: 999999 }
+  }
+};
+
+async function getPlanLimits() {
+  const row = await one<any>("select value from system_settings where key='plan_limits'");
+  return row?.value || DEFAULT_PLAN_LIMITS;
+}
+
+export function getEffectivePlan(v: any) {
+  if (v.plan !== 'free' && v.plan_expires_at && new Date(v.plan_expires_at) < new Date()) {
+    return 'free';
+  }
+  return v.plan || 'free';
+}
+
 export const listingRouter = Router();
 listingRouter.param('id', validateUuidParam);
 
@@ -162,6 +188,16 @@ listingRouter.get('/mine/all', requireAuth('vendor'), loadVendor, async (req, re
 listingRouter.post('/', requireAuth('vendor'), loadVendor, requireVerifiedVendor, async (req, res, next) => {
   try {
     const b = listingSchema.parse(req.body);
+
+    const plan = getEffectivePlan(req.vendor);
+    const dbLimits = await getPlanLimits();
+    const limits = dbLimits[b.kind as 'product'|'service'][plan as 'free'|'standard'|'pro'];
+    if (b.images && b.images.length > limits.photos) throw new HttpError(403, `Your ${plan} plan allows up to ${limits.photos} photos per listing.`);
+    if (b.options && b.options.length > limits.options) throw new HttpError(403, `Your ${plan} plan allows up to ${limits.options} size/option variants.`);
+    
+    const { count } = await one<any>('select count(*) as count from listings where vendor_id=$1 and kind=$2 and status not in ($3, $4)', [req.vendor!.id, b.kind, 'draft', 'removed']);
+    if (Number(count) >= limits.listings) throw new HttpError(403, `Your ${plan} plan allows up to ${limits.listings} active ${b.kind}s. Please upgrade your plan to add more.`);
+
     const cat = await one<any>('select * from categories where id = $1', [b.category_id]);
     if (!cat) throw new HttpError(400, 'Invalid category');
     if (cat.is_banned) throw new HttpError(422, 'Cosmetics and medicine may not be listed on this platform.');
@@ -206,6 +242,19 @@ listingRouter.patch('/:id', requireAuth('vendor'), loadVendor, requireVerifiedVe
     const b = listingSchema.partial().parse(req.body);
     const owned = await one<any>('select id, status, first_approved_at from listings where id=$1 and vendor_id=$2', [req.params.id, req.vendor!.id]);
     if (!owned) throw new HttpError(404, 'Listing not found');
+
+    const plan = getEffectivePlan(req.vendor);
+    const kind = b.kind || owned.kind;
+    const dbLimits = await getPlanLimits();
+    const limits = dbLimits[kind as 'product'|'service'][plan as 'free'|'standard'|'pro'];
+    if (b.images && b.images.length > limits.photos) throw new HttpError(403, `Your ${plan} plan allows up to ${limits.photos} photos per listing.`);
+    if (b.options && b.options.length > limits.options) throw new HttpError(403, `Your ${plan} plan allows up to ${limits.options} size/option variants.`);
+    
+    if (b.status && b.status !== 'draft' && owned.status === 'draft') {
+      const { count } = await one<any>('select count(*) as count from listings where vendor_id=$1 and kind=$2 and status not in ($3, $4)', [req.vendor!.id, kind, 'draft', 'removed']);
+      if (Number(count) >= limits.listings) throw new HttpError(403, `Your ${plan} plan allows up to ${limits.listings} active ${kind}s. Please upgrade your plan to publish more.`);
+    }
+
     const bad = await screenProhibited(b.title, b.description);
     if (bad) throw new HttpError(422, `Prohibited item detected ("${bad}").`);
     if (b.category_id) {

@@ -441,9 +441,30 @@ export function ListingDetail({ id, go, back }: any) {
               </Text>
             )}
           </View>
+
+          {listing.options && listing.options.length > 0 && (
+            <View style={{ marginBottom: 20 }}>
+              <Text style={{ fontSize: 13, fontWeight: 'bold', marginBottom: 8, color: colors.text2 }}>
+                SELECT OPTION / SIZE
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {listing.options.map((o: any) => (
+                  <Chip
+                    key={o.name}
+                    selected={opt === o.name}
+                    onPress={() => setOpt(o.name)}
+                  >
+                    {o.name}
+                  </Chip>
+                ))}
+              </View>
+            </View>
+          )}
+
           <View
             style={[
               styles.sellerDetailCard,
+
               { backgroundColor: colors.surface2 },
             ]}
           >

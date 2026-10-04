@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
-import { one, query } from '../db';
+import { one, query, tx } from '../db';
 import { requireAuth, signToken } from '../auth';
 import { HttpError, audit, validateUuidParam } from '../utils';
 
@@ -12,6 +12,60 @@ adminRouter.use(requireAuth('admin'));
 /* ------------------------------------------------------------------ */
 /* Overview                                                            */
 /* ------------------------------------------------------------------ */
+
+adminRouter.get('/subscriptions', requireAuth('admin'), async (req, res, next) => {
+  try {
+    const rows = await query(`
+      select s.*, v.business_name 
+      from vendor_subscriptions s 
+      join vendors v on v.id = s.vendor_id 
+      order by s.created_at desc limit 100
+    `);
+    res.json({ subscriptions: rows });
+  } catch (e) { next(e); }
+});
+
+adminRouter.post('/subscriptions/:id/approve', requireAuth('admin'), async (req, res, next) => {
+  try {
+    await tx(async c => {
+      const row = (await c.query('select * from vendor_subscriptions where id=$1 for update', [req.params.id])).rows[0];
+      if (!row) throw new HttpError(404, 'Not found');
+      if (row.status !== 'pending') throw new HttpError(400, 'Already processed');
+      
+      await c.query('update vendor_subscriptions set status=$1, reviewed_by=$2 where id=$3', ['approved', req.user!.id, req.params.id]);
+      
+      await c.query(`update vendors set plan=$1, plan_expires_at = greatest(now(), coalesce(plan_expires_at, now())) + interval '1 month' * $2 where id=$3`, [row.plan, row.months, row.vendor_id]);
+    });
+    res.json({ ok: true });
+  } catch(e) { next(e); }
+});
+
+adminRouter.post('/subscriptions/:id/reject', requireAuth('admin'), async (req, res, next) => {
+  try {
+    const b = z.object({ note: z.string().optional() }).parse(req.body);
+    await query('update vendor_subscriptions set status=$1, admin_note=$2, reviewed_by=$3 where id=$4 and status=$5', ['rejected', b.note || null, req.user!.id, req.params.id, 'pending']);
+    res.json({ ok: true });
+  } catch(e) { next(e); }
+});
+
+
+adminRouter.put('/plan-limits', requireAuth('admin'), async (req, res, next) => {
+  try {
+    const { limits, prices } = z.object({ limits: z.record(z.any()), prices: z.record(z.any()) }).parse(req.body);
+    await query(`
+      insert into system_settings (key, value, updated_at) 
+      values ('plan_limits', $1, now()) 
+      on conflict (key) do update set value = excluded.value, updated_at = now()
+    `, [JSON.stringify(limits)]);
+    await query(`
+      insert into system_settings (key, value, updated_at) 
+      values ('plan_prices', $1, now()) 
+      on conflict (key) do update set value = excluded.value, updated_at = now()
+    `, [JSON.stringify(prices)]);
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
 adminRouter.get('/overview', async (_req, res, next) => {
   try {
     const [stats] = await query<any>(`

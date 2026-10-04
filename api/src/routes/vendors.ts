@@ -31,6 +31,33 @@ const onboardSchema = z.object({
   lng: z.number().min(-180).max(180).optional().nullable(),
 });
 
+
+vendorRouter.get('/me/subscriptions', requireAuth('vendor'), loadVendor, async (req, res, next) => {
+  try {
+    const rows = await query('select * from vendor_subscriptions where vendor_id = $1 order by created_at desc', [req.vendor!.id]);
+    res.json({ subscriptions: rows });
+  } catch(e) { next(e); }
+});
+
+vendorRouter.post('/me/subscriptions', requireAuth('vendor'), loadVendor, async (req, res, next) => {
+  try {
+    const b = z.object({
+      plan: z.enum(['standard', 'pro']),
+      months: z.number().int().min(1).max(12),
+      payment_method: z.enum(['bank_transfer', 'cash']),
+      reference: z.string().optional(),
+      receipt_url: z.string().url().optional()
+    }).parse(req.body);
+    
+    const pricesRow = await one<any>("select value from system_settings where key='plan_prices'");
+    const prices = pricesRow?.value || { standard: 100, pro: 250 };
+    const amount = (b.plan === 'pro' ? prices.pro : prices.standard) * b.months;
+
+    const sub = await one(`insert into vendor_subscriptions (vendor_id, plan, months, amount, payment_method, reference, receipt_url) values ($1, $2, $3, $4, $5, $6, $7) returning *`, [req.vendor!.id, b.plan, b.months, amount, b.payment_method, b.reference || null, b.receipt_url || null]);
+    res.json({ subscription: sub });
+  } catch(e) { next(e); }
+});
+
 vendorRouter.post('/onboard', requireAuth('vendor', 'buyer'), async (req, res, next) => {
   try {
     const b = onboardSchema.parse(req.body);

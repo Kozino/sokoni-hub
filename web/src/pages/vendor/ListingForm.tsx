@@ -15,6 +15,7 @@ export default function ListingForm() {
   const editing = Boolean(id);
   const nav = useNavigate();
   const { vendor } = useAuth();
+  
   const { push } = useToast();
 
   const [cats, setCats] = useState<Category[]>([]);
@@ -33,7 +34,25 @@ export default function ListingForm() {
 
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<any>) => setF({ ...f, [k]: e.target.value });
 
-  useEffect(() => { api.get<{ categories: Category[] }>('/meta/categories').then((r) => setCats(r.categories)).catch(() => {}); }, []);
+  const [sysLimits, setSysLimits] = useState<any>({
+    product: {
+      free: { listings: 10, photos: 3, options: 3 },
+      standard: { listings: 50, photos: 6, options: 10 },
+      pro: { listings: 999999, photos: 6, options: 999999 }
+    },
+    service: {
+      free: { listings: 3, photos: 3, options: 3 },
+      standard: { listings: 10, photos: 6, options: 10 },
+      pro: { listings: 999999, photos: 6, options: 999999 }
+    }
+  });
+
+  
+  const plan = vendor?.plan !== 'free' && (!vendor?.plan_expires_at || new Date(vendor.plan_expires_at) > new Date()) ? (vendor?.plan || 'free') : 'free';
+  const limits = sysLimits[f.kind as 'product'|'service'][plan as 'free'|'standard'|'pro'];
+
+
+  useEffect(() => { api.get<{ categories: Category[] }>('/meta/categories').then((r) => setCats(r.categories)).catch(() => {}); api.get<{limits: any}>('/meta/plan-limits').then((r) => { if(r.limits) setSysLimits(r.limits); }).catch(()=>{}); }, []);
 
   useEffect(() => {
     if (!editing) return;
@@ -182,13 +201,16 @@ export default function ListingForm() {
 
         
         <div style={{ marginTop: '2rem', padding: '16px', background: '#F8F9FA', borderRadius: '8px', marginBottom: '1.5rem' }}>
+          
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
             <div>
               <h4 style={{ margin: 0, fontSize: '1rem' }}>Variations / Options (Optional)</h4>
               <p style={{ margin: 0, fontSize: '12px', color: '#666' }}>Offer different sizes or variations (e.g. 1 Litre, 250ml). If added, customers must select one.</p>
             </div>
-            <button type="button" onClick={() => setF({...f, options: [...(f.options||[]), {name: '', price: ''}]})} style={{ padding: '6px 12px', background: '#fff', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer', fontSize: '13px' }}>+ Add Option</button>
+            {(f.options||[]).length < limits.options ? <button type="button" onClick={() => setF({...f, options: [...(f.options||[]), {name: '', price: ''}]})} style={{ padding: '6px 12px', background: '#fff', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer', fontSize: '13px' }}>+ Add Option</button> : <span style={{fontSize:'12px', color:'red'}}>Limit reached</span>}
           </div>
+
+            
           {(f.options||[]).map((opt: any, i: number) => (
             <div key={i} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
               <div style={{flex: 1}}><Field label=""><input placeholder="Name (e.g. 1 Litre)" value={opt.name} onChange={(e) => { const o = [...f.options]; o[i].name = e.target.value; setF({...f, options: o}); }} /></Field></div>
@@ -199,7 +221,7 @@ export default function ListingForm() {
         </div>
         <Field label="Photos"
  hint="First image is the cover. Clear, well-lit photos sell faster.">
-          <ImageUploader value={images} onChange={setImages} max={6} />
+          <ImageUploader value={images} onChange={setImages} max={limits.photos} />
         </Field>
 
         <Field label="Visibility">

@@ -1,7 +1,16 @@
 import { Router } from 'express';
-import { query } from '../db';
+import { query, one } from '../db';
 
 export const metaRouter = Router();
+
+
+metaRouter.get('/plan-limits', async (_req, res, next) => {
+  try {
+    const limitsRow = await one('select value from system_settings where key = $1', ['plan_limits']);
+    const pricesRow = await one('select value from system_settings where key = $1', ['plan_prices']);
+    res.json({ limits: limitsRow?.value || null, prices: pricesRow?.value || null });
+  } catch (e) { next(e); }
+});
 
 metaRouter.get('/categories', async (_req, res, next) => {
   try {

@@ -19,6 +19,7 @@ export interface Vendor {
   status: VendorStatus; rejection_reason: string | null; verified_at: string | null;
   rating_avg: number; rating_count: number; created_at: string;
   lat?: number | string | null; lng?: number | string | null;
+  plan?: 'free'|'standard'|'pro'; plan_expires_at?: string|null;
   /** Present on the public directory when the buyer shared a location. */
   distance_km?: number | string | null;
   offers_pickup?: boolean; offers_delivery?: boolean;
@@ -117,3 +118,6 @@ export interface CartQuote {
   vendors: VendorQuote[];
   subtotal: number; delivery_fee: number; total: number; currency: string;
 }
+
+
+export interface VendorSubscription { id: string; vendor_id: string; plan: 'free'|'standard'|'pro'; months: number; amount: number; currency: string; payment_method: string; reference?: string; receipt_url?: string; status: 'pending'|'approved'|'rejected'; admin_note?: string; created_at: string; business_name?: string; }

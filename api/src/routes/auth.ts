@@ -24,7 +24,7 @@ const PUBLIC_COLS = 'id, full_name, phone, email, role, is_active, created_at';
 // details or future columns added to the vendors table.
 const SELF_VENDOR_COLS = `id, user_id, business_name, slug, description, whatsapp,
   country, city, address, logo_url, id_document_url, status, rejection_reason,
-  verified_at, rating_avg, rating_count, created_at, lat, lng`;
+  verified_at, rating_avg, rating_count, created_at, lat, lng, plan, plan_expires_at`;
 const pinField = z.string().regex(/^\d{4}$/, 'PIN must be exactly 4 digits');
 const emailField = z.string().trim().email().max(200);
 const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', 10); // equalises timing for unknown accounts
@@ -35,7 +35,7 @@ const pub = (u: any) => ({
 });
 
 const vendorOf = (userId: string) =>
-  one('select id, status, business_name, slug from vendors where user_id = $1', [userId]);
+  one('select id, status, business_name, slug, plan, plan_expires_at from vendors where user_id = $1', [userId]);
 
 async function startSession(res: Response, user: any) {
   await audit(user.id, 'user.login', 'user', user.id);
