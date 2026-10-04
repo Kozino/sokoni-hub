@@ -19,7 +19,11 @@ export const orderRouter = Router();
 orderRouter.param('id', validateUuidParam);
 
 const cartSchema = z.array(
-  z.object({ listing_id: z.string().uuid(), qty: z.number().int().min(1).max(10000), option: z.string().optional() })
+  z.object({
+    listing_id: z.string().uuid(),
+    qty: z.number().int().min(1).max(10000),
+    option: z.string().trim().min(1).max(100).optional(),
+  })
 ).min(1).max(100).refine(items=>new Set(items.map(i=>i.listing_id + '|' + (i.option||''))).size===items.length,'Duplicate cart items');
 
 const checkoutSchema = z.object({
@@ -95,6 +99,34 @@ const settingsOf = (r: any): VendorDeliverySettings | null =>
         delivery_notes: r.delivery_notes,
       };
 
+/**
+ * Resolve the price for a cart line from the listing as stored in the database.
+ * Strict on purpose: a listing with options must be ordered with a valid option,
+ * and an option that does not exist is an error, never a silent fall-back to the
+ * base price.
+ */
+function resolveOption(r: any, option?: string): { unitPrice: number; optionName?: string } {
+  let opts: any[] = [];
+  try {
+    const raw = typeof r.options === 'string' ? JSON.parse(r.options) : r.options;
+    opts = Array.isArray(raw) ? raw : [];
+  } catch { opts = []; }
+
+  if (opts.length === 0) {
+    if (option) throw new HttpError(400, `"${r.title}" no longer has the option "${option}". Please remove it from your cart and add it again.`);
+    return { unitPrice: Number(r.price) };
+  }
+  if (!option) throw new HttpError(400, `Please choose a size/option for "${r.title}".`);
+
+  const o = opts.find((x: any) => x?.name === option);
+  if (!o) throw new HttpError(400, `The option "${option}" is no longer available for "${r.title}". Please remove it from your cart and add it again.`);
+
+  // Same rule as the listing page: an option without its own price uses the base price.
+  const unitPrice = Number(o.price || r.price);
+  if (!Number.isFinite(unitPrice) || unitPrice <= 0) throw new HttpError(400, `"${r.title}" (${option}) has no valid price.`);
+  return { unitPrice, optionName: o.name };
+}
+
 /** Price a cart without placing it. Drives the checkout summary. */
 function priceCart(byVendor: Map<string, any[]>, items: { listing_id: string; qty: number; option?: string }[], mode: FulfilmentMode) {
   const quotes = [];
@@ -104,19 +136,11 @@ function priceCart(byVendor: Map<string, any[]>, items: { listing_id: string; qt
     const vendorItems = items.filter(i => vItems.some(v => v.id === i.listing_id));
     const lines = vendorItems.map((i) => {
       const r = vItems.find(v => v.id === i.listing_id)!;
-      let unitPrice = Number(r.price);
-      let title = r.title;
-      if (i.option && r.options) {
-        const opts = typeof r.options === 'string' ? JSON.parse(r.options) : r.options;
-        const opt = (opts || []).find((o: any) => o.name === i.option);
-        if (opt) {
-          unitPrice = Number(opt.price);
-          title = `${r.title} (${opt.name})`;
-        }
-      }
+      const { unitPrice, optionName } = resolveOption(r, i.option);
+      const title = optionName ? `${r.title} (${optionName})` : r.title;
       const line = round2(unitPrice * i.qty);
       subtotal = round2(subtotal + line);
-      return { r: { ...r, price: unitPrice, title }, qty: i.qty, line, option: i.option };
+      return { r: { ...r, price: unitPrice, title }, qty: i.qty, line, option: optionName };
     });
 
     // Every row here is a product: loadCart() rejects services outright, so the
