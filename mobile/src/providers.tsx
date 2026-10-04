@@ -42,7 +42,8 @@ export type AuthStage =
   | { kind: 'none' }
   | { kind: 'pin'; pinToken: string; fullName: string }
   | { kind: 'setup'; setupToken: string; fullName: string; needsEmail: boolean }
-  | { kind: 'mfa'; mfaToken: string; fullName: string };
+  | { kind: 'mfa'; mfaToken: string; fullName: string }
+  | { kind: 'verification_required'; email: string };
 
 type LoginResponse = {
   token?: string; user?: User; vendor?: Vendor | null;
@@ -112,7 +113,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return finish(await api.post<LoginResponse>('/auth/pin/setup', { setup_token: stage.setupToken, pin, email }));
   }, [finish, stage]);
   const register = useCallback(async (payload: { full_name: string; phone: string; email: string; password: string; pin: string }) => {
-    return finish(await api.post<LoginResponse>('/auth/register', { ...payload, role: 'buyer' }));
+    const response = await api.post<any>('/auth/register', { ...payload, role: 'buyer' });
+    if (response.verification_required) {
+      const next: AuthStage = { kind: 'verification_required', email: response.email };
+      setStage(next);
+      return next;
+    }
+    return finish(response);
   }, [finish]);
   const logout = useCallback(async () => { try { await api.post('/auth/logout'); } catch {} await clear(); }, [clear]);
 
