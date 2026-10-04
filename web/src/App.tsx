@@ -46,6 +46,8 @@ import { AdminListings, AdminComplaints, AdminOrders, AdminUsers, AdminCategorie
 import AdminBilling from './pages/admin/AdminBilling';
 import AdminBookings from './pages/admin/AdminBookings';
 import AdminPromotions from './pages/admin/AdminPromotions';
+import AdminSubscriptions from './pages/admin/AdminSubscriptions';
+import AdminPlanLimits from './pages/admin/AdminPlanLimits';
 
 function ScrollTop() {
   const { pathname } = useLocation();
@@ -103,7 +105,7 @@ export default function App() {
                 <Route path="orders" element={<VendorOrders />} />
                 <Route path="complaints" element={<VendorComplaints />} />
                 <Route path="statements" element={<VendorStatements />} />
-            <Route path="plans" element={<VendorPlans />} />
+                <Route path="plans" element={<VendorPlans />} />
                 <Route path="bookings" element={<VendorBookings />} />
                 <Route path="availability" element={<VendorAvailability />} />
                 <Route path="inventory" element={<VendorInventory />} />
@@ -123,6 +125,8 @@ export default function App() {
                 <Route path="billing" element={<AdminBilling />} />
                 <Route path="bookings" element={<AdminBookings />} />
                 <Route path="promotions" element={<AdminPromotions />} />
+                <Route path="subscriptions" element={<AdminSubscriptions />} />
+                <Route path="plan-limits" element={<AdminPlanLimits />} />
                 <Route path="categories" element={<AdminCategories />} />
                 <Route path="deletion" element={<AdminDeletion />} />
                 <Route path="audit" element={<AdminAudit />} />
