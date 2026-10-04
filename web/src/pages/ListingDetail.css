@@ -84,6 +84,29 @@
 .listing-detail-page .ld-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .listing-detail-page .ld-thumb.active { border-color: var(--terra); }
 
+/* Size / option picker */
+.listing-detail-page .ld-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.listing-detail-page .ld-option {
+  padding: 8px 14px;
+  border: 1.5px solid var(--border, #ddd);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink, #222);
+  font-weight: 600;
+  font-size: .85rem;
+  cursor: pointer;
+}
+.listing-detail-page .ld-option:hover { border-color: var(--terra-dark); }
+.listing-detail-page .ld-option.active {
+  border-color: var(--terra-dark);
+  background: var(--terra-dark);
+  color: #fff;
+}
+
 /* Full-screen zoom lightbox */
 .listing-detail-page .ld-lightbox-backdrop {
   position: fixed;
