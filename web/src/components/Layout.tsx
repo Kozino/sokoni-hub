@@ -301,6 +301,7 @@ export function BareLayout() {
       <Header />
       <main style={{ flex: 1 }}><Outlet /></main>
       <Footer />
+      <WhatsAppWidget />
     </div>
   );
 }
