@@ -65,6 +65,7 @@ function VendorConsole() {
     { to: '/vendor/complaints', ico: IconAlert, label: 'Complaints', pill: alerts.open_complaints, group: 'Sales' },
     { to: '/vendor/statements', ico: IconReceipt, label: 'Statements', group: 'Sales' },
     { to: '/vendor/profile', ico: IconStore, label: 'Store profile', group: 'Settings' },
+    { to: '/vendor/plans', ico: IconReceipt, label: 'Plans & Billing', group: 'Settings' },
     { to: '/vendor/delete-account', ico: IconTrash, label: 'Account deletion', group: 'Settings' },
   ];
 
