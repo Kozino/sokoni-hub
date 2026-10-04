@@ -40,6 +40,8 @@ export default function ListingDetail() {
   useEffect(() => {
     setLoading(true);
     setActive(0);
+    setOpt('');
+    setQty(1);
     api.get<{ listing: Listing; related: Listing[]; vendorItems: Listing[] }>(`/listings/${id}`)
       .then((r) => { setL(r.listing); setReviewCount(Number(r.listing.rating_count ?? 0));
                      setRelated(r.related); setVendorItems(r.vendorItems || []); })
@@ -88,9 +90,13 @@ export default function ListingDetail() {
 
   const outOfStock = l.kind === 'product' && (l.quantity ?? 0) <= 0;
 
+  // Option / size handling: one source of truth for the unit price.
+  const hasOptions = Array.isArray(l.options) && l.options.length > 0;
+  const selectedOpt = hasOptions ? l.options!.find((o: any) => o.name === opt) : undefined;
+  const unitPrice = Number(selectedOpt?.price || l.price);
+
   const addToCart = () => {
-    if (l.options && l.options.length > 0 && !opt) return push('Please select an option/size first.', 'error');
-    const unitPrice = opt && l.options ? Number(l.options.find((o: any) => o.name === opt)?.price || l.price) : Number(l.price);
+    if (hasOptions && !opt) return push('Please select an option/size first.', 'error');
     add({
       listing_id: l.id, title: l.title, price: unitPrice, currency: l.currency,
       qty, unit: l.unit, image: images[0], vendor_id: l.vendor_id,
@@ -99,7 +105,7 @@ export default function ListingDetail() {
     push(`${l.title} added to cart`, 'success');
   };
 
-  const waText = `Hello ${l.business_name}, I saw "${l.title}" (${priceLabel(l)}) on Sokoni Hub. Is it available?`;
+  const waText = `Hello ${l.business_name}, I saw "${l.title}"${opt ? ` (${opt})` : ''} (${priceLabel(l)}) on Sokoni Hub. Is it available?`;
 
   return (
     <div className="container listing-detail-page">
@@ -190,10 +196,32 @@ export default function ListingDetail() {
               <>
                 {!outOfStock && (
                   <>
+                    {hasOptions && (
+                      <div className="mt-2" role="radiogroup" aria-label="Select option">
+                        <label style={{ fontSize: '.85rem', fontWeight: 700, display: 'block', marginBottom: 6 }}>
+                          Size / option{opt ? `: ${opt}` : ''}
+                        </label>
+                        <div className="ld-options">
+                          {l.options!.map((o: any) => (
+                            <button
+                              type="button"
+                              key={o.name}
+                              role="radio"
+                              aria-checked={opt === o.name}
+                              className={`ld-option${opt === o.name ? ' active' : ''}`}
+                              onClick={() => setOpt(o.name)}
+                            >
+                              {o.name}
+                              {o.price && Number(o.price) !== Number(l.price) ? ` · ${money(Number(o.price), l.currency)}` : ''}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     <div className="row wrap mt-2" style={{ gap: 8 }}>
                       <label style={{ fontSize: '.85rem', fontWeight: 700 }}>{t('listing.qty')}</label>
                       <QtyInput value={qty} min={1} max={l.quantity ?? 99} onChange={setQty} />
-                      <span style={{ color: 'var(--muted)', fontSize: '.85rem' }}>= {money((opt && l.options ? Number(l.options.find((o: any) => o.name === opt)?.price || l.price) : Number(l.price)) * qty, l.currency)}</span>
+                      <span style={{ color: 'var(--muted)', fontSize: '.85rem' }}>= {money(unitPrice * qty, l.currency)}</span>
                     </div>
                     <button className="btn btn-primary btn-block mt-2" onClick={addToCart}>{t('listing.addToCart')}</button>
                   </>
@@ -334,7 +362,7 @@ export default function ListingDetail() {
           {images.length > 1 && <div className="ld-lightbox-counter">{active + 1} / {images.length}</div>}
         </div>
       )}
-    <BookServiceModal
+      <BookServiceModal
         open={booking}
         onClose={() => setBooking(false)}
         listing={{
