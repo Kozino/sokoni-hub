@@ -63,10 +63,10 @@ import { Account } from './Account';
 import { AccountRow } from './AccountRow';
 import { Support } from './Support';
 import { GuestGate } from './GuestGate';
-import { WebOnlyAccount } from './WebOnlyAccount';export function ListingImage({ uri, style, icon, size = 30 }: { uri?: string; style: any; icon: IconName; size?: number }) {
+import { WebOnlyAccount } from './WebOnlyAccount';export function ListingImage({ uri, style, icon, size = 30, contentFit = 'cover' }: { uri?: string; style: any; icon: IconName; size?: number; contentFit?: 'cover'|'contain' }) {
   const { colors } = useTheme(); const [loaded, setLoaded] = useState(false); const [failed, setFailed] = useState(false);
   const { resizeMode, ...box } = (StyleSheet.flatten(style) || {}) as any;
   // The tinted icon tile is what people see while the photo downloads (or if it cannot load).
-  return <View style={[box, { backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }]}>{!loaded ? <Icon name={icon} size={size} color={colors.primary}/> : null}{uri && !failed ? <Image source={{ uri }} resizeMode="cover" onLoad={() => setLoaded(true)} onError={() => setFailed(true)} style={StyleSheet.absoluteFill}/> : null}</View>;
+  return <View style={[box, { backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }]}>{!loaded ? <Icon name={icon} size={size} color={colors.primary}/> : null}{uri && !failed ? <Image source={{ uri }} contentFit={contentFit} transition={200} onLoad={() => setLoaded(true)} onError={() => setFailed(true)} style={StyleSheet.absoluteFill}/> : null}</View>;
 }
 
