@@ -39,7 +39,7 @@ export interface Listing {
   quantity: number | null; unit: string | null;
   weight_kg: string | number | null; volume_l: string | number | null;
   duration_mins: number | null; service_area: string | null;
-  price_type: string; images: string[]; status: ListingStatus;
+  price_type: string; images: string[]; status: ListingStatus; options?: {name: string, price: number}[];
   /** Set by an admin when a listing is rejected during review. */
   rejection_reason?: string | null;
   views: number; created_at: string; updated_at?: string;
@@ -86,7 +86,7 @@ export interface Complaint {
 export interface CartItem {
   listing_id: string; title: string; price: number; currency: string;
   qty: number; unit: string | null; image?: string;
-  vendor_id: string; vendor_name: string; kind: ListingKind; max?: number | null;
+  vendor_id: string; vendor_name: string; kind: ListingKind; max?: number | null; option?: string;
 }
 
 /** A vendor's self-managed delivery policy. The platform never sets these. */

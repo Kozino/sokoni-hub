@@ -28,6 +28,7 @@ export default function ListingForm() {
    price: '', currency: 'QAR', price_type: 'fixed',
     quantity: '', unit: 'kg', weight_kg: '', volume_l: '',
     duration_mins: '', service_area: '', status: 'active' as 'active' | 'draft' | 'paused',
+    options: [] as {name: string, price: string}[]
   });
 
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<any>) => setF({ ...f, [k]: e.target.value });
@@ -49,6 +50,7 @@ export default function ListingForm() {
         duration_mins: l.duration_mins != null ? String(l.duration_mins) : '',
         service_area: l.service_area || '',
         status: (l.status === 'removed' ? 'paused' : l.status === 'pending_review' || l.status === 'rejected' ? 'active' : l.status) as any,
+        options: (l.options || []).map((o: any) => ({ name: o.name, price: String(o.price) })),
       });
       setImages(Array.isArray(l.images) ? l.images : []);
     }).finally(() => setLoading(false));
@@ -60,6 +62,7 @@ export default function ListingForm() {
     e.preventDefault(); setErr(''); setBusy(true);
     const payload: any = {
       category_id: f.category_id, kind: f.kind, title: f.title,
+      options: f.options.filter(o => o.name.trim() && o.price).map(o => ({ name: o.name.trim(), price: Number(o.price) })),
       description: f.description || undefined, price: Number(f.price),
       currency: f.currency, price_type: f.price_type, images, status: f.status,
     };
@@ -177,7 +180,25 @@ export default function ListingForm() {
           </>
         )}
 
-        <Field label="Photos" hint="First image is the cover. Clear, well-lit photos sell faster.">
+        
+        <div style={{ marginTop: '2rem', padding: '16px', background: '#F8F9FA', borderRadius: '8px', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <div>
+              <h4 style={{ margin: 0, fontSize: '1rem' }}>Variations / Options (Optional)</h4>
+              <p style={{ margin: 0, fontSize: '12px', color: '#666' }}>Offer different sizes or variations (e.g. 1 Litre, 250ml). If added, customers must select one.</p>
+            </div>
+            <button type="button" onClick={() => setF({...f, options: [...(f.options||[]), {name: '', price: ''}]})} style={{ padding: '6px 12px', background: '#fff', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer', fontSize: '13px' }}>+ Add Option</button>
+          </div>
+          {(f.options||[]).map((opt: any, i: number) => (
+            <div key={i} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+              <div style={{flex: 1}}><Field label=""><input placeholder="Name (e.g. 1 Litre)" value={opt.name} onChange={(e) => { const o = [...f.options]; o[i].name = e.target.value; setF({...f, options: o}); }} /></Field></div>
+              <div style={{flex: 1}}><Field label=""><input placeholder="Price" type="number" step="0.01" value={opt.price} onChange={(e) => { const o = [...f.options]; o[i].price = e.target.value; setF({...f, options: o}); }} /></Field></div>
+              <button type="button" onClick={() => { const o = [...f.options]; o.splice(i, 1); setF({...f, options: o}); }} style={{ background: 'none', border: 'none', color: '#DC3545', cursor: 'pointer', padding: '0 8px' }}>Remove</button>
+            </div>
+          ))}
+        </div>
+        <Field label="Photos"
+ hint="First image is the cover. Clear, well-lit photos sell faster.">
           <ImageUploader value={images} onChange={setImages} max={6} />
         </Field>
 

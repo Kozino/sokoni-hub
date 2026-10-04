@@ -287,3 +287,4 @@ create trigger reviews_sync after insert or update or delete on reviews
 -- ---------- storage bucket (run in Supabase) ----------
 -- insert into storage.buckets (id, name, public) values ('listings','listings', true)
 --   on conflict do nothing;
+alter table listings add column if not exists options jsonb not null default '[]'::jsonb;

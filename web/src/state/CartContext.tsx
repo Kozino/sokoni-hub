@@ -6,8 +6,8 @@ const KEY = 'sokoni_cart';
 interface CartState {
   items: CartItem[];
   add: (i: CartItem) => void;
-  setQty: (listing_id: string, qty: number) => void;
-  remove: (listing_id: string) => void;
+  setQty: (listing_id: string, qty: number, option?: string) => void;
+  remove: (listing_id: string, option?: string) => void;
   clear: () => void;
   count: number;
   subtotal: number;
@@ -37,10 +37,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
       // Guard rather than assert: a service reaching here is a bug in the
       // caller, and silently ignoring it is safer than charging for it.
       if (i.kind === 'service') return prev;
-      const found = prev.find((p) => p.listing_id === i.listing_id);
+      const found = prev.find((p) => p.listing_id === i.listing_id && p.option === i.option && p.option === i.option);
       if (found)
         return prev.map((p) =>
-          p.listing_id === i.listing_id
+          p.listing_id === i.listing_id && p.option === i.option
             ? { ...p, qty: Math.min(p.qty + i.qty, p.max ?? Infinity) }
             : p
         );
@@ -52,7 +52,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       prev.map((p) => (p.listing_id === id ? { ...p, qty: Math.max(1, Math.min(qty, p.max ?? Infinity)) } : p))
     );
 
-  const remove: CartState['remove'] = (id) => setItems((prev) => prev.filter((p) => p.listing_id !== id));
+  const remove: CartState['remove'] = (id, opt) => setItems((prev) => prev.filter((p) => !(p.listing_id === id && p.option === opt)));
   const clear = () => setItems([]);
 
   const value = useMemo<CartState>(() => {

@@ -61,6 +61,7 @@ export interface Listing {
   unit: string | null;
   images: string[];
   status: string;
+  options?: {name: string, price: number}[];
   duration_mins: number | null;
   service_area: string | null;
   price_type: string;
@@ -89,6 +90,7 @@ export interface CartItem {
   qty: number;
   max?: number;
   kind: ListingKind;
+  option?: string;
 }
 
 export interface CartQuoteVendor {
@@ -119,6 +121,7 @@ export interface Order {
   code: string;
   vendor_id: string;
   status: string;
+  options?: {name: string, price: number}[];
   payment_method: PaymentMethod;
   subtotal: number | string;
   delivery_fee: number | string;
@@ -143,6 +146,7 @@ export interface Booking {
   id: string;
   code: string;
   status: string;
+  options?: {name: string, price: number}[];
   listing_title?: string;
   business_name?: string;
   created_at: string;

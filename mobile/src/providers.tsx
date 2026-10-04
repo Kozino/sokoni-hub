@@ -122,8 +122,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 
 const CartContext = createContext<{
-  items: CartItem[]; count: number; add: (item: CartItem) => void; setQty: (id: string, qty: number) => void;
-  remove: (id: string) => void; clear: () => void;
+  items: CartItem[]; count: number; add: (item: CartItem) => void; setQty: (id: string, qty: number, opt?: string) => void;
+  remove: (id: string, opt?: string) => void; clear: () => void;
 }>(null as never);
 export const useCart = () => useContext(CartContext);
 
@@ -134,13 +134,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const add = useCallback((item: CartItem) => {
     if (item.kind === 'service') return;
     setItems((current) => {
-      const found = current.find((row) => row.listing_id === item.listing_id);
-      const next = found ? current.map((row) => row.listing_id === item.listing_id ? { ...row, qty: Math.min(row.qty + item.qty, row.max ?? Infinity) } : row) : [...current, item];
+      const found = current.find((row) => row.listing_id === item.listing_id && row.option === item.option);
+      const next = found ? current.map((row) => row.listing_id === item.listing_id && row.option === item.option ? { ...row, qty: Math.min(row.qty + item.qty, row.max ?? Infinity) } : row) : [...current, item];
       void AsyncStorage.setItem(CART_KEY, JSON.stringify(next)); return next;
     });
   }, []);
-  const setQty = useCallback((id: string, qty: number) => update(items.map((item) => item.listing_id === id ? { ...item, qty: Math.max(1, Math.min(qty, item.max ?? Infinity)) } : item)), [items, update]);
-  const remove = useCallback((id: string) => update(items.filter((item) => item.listing_id !== id)), [items, update]);
+  const setQty = useCallback((id: string, qty: number, opt?: string) => update(items.map((item) => item.listing_id === id && item.option === opt ? { ...item, qty: Math.max(1, Math.min(qty, item.max ?? Infinity)) } : item)), [items, update]);
+  const remove = useCallback((id: string, opt?: string) => update(items.filter((item) => !(item.listing_id === id && item.option === opt))), [items, update]);
   const clear = useCallback(() => update([]), [update]);
   const value = useMemo(() => ({ items, count: items.reduce((total, item) => total + item.qty, 0), add, setQty, remove, clear }), [items, add, setQty, remove, clear]);
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

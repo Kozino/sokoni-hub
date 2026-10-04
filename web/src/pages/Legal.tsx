@@ -45,12 +45,8 @@ function Operator() {
     <section>
       <h2>Who operates Sokoni Hub?</h2>
       <dl>
-        <dt>Legal operator</dt>
-        <dd>{c.operatorName || pending}</dd>
         <dt>Commercial registration</dt>
         <dd>{c.operatorCR || pending}</dd>
-        <dt>Postal address</dt>
-        <dd>{c.operatorAddress || pending}</dd>
       </dl>
       <p>
         Contact us through the <Link to="/support">Support form</Link>, by email at{' '}
@@ -70,43 +66,44 @@ export function Terms() {
     <HelpPage title="Terms of Use" subtitle="How the marketplace works, and what buyers and vendors can expect." draft={c.draft}>
       <Operator />
       <section>
-        <h2>1. Our marketplace role</h2>
-        <p>Sokoni Hub connects buyers with independent vendors selling products and offering services. Unless a particular offer expressly states otherwise, the vendor is the seller or service provider and is responsible for its offer, fulfilment and customer remedies. Sokoni Hub provides marketplace, order, booking and support tools; it does not itself supply every advertised item or service.</p>
-        <p>Service appointments are for Qatar. Check the vendor’s listed location, delivery area, service options and availability before placing a request.</p>
+        <h2>1. Sokoni Hub – Vendor Onboarding Terms &amp; Conditions</h2>
+        
+        <h3>1. Nature of the Service</h3>
+        <p>Sokoni Hub operates strictly as a digital marketplace intermediary. Sokoni Hub provides an online platform where independent Third-Party Vendors ("Vendors") can display goods and Independent Service Providers ("Providers") can list specialized consumer services (e.g., hair styling, nail care). Sokoni Hub does not sell physical inventory, perform services, or act as an employer to any listed provider.</p>
+
+        <h3>2. Transactions &amp; Delivery Logistics</h3>
+        <p>All commercial transactions are agreed upon and settled strictly between the consumer and the Vendor/Provider.</p>
+        <ul>
+          <li><strong>Payment:</strong> Vendors/Providers are solely responsible for arranging payment terms directly with the customer (e.g., Cash on Delivery, personal payment links). Sokoni Hub does not hold, clear, or process client transactional funds.</li>
+          <li><strong>Fulfillment:</strong> Vendors are completely responsible for their own product packaging, quality control, and delivery logistics.</li>
+        </ul>
+
+        <h3>3. Onboarding Fees &amp; Advertisements</h3>
+        <p>Sokoni Hub charges flat onboarding fees and premium visibility/sponsorship advertising placement fees. These fees are paid to Sokoni Hub to maintain platform listing access and are strictly non-refundable once the digital space or advertisement has been published, regardless of the Vendor’s sales volume.</p>
+
+        <h3>4. Prohibited Items &amp; Compliance</h3>
+        <p>Vendors must comply with all laws of the State of Qatar. Listing counterfeit goods, unapproved medical cosmetics, or operating without appropriate personal health cards is strictly prohibited. Sokoni Hub reserves the absolute right to terminate any account violating these guidelines without a refund.</p>
       </section>
+
       <section>
-        <h2>2. Accounts and security</h2>
-        <p>Provide accurate account and contact details, use only an account you are entitled to operate, and protect your password and PIN. Administrators use additional authentication. Tell Support promptly if your account is compromised. Do not share credentials, impersonate others, evade restrictions or misuse another person’s information.</p>
-      </section>
-      <section>
-        <h2>3. Vendor obligations and verification</h2>
-        <p>Vendors must be legally entitled to conduct the advertised business, hold required registrations and permissions, and publish accurate prices, descriptions, availability and terms. Verification requests a commercial registration (CR) or business-registration licence — not a personal national ID, passport or driving licence.</p>
-        <p>A verified badge indicates that an administrator has reviewed the submitted business information. It is not a government endorsement or a guarantee of quality, safety, licensing for every activity or future performance.</p>
-        <p>Follow the <Link to="/policy">marketplace and prohibited-items policy</Link>. Unlawful, misleading, infringing or prohibited listings may be removed. Do not upload material you do not have the right to use. You permit us to display submitted listing content as needed to operate your store; ownership of your material is not transferred.</p>
-      </section>
-      <section>
-        <h2>4. Orders, prices and payments</h2>
-        <p>Review the vendor, items, currency, quantity, delivery arrangements and total shown before ordering. Current payment arrangements include cash on delivery, vendor-arranged bank transfer and WhatsApp coordination where offered. Sokoni Hub does not currently hold or process buyers’ payment funds. Do not send payment credentials, card security codes, passwords or PINs in order notes or support messages.</p>
-        <p>Vendors must disclose applicable charges and relevant fulfilment, cancellation, return and refund conditions before a transaction. Any marketplace charges payable by vendors are governed by their separately disclosed arrangements and statements, not by an invented fee in these terms.</p>
-      </section>
-      <section>
-        <h2>5. Service bookings and cancellations</h2>
-        <p>The default booking mode requires vendor confirmation; a vendor may enable auto-accept. Check the actual booking status rather than treating a pending request as confirmed. Location may be the vendor’s premises or a home-service option where the vendor offers it.</p>
-        <p>Buyer cancellation availability depends on the vendor’s configured notice period and the appointment time shown in the booking flow. If self-service cancellation is no longer available, contact the vendor or Support. Changes and cancellations do not automatically create or settle a payment refund.</p>
-      </section>
-      <section>
-        <h2>6. Problems, returns and consumer rights</h2>
-        <p>Contact the vendor about fulfilment, defects, returns or refunds, and use <Link to="/support">Support</Link> if assistance is needed. Provide an order or booking reference and relevant facts, without unnecessary sensitive documents. Our complaint process helps review reported issues but does not guarantee recovery of money paid directly to a vendor.</p>
-        <p>Nothing in these terms removes mandatory rights or remedies under applicable Qatar law, prevents a complaint to a competent authority, or prevents access to a competent court. A vendor’s own conditions cannot override mandatory consumer protections.</p>
-      </section>
-      <section>
-        <h2>7. Platform access and responsibility</h2>
-        <p>We may investigate misuse, restrict accounts or remove content to address security risks, prohibited activity or breaches, subject to applicable law. Use Support to query an action. Availability can be affected by maintenance, technical failures and third-party services. Each party remains responsible for its own conduct; nothing here excludes liability that cannot lawfully be excluded.</p>
-      </section>
-      <section>
-        <h2>8. Privacy, deletion and changes</h2>
-        <p>See the <Link to="/privacy">Privacy Policy</Link> for data practices and the <Link to="/delete-account">account-deletion page</Link> to request reviewed closure. Logging out does not delete your account. Open obligations and justified retention may affect which records can be erased.</p>
-        <p>These terms are intended for a Qatar-facing service and should be reviewed against applicable Qatar law. Material changes to these terms will be notified appropriately; any agreement required for a change will be obtained. No exclusive foreign forum or blanket waiver is imposed.</p>
+        <h2>2. Service Provider Liability Disclaimer (Stylists &amp; Technicians)</h2>
+
+        <h3>1. No Employer-Employee Relationship</h3>
+        <p>Independent beauty, hair, nail, or wellness technicians listed on Sokoni Hub are freelance professionals and independent contractors. They are not employees, agents, or representatives of Sokoni Hub.</p>
+
+        <h3>2. Absolute Assumption of Risk</h3>
+        <p>Customers booking services via Sokoni Hub acknowledge that aesthetic treatments, hair styling, chemical applications, and nail tech procedures carry inherent personal risks (including but not limited to skin allergies, burns, or physical infections). The customer assumes all risks associated with scheduling and receiving services from their chosen Provider.</p>
+
+        <h3>3. Limitation of Liability</h3>
+        <p>Sokoni Hub explicitly disclaims any and all legal liability, damage claims, expenses, or personal injury lawsuits arising from:</p>
+        <ul>
+          <li>Substandard service quality or errors committed by a listed stylist/technician.</li>
+          <li>Late arrivals, cancellations, or property damage during home-visit services.</li>
+          <li>Allergic reactions or adverse reactions to cosmetic products utilized by the provider.</li>
+        </ul>
+
+        <h3>4. Dispute Resolution</h3>
+        <p>Any service quality issues, injury complaints, or refund disputes must be addressed directly with the individual Service Provider. Sokoni Hub is under no legal obligation to mediate or settle service-level conflicts.</p>
       </section>
     </HelpPage>
   );

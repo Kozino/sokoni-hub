@@ -145,6 +145,7 @@ const listingSchema = z.object({
   price_type: z.enum(['fixed', 'from', 'hourly', 'per_kg']).optional(),
   images: z.array(z.string().url()).max(6).optional(),
   status: z.enum(['draft', 'active', 'paused']).optional(),
+  options: z.array(z.object({ name: z.string().min(1).max(50), price: z.number().nonnegative() })).max(20).optional(),
 });
 
 listingRouter.get('/mine/all', requireAuth('vendor'), loadVendor, async (req, res, next) => {
@@ -183,15 +184,15 @@ listingRouter.post('/', requireAuth('vendor'), loadVendor, requireVerifiedVendor
 
     const l = await one<any>(
       `insert into listings (vendor_id, category_id, kind, title, slug, description, price, currency,
-         quantity, unit, weight_kg, volume_l, duration_mins, service_area, price_type, images, status)
+         quantity, unit, weight_kg, volume_l, duration_mins, service_area, price_type, images, status, options)
        values ($1,$2,$3::listing_kind,$4,$5,$6,$7,coalesce($8,$18),$9,$10,$11,$12,$13,$14,coalesce($15,'fixed'),
-               coalesce($16,'[]')::jsonb, $17::listing_status)
+               coalesce($16,'[]')::jsonb, $17::listing_status, coalesce($19,'[]')::jsonb)
        returning *`,
       [req.vendor!.id, b.category_id, b.kind, b.title.trim(), slug, b.description || null, b.price,
        b.currency ?? null, b.kind === 'product' ? b.quantity ?? 0 : null, b.unit ?? null,
        b.weight_kg ?? null, b.volume_l ?? null, b.kind === 'service' ? b.duration_mins ?? null : null,
        b.service_area ?? null, b.price_type ?? null, JSON.stringify(b.images ?? []), initialStatus,
-       config.defaultCurrency]
+       config.defaultCurrency, JSON.stringify(b.options ?? [])]
     );
     await audit(req.user!, 'listing.create', 'listing', l.id, { title: l.title, status: l.status });
     res.status(201).json({ listing: l });
@@ -232,7 +233,7 @@ listingRouter.patch('/:id', requireAuth('vendor'), loadVendor, requireVerifiedVe
       [req.params.id, req.vendor!.id, b.category_id ?? null, b.title ?? null, b.description ?? null,
        b.price ?? null, b.currency ?? null, b.quantity ?? null, b.unit ?? null, b.weight_kg ?? null,
        b.volume_l ?? null, b.duration_mins ?? null, b.service_area ?? null, b.price_type ?? null,
-       b.images ? JSON.stringify(b.images) : null, nextStatus ?? null]
+       b.images ? JSON.stringify(b.images) : null, nextStatus ?? null, b.options ? JSON.stringify(b.options) : null]
     );
     await audit(req.user!, 'listing.update', 'listing', l.id, { status: l.status });
     res.json({ listing: l });

@@ -19,8 +19,8 @@ export const orderRouter = Router();
 orderRouter.param('id', validateUuidParam);
 
 const cartSchema = z.array(
-  z.object({ listing_id: z.string().uuid(), qty: z.number().int().min(1).max(10000) })
-).min(1).max(100).refine(items=>new Set(items.map(i=>i.listing_id)).size===items.length,'Duplicate cart items');
+  z.object({ listing_id: z.string().uuid(), qty: z.number().int().min(1).max(10000), option: z.string().optional() })
+).min(1).max(100).refine(items=>new Set(items.map(i=>i.listing_id + '|' + (i.option||''))).size===items.length,'Duplicate cart items');
 
 const checkoutSchema = z.object({
   request_id: z.string().uuid(),
@@ -42,8 +42,8 @@ const checkoutSchema = z.object({
  * validate availability. Shared by /quote and /checkout so both see exactly
  * the same prices and the same fee rules.
  */
-async function loadCart(items: { listing_id: string; qty: number }[], c?: PoolClient) {
-  const ids = items.map((i) => i.listing_id);
+async function loadCart(items: { listing_id: string; qty: number; option?: string }[], c?: PoolClient) {
+  const ids = Array.from(new Set(items.map((i) => i.listing_id)));
   const read = async (sql:string,args:any[]) => c ? (await c.query(sql,args)).rows : query<any>(sql,args);
   const rows = await read(
     `select l.*, v.id as vid, v.slug as vendor_slug, v.business_name, v.whatsapp, v.status as vendor_status,
@@ -67,7 +67,7 @@ async function loadCart(items: { listing_id: string; qty: number }[], c?: PoolCl
       throw new HttpError(422, `"${r.title}" is a service. Request a booking for it instead of adding it to your cart.`);
     if (r.status !== 'active' || r.vendor_status !== 'verified')
       throw new HttpError(400, `"${r.title}" is no longer available`);
-    const want = items.find((i) => i.listing_id === r.id)!.qty;
+    const want = items.filter((i) => i.listing_id === r.id).reduce((sum, i) => sum + i.qty, 0);
     if (r.quantity !== null && r.quantity < want)
       throw new HttpError(409, `Only ${r.quantity} left of "${r.title}"`);
   }
@@ -96,16 +96,29 @@ const settingsOf = (r: any): VendorDeliverySettings | null =>
       };
 
 /** Price a cart without placing it. Drives the checkout summary. */
-function priceCart(byVendor: Map<string, any[]>, items: { listing_id: string; qty: number }[], mode: FulfilmentMode) {
+function priceCart(byVendor: Map<string, any[]>, items: { listing_id: string; qty: number; option?: string }[], mode: FulfilmentMode) {
   const quotes = [];
   for (const [vendorId, vItems] of byVendor) {
+
     let subtotal = 0;
-    const lines = vItems.map((r) => {
-      const qty = items.find((i) => i.listing_id === r.id)!.qty;
-      const line = round2(Number(r.price) * qty);
+    const vendorItems = items.filter(i => vItems.some(v => v.id === i.listing_id));
+    const lines = vendorItems.map((i) => {
+      const r = vItems.find(v => v.id === i.listing_id)!;
+      let unitPrice = Number(r.price);
+      let title = r.title;
+      if (i.option && r.options) {
+        const opts = typeof r.options === 'string' ? JSON.parse(r.options) : r.options;
+        const opt = (opts || []).find((o: any) => o.name === i.option);
+        if (opt) {
+          unitPrice = Number(opt.price);
+          title = `${r.title} (${opt.name})`;
+        }
+      }
+      const line = round2(unitPrice * i.qty);
       subtotal = round2(subtotal + line);
-      return { r, qty, line };
+      return { r: { ...r, price: unitPrice, title }, qty: i.qty, line, option: i.option };
     });
+
     // Every row here is a product: loadCart() rejects services outright, so the
     // old "all services => force pickup, suppress the fee" special case is gone.
     const q = quoteVendorOrder({

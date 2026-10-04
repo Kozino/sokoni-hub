@@ -44,7 +44,7 @@ export default function Cart() {
                     <div className="cart-line-controls">
                       <QtyInput value={i.qty} min={1} max={i.max ?? 999} onChange={(n) => setQty(i.listing_id, n)} />
                       <strong className="cart-line-total">{money(i.price * i.qty, i.currency)}</strong>
-                      <button className="btn btn-ghost btn-sm" onClick={() => remove(i.listing_id)}>✕</button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => remove(i.listing_id, i.option)}>✕</button>
                     </div>
                   </div>
                 ))}

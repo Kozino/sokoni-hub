@@ -35,6 +35,7 @@ export default function ListingDetail() {
   const { add } = useCart();
   const { push } = useToast();
   const [booking, setBooking] = useState(false);
+  const [opt, setOpt] = useState('');
 
   useEffect(() => {
     setLoading(true);
@@ -88,10 +89,12 @@ export default function ListingDetail() {
   const outOfStock = l.kind === 'product' && (l.quantity ?? 0) <= 0;
 
   const addToCart = () => {
+    if (l.options && l.options.length > 0 && !opt) return push('Please select an option/size first.', 'error');
+    const unitPrice = opt && l.options ? Number(l.options.find((o: any) => o.name === opt)?.price || l.price) : Number(l.price);
     add({
-      listing_id: l.id, title: l.title, price: Number(l.price), currency: l.currency,
+      listing_id: l.id, title: l.title, price: unitPrice, currency: l.currency,
       qty, unit: l.unit, image: images[0], vendor_id: l.vendor_id,
-      vendor_name: l.business_name || 'Store', kind: l.kind, max: l.kind === 'product' ? l.quantity : null,
+      vendor_name: l.business_name || 'Store', kind: l.kind, max: l.kind === 'product' ? l.quantity : null, option: opt || undefined,
     });
     push(`${l.title} added to cart`, 'success');
   };
@@ -190,7 +193,7 @@ export default function ListingDetail() {
                     <div className="row wrap mt-2" style={{ gap: 8 }}>
                       <label style={{ fontSize: '.85rem', fontWeight: 700 }}>{t('listing.qty')}</label>
                       <QtyInput value={qty} min={1} max={l.quantity ?? 99} onChange={setQty} />
-                      <span style={{ color: 'var(--muted)', fontSize: '.85rem' }}>= {money(Number(l.price) * qty, l.currency)}</span>
+                      <span style={{ color: 'var(--muted)', fontSize: '.85rem' }}>= {money((opt && l.options ? Number(l.options.find((o: any) => o.name === opt)?.price || l.price) : Number(l.price)) * qty, l.currency)}</span>
                     </div>
                     <button className="btn btn-primary btn-block mt-2" onClick={addToCart}>{t('listing.addToCart')}</button>
                   </>

@@ -19,5 +19,5 @@ export const limit: (name:string,count:number,seconds:number)=>RequestHandler = 
 // Public DTOs are explicit; adding a private schema column must never publish it.
 export const PUBLIC_LISTING = ['id','vendor_id','category_id','kind','title','slug','description','price',
  'currency','quantity','unit','weight_kg','volume_l','duration_mins','service_area','price_type','images',
- 'status','views','rating_avg','rating_count','created_at','updated_at'];
+ 'status','views','rating_avg','rating_count','created_at','updated_at','options'];
 export const publicListingColumns = (alias='l') => PUBLIC_LISTING.map(c=>`${alias}.${c}`).join(',');
