@@ -6,6 +6,7 @@ import { ThemeToggle } from '../state/ThemeContext';
 import LanguageSwitcher from './LanguageSwitcher';
 import { useT } from '../i18n';
 import { useAnalyticsConsent } from '../analytics';
+import WhatsAppWidget from './WhatsAppWidget';
 import '../styles/MarketplaceTemplate.css';
 
 const initialsOf = (name?: string) =>
@@ -288,6 +289,7 @@ export default function Layout() {
       <Header />
       <main className="page"><Outlet /></main>
       {!isUserDashboard && <Footer />}
+      <WhatsAppWidget />
     </div>
   );
 }
