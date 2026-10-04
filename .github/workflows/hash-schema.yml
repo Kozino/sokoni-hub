@@ -1,0 +1,14 @@
+name: hash-schema
+on: workflow_dispatch
+jobs:
+  hash:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - run: |
+          echo "CURRENT $(sha256sum db/schema.sql | cut -c1-64)"
+          for c in $(git log --format=%h -- db/schema.sql); do
+            echo "$c $(git log -1 --format=%ci $c) LF   $(git show $c:db/schema.sql | sha256sum | cut -c1-64)"
+            echo "$c $(git log -1 --format=%ci $c) CRLF $(git show $c:db/schema.sql | sed 's/$/\r/' | sha256sum | cut -c1-64)"
+          done
