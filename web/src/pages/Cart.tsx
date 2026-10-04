@@ -33,18 +33,25 @@ export default function Cart() {
               </div>
               <div className="card-body col">
                 {g.items.map((i) => (
-                  <div key={i.listing_id} className="cart-line">
+                  // Same listing in two sizes = two separate lines, so the key
+                  // must include the option.
+                  <div key={`${i.listing_id}::${i.option || ''}`} className="cart-line">
                     {i.image ? <img className="thumb" src={i.image} alt="" /> : <div className="thumb" style={{ display: 'grid', placeItems: 'center' }}>{i.kind === 'service' ? '💇' : '🛍️'}</div>}
                     <div className="cart-line-info">
                       <Link to={`/listing/${i.listing_id}`} className="cart-line-title">{i.title}</Link>
+                      {i.option && (
+                        <div style={{ fontSize: '.8rem', color: 'var(--muted)', fontWeight: 600 }}>
+                          Size / option: {i.option}
+                        </div>
+                      )}
                       <div className="cart-line-price">
                         {money(i.price, i.currency)}{i.unit ? ` / ${i.unit}` : ''}
                       </div>
                     </div>
                     <div className="cart-line-controls">
-                      <QtyInput value={i.qty} min={1} max={i.max ?? 999} onChange={(n) => setQty(i.listing_id, n)} />
+                      <QtyInput value={i.qty} min={1} max={i.max ?? 999} onChange={(n) => setQty(i.listing_id, n, i.option)} />
                       <strong className="cart-line-total">{money(i.price * i.qty, i.currency)}</strong>
-                      <button className="btn btn-ghost btn-sm" onClick={() => remove(i.listing_id, i.option)}>✕</button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => remove(i.listing_id, i.option)} aria-label="Remove">✕</button>
                     </div>
                   </div>
                 ))}
