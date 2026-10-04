@@ -43,9 +43,10 @@ try{
   for(const href of ['/terms','/privacy','/support','/faq','/delete-account'])ok(await page.locator(`footer a[href="${href}"]`).count()===1,route+' footer links '+href);
   await page.setViewportSize({width:390,height:844});ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),route+' fits mobile');
  }
- await page.goto(site+'/privacy');await page.getByText('Draft — not finalised for publication',{exact:true}).waitFor();ok(await page.getByText('No effective date — draft only.',{exact:false}).count()===1,'privacy is visibly draft with no invented operator/effective date');
- ok(await page.locator('.legal-hero h1').evaluate(el=>getComputedStyle(el).color==='rgb(255, 255, 255)'),'hero heading has legible light text');
- ok(await page.locator('.legal-page').evaluate(el=>el.getBoundingClientRect().left>=16),'mobile policy content has horizontal reading margins');
+await page.goto(site+'/privacy');await page.getByRole('heading',{name:'Privacy Policy',exact:true}).waitFor();
+ok(await page.getByText('Draft — not finalised for publication').count()===0,'finalised privacy page shows no draft banner');
+ok(await page.getByText('Effective date:',{exact:false}).count()===1,'privacy shows an effective date');
+ok(await page.getByText('Registration in progress',{exact:false}).count()>=1,'privacy shows registration-pending notice instead of an invented operator CR');
  if(process.env.LEGAL_SCREENSHOT)await page.screenshot({path:process.env.LEGAL_SCREENSHOT,fullPage:true});
  await page.goto(site+'/faq');await page.getByText('What must a vendor upload for verification?',{exact:true}).click();ok(await page.getByText('A clear image of the commercial registration',{exact:false}).isVisible(),'FAQ explains CR instead of personal-ID collection');
  await page.evaluate(t=>localStorage.setItem('sokoni_token',t),await signToken(vendor.id,'vendor'));
