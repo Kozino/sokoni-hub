@@ -23,10 +23,14 @@ export default function Checkout() {
 
   /* The order summary is priced by the server, never in the browser. Whatever
      is shown here is the same number the checkout endpoint will charge, because
-     both come from the same calculation. */
+     both come from the same calculation. The chosen size/option is sent with
+     every line so the server prices the variant, not the base listing. */
   const [quote, setQuote] = useState<CartQuote | null>(null);
   const [quoting, setQuoting] = useState(false);
   const [quoteErr, setQuoteErr] = useState('');
+
+  const lineItems = () =>
+    items.map((i) => ({ listing_id: i.listing_id, qty: i.qty, option: i.option || undefined }));
 
   useEffect(() => {
     if (items.length === 0) { setQuote(null); return; }
@@ -35,7 +39,7 @@ export default function Checkout() {
     setQuoteErr('');
     api
       .post<CartQuote>('/orders/quote', {
-        items: items.map((i) => ({ listing_id: i.listing_id, qty: i.qty })),
+        items: lineItems(),
         fulfilment_mode: mode,
       })
       .then((q) => { if (!cancelled) setQuote(q); })
@@ -46,6 +50,7 @@ export default function Checkout() {
       })
       .finally(() => { if (!cancelled) setQuoting(false); });
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, mode]);
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<any>) => setForm({ ...form, [k]: e.target.value });
@@ -62,7 +67,7 @@ export default function Checkout() {
     setErr(''); setBusy(true);
     try {
       const payload = {
-        items: items.map((i) => ({ listing_id: i.listing_id, qty: i.qty })),
+        items: lineItems(),
         fulfilment_mode: mode,
         ...form,
         // For collection the address field is hidden; send a clear placeholder
@@ -73,12 +78,12 @@ export default function Checkout() {
         // an ordinary marketplace order.
         attribution: getAttribution(),
       };
-      const signature=JSON.stringify(payload);
-      let saved: {signature:string;key:string}|null=null;
-      try {saved=JSON.parse(sessionStorage.getItem('sokoni_checkout_retry')||'null');}catch{}
-      const key=saved?.signature===signature?saved.key:crypto.randomUUID();
-      sessionStorage.setItem('sokoni_checkout_retry',JSON.stringify({signature,key}));
-      const r = await api.post<{ orders: Order[] }>('/orders/checkout', {...payload,request_id:key});
+      const signature = JSON.stringify(payload);
+      let saved: { signature: string; key: string } | null = null;
+      try { saved = JSON.parse(sessionStorage.getItem('sokoni_checkout_retry') || 'null'); } catch { /* ignore */ }
+      const key = saved?.signature === signature ? saved.key : crypto.randomUUID();
+      sessionStorage.setItem('sokoni_checkout_retry', JSON.stringify({ signature, key }));
+      const r = await api.post<{ orders: Order[] }>('/orders/checkout', { ...payload, request_id: key });
       sessionStorage.removeItem('sokoni_checkout_retry');
       setDone(r.orders);
       clear();
@@ -135,7 +140,7 @@ export default function Checkout() {
       <h1>Checkout</h1>
       <div className="checkout-layout">
         <form className="card card-pad" onSubmit={submit}>
-        <p className="muted">How we use these details: <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>. Do not submit personal ID documents or account credentials.</p>
+          <p className="muted">How we use these details: <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>. Do not submit personal ID documents or account credentials.</p>
           <Alert kind="error">{err}</Alert>
 
           <h3>How would you like to receive this?</h3>
@@ -230,8 +235,11 @@ export default function Checkout() {
               <div key={g.vendor_id} className="mb-2">
                 <div style={{ fontSize: '.78rem', fontWeight: 800, color: 'var(--muted)', textTransform: 'uppercase' }}>{g.vendor_name}</div>
                 {g.items.map((i) => (
-                  <div key={i.listing_id} className="co-line" style={{ fontSize: '.87rem', padding: '4px 0' }}>
-                    <span>{i.title} ×{i.qty}</span><span>{money(i.price * i.qty, i.currency)}</span>
+                  <div key={`${i.listing_id}::${i.option || ''}`} className="co-line" style={{ fontSize: '.87rem', padding: '4px 0' }}>
+                    <span>
+                      {i.title}{i.option ? ` (${i.option})` : ''} ×{i.qty}
+                    </span>
+                    <span>{money(i.price * i.qty, i.currency)}</span>
                   </div>
                 ))}
                 {vq && (
