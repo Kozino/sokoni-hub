@@ -226,11 +226,7 @@ export default function ListingDetail() {
                     <button className="btn btn-primary btn-block mt-2" onClick={addToCart}>{t('listing.addToCart')}</button>
                   </>
                 )}
-                {l.whatsapp && (
-                  <a className="btn btn-wa btn-block mt-1" href={waLink(l.whatsapp, waText)} target="_blank" rel="noreferrer">
-                    Order on WhatsApp
-                  </a>
-                )}
+                
                 <p className="hint center mt-1" style={{ color: 'var(--muted)', fontSize: '.78rem' }}>
                   Cash on delivery available at checkout
                 </p>

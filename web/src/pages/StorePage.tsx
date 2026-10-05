@@ -46,7 +46,7 @@ export default function StorePage() {
             </div>
           </div>
           <div className="row">
-            <a className="btn btn-wa" href={waLink(vendor.whatsapp, `Hello ${vendor.business_name}, I found your store on Sokoni Hub.`)} target="_blank" rel="noreferrer">{t('store.chatWhatsapp')}</a>
+            
             <Link to={`/support?vendor=${vendor.id}`} className="btn btn-outline">{t('store.report')}</Link>
           </div>
         </div>
