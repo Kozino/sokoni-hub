@@ -1,5 +1,5 @@
 // The file that currently holds Login and Register.
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth, type LoginStep } from '../state/AuthContext';
 import { ApiError } from '../lib/api';
@@ -7,7 +7,7 @@ import { Field } from '../components/ui';
 import PinField from '../components/PinField';
 import { useT } from '../i18n';
 import type { User } from '../types';
-import './auth.css'; // UI only – place auth.css next to this file (adjust the path if needed)
+import { AuthShell } from './AuthShell'; // UI only – shared split-screen layout
 
 const SUPPORT_WHATSAPP = '97466046431'; // same support number as the footer
 
@@ -23,55 +23,6 @@ function ErrorToast({ message, onClose }: { message: string; onClose: () => void
       <button type="button" onClick={onClose} aria-label="Dismiss alert" className="auth-toast-close">
         ×
       </button>
-    </div>
-  );
-}
-
-/* ---- UI-only wrapper: split screen on desktop, branded top bar on mobile ---- */
-function AuthShell({ variant, children }: { variant: 'login' | 'register'; children: ReactNode }) {
-  const isRegister = variant === 'register';
-
-  return (
-    <div className={`auth-shell${isRegister ? ' auth-shell--wide' : ''}`}>
-      <aside className="auth-aside">
-        <div className="auth-awning" aria-hidden="true" />
-        <div className="auth-weave" aria-hidden="true" />
-        <Link to="/" className="auth-brand">
-          <span className="auth-mark" aria-hidden="true">S</span>
-          Sokoni Hub
-        </Link>
-        <div className="auth-aside-body">
-          <h2>{isRegister ? 'Open your account and start trading.' : 'Welcome back to the market.'}</h2>
-          <p>
-            {isRegister
-              ? 'Join the marketplace where African traders and service providers in Qatar meet the people looking for them.'
-              : 'Pick up where you left off with the traders and service providers in your community.'}
-          </p>
-          <ul className="auth-points">
-            {isRegister ? (
-              <>
-                <li>Buyers find trusted traders and services in one place</li>
-                <li>Vendors open a shop and reach new customers</li>
-                <li>Your email and 4-digit PIN keep your account protected</li>
-              </>
-            ) : (
-              <>
-                <li>Browse vendors and listings across the marketplace</li>
-                <li>Manage your orders, shop and messages</li>
-                <li>A 4-digit PIN protects every sign-in</li>
-              </>
-            )}
-          </ul>
-        </div>
-      </aside>
-
-      <main className="auth-main">
-        <Link to="/" className="auth-brand auth-mobile-brand">
-          <span className="auth-mark" aria-hidden="true">S</span>
-          Sokoni Hub
-        </Link>
-        <div className="auth-panel">{children}</div>
-      </main>
     </div>
   );
 }
