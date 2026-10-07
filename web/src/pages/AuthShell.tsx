@@ -52,8 +52,8 @@ const COPY: Record<AuthVariant, { title: string; text: string; points: string[] 
     title: 'One quick step to confirm it is you.',
     text: 'Verifying your email keeps your account secure and lets us reach you about your orders.',
     points: [
-      'Check your inbox, and your spam folder too',
-      'It only takes a minute',
+      'Open the verification link we emailed you',
+      'Cannot find it? Check your spam folder',
       'Once verified, you can sign in straight away',
     ],
   },
