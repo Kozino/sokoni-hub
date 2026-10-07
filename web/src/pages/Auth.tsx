@@ -1,6 +1,5 @@
-
 // The file that currently holds Login and Register.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth, type LoginStep } from '../state/AuthContext';
 import { ApiError } from '../lib/api';
@@ -8,6 +7,7 @@ import { Field } from '../components/ui';
 import PinField from '../components/PinField';
 import { useT } from '../i18n';
 import type { User } from '../types';
+import './auth.css'; // UI only – place auth.css next to this file (adjust the path if needed)
 
 const SUPPORT_WHATSAPP = '97466046431'; // same support number as the footer
 
@@ -17,66 +17,61 @@ function ErrorToast({ message, onClose }: { message: string; onClose: () => void
   if (!message) return null;
 
   return (
-    <div
-      role="alert"
-      aria-live="assertive"
-      style={{
-        position: 'fixed',
-        top: 20,
-        right: 20,
-        zIndex: 9999,
-        width: 'min(420px, calc(100vw - 40px))',
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: 12,
-        padding: '14px 16px',
-        background: '#fff1f1',
-        color: '#991b1b',
-        border: '1px solid #fecaca',
-        borderLeft: '5px solid #dc2626',
-        borderRadius: 10,
-        boxShadow: '0 8px 24px rgba(0,0,0,0.16)',
-        fontSize: 14,
-        fontWeight: 500,
-      }}
-    >
-      <span
-        aria-hidden="true"
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0,
-          width: 22,
-          height: 22,
-          borderRadius: '50%',
-          background: '#dc2626',
-          color: '#fff',
-          fontWeight: 800,
-          fontSize: 14,
-        }}
-      >
-        !
-      </span>
-
-      <span style={{ flex: 1, lineHeight: 1.5 }}>{message}</span>
-
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="Dismiss alert"
-        style={{
-          border: 0,
-          background: 'transparent',
-          color: '#991b1b',
-          cursor: 'pointer',
-          fontSize: 22,
-          lineHeight: 1,
-          padding: '0 2px',
-        }}
-      >
+    <div role="alert" aria-live="assertive" className="auth-toast">
+      <span aria-hidden="true" className="auth-toast-icon">!</span>
+      <span className="auth-toast-msg">{message}</span>
+      <button type="button" onClick={onClose} aria-label="Dismiss alert" className="auth-toast-close">
         ×
       </button>
+    </div>
+  );
+}
+
+/* ---- UI-only wrapper: split screen on desktop, branded top bar on mobile ---- */
+function AuthShell({ variant, children }: { variant: 'login' | 'register'; children: ReactNode }) {
+  const isRegister = variant === 'register';
+
+  return (
+    <div className={`auth-shell${isRegister ? ' auth-shell--wide' : ''}`}>
+      <aside className="auth-aside">
+        <div className="auth-awning" aria-hidden="true" />
+        <div className="auth-weave" aria-hidden="true" />
+        <Link to="/" className="auth-brand">
+          <span className="auth-mark" aria-hidden="true">S</span>
+          Sokoni Hub
+        </Link>
+        <div className="auth-aside-body">
+          <h2>{isRegister ? 'Open your account and start trading.' : 'Welcome back to the market.'}</h2>
+          <p>
+            {isRegister
+              ? 'Join the marketplace where African traders and service providers in Qatar meet the people looking for them.'
+              : 'Pick up where you left off with the traders and service providers in your community.'}
+          </p>
+          <ul className="auth-points">
+            {isRegister ? (
+              <>
+                <li>Buyers find trusted traders and services in one place</li>
+                <li>Vendors open a shop and reach new customers</li>
+                <li>Your email and 4-digit PIN keep your account protected</li>
+              </>
+            ) : (
+              <>
+                <li>Browse vendors and listings across the marketplace</li>
+                <li>Manage your orders, shop and messages</li>
+                <li>A 4-digit PIN protects every sign-in</li>
+              </>
+            )}
+          </ul>
+        </div>
+      </aside>
+
+      <main className="auth-main">
+        <Link to="/" className="auth-brand auth-mobile-brand">
+          <span className="auth-mark" aria-hidden="true">S</span>
+          Sokoni Hub
+        </Link>
+        <div className="auth-panel">{children}</div>
+      </main>
     </div>
   );
 }
@@ -152,12 +147,25 @@ export function Login() {
     clearAlert();
   };
 
-  if(stage?.step==='mfa') return <div className="container container-narrow"><div className="card card-pad">
-    <h1>Administrator verification</h1><p>Enter the six-digit code from your authenticator, or one of your recovery codes.</p>{errorAlert}
-    <form onSubmit={e=>{e.preventDefault();run(async()=>advance(await verifyMfa(stage.mfaToken,pin)));}}>
-    <Field label="Authenticator or recovery code"><input aria-label="Authenticator or recovery code" autoFocus autoComplete="one-time-code" required value={pin} maxLength={64} onChange={e=>setPin(e.target.value)} /></Field>
-    <button className="btn btn-primary" disabled={busy}>Verify</button> <button type="button" className="btn btn-outline" onClick={startOver}>Start again</button>
-    </form></div></div>;
+  /* ---- administrator verification ---- */
+  if (stage?.step === 'mfa') {
+    return (
+      <AuthShell variant="login">
+        {errorAlert}
+        <h1 className="auth-title">Administrator verification</h1>
+        <p className="auth-sub">Enter the six-digit code from your authenticator, or one of your recovery codes.</p>
+        <form onSubmit={e => { e.preventDefault(); run(async () => advance(await verifyMfa(stage.mfaToken, pin))); }}>
+          <Field label="Authenticator or recovery code">
+            <input aria-label="Authenticator or recovery code" autoFocus autoComplete="one-time-code" required value={pin} maxLength={64} onChange={e => setPin(e.target.value)} />
+          </Field>
+          <div className="auth-actions">
+            <button className="btn btn-primary" disabled={busy}>Verify</button>
+            <button type="button" className="btn btn-outline" onClick={startOver}>Start again</button>
+          </div>
+        </form>
+      </AuthShell>
+    );
+  }
 
   /* ---- step 2: enter PIN ---- */
   if (stage?.step === 'pin') {
@@ -165,33 +173,29 @@ export function Login() {
     const helpMsg = encodeURIComponent('Hi, I forgot my Sokoni Hub PIN and need it reset.');
 
     return (
-      <>
+      <AuthShell variant="login">
         {errorAlert}
-        <div className="container container-narrow">
-          <div className="card card-pad">
-            <h1>Enter your PIN</h1>
-            <p style={{ color: 'var(--muted)' }}>
-              {first ? `Hi ${first}, e` : 'E'}nter your 4-digit PIN to finish signing in.
-            </p>
-            <form onSubmit={(e) => { e.preventDefault(); run(async () => advance(await verifyPin(stage.pinToken, pin))); }}>
-              <PinField label="4-digit PIN" value={pin} onChange={setPin} autoFocus />
-              <button type="submit" className="btn btn-primary btn-block btn-lg" disabled={busy || pin.length !== 4}>
-                {busy ? t('auth.loggingIn') : t('auth.login.cta')}
-              </button>
-            </form>
-            <div className="pin-help">
-              Forgot your PIN?{' '}
-              <a href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${helpMsg}`} target="_blank" rel="noopener noreferrer">
-                Message support on WhatsApp
-              </a>{' '}
-              and we will reset it once we have confirmed it is you.
-            </div>
-            <p className="center mt-3" style={{ margin: 0 }}>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={startOver}>← Use a different account</button>
-            </p>
-          </div>
+        <h1 className="auth-title">Enter your PIN</h1>
+        <p className="auth-sub">
+          {first ? `Hi ${first}, e` : 'E'}nter your 4-digit PIN to finish signing in.
+        </p>
+        <form onSubmit={(e) => { e.preventDefault(); run(async () => advance(await verifyPin(stage.pinToken, pin))); }}>
+          <PinField label="4-digit PIN" value={pin} onChange={setPin} autoFocus />
+          <button type="submit" className="btn btn-primary btn-block btn-lg" disabled={busy || pin.length !== 4}>
+            {busy ? t('auth.loggingIn') : t('auth.login.cta')}
+          </button>
+        </form>
+        <div className="auth-help pin-help">
+          Forgot your PIN?{' '}
+          <a href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${helpMsg}`} target="_blank" rel="noopener noreferrer">
+            Message support on WhatsApp
+          </a>{' '}
+          and we will reset it once we have confirmed it is you.
         </div>
-      </>
+        <p className="auth-back">
+          <button type="button" className="btn btn-ghost btn-sm" onClick={startOver}>← Use a different account</button>
+        </p>
+      </AuthShell>
     );
   }
 
@@ -209,78 +213,72 @@ export function Login() {
     };
 
     return (
-      <>
+      <AuthShell variant="login">
         {errorAlert}
-        <div className="container container-narrow">
-          <div className="card card-pad">
-            <h1>Create your PIN</h1>
-            <p style={{ color: 'var(--muted)' }}>
-              For extra security, Sokoni Hub now asks for a 4-digit PIN after your password each time you sign in.
-            </p>
-            <form onSubmit={submitSetup}>
-              {stage.needsEmail && (
-                <Field label="Email address *" hint="Every account now needs an email address.">
-                  <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
-                </Field>
-              )}
-              <div className="form-row">
-                <PinField label="New PIN" value={pin} onChange={setPin} autoFocus />
-                <PinField label="Confirm PIN" value={pin2} onChange={setPin2} />
-              </div>
-              <button
-                type="submit"
-                className="btn btn-primary btn-block btn-lg"
-                disabled={busy || pin.length !== 4 || pin2.length !== 4}
-              >
-                {busy ? t('auth.creating') : 'Save PIN and continue'}
-              </button>
-            </form>
-            <p className="center mt-3" style={{ margin: 0 }}>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={startOver}>← Cancel</button>
-            </p>
+        <h1 className="auth-title">Create your PIN</h1>
+        <p className="auth-sub">
+          For extra security, Sokoni Hub now asks for a 4-digit PIN after your password each time you sign in.
+        </p>
+        <form onSubmit={submitSetup}>
+          {stage.needsEmail && (
+            <Field label="Email address *" hint="Every account now needs an email address.">
+              <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+            </Field>
+          )}
+          <div className="form-row">
+            <PinField label="New PIN" value={pin} onChange={setPin} autoFocus />
+            <PinField label="Confirm PIN" value={pin2} onChange={setPin2} />
           </div>
-        </div>
-      </>
+          <button
+            type="submit"
+            className="btn btn-primary btn-block btn-lg"
+            disabled={busy || pin.length !== 4 || pin2.length !== 4}
+          >
+            {busy ? t('auth.creating') : 'Save PIN and continue'}
+          </button>
+        </form>
+        <p className="auth-back">
+          <button type="button" className="btn btn-ghost btn-sm" onClick={startOver}>← Cancel</button>
+        </p>
+      </AuthShell>
     );
   }
 
   /* ---- step 1: identifier + password ---- */
   return (
-    <>
+    <AuthShell variant="login">
       {errorAlert}
-      <div className="container container-narrow">
-        <div className="card card-pad">
-          <h1>{t('auth.login.title')}</h1>
-          <p style={{ color: 'var(--muted)' }}>{t('auth.login.sub')}</p>
-          <form onSubmit={(e) => { e.preventDefault(); run(async () => advance(await login(f.identifier, f.password))); }}>
-            <Field label={t('auth.identifier')}>
-              <input
-                required
-                value={f.identifier}
-                onChange={(e) => setF({ ...f, identifier: e.target.value })}
-                placeholder="+234 801 234 5678"
-                autoComplete="username"
-              />
-            </Field>
-            <Field label={t('auth.password')}>
-              <input
-                required
-                type="password"
-                value={f.password}
-                onChange={(e) => setF({ ...f, password: e.target.value })}
-                autoComplete="current-password"
-              />
-            </Field>
-            <button type="submit" className="btn btn-primary btn-block btn-lg" disabled={busy}>
-              {busy ? t('auth.loggingIn') : t('auth.login.cta')}
-            </button>
-          </form>
-          <p className="center mt-3" style={{ margin: 0 }}>
-            {t('auth.noAccount')} <Link to="/register">{t('auth.createOne')}</Link> · <Link to="/verify-email">Verify email</Link> · <Link to="/sell">{t('auth.sellOn')}</Link>
-          </p>
-        </div>
-      </div>
-    </>
+      <h1 className="auth-title">{t('auth.login.title')}</h1>
+      <p className="auth-sub">{t('auth.login.sub')}</p>
+      <form onSubmit={(e) => { e.preventDefault(); run(async () => advance(await login(f.identifier, f.password))); }}>
+        <Field label={t('auth.identifier')}>
+          <input
+            required
+            value={f.identifier}
+            onChange={(e) => setF({ ...f, identifier: e.target.value })}
+            placeholder="+234 801 234 5678"
+            autoComplete="username"
+          />
+        </Field>
+        <Field label={t('auth.password')}>
+          <input
+            required
+            type="password"
+            value={f.password}
+            onChange={(e) => setF({ ...f, password: e.target.value })}
+            autoComplete="current-password"
+          />
+        </Field>
+        <button type="submit" className="btn btn-primary btn-block btn-lg" disabled={busy}>
+          {busy ? t('auth.loggingIn') : t('auth.login.cta')}
+        </button>
+      </form>
+      <p className="auth-links">
+        <span>{t('auth.noAccount')} <Link to="/register">{t('auth.createOne')}</Link></span>
+        <Link to="/verify-email">Verify email</Link>
+        <Link to="/sell">{t('auth.sellOn')}</Link>
+      </p>
+    </AuthShell>
   );
 }
 
@@ -360,74 +358,84 @@ export function Register() {
   ) : null;
 
   return (
-    <>
+    <AuthShell variant="register">
       {errorAlert}
-      <div className="container container-narrow">
-        <div className="card card-pad">
-          <h1>{t('auth.register.title')}</h1>
-          <p className="muted">Read our <Link to="/terms">Terms</Link> and <Link to="/privacy">Privacy Policy</Link> for account and data information. These drafts are still awaiting finalisation.</p>
-          <form onSubmit={submit}>
-            <Field label={t('auth.iWantTo')}>
-              <div className="grid grid-2" style={{ gap: 10 }}>
-                {([['buyer', `🛒 ${t('auth.roleBuyer')}`], ['vendor', `🏪 ${t('auth.roleVendor')}`]] as const).map(([v, label]) => (
-                  <label
-                    key={v}
-                    className="checkbox card card-pad"
-                    style={{ borderColor: f.role === v ? 'var(--terra)' : undefined, margin: 0 }}
-                  >
-                    <input type="radio" checked={f.role === v} onChange={() => setF({ ...f, role: v })} />
-                    <span style={{ fontWeight: 700, color: 'var(--ink)' }}>{label}</span>
-                  </label>
-                ))}
-              </div>
+      <h1 className="auth-title">{t('auth.register.title')}</h1>
+      <p className="auth-sub">
+        Already registered? <Link to="/login">{t('auth.login.cta')}</Link>
+      </p>
+
+      <form onSubmit={submit}>
+        <fieldset className="auth-section">
+          <legend>{t('auth.iWantTo')}</legend>
+          <div className="auth-roles" role="radiogroup">
+            {([
+              ['buyer', '🛒', t('auth.roleBuyer'), 'Browse and buy from traders'],
+              ['vendor', '🏪', t('auth.roleVendor'), 'List products and services'],
+            ] as const).map(([v, icon, label, hint]) => (
+              <label key={v} className={`auth-role${f.role === v ? ' is-active' : ''}`}>
+                <input type="radio" name="role" checked={f.role === v} onChange={() => setF({ ...f, role: v })} />
+                <span className="auth-role-icon" aria-hidden="true">{icon}</span>
+                <span className="auth-role-text">
+                  <strong>{label}</strong>
+                  <small>{hint}</small>
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        <fieldset className="auth-section">
+          <legend>Your details</legend>
+          <Field label={t('auth.fullNameReq')}>
+            <input required value={f.full_name} onChange={(e) => setF({ ...f, full_name: e.target.value })} autoComplete="name" />
+          </Field>
+
+          <div className="form-row">
+            <Field label={t('auth.phoneReq')} hint={t('auth.phoneHint')}>
+              <input required value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} placeholder="+234 801 234 5678" autoComplete="tel" />
             </Field>
-
-            <Field label={t('auth.fullNameReq')}>
-              <input required value={f.full_name} onChange={(e) => setF({ ...f, full_name: e.target.value })} />
+            <Field label="Email address *">
+              <input required type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} autoComplete="email" />
             </Field>
+          </div>
+        </fieldset>
 
-            <div className="form-row">
-              <Field label={t('auth.phoneReq')} hint={t('auth.phoneHint')}>
-                <input required value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} placeholder="+234 801 234 5678" />
-              </Field>
-              <Field label="Email address *">
-                <input required type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} autoComplete="email" />
-              </Field>
-            </div>
+        <fieldset className="auth-section">
+          <legend>Sign-in security</legend>
+          <div className="form-row">
+            <Field label={t('auth.passwordReq')} hint={t('auth.passwordHint')}>
+              <input required type="password" minLength={12} maxLength={72} value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} autoComplete="new-password" />
+            </Field>
+            <Field label={t('auth.confirmPassword')}>
+              <input required type="password" value={f.confirm} onChange={(e) => setF({ ...f, confirm: e.target.value })} autoComplete="new-password" />
+            </Field>
+          </div>
 
-            <div className="form-row">
-              <Field label={t('auth.passwordReq')} hint={t('auth.passwordHint')}>
-                <input required type="password" minLength={12} maxLength={72} value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} autoComplete="new-password" />
-              </Field>
-              <Field label={t('auth.confirmPassword')}>
-                <input required type="password" value={f.confirm} onChange={(e) => setF({ ...f, confirm: e.target.value })} autoComplete="new-password" />
-              </Field>
-            </div>
+          <div className="form-row">
+            <PinField
+              label="Create a 4-digit PIN *"
+              hint="You will enter this after your password every time you sign in."
+              value={f.pin}
+              onChange={(v) => setF({ ...f, pin: v })}
+            />
+            <PinField label="Confirm PIN *" value={f.pinConfirm} onChange={(v) => setF({ ...f, pinConfirm: v })} />
+          </div>
+        </fieldset>
 
-            <div className="form-row">
-              <PinField
-                label="Create a 4-digit PIN *"
-                hint="You will enter this after your password every time you sign in."
-                value={f.pin}
-                onChange={(v) => setF({ ...f, pin: v })}
-              />
-              <PinField label="Confirm PIN *" value={f.pinConfirm} onChange={(v) => setF({ ...f, pinConfirm: v })} />
-            </div>
+        <label className="checkbox mb-2">
+          <input type="checkbox" checked={f.agree} onChange={(e) => setF({ ...f, agree: e.target.checked })} />
+          <span>{t('auth.rulesConfirm')}</span>
+        </label>
 
-            <label className="checkbox mb-2">
-              <input type="checkbox" checked={f.agree} onChange={(e) => setF({ ...f, agree: e.target.checked })} />
-              <span>{t('auth.rulesConfirm')}</span>
-            </label>
+        <button type="submit" className="btn btn-primary btn-block btn-lg" disabled={busy}>
+          {busy ? t('auth.creating') : t('auth.register.cta')}
+        </button>
 
-            <button type="submit" className="btn btn-primary btn-block btn-lg" disabled={busy}>
-              {busy ? t('auth.creating') : t('auth.register.cta')}
-            </button>
-          </form>
-          <p className="center mt-3" style={{ margin: 0 }}>
-            {t('auth.alreadyRegistered')} <Link to="/login">{t('auth.login.cta')}</Link>
-          </p>
-        </div>
-      </div>
-    </>
+        <p className="auth-legal">
+          Read our <Link to="/terms">Terms</Link> and <Link to="/privacy">Privacy Policy</Link> for account and data information. These drafts are still awaiting finalisation.
+        </p>
+      </form>
+    </AuthShell>
   );
 }
