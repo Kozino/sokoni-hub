@@ -631,3 +631,45 @@
 @media (prefers-reduced-motion: reduce) {
   .auth-logo-plate { transition: none; }
 }
+
+/* ---------- verify email ---------- */
+.auth-status {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  margin: 0 0 20px;
+  border-radius: 18px;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.auth-status--ok   { background: #e4f4ea; color: #17803d; }
+.auth-status--mail { background: #fbeee8; color: var(--a-terra); }
+.auth-status--bad  { background: #fdeaea; color: #b91c1c; }
+.auth-status--wait { background: #f3f1ec; }
+
+.auth-spinner {
+  width: 26px;
+  height: 26px;
+  border: 3px solid var(--a-line);
+  border-top-color: var(--a-terra);
+  border-radius: 50%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .auth-spinner { animation: auth-spin 0.8s linear infinite; }
+  @keyframes auth-spin { to { transform: rotate(360deg); } }
+}
+
+.auth-alert {
+  margin-top: 16px;
+}
+
+.auth-shell a.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
