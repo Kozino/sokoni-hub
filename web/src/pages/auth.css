@@ -65,35 +65,6 @@
   pointer-events: none;
 }
 
-.auth-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 800;
-  font-size: 20px;
-  letter-spacing: -0.01em;
-  text-decoration: none;
-  color: inherit;
-}
-
-.auth-aside .auth-brand {
-  position: relative;
-  z-index: 1;
-}
-
-.auth-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  background: var(--a-terra);
-  color: #fff;
-  font-weight: 800;
-  font-size: 18px;
-}
-
 .auth-aside-body {
   position: relative;
   z-index: 1;
@@ -559,4 +530,104 @@
     flex-direction: column;
     align-items: center;
   }
+}
+
+/* ---------- logo (modern + classic) ---------- */
+.auth-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  margin: 0 0 36px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.auth-logo-plate {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 78px;
+  height: 78px;
+  border-radius: 22px;
+  background: #f7f0e3;
+  box-shadow:
+    0 0 0 2px #f1c15a,
+    0 0 0 6px rgba(241, 193, 90, 0.22),
+    0 14px 30px rgba(0, 0, 0, 0.28);
+  transition: transform 0.2s ease;
+}
+
+.auth-logo:hover .auth-logo-plate {
+  transform: translateY(-2px);
+}
+
+.auth-logo-plate img {
+  display: block;
+  max-width: 58px;
+  max-height: 58px;
+  object-fit: contain;
+}
+
+.auth-logo-fallback {
+  font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
+  font-size: 42px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--a-terra);
+}
+
+.auth-logo-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.auth-logo-name {
+  font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  color: #fff;
+}
+
+.auth-logo-tag {
+  font-size: 13px;
+  color: rgba(243, 239, 231, 0.7);
+}
+
+.auth-logo:focus-visible {
+  outline: 3px solid rgba(241, 193, 90, 0.7);
+  outline-offset: 6px;
+  border-radius: 24px;
+}
+
+/* compact version used in the mobile top bar */
+.auth-logo--compact {
+  gap: 12px;
+  margin: 0;
+}
+
+.auth-logo--compact .auth-logo-plate {
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  box-shadow: 0 0 0 1.5px #f1c15a;
+}
+
+.auth-logo--compact .auth-logo-plate img {
+  max-width: 32px;
+  max-height: 32px;
+}
+
+.auth-logo--compact .auth-logo-fallback {
+  font-size: 24px;
+}
+
+.auth-logo--compact .auth-logo-name {
+  font-size: 22px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-logo-plate { transition: none; }
 }
