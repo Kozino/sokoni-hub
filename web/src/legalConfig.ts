@@ -9,9 +9,9 @@ export const legalConfig = {
   siteUrl: 'https://sokonihub.qa',
 
   // Fill these in once the Qatar registration is complete.
-  operatorName: '',
-  operatorCR: '',
-  operatorAddress: '',
+  operatorName: 'Sokoni Hub Retail and Business Support Platforms',
+  operatorCR: '254111',
+  operatorAddress: 'Doha, Qatar',
 
   supportEmail: 'support@sokonihub.qa',
   supportWhatsApp: '97466046431',
@@ -47,7 +47,6 @@ export const legalConfig = {
 
   // Shown only when `draft` is true.
   outstanding: [
-    'Add the registered operator name, Qatar commercial registration number and address once registration is complete.',
     'Confirm the database provider and the regions where data is stored.',
     'Have a Qatar lawyer review the Terms, Privacy Policy and Cookie Policy, and confirm the retention periods.',
   ],
