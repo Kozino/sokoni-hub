@@ -161,9 +161,12 @@ export function Header() {
      
       <header className="header">
         <div className="container header-inner">
-        <Link to="/" className="brand" onClick={close}>
+                <Link to="/" className="brand" onClick={close} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <img src="/logo.png" alt="Sokoni Hub" />
-          <span>Sokoni Hub<small>Sell beyond status</small></span>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span>Sokoni Hub</span>
+            <small style={{ fontSize: '0.65rem', color: 'var(--muted)', marginTop: '-2px' }}>CR: 254111</small>
+          </div>
         </Link>
         <div className="header-mobile-actions">
           <CartLink variant="mobile" onClick={close} />
