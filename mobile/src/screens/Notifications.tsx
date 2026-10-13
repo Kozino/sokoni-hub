@@ -67,6 +67,7 @@ import { WebOnlyAccount } from './WebOnlyAccount';export function Notifications(
   const { colors } = useTheme(); const { user } = useAuth();
   type Note = { id: string; icon: IconName; title: string; text: string; at: string; onPress: () => void };
   const [notes, setNotes] = useState<Note[]>([]); const [loading, setLoading] = useState(!!user); const [error, setError] = useState('');
+  
   const load = useCallback(async () => {
     if (!user) return; setLoading(true); setError('');
     try {
@@ -78,16 +79,33 @@ import { WebOnlyAccount } from './WebOnlyAccount';export function Notifications(
       setNotes(list);
     } catch (e) { setError(message(e)); } finally { setLoading(false); }
   }, [user, go]);
+  
   useEffect(() => { void load(); }, [load]);
+  
   if (!user) return <GuestGate heading="Notifications" title="Sign in for updates" text="Order and booking updates appear here once you have a buyer account." go={go} back={back} />;
+  
   return <View style={styles.page}>
     <Header title="Notifications" back={back} />
     {loading ? <Spinner label="Checking for updates…" /> : error ? <EmptyState icon="cloud-offline-outline" title="Could not load updates" text={error} action={<Button style={{ marginTop: 8 }} onPress={() => void load()}>Try again</Button>} /> :
-      <FlatList data={notes} keyExtractor={(n) => n.id} contentContainerStyle={styles.ordersList} refreshControl={<RefreshControl refreshing={false} onRefresh={() => void load()} tintColor={colors.primary} />}
-        renderItem={({ item }) => <Pressable accessibilityRole="button" onPress={item.onPress}><Card style={ex.noteCard}><View style={[ex.noteIcon, { backgroundColor: colors.primarySoft }]}><Icon name={item.icon} size={20} color={colors.primary} /></View><View style={{ flex: 1 }}><Text style={[ex.noteTitle, { color: colors.text }]}>{item.title}</Text><Text style={[ex.noteText, { color: colors.text2 }]}>{item.text}</Text></View><Text style={[ex.noteAgo, { color: colors.muted }]}>{date(item.at)}</Text></Card></Pressable>}
+      <FlatList data={notes} keyExtractor={(n) => n.id} contentContainerStyle={{ padding: 16, paddingBottom: 40 }} refreshControl={<RefreshControl refreshing={false} onRefresh={() => void load()} tintColor={colors.primary} />}
+        renderItem={({ item }) => (
+          <Pressable accessibilityRole="button" onPress={item.onPress} style={({pressed}) => ({ opacity: pressed ? 0.8 : 1 })}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, marginBottom: 12, backgroundColor: colors.surface, borderRadius: 16, elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 5 }}>
+              <View style={{ width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primarySoft }}>
+                <Icon name={item.icon} size={22} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: colors.text, marginBottom: 4 }}>{item.title}</Text>
+                <Text style={{ fontSize: 13, color: colors.text2, lineHeight: 18 }}>{item.text}</Text>
+              </View>
+              <Text style={{ fontSize: 11, color: colors.muted, alignSelf: 'flex-start' }}>{date(item.at)}</Text>
+            </View>
+          </Pressable>
+        )}
         ListEmptyComponent={<EmptyState icon="notifications-outline" title="You're all caught up" text="When you order or book, every status change will show up here." />} />}
   </View>;
 }
+
 
 
 

@@ -64,6 +64,45 @@ import { Account } from './Account';
 import { AccountRow } from './AccountRow';
 import { Support } from './Support';
 import { GuestGate } from './GuestGate';
-import { WebOnlyAccount } from './WebOnlyAccount';export function Bookings({ go, back }: any) { const { colors } = useTheme(); const { user } = useAuth(); const [bookings, setBookings] = useState<Booking[]>([]); const [loading, setLoading] = useState(true); const [refreshing, setRefreshing] = useState(false); const [error, setError] = useState('');
-  const load = useCallback(async (pull = false) => { if (!user) return; if (pull) setRefreshing(true); else setLoading(true); setError(''); try { setBookings((await api.get<{bookings: Booking[]}>('/bookings/mine')).bookings); } catch (e) { if (pull) Alert.alert('Could not refresh', message(e)); else setError(message(e)); } finally { setLoading(false); setRefreshing(false); } }, [user]);
-  useEffect(() => { void load(); }, [load]); if (!user) return <GuestGate heading="My bookings" title="Sign in to see bookings" text="Keep your service requests and their latest status in one place." go={go} back={back}/>; return <View style={styles.page}><Header title="My bookings" back={back}/>{loading ? <Spinner label="Loading your bookings…"/> : error && !bookings.length ? <EmptyState icon="cloud-offline-outline" title="Could not load bookings" text={error} action={<Button style={{ marginTop: 8 }} onPress={() => void load()}>Try again</Button>}/> : <FlatList data={bookings} keyExtractor={(booking) => booking.id} contentContainerStyle={styles.ordersList} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.primary}/>} renderItem={({ item }) => <Card style={styles.orderCard}><View style={styles.orderTop}><View><Text style={[styles.orderCode, { color: colors.text }]}>{item.listing_title || item.code}</Text><Text style={[styles.orderDate, { color: colors.text2 }]}>{item.business_name} · {dateTime(item.slot_starts_at || item.scheduled_at || item.preferred_at)}</Text></View><Status value={item.status}/></View><Divider/><Pressable accessibilityRole="button" onPress={() => go('track', { bookingCode: item.code, phone: user.phone })}><Text style={[styles.trackLink, { color: colors.primary }]}>Track booking</Text></Pressable></Card>} ListEmptyComponent={<EmptyState title="No bookings yet" text="Book a local service to manage it here." action={<Button onPress={() => go('browse', { kind: 'service' })}>Browse services</Button>}/>}/>}</View>; }
+import { WebOnlyAccount } from './WebOnlyAccount';export function Bookings({ go, back }: any) { 
+  const { colors } = useTheme(); 
+  const { user } = useAuth(); 
+  const { data, isLoading, refetch, isRefetching } = useQuery({ 
+    queryKey: ['bookings', user?.id], 
+    queryFn: async () => (await api.get<{bookings: Booking[]}>('/bookings/mine')).bookings,
+    enabled: !!user
+  }); 
+  const bookings = data || []; 
+  
+  if (!user) return <GuestGate heading="My bookings" title="Sign in to see bookings" text="Your upcoming services and booking history are tied to your account." go={go} back={back}/>; 
+  return <View style={styles.page}>
+    <Header title="My bookings" back={back}/>
+    {isLoading ? <Spinner label="Loading your bookings…"/> : <FlatList data={bookings} keyExtractor={(b) => b.id} contentContainerStyle={{ padding: 16, paddingBottom: 40 }} refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary}/>} renderItem={({ item }) => (
+      <Card style={{ padding: 16, marginBottom: 12, borderRadius: 16, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 12 }}>
+          <View style={{ flex: 1, paddingRight: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              <Icon name="calendar-outline" size={16} color={colors.primary} />
+              <Text style={{ fontSize: 16, fontWeight: '900', color: colors.text }}>{item.listing_title || 'Service'}</Text>
+            </View>
+            <Text style={{ fontSize: 13, color: colors.text2 }}>{item.business_name || 'Vendor'}</Text>
+            <Text style={{ fontSize: 12, color: colors.primary, marginTop: 4, fontWeight: '700' }}>{dateTime(item.slot_starts_at || item.scheduled_at || item.preferred_at)}</Text>
+          </View>
+          <View style={{ alignSelf: 'flex-start' }}>
+            <Status value={item.status} />
+          </View>
+        </View>
+        <View style={{ marginVertical: 8 }}><Divider/></View>
+        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 4 }}>
+          <Button variant="secondary" icon="arrow-forward" style={{ minHeight: 36, paddingHorizontal: 16, borderRadius: 18 }} onPress={() => Alert.alert('Booking details', `Booking reference: ${item.id}
+
+Status: ${statusLabel(item.status)}
+Date: ${dateTime(item.slot_starts_at || item.scheduled_at || item.preferred_at)}`)}>
+            View details
+          </Button>
+        </View>
+      </Card>
+    )} ListEmptyComponent={<EmptyState title="No bookings yet" text="When you book a local service, it will appear here." action={<Button onPress={() => go('browse', { category: 'services' })}>Browse services</Button>}/>}/>}
+  </View>; 
+}
+

@@ -64,4 +64,42 @@ import { Account } from './Account';
 import { AccountRow } from './AccountRow';
 import { Support } from './Support';
 import { GuestGate } from './GuestGate';
-import { WebOnlyAccount } from './WebOnlyAccount';export function Orders({ go, back }: any) { const { colors } = useTheme(); const { user } = useAuth(); const [orders, setOrders] = useState<Order[]>([]); const [loading, setLoading] = useState(true); const load = useCallback(async () => { if (!user) return; setLoading(true); try { setOrders((await api.get<{orders: Order[]}>('/orders/mine')).orders); } catch (e) { Alert.alert('Could not load orders', message(e)); } finally { setLoading(false); } }, [user]); useEffect(() => { void load(); }, [load]); if (!user) return <GuestGate heading="My orders" title="Sign in to see orders" text="Your order history and status are stored securely in your buyer account." go={go} back={back}/>; return <View style={styles.page}><Header title="My orders" back={back}/>{loading ? <Spinner label="Loading your orders…"/> : <FlatList data={orders} keyExtractor={(order) => order.id} contentContainerStyle={styles.ordersList} refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.primary}/>} renderItem={({ item }) => <Card style={styles.orderCard}><View style={styles.orderTop}><View><Text style={[styles.orderCode, { color: colors.text }]}>{item.code}</Text><Text style={[styles.orderDate, { color: colors.text2 }]}>{date(item.created_at)} · {item.business_name || item.vendor?.business_name}</Text></View><Status value={item.status}/></View><Divider/><View style={styles.orderBottom}><Money value={item.total} currency={item.currency} strong/><Pressable accessibilityRole="button" onPress={() => go('track', { code: item.code, phone: user.phone })}><Text style={[styles.trackLink, { color: colors.primary }]}>Track order</Text></Pressable></View></Card>} ListEmptyComponent={<EmptyState title="No orders yet" text="When you purchase a local product, its status will appear here." action={<Button onPress={() => go('browse')}>Start browsing</Button>}/>}/>}</View>; }
+import { WebOnlyAccount } from './WebOnlyAccount';export function Orders({ go, back }: any) { 
+  const { colors } = useTheme(); 
+  const { user } = useAuth(); 
+  const { data, isLoading, refetch, isRefetching } = useQuery({ 
+    queryKey: ['orders', user?.id], 
+    queryFn: async () => (await api.get<{orders: Order[]}>('/orders/mine')).orders,
+    enabled: !!user
+  }); 
+  const orders = data || []; 
+  
+  if (!user) return <GuestGate heading="My orders" title="Sign in to see orders" text="Your order history and status are stored securely in your buyer account." go={go} back={back}/>; 
+  return <View style={styles.page}>
+    <Header title="My orders" back={back}/>
+    {isLoading ? <Spinner label="Loading your orders…"/> : <FlatList data={orders} keyExtractor={(order) => order.id} contentContainerStyle={{ padding: 16, paddingBottom: 40 }} refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary}/>} renderItem={({ item }) => (
+      <Card style={{ padding: 16, marginBottom: 12, borderRadius: 16, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 12 }}>
+          <View style={{ flex: 1, paddingRight: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              <Icon name="receipt-outline" size={16} color={colors.primary} />
+              <Text style={{ fontSize: 16, fontWeight: '900', color: colors.text }}>{item.code}</Text>
+            </View>
+            <Text style={{ fontSize: 12, color: colors.text2, lineHeight: 18 }}>{date(item.created_at)} · {item.business_name || item.vendor?.business_name}</Text>
+          </View>
+          <View style={{ alignSelf: 'flex-start' }}>
+            <Status value={item.status} />
+          </View>
+        </View>
+        <View style={{ marginVertical: 8 }}><Divider/></View>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+          <Money value={item.total} currency={item.currency} strong />
+          <Button variant="secondary" icon="arrow-forward" style={{ minHeight: 36, paddingHorizontal: 16, borderRadius: 18 }} onPress={() => go('track', { code: item.code, phone: user.phone })}>
+            Track order
+          </Button>
+        </View>
+      </Card>
+    )} ListEmptyComponent={<EmptyState title="No orders yet" text="When you purchase a local product, its status will appear here." action={<Button onPress={() => go('browse')}>Start browsing</Button>}/>}/>}
+  </View>; 
+}
+

@@ -3,6 +3,7 @@ import { styles, nx, ex } from './src/styles';
 import { ToastContext } from './src/screens/Welcome';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from 'react-error-boundary';
+import { usePushNotifications } from './src/usePushNotifications';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
@@ -139,6 +140,7 @@ export function Marketplace() {
   const fonts = useContext(FontContext);
   const [welcomeLoaded, setWelcomeLoaded] = useState(false);
   const [seenWelcome, setSeenWelcome] = useState(false);
+  usePushNotifications();
   const insets = useSafeAreaInsets();
   const counter = useRef(0);
   const [toast, setToast] = useState<{ text: string; cart: boolean; id: number } | null>(null);

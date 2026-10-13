@@ -63,4 +63,56 @@ import { Account } from './Account';
 import { AccountRow } from './AccountRow';
 import { Support } from './Support';
 import { GuestGate } from './GuestGate';
-import { WebOnlyAccount } from './WebOnlyAccount';export function Track({ go, back, params }: any) { const { colors } = useTheme(); const [orderCode, setOrderCode] = useState(params?.code || ''); const [bookingCode, setBookingCode] = useState(params?.bookingCode || ''); const [phone, setPhone] = useState(params?.phone || ''); const [result, setResult] = useState<any>(null); const [busy, setBusy] = useState(false); const track = async () => { if (!phone || (!orderCode && !bookingCode)) return Alert.alert('Enter tracking details', 'Use either your order or booking code and the phone used at checkout.'); setBusy(true); try { const isBooking = !!bookingCode; const data = await api.get<any>(isBooking ? `/bookings/track${query({code: bookingCode, phone})}` : `/orders/track${query({code: orderCode, phone})}`); setResult({ ...data, isBooking }); } catch (e) { Alert.alert('Could not find it', message(e)); } finally { setBusy(false); } }; return <View style={styles.page}><Header title="Track an order or booking" back={back}/><ScrollView contentContainerStyle={styles.trackScroll}><Notice>Enter the code from your confirmation and the complete phone number used to place it.</Notice><Field label="Order code (if tracking an order)" value={orderCode} onChangeText={(value) => { setOrderCode(value.toUpperCase()); if(value) setBookingCode(''); }} autoCapitalize="characters" placeholder="ORD…"/><Field label="Booking code (if tracking a service)" value={bookingCode} onChangeText={(value) => { setBookingCode(value.toUpperCase()); if(value) setOrderCode(''); }} autoCapitalize="characters" placeholder="BKG…"/><Field label="Phone number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="+974…"/><Button loading={busy} onPress={track}>Track status</Button>{result ? <Card style={{ marginTop: 18 }}><View style={styles.orderTop}><Text style={[styles.orderCode, { color: colors.text }]}>{result.order?.code || result.booking?.code}</Text><Status value={result.order?.status || result.booking?.status}/></View><Divider/><Text style={[styles.trackProduct, { color: colors.text }]}>{result.order?.business_name || result.booking?.listing_title || result.booking?.business_name || 'Sokoni Hub'}</Text><Text style={[styles.trackDetail, { color: colors.text2 }]}>{result.isBooking ? `Preferred: ${date(result.booking?.slot_starts_at || result.booking?.scheduled_at || result.booking?.preferred_at)}` : `Placed: ${date(result.order?.created_at)}`}</Text>{result.order?.whatsapp_url ? <Button variant="secondary" onPress={() => Linking.openURL(result.order.whatsapp_url)} style={{ marginTop: 13 }}>Contact seller on WhatsApp</Button> : null}</Card> : null}</ScrollView></View>; }
+import { WebOnlyAccount } from './WebOnlyAccount';export function Track({ go, back, params }: any) { 
+  const { colors } = useTheme(); 
+  const [orderCode, setOrderCode] = useState(params?.code || ''); 
+  const [bookingCode, setBookingCode] = useState(params?.bookingCode || ''); 
+  const [phone, setPhone] = useState(params?.phone || ''); 
+  const [result, setResult] = useState<any>(null); 
+  const [busy, setBusy] = useState(false); 
+  
+  const track = async () => { 
+    if (!phone || (!orderCode && !bookingCode)) return Alert.alert('Enter tracking details', 'Use either your order or booking code and the phone used at checkout.'); 
+    setBusy(true); 
+    try { 
+      const isBooking = !!bookingCode; 
+      const data = await api.get<any>(isBooking ? `/bookings/track${query({code: bookingCode, phone})}` : `/orders/track${query({code: orderCode, phone})}`); 
+      setResult({ ...data, isBooking }); 
+    } catch (e) { 
+      Alert.alert('Could not find it', message(e)); 
+    } finally { 
+      setBusy(false); 
+    } 
+  }; 
+  
+  return <View style={styles.page}>
+    <Header title="Track an order or booking" back={back}/>
+    <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+      <Notice>Enter the code from your confirmation and the complete phone number used to place it.</Notice>
+      <Field label="Order code (if tracking an order)" value={orderCode} onChangeText={(value) => { setOrderCode(value.toUpperCase()); if(value) setBookingCode(''); }} autoCapitalize="characters" placeholder="ORD…"/>
+      <Field label="Booking code (if tracking a service)" value={bookingCode} onChangeText={(value) => { setBookingCode(value.toUpperCase()); if(value) setOrderCode(''); }} autoCapitalize="characters" placeholder="BKG…"/>
+      <Field label="Phone number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="+974…"/>
+      <Button loading={busy} onPress={track} style={{ marginTop: 12 }}>Track status</Button>
+      
+      {result ? 
+        <Card style={{ marginTop: 24, padding: 16, borderRadius: 16, elevation: 3, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 10 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 12 }}>
+            <View style={{ flex: 1, paddingRight: 10 }}>
+              <Text style={{ fontSize: 18, fontWeight: '900', color: colors.text }}>{result.order?.code || result.booking?.code}</Text>
+            </View>
+            <View style={{ alignSelf: 'flex-start' }}>
+              <Status value={result.order?.status || result.booking?.status}/>
+            </View>
+          </View>
+          <View style={{ marginVertical: 8 }}><Divider/></View>
+          <View style={{ marginTop: 4 }}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>{result.order?.business_name || result.booking?.listing_title || result.booking?.business_name || 'Sokoni Hub'}</Text>
+            <Text style={{ fontSize: 13, color: colors.text2, marginTop: 4 }}>{result.isBooking ? `Preferred: ${date(result.booking?.slot_starts_at || result.booking?.scheduled_at || result.booking?.preferred_at)}` : `Placed: ${date(result.order?.created_at)}`}</Text>
+          </View>
+          {result.order?.whatsapp_url ? <Button variant="secondary" onPress={() => Linking.openURL(result.order.whatsapp_url)} style={{ marginTop: 16 }}>Contact seller on WhatsApp</Button> : null}
+        </Card> 
+      : null}
+    </ScrollView>
+  </View>; 
+}
+
