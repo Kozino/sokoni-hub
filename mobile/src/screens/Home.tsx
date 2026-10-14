@@ -1,4 +1,3 @@
-
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, BackHandler, FlatList, ImageBackground, KeyboardAvoidingView, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, useWindowDimensions, View, Platform } from 'react-native';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -63,7 +62,9 @@ import { Account } from './Account';
 import { AccountRow } from './AccountRow';
 import { Support } from './Support';
 import { GuestGate } from './GuestGate';
-import { WebOnlyAccount } from './WebOnlyAccount';export function Home({ go, tab }: any) {
+import { WebOnlyAccount } from './WebOnlyAccount';
+
+export function Home({ go, tab }: any) {
   const { colors } = useTheme(); const { user } = useAuth(); const { count } = useCart(); const { city, setCity, cities } = useCity();
   const [categories, setCategories] = useState<Category[]>([]); const [products, setProducts] = useState<Listing[]>([]); const [services, setServices] = useState<Listing[]>([]); const [refreshing, setRefreshing] = useState(false); const [error, setError] = useState('');
   const [text, setText] = useState(''); const [goods, setGoods] = useState('all');
@@ -103,7 +104,6 @@ import { WebOnlyAccount } from './WebOnlyAccount';export function Home({ go, tab
         <Pressable accessibilityRole="button" onPress={runSearch} accessibilityLabel="Search market" style={[styles.marketSearchButton,{backgroundColor:colors.gold}]}><Icon name="search-outline" size={17} color="#fff"/><Text style={styles.marketSearchButtonText}>Search market</Text></Pressable>
       </LinearGradient>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickRail}>{['Rice & grains','Food','Beauty','Fashion','Home services'].map((label) => <Pressable accessibilityRole="button" key={label} onPress={() => go('browse',{q:label})} style={[styles.quickChip,{backgroundColor:colors.surface2}]}><Text style={[styles.quickChipText,{color:colors.text2}]}>{label}</Text></Pressable>)}</ScrollView>
-      <View style={styles.trustGrid}><TrustTile icon="shield-checkmark-outline" title="Verified sellers" subtitle="Local vetting"/><TrustTile icon="cash-outline" title="Pay on delivery" subtitle="Cash or transfer"/><TrustTile icon="logo-whatsapp" title="WhatsApp contact" subtitle="Direct support"/><TrustTile icon="pricetag-outline" title="Clear pricing" subtitle="No listing fee"/></View>
       {error ? <View style={{marginHorizontal:14}}><Notice type="warning">{error}</Notice></View> : null}
       <VipStores stores={promos.vip} onOpen={(slug) => go('store',{slug})}/>
       <SectionTitle title="Explore market stalls" action="View all" onPress={() => go('browse')}/>
