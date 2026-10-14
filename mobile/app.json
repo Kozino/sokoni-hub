@@ -32,6 +32,14 @@
       "bundler": "metro"
     },
     "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableProguardInReleaseBuilds": true
+          }
+        }
+      ],
       "expo-secure-store",
       "expo-image",
       "expo-web-browser",

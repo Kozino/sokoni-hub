@@ -59,6 +59,8 @@ const AuthContext = createContext<{
   setupPin: (pin: string, email?: string) => Promise<AuthStage>;
   register: (payload: { full_name: string; phone: string; email: string; password: string; pin: string }) => Promise<AuthStage>;
   logout: () => Promise<void>; clearStage: () => void; updateUser: (user: User) => void;
+  changePassword: (cur: string, nw: string) => Promise<void>;
+  changePin: (cur: string, nw: string) => Promise<void>;
 }>(null as never);
 export const useAuth = () => useContext(AuthContext);
 
@@ -121,10 +123,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     return finish(response);
   }, [finish]);
+  
+  const changePassword = useCallback(async (current_password: string, new_password: string) => {
+    const res = await api.post<any>('/auth/change-password', { current_password, new_password });
+    if (res.token) await authStorage.save(res.token);
+  }, []);
+
+  const changePin = useCallback(async (current_pin: string, new_pin: string) => {
+    const res = await api.post<any>('/auth/pin/change', { current_pin, new_pin });
+    if (res.token) await authStorage.save(res.token);
+  }, []);
+
   const logout = useCallback(async () => { try { await api.post('/auth/logout'); } catch {} await clear(); }, [clear]);
 
-  const value = useMemo(() => ({ user, vendor, loading, stage, refresh, login, verifyPin, verifyMfa, setupPin, register, logout, clearStage: () => setStage({ kind: 'none' }), updateUser: setUser }),
-    [user, vendor, loading, stage, refresh, login, verifyPin, verifyMfa, setupPin, register, logout]);
+
+    const value = useMemo(() => ({ user, vendor, loading, stage, refresh, login, verifyPin, verifyMfa, setupPin, register, logout, clearStage: () => setStage({ kind: 'none' }), updateUser: setUser, changePassword, changePin }),
+    [user, vendor, loading, stage, refresh, login, verifyPin, verifyMfa, setupPin, register, logout, changePassword, changePin]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

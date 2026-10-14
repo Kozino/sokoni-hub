@@ -63,5 +63,32 @@ import { Track } from './Track';
 import { Account } from './Account';
 import { Support } from './Support';
 import { GuestGate } from './GuestGate';
-import { WebOnlyAccount } from './WebOnlyAccount';export function AccountRow({ icon, title, subtitle, onPress, right }: { icon: IconName; title: string; subtitle?: string; onPress?: () => void; right?: React.ReactNode }) { const { colors } = useTheme(); return <Pressable accessibilityRole="button" disabled={!onPress} onPress={onPress} style={styles.accountRow}><View style={[styles.accountIcon, { backgroundColor: colors.primarySoft }]}><Icon name={icon} size={21} color={colors.primary}/></View><View style={{ flex: 1 }}><Text style={[styles.accountTitle, { color: colors.text }]}>{title}</Text>{subtitle ? <Text numberOfLines={1} style={[styles.accountSubtitle, { color: colors.text2 }]}>{subtitle}</Text> : null}</View>{right ?? (onPress ? <Icon name="chevron-forward" size={20} color={colors.muted}/> : null)}</Pressable>; }
-
+import { WebOnlyAccount } from './WebOnlyAccount';export function AccountRow({ icon, title, subtitle, onPress, right }: { icon: IconName; title: string; subtitle?: string; onPress?: () => void; right?: React.ReactNode }) { 
+  const { colors, theme } = useTheme(); 
+  return (
+    <Pressable 
+      accessibilityRole="button" 
+      disabled={!onPress && !right} 
+      onPress={onPress} 
+      style={({pressed}) => [
+        { 
+          flexDirection: 'row', 
+          alignItems: 'center', 
+          paddingVertical: 14, 
+          paddingHorizontal: 16, 
+          backgroundColor: pressed && onPress ? (theme === 'dark' ? '#1c1c1e' : '#f9f9f9') : 'transparent',
+          gap: 14
+        }
+      ]}
+    >
+      <View style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: theme === 'dark' ? '#2c2c2e' : '#f2f2f7' }}>
+        <Icon name={icon} size={20} color={colors.text} />
+      </View>
+      <View style={{ flex: 1, justifyContent: 'center' }}>
+        <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: subtitle ? 2 : 0 }}>{title}</Text>
+        {subtitle ? <Text numberOfLines={1} style={{ fontSize: 13, color: colors.text2 }}>{subtitle}</Text> : null}
+      </View>
+      {right ?? (onPress ? <Icon name="chevron-forward" size={18} color={colors.muted}/> : null)}
+    </Pressable>
+  ); 
+}

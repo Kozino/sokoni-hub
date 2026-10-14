@@ -27,7 +27,7 @@ function AppRouter({ seenWelcome, finishWelcome }: any) {
   return (
     <View style={[{ flex: 1, backgroundColor: colors.bg }]}>
       <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }} initialRouteName={seenWelcome ? 'home' : 'welcome'}>
-        <Stack.Screen name="welcome">{(props) => <Welcome onDone={finishWelcome} />}</Stack.Screen>
+        <Stack.Screen name="welcome">{(props) => <Welcome onDone={(screen) => { finishWelcome(); if (screen && screen !== 'welcome') { navigation.reset({ index: 0, routes: [{ name: screen }] }); } else { navigation.reset({ index: 0, routes: [{ name: 'home' }] }); } }} />}</Stack.Screen>
         <Stack.Screen name="home">{(props) => <Home {...common} />}</Stack.Screen>
         <Stack.Screen name="browse">{(props) => <Browse {...common} initial={props.route.params} />}</Stack.Screen>
         <Stack.Screen name="cart">{(props) => <Cart {...common} />}</Stack.Screen>
