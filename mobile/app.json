@@ -14,7 +14,8 @@
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": false
         },
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSFaceIDUsageDescription": "Allow Sokoni Hub to use Face ID to authenticate you securely and quickly."
       }
     },
     "android": {
@@ -32,6 +33,7 @@
       "bundler": "metro"
     },
     "plugins": [
+      "expo-local-authentication",
       [
         "expo-build-properties",
         {
