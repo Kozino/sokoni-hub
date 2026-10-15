@@ -144,7 +144,7 @@ const en: Record<string, string> = {
   'listing.detail.listed': 'Listed',
   'listing.detail.views': 'Views',
   'listing.safety':
-    'Stay safe: inspect goods before paying on delivery. Never send money for cosmetics or medicine — those are banned here.',
+    'Stay safe: inspect goods before paying on delivery. Never send money for medicine — those are banned here.',
   'listing.safetyLabel': 'Stay safe:',
 
   /* --------------------------------------------------------------- reviews */
@@ -279,7 +279,7 @@ const en: Record<string, string> = {
   'auth.passwordReq': 'Password *',
   'auth.passwordHint': 'At least 12 characters',
   'auth.confirmPassword': 'Confirm password *',
-  'auth.rulesConfirm': 'I confirm I will not list cosmetics or medicine/drugs, and I accept the marketplace rules.',
+  'auth.rulesConfirm': 'I confirm I will not list medicine/drugs, and I accept the marketplace rules.',
   'auth.alreadyRegistered': 'Already registered?',
   'browse.searchPlaceholder': 'Search…',
   'browse.allTypes': 'All types',

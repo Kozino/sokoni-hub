@@ -82,7 +82,7 @@ export function Terms() {
         <p>Sokoni Hub charges flat onboarding fees and premium visibility/sponsorship advertising placement fees. These fees are paid to Sokoni Hub to maintain platform listing access and are strictly non-refundable once the digital space or advertisement has been published, regardless of the Vendor’s sales volume.</p>
 
         <h3>4. Prohibited Items &amp; Compliance</h3>
-        <p>Vendors must comply with all laws of the State of Qatar. Listing counterfeit goods, unapproved medical cosmetics, or operating without appropriate personal health cards is strictly prohibited. Sokoni Hub reserves the absolute right to terminate any account violating these guidelines without a refund.</p>
+        <p>Vendors must comply with all laws of the State of Qatar. Listing counterfeit goods, unapproved medical drugs/medicine, or operating without appropriate personal health cards is strictly prohibited. Sokoni Hub reserves the absolute right to terminate any account violating these guidelines without a refund.</p>
       </section>
 
       <section>

@@ -233,7 +233,7 @@ export default function ListingForm() {
         </Field>
 
         <div className="prohibited mb-2">
-          <strong>Reminder:</strong> cosmetics and medicine/drugs are prohibited. Listings containing
+          <strong>Reminder:</strong> medicine/drugs are prohibited. Listings containing
           them are blocked automatically and may lead to suspension.
         </div>
 

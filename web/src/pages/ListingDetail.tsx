@@ -253,7 +253,7 @@ export default function ListingDetail() {
 
           <Alert kind="info">
             <strong>Stay safe:</strong> inspect goods before paying on delivery. Never send money for
-            cosmetics or medicine — those are banned here.
+            medicine — those are banned here.
           </Alert>
         </div>
       </div>

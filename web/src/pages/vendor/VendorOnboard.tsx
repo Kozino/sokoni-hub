@@ -112,7 +112,7 @@ export default function VendorOnboard() {
               <dt>CR licence</dt><dd>{doc[0] ? 'Uploaded' : 'Not provided — may delay verification'}</dd>
             </dl>
             <div className="prohibited mb-2">
-              <strong>Reminder:</strong> cosmetics and medicine/drugs are strictly prohibited. Listing them
+              <strong>Reminder:</strong> medicine/drugs are strictly prohibited. Listing them
               results in removal and suspension.
             </div>
             <label className="checkbox mb-2">

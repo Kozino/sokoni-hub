@@ -40,8 +40,7 @@ export function Sell() {
         <div className="card card-pad">
           <h3 style={{ color: 'var(--danger)' }}>🚫 What you cannot sell</h3>
           <div className="prohibited">
-            <strong>Cosmetics</strong> (creams, lipsticks, skin/whitening products) and
-            <strong> medicine, drugs or pharmaceutical products</strong> of any kind are strictly prohibited.
+            <strong>Medicine, drugs or pharmaceutical products</strong> of any kind are strictly prohibited.
             Our system screens every listing, and admins remove violations and suspend repeat offenders.
           </div>
         </div>
@@ -75,8 +74,7 @@ export function Policy() {
       <div className="card card-pad">
         <h3>Prohibited categories</h3>
         <div className="prohibited mb-2">
-          <p style={{ margin: 0 }}><strong>1. Cosmetics</strong> — creams, lotions, lipsticks, foundations, skin-lightening or bleaching products, and similar items.</p>
-          <p style={{ margin: '8px 0 0' }}><strong>2. Medicine &amp; drugs</strong> — tablets, capsules, syrups, antibiotics, injections, supplements sold as medicine, and any pharmaceutical product.</p>
+          <p style={{ margin: '8px 0 0' }}><strong>1. Medicine &amp; drugs</strong> — tablets, capsules, syrups, antibiotics, injections, supplements sold as medicine, and any pharmaceutical product.</p>
         </div>
         <p>These restrictions exist because safe distribution of such products requires regulatory licensing that this platform does not verify. Listings are screened automatically at upload and reviewed manually by admins.</p>
 
