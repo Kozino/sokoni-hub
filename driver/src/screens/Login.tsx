@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export function Login({ onNav }: { onNav: (s: 'register') => void }) {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { login } = useAuth();
@@ -13,15 +14,33 @@ export function Login({ onNav }: { onNav: (s: 'register') => void }) {
   const handleLogin = async () => {
     setError('');
     setLoading(true);
-    // MOCK API CALL
-    setTimeout(() => {
-      if (phone === '123' && password === '123') {
-        login({ id: '1', full_name: 'John Driver', phone: '123', driver_status: 'approved' }, 'mock-token');
+    try {
+      const res = await fetch('https://api-sokonihub.e2b.dev/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: phone, password })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Login failed');
+      
+      if (data.pin_required) {
+        // Simple mock bypass for PIN since we didn't build the PIN screen on Driver app yet
+        const pinRes = await fetch('https://api-sokonihub.e2b.dev/api/auth/login/pin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pin_token: data.pin_token, pin: pin })
+        });
+        const pinData = await pinRes.json();
+        if (!pinRes.ok) throw new Error(pinData.message || 'Incorrect PIN');
+        login(pinData.user, pinData.token);
       } else {
-        setError('Invalid phone or password');
-        setLoading(false);
+        login(data.user, data.token);
       }
-    }, 1000);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -40,6 +59,9 @@ export function Login({ onNav }: { onNav: (s: 'register') => void }) {
           
           <Text style={styles.label}>Password</Text>
           <TextInput style={styles.input} secureTextEntry value={password} onChangeText={setPassword} placeholder="Enter your password" />
+
+          <Text style={styles.label}>4-Digit PIN</Text>
+          <TextInput style={styles.input} secureTextEntry maxLength={4} keyboardType="number-pad" value={pin} onChangeText={setPin} placeholder="Enter your PIN" />
 
           <TouchableOpacity style={styles.btn} onPress={handleLogin} disabled={loading}>
             {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Sign In</Text>}

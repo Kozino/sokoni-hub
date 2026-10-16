@@ -127,7 +127,7 @@ const registerSchema = z.object({
   email: emailField,
   password: z.string().min(12).max(72).refine(s=>Buffer.byteLength(s,'utf8')<=72,'Password must be at most 72 UTF-8 bytes'),
   pin: pinField,
-  role: z.enum(['buyer', 'vendor']).default('buyer'),
+  role: z.enum(['buyer', 'vendor', 'driver']).default('buyer'),
 });
 
 authRouter.post('/register', async (req, res, next) => {
@@ -152,6 +152,15 @@ authRouter.post('/register', async (req, res, next) => {
        returning ${PUBLIC_COLS}`,
       [id, b.full_name.trim(), phone, email, passwordHash, pinHash, b.role]
     );
+
+    if (b.role === 'driver') {
+      await query(
+        `insert into drivers (user_id, status, vehicle_type, license_plate) 
+         values ($1, 'pending', 'Motorcycle', 'Pending')`,
+        [user.id]
+      );
+    }
+
     await audit(user.id, 'user.register', 'user', user.id, { role: b.role });
     await issueVerification(user.id, user.email);
     // Do not create a session until the address has been proven. This prevents

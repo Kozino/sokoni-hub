@@ -509,3 +509,40 @@ adminRouter.post('/payouts/:id/mark-paid', async (req, res, next) => {
     res.json({ success: true });
   } catch (e) { next(e); }
 });
+
+/* ------------------------------------------------------------------ */
+/* Drivers                                                            */
+/* ------------------------------------------------------------------ */
+
+adminRouter.get('/drivers', async (req, res, next) => {
+  try {
+    const status = String(req.query.status || '');
+    const q = status ? `where d.status = $1` : ``;
+    const params = status ? [status] : [];
+    
+    const drivers = await query(
+      `select d.id, d.status, d.vehicle_type, d.license_plate, d.is_online, 
+              u.full_name, u.phone, u.email, d.created_at
+       from drivers d
+       join users u on u.id = d.user_id
+       ${q}
+       order by d.created_at desc`,
+      params
+    );
+    res.json({ drivers });
+  } catch (e) { next(e); }
+});
+
+adminRouter.post('/drivers/:id/approve', async (req, res, next) => {
+  try {
+    await query(`update drivers set status = 'approved' where id = $1`, [req.params.id]);
+    res.json({ success: true });
+  } catch (e) { next(e); }
+});
+
+adminRouter.post('/drivers/:id/suspend', async (req, res, next) => {
+  try {
+    await query(`update drivers set status = 'suspended', is_online = false where id = $1`, [req.params.id]);
+    res.json({ success: true });
+  } catch (e) { next(e); }
+});
