@@ -46,7 +46,7 @@ try{
 await page.goto(site+'/privacy');await page.getByRole('heading',{name:'Privacy Policy',exact:true}).waitFor();
 ok(await page.getByText('Draft — not finalised for publication').count()===0,'finalised privacy page shows no draft banner');
 ok(await page.getByText('Effective date:',{exact:false}).count()===1,'privacy shows an effective date');
-ok(await page.getByText('Registration in progress',{exact:false}).count()>=1,'privacy shows registration-pending notice instead of an invented operator CR');
+ok(await page.getByText('CR: 254111',{exact:false}).count()>=1,'privacy shows the CR number');
  if(process.env.LEGAL_SCREENSHOT)await page.screenshot({path:process.env.LEGAL_SCREENSHOT,fullPage:true});
  await page.goto(site+'/faq');await page.getByText('What must a vendor upload for verification?',{exact:true}).click();ok(await page.getByText('A clear image of the commercial registration',{exact:false}).isVisible(),'FAQ explains CR instead of personal-ID collection');
  await page.evaluate(t=>localStorage.setItem('sokoni_token',t),await signToken(vendor.id,'vendor'));
