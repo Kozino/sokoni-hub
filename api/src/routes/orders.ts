@@ -293,6 +293,7 @@ orderRouter.get('/track', async (req, res, next) => {
       `select o.id, o.code, o.vendor_id, o.status, o.payment_method, o.subtotal,
               o.delivery_fee, o.total, o.currency, o.contact_name, o.contact_phone,
               o.delivery_address, o.city, o.country, o.note, o.fulfilment_mode,
+              o.driver_lat, o.driver_lng, o.delivery_proof_url,
               o.created_at, o.updated_at, v.business_name, v.whatsapp
          from orders o join vendors v on v.id = o.vendor_id
         where o.code = $1 and regexp_replace(o.contact_phone,'\\D','','g') = regexp_replace($2,'\\D','','g')`,

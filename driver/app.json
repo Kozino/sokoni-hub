@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "Sokoni Driver",
+    "slug": "sokoni-driver",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "qa.sokonihub.driver",
+      "infoPlist": {
+        "UIBackgroundModes": ["location", "fetch"],
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Sokoni Driver needs your location to match you with orders and track deliveries in real-time.",
+        "NSLocationWhenInUseUsageDescription": "Sokoni Driver needs your location to match you with orders.",
+        "NSCameraUsageDescription": "Sokoni Driver needs access to the camera to take proof of delivery photos."
+      }
+    },
+    "android": {
+      "package": "qa.sokonihub.driver",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "CAMERA"
+      ],
+      "adaptiveIcon": {
+        "backgroundColor": "#033B2A"
+      }
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Sokoni Driver to use your location to track active deliveries."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Sokoni Driver to access your camera for proof of delivery."
+        }
+      ]
+    ]
+  }
+}

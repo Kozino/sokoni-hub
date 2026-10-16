@@ -24,6 +24,7 @@ import { Image } from 'expo-image';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 import { tap, success } from '../haptics';
+import MapView, { Marker } from 'react-native-maps';
 
 export type Screen = 'welcome' | 'home' | 'browse' | 'cart' | 'account' | 'login' | 'register' | 'pin' | 'pinsetup' | 'forgot' | 'listing' | 'store' | 'checkout' | 'orders' | 'bookings' | 'track' | 'booking' | 'support' | 'saved' | 'notifications' | 'legal';
 export type Nav = { screen: Screen; params?: Record<string, any>; id?: number };
@@ -109,6 +110,38 @@ import { WebOnlyAccount } from './WebOnlyAccount';export function Track({ go, ba
             <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>{result.order?.business_name || result.booking?.listing_title || result.booking?.business_name || 'Sokoni Hub'}</Text>
             <Text style={{ fontSize: 13, color: colors.text2, marginTop: 4 }}>{result.isBooking ? `Preferred: ${date(result.booking?.slot_starts_at || result.booking?.scheduled_at || result.booking?.preferred_at)}` : `Placed: ${date(result.order?.created_at)}`}</Text>
           </View>
+
+          {/* LIVE TRACKING MAP OR PROOF */}
+          {result.order && result.order.driver_lat && result.order.status !== 'delivered' && result.order.status !== 'delivered_pending_verification' && (
+            <View style={{ marginTop: 20, borderRadius: 12, overflow: 'hidden', height: 200 }}>
+              <MapView 
+                style={{ flex: 1 }}
+                initialRegion={{
+                  latitude: Number(result.order.driver_lat),
+                  longitude: Number(result.order.driver_lng),
+                  latitudeDelta: 0.05,
+                  longitudeDelta: 0.05,
+                }}
+              >
+                <Marker 
+                  coordinate={{ latitude: Number(result.order.driver_lat), longitude: Number(result.order.driver_lng) }}
+                  title="Your Driver"
+                  description="Driver is on the way"
+                />
+              </MapView>
+              <View style={{ position: 'absolute', bottom: 10, left: 10, backgroundColor: 'rgba(255,255,255,0.9)', padding: 8, borderRadius: 8 }}>
+                <Text style={{ fontSize: 12, fontWeight: 'bold' }}>Live Location Tracking</Text>
+              </View>
+            </View>
+          )}
+
+          {result.order?.delivery_proof_url && (
+            <View style={{ marginTop: 20 }}>
+              <Text style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 8, color: colors.text }}>Proof of Delivery:</Text>
+              <Image source={{ uri: result.order.delivery_proof_url }} style={{ width: '100%', height: 200, borderRadius: 12 }} contentFit="cover" />
+            </View>
+          )}
+
           {result.order?.whatsapp_url ? <Button variant="secondary" onPress={() => Linking.openURL(result.order.whatsapp_url)} style={{ marginTop: 16 }}>Contact seller on WhatsApp</Button> : null}
         </Card> 
       : null}
