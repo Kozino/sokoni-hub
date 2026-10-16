@@ -5,7 +5,7 @@ import { one } from './db';
 import { randomUUID } from 'crypto';
 import { HttpError } from './utils';
 
-export type Role = 'buyer' | 'vendor' | 'admin';
+export type Role = 'buyer' | 'vendor' | 'admin' | 'driver';
 
 export interface AuthUser {
   id: string;

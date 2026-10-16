@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { query, one, tx } from '../db';
-import { requireAuth } from '../security';
+import { requireAuth } from '../auth';
 
 export const driverRouter = Router();
 
