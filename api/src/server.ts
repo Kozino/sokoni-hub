@@ -24,6 +24,7 @@ import { bookingRouter } from './routes/bookings';
 import { inventoryRouter } from './routes/inventory';
 import { promotionRouter } from './routes/promotions';
 import { reviewRouter } from './routes/reviews';
+import { wallet } from './routes/wallet';
 
 const app = express();
 app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS || 1));
@@ -90,6 +91,7 @@ app.use('/api/bookings', bookingRouter);
 app.use('/api/inventory', inventoryRouter);
 app.use('/api/promotions', promotionRouter);
 app.use('/api/reviews', reviewRouter);
+app.use('/api/wallet', wallet);
 
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
 

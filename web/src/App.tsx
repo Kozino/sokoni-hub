@@ -34,6 +34,7 @@ import ListingForm from './pages/vendor/ListingForm';
 import VendorOrders from './pages/vendor/VendorOrders';
 import VendorComplaints from './pages/vendor/VendorComplaints';
 import VendorProfile from './pages/vendor/VendorProfile';
+import { VendorWallet } from './pages/vendor/VendorWallet';
 import VendorStatements from './pages/vendor/VendorStatements';
 import VendorBookings from './pages/vendor/VendorBookings';
 import VendorAvailability from './pages/vendor/VendorAvailability';
@@ -48,6 +49,7 @@ import AdminBookings from './pages/admin/AdminBookings';
 import AdminPromotions from './pages/admin/AdminPromotions';
 import AdminSubscriptions from './pages/admin/AdminSubscriptions';
 import AdminPlanLimits from './pages/admin/AdminPlanLimits';
+import { AdminPayouts } from './pages/admin/AdminPayouts';
 
 function ScrollTop() {
   const { pathname } = useLocation();
@@ -104,6 +106,7 @@ export default function App() {
                 <Route path="listings/:id/edit" element={<ListingForm />} />
                 <Route path="orders" element={<VendorOrders />} />
                 <Route path="complaints" element={<VendorComplaints />} />
+                <Route path="wallet" element={<VendorWallet />} />
                 <Route path="statements" element={<VendorStatements />} />
                 <Route path="plans" element={<VendorPlans />} />
                 <Route path="bookings" element={<VendorBookings />} />
@@ -126,6 +129,7 @@ export default function App() {
                 <Route path="bookings" element={<AdminBookings />} />
                 <Route path="promotions" element={<AdminPromotions />} />
                 <Route path="subscriptions" element={<AdminSubscriptions />} />
+                <Route path="payouts" element={<AdminPayouts />} />
                 <Route path="plan-limits" element={<AdminPlanLimits />} />
                 <Route path="categories" element={<AdminCategories />} />
                 <Route path="deletion" element={<AdminDeletion />} />

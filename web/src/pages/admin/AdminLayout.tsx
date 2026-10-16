@@ -28,6 +28,7 @@ export default function AdminLayout() {
     { to: '/admin/orders', ico: IconReceipt, label: 'Orders', group: 'Commerce' },
     { to: '/admin/users', ico: IconUsers, label: 'Users', group: 'Commerce' },
     { to: '/admin/billing', ico: IconReceipt, label: 'Billing', group: 'Commerce' },
+    { to: '/admin/payouts', ico: IconReceipt, label: 'Payouts', group: 'Commerce' },
     { to: '/admin/subscriptions', ico: IconReceipt, label: 'Subscriptions', group: 'Commerce' },
     { to: '/admin/plan-limits', ico: IconFolder, label: 'Plan Limits', group: 'Configuration' },
     { to: '/admin/bookings', ico: IconHistory, label: 'Service bookings', group: 'Commerce' },

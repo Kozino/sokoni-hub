@@ -485,3 +485,27 @@ adminRouter.get('/audit', async (req, res, next) => {
     res.json({ events: rows });
   } catch (e) { next(e); }
 });
+
+// --- Wallet & Payouts ---
+adminRouter.get('/payouts', async (req, res, next) => {
+  try {
+    const payouts = await query(
+      `select p.*, v.business_name, v.whatsapp 
+       from payouts p 
+       join vendors v on v.id = p.vendor_id 
+       order by p.created_at desc limit 200`
+    );
+    res.json({ payouts });
+  } catch (e) { next(e); }
+});
+
+adminRouter.post('/payouts/:id/mark-paid', async (req, res, next) => {
+  try {
+    const p = await one(`select * from payouts where id = $1`, [req.params.id]);
+    if (!p) throw new Error('Payout not found');
+    if (p.status === 'paid') throw new Error('Already paid');
+    
+    await query(`update payouts set status = 'paid', paid_at = now() where id = $1`, [req.params.id]);
+    res.json({ success: true });
+  } catch (e) { next(e); }
+});
