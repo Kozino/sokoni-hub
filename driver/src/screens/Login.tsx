@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { API_URL } from '../config';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { useAuth } from '../providers/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Image } from 'expo-image';
 
 export function Login({ onNav }: { onNav: (s: 'register') => void }) {
   const [phone, setPhone] = useState('');
@@ -15,7 +17,7 @@ export function Login({ onNav }: { onNav: (s: 'register') => void }) {
     setError('');
     setLoading(true);
     try {
-      const res = await fetch('https://api-sokonihub.e2b.dev/api/auth/login', {
+      const res = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifier: phone, password })
@@ -25,7 +27,7 @@ export function Login({ onNav }: { onNav: (s: 'register') => void }) {
       
       if (data.pin_required) {
         // Simple mock bypass for PIN since we didn't build the PIN screen on Driver app yet
-        const pinRes = await fetch('https://api-sokonihub.e2b.dev/api/auth/login/pin', {
+        const pinRes = await fetch(`${API_URL}/api/auth/login/pin`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ pin_token: data.pin_token, pin: pin })
@@ -47,7 +49,10 @@ export function Login({ onNav }: { onNav: (s: 'register') => void }) {
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F8F8FD' }}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.brand}>Sokoni Driver</Text>
+          <View style={styles.referenceLogoCircle}>
+            <Image contentFit="cover" source={require('../../assets/logo.png')} style={styles.referenceLogo} />
+          </View>
+          <Text style={styles.brand}>Welcome Back!</Text>
           <Text style={styles.subtitle}>Sign in to your rider account</Text>
         </View>
 
@@ -78,9 +83,11 @@ export function Login({ onNav }: { onNav: (s: 'register') => void }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', padding: 20 },
-  header: { marginBottom: 40, alignItems: 'center' },
-  brand: { fontSize: 32, fontWeight: '800', color: '#126D4B' },
-  subtitle: { fontSize: 16, color: '#666', marginTop: 8 },
+  header: { marginBottom: 30, alignItems: 'center' },
+  referenceLogoCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#E8F5E9', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  referenceLogo: { width: 44, height: 44, tintColor: '#126D4B' },
+  brand: { fontSize: 26, fontWeight: '800', color: '#111' },
+  subtitle: { fontSize: 15, color: '#666', marginTop: 6 },
   form: { backgroundColor: '#fff', padding: 20, borderRadius: 12, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
   label: { fontSize: 14, fontWeight: '600', color: '#333', marginBottom: 6 },
   input: { backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, padding: 14, fontSize: 16, marginBottom: 16 },

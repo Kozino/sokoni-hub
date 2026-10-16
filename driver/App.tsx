@@ -10,9 +10,11 @@ import { Earnings } from './src/screens/Earnings';
 import { Settings } from './src/screens/Settings';
 import { ActiveDelivery } from './src/screens/ActiveDelivery';
 
+import { Welcome } from './src/screens/Welcome';
+
 function Router() {
   const { user, loading } = useAuth();
-  const [screen, setScreen] = useState<'login' | 'register' | 'home' | 'earnings' | 'settings' | 'delivery'>('home');
+  const [screen, setScreen] = useState<'welcome' | 'login' | 'register' | 'home' | 'earnings' | 'settings' | 'delivery'>('welcome');
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
 
   if (loading) {
@@ -21,7 +23,8 @@ function Router() {
 
   if (!user) {
     if (screen === 'register') return <Register onNav={setScreen} />;
-    return <Login onNav={setScreen} />;
+    if (screen === 'login') return <Login onNav={setScreen} />;
+    return <Welcome onNav={setScreen} />;
   }
 
   // Bottom Tab Bar for Main Screens

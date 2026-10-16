@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { API_URL } from '../config';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Image } from 'expo-image';
 
 export function Register({ onNav }: { onNav: (s: 'login') => void }) {
   const [form, setForm] = useState({ name: '', phone: '', email: '', password: '', vehicleType: 'Motorcycle', licenseNo: '', pin: '' });
@@ -9,7 +11,7 @@ export function Register({ onNav }: { onNav: (s: 'login') => void }) {
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      const response = await fetch('https://api-sokonihub.e2b.dev/api/auth/register', {
+      const response = await fetch(`${API_URL}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -37,10 +39,15 @@ export function Register({ onNav }: { onNav: (s: 'login') => void }) {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>Apply to Drive</Text>
-        <Text style={styles.subtitle}>Join Sokoni Hub's delivery fleet and earn on your own schedule.</Text>
+        <View style={styles.header}>
+          <View style={styles.referenceLogoCircle}>
+            <Image contentFit="cover" source={require('../../assets/logo.png')} style={styles.referenceLogo} />
+          </View>
+          <Text style={styles.title}>Apply to Drive</Text>
+          <Text style={styles.subtitle}>Join Sokoni Hub's delivery fleet and earn on your own schedule.</Text>
+        </View>
 
-        <Text style={styles.label}>Full Name</Text>
+        <Text style={styles.label}>Full Name</Text>>
         <TextInput style={styles.input} value={form.name} onChangeText={t => setForm({...form, name: t})} />
 
         <Text style={styles.label}>Phone Number</Text>
@@ -81,8 +88,11 @@ export function Register({ onNav }: { onNav: (s: 'login') => void }) {
 
 const styles = StyleSheet.create({
   container: { padding: 20 },
-  title: { fontSize: 28, fontWeight: 'bold', color: '#111', marginBottom: 8 },
-  subtitle: { fontSize: 16, color: '#666', marginBottom: 30, lineHeight: 22 },
+  header: { alignItems: 'center', marginBottom: 20, paddingTop: 10 },
+  referenceLogoCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#E8F5E9', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  referenceLogo: { width: 40, height: 40, tintColor: '#126D4B' },
+  title: { fontSize: 26, fontWeight: '800', color: '#111', marginBottom: 6 },
+  subtitle: { fontSize: 15, color: '#666', textAlign: 'center', paddingHorizontal: 10, lineHeight: 22 },
   label: { fontSize: 14, fontWeight: '600', color: '#333', marginBottom: 6, marginTop: 16 },
   input: { backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, padding: 14, fontSize: 16 },
   row: { flexDirection: 'row', gap: 10 },
