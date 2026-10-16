@@ -47,7 +47,7 @@ export function Register({ onNav }: { onNav: (s: 'login') => void }) {
           <Text style={styles.subtitle}>Join Sokoni Hub's delivery fleet and earn on your own schedule.</Text>
         </View>
 
-        <Text style={styles.label}>Full Name</Text>>
+        <Text style={styles.label}>Full Name</Text>
         <TextInput style={styles.input} value={form.name} onChangeText={t => setForm({...form, name: t})} />
 
         <Text style={styles.label}>Phone Number</Text>
