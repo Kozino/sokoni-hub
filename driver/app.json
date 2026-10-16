@@ -28,7 +28,22 @@
         "backgroundColor": "#033B2A"
       }
     },
+    "web": {
+      "bundler": "metro"
+    },
     "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "resizeMode": "cover",
+          "backgroundColor": "#F8F8FD",
+          "dark": {
+            "image": "./assets/splash.png",
+            "backgroundColor": "#101815"
+          }
+        }
+      ],
       [
         "expo-location",
         {
