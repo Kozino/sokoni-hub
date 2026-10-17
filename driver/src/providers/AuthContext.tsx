@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { api, authStorage } from '../api';
+
 type User = {
   id: string;
   full_name: string;
@@ -20,19 +22,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    AsyncStorage.getItem('driver_session').then((data) => {
-      if (data) setUser(JSON.parse(data).user);
+    authStorage.read().then(async (token) => {
+      if (token) {
+        try {
+          const { user } = await api.get<{ user: User }>('/auth/me');
+          setUser(user);
+        } catch {
+          await authStorage.save(null);
+        }
+      }
       setLoading(false);
     });
   }, []);
 
   const login = async (user: User, token: string) => {
-    await AsyncStorage.setItem('driver_session', JSON.stringify({ user, token }));
+    await authStorage.save(token);
     setUser(user);
   };
 
   const logout = async () => {
-    await AsyncStorage.removeItem('driver_session');
+    await authStorage.save(null);
     setUser(null);
   };
 
