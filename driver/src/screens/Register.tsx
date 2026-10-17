@@ -1,106 +1,117 @@
 import React, { useState } from 'react';
-import { API_URL } from '../config';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Image } from 'expo-image';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { api, ApiError } from '../api';
+import { BrandBlock, Button, Field, normalizeQatarPhone, PhoneField, Topbar, Notice } from '../components/AuthUI';
+import { C } from '../theme';
 
-export function Register({ onNav }: { onNav: (s: 'login') => void }) {
-  const [form, setForm] = useState({ name: '', phone: '', email: '', password: '', vehicleType: 'Motorcycle', licenseNo: '', pin: '' });
-  const [loading, setLoading] = useState(false);
+const VEHICLES = ['Motorcycle', 'Car', 'Van'] as const;
+type Vehicle = (typeof VEHICLES)[number];
 
-  const handleSubmit = async () => {
-    setLoading(true);
+export function Register({ onBack, onDone }: { onBack: () => void; onDone: () => void }) {
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [pin, setPin] = useState('');
+  const [vehicle, setVehicle] = useState<Vehicle>('Motorcycle');
+  const [plate, setPlate] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [sentTo, setSentTo] = useState<string | null>(null);
+
+  const submit = async () => {
+    const digits = normalizeQatarPhone(phone);
+    if (name.trim().length < 2) return Alert.alert('Full name', 'Enter your full name.');
+    if (digits.length !== 11) return Alert.alert('Phone number', 'Enter a valid 8-digit Qatar mobile number.');
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) return Alert.alert('Email', 'Enter a valid email address.');
+    if (password.length < 12) return Alert.alert('Password', 'Your password must be at least 12 characters.');
+    if (!/^\d{4}$/.test(pin)) return Alert.alert('PIN', 'Your PIN must be exactly four digits.');
+    if (plate.trim().length < 2) return Alert.alert('Vehicle', 'Enter your licence plate or vehicle ID.');
+
+    setBusy(true);
     try {
-      const response = await fetch(`${API_URL}/api/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          full_name: form.name,
-          phone: form.phone,
-          email: form.email,
-          password: form.password,
-          pin: form.pin,
-          role: 'driver'
-        })
+      const res = await api.post<any>('/auth/register', {
+        full_name: name.trim(),
+        phone: digits,
+        email: email.trim().toLowerCase(),
+        password,
+        pin,
+        role: 'driver',
+        vehicle_type: vehicle,
+        license_plate: plate.trim(),
       });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Registration failed');
-      }
-      alert('Application submitted! Check your email to verify your account.');
-      onNav('login');
-    } catch (e: any) {
-      alert(e.message);
+      if (res.verification_required) setSentTo(res.email ?? email.trim());
+      else onDone();
+    } catch (e) {
+      Alert.alert('Application not sent', e instanceof ApiError ? e.message : 'Something went wrong. Please try again.');
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   };
 
+  if (sentTo) {
+    return (
+      <View style={{ flex: 1, backgroundColor: C.bg }}>
+        <Topbar onBack={onBack} />
+        <View style={styles.success}>
+          <View style={styles.successIcon}><Text style={{ fontSize: 34 }}>📧</Text></View>
+          <Text style={styles.successTitle}>Check your email</Text>
+          <Text style={styles.successText}>We sent a verification link to {sentTo}. Verify your email, then sign in. Our team will review your rider application before you can go online.</Text>
+          <Button variant="primary" onPress={onDone} style={{ alignSelf: 'stretch' }}>Back to sign in</Button>
+        </View>
+      </View>
+    );
+  }
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
-      <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.header}>
-          <View style={styles.referenceLogoCircle}>
-            <Image contentFit="cover" source={require('../../assets/logo.png')} style={styles.referenceLogo} />
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: C.bg }}>
+      <Topbar onBack={onBack} />
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <BrandBlock title="Apply to Drive" subtitle="Join the Sokoni Hub fleet" intro="Tell us a little about you and your vehicle. Every rider is verified before going online." />
+
+        <View style={styles.card}>
+          <Field label="Full name" value={name} onChangeText={setName} placeholder="As on your ID" autoComplete="name" />
+
+          <Text style={styles.label}>Mobile number</Text>
+          <PhoneField value={phone} onChangeText={setPhone} />
+
+          <Field label="Email address" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" placeholder="you@example.com" />
+          <Field label="Password" value={password} onChangeText={setPassword} secureTextEntry placeholder="At least 12 characters" autoComplete="new-password" />
+          <Field label="4-digit PIN" value={pin} onChangeText={(t) => setPin(t.replace(/\D/g, '').slice(0, 4))} keyboardType="number-pad" secureTextEntry maxLength={4} placeholder="Used for quick sign-in" />
+
+          <Text style={styles.label}>Vehicle type</Text>
+          <View style={styles.chips}>
+            {VEHICLES.map((v) => (
+              <Pressable key={v} accessibilityRole="button" onPress={() => setVehicle(v)} style={[styles.chip, vehicle === v && styles.chipActive]}>
+                <Text style={[styles.chipText, vehicle === v && styles.chipTextActive]}>{v}</Text>
+              </Pressable>
+            ))}
           </View>
-          <Text style={styles.title}>Apply to Drive</Text>
-          <Text style={styles.subtitle}>Join Sokoni Hub's delivery fleet and earn on your own schedule.</Text>
+
+          <View style={{ height: 15 }} />
+          <Field label="Licence plate / vehicle ID" value={plate} onChangeText={setPlate} autoCapitalize="characters" placeholder="e.g. 12345 ABC" />
+
+          <Notice>Your PIN and password are never stored on this device.</Notice>
+
+          <Button variant="gold" loading={busy} onPress={submit}>Submit application</Button>
+          <View style={{ height: 10 }} />
+          <Button variant="secondary" onPress={onBack}>I already have an account</Button>
         </View>
-
-        <Text style={styles.label}>Full Name</Text>
-        <TextInput style={styles.input} value={form.name} onChangeText={t => setForm({...form, name: t})} />
-
-        <Text style={styles.label}>Phone Number</Text>
-        <TextInput style={styles.input} keyboardType="phone-pad" value={form.phone} onChangeText={t => setForm({...form, phone: t})} />
-
-        <Text style={styles.label}>Email Address</Text>
-        <TextInput style={styles.input} keyboardType="email-address" autoCapitalize="none" value={form.email} onChangeText={t => setForm({...form, email: t})} />
-
-        <Text style={styles.label}>Password</Text>
-        <TextInput style={styles.input} secureTextEntry value={form.password} onChangeText={t => setForm({...form, password: t})} />
-        
-        <Text style={styles.label}>4-Digit PIN (for quick login)</Text>
-        <TextInput style={styles.input} keyboardType="number-pad" secureTextEntry maxLength={4} value={form.pin} onChangeText={t => setForm({...form, pin: t})} />
-
-        <Text style={styles.label}>Vehicle Type</Text>
-        <View style={styles.row}>
-          {['Motorcycle', 'Car', 'Van'].map(v => (
-            <TouchableOpacity key={v} style={[styles.chip, form.vehicleType === v && styles.chipActive]} onPress={() => setForm({...form, vehicleType: v})}>
-              <Text style={[styles.chipText, form.vehicleType === v && styles.chipTextActive]}>{v}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <Text style={styles.label}>License Plate / ID</Text>
-        <TextInput style={styles.input} value={form.licenseNo} onChangeText={t => setForm({...form, licenseNo: t})} />
-
-        <TouchableOpacity style={styles.btn} onPress={handleSubmit} disabled={loading}>
-          <Text style={styles.btnText}>{loading ? 'Submitting...' : 'Submit Application'}</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={() => onNav('login')} style={{ marginTop: 20 }}>
-          <Text style={styles.link}>Already have an account? Sign in</Text>
-        </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 20 },
-  header: { alignItems: 'center', marginBottom: 20, paddingTop: 10 },
-  referenceLogoCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#E8F5E9', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
-  referenceLogo: { width: 40, height: 40, tintColor: '#126D4B' },
-  title: { fontSize: 26, fontWeight: '800', color: '#111', marginBottom: 6 },
-  subtitle: { fontSize: 15, color: '#666', textAlign: 'center', paddingHorizontal: 10, lineHeight: 22 },
-  label: { fontSize: 14, fontWeight: '600', color: '#333', marginBottom: 6, marginTop: 16 },
-  input: { backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, padding: 14, fontSize: 16 },
-  row: { flexDirection: 'row', gap: 10 },
-  chip: { flex: 1, padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center' },
-  chipActive: { backgroundColor: '#E8F5E9', borderColor: '#126D4B' },
-  chipText: { color: '#666', fontWeight: '500' },
-  chipTextActive: { color: '#126D4B', fontWeight: '700' },
-  btn: { backgroundColor: '#126D4B', padding: 16, borderRadius: 8, alignItems: 'center', marginTop: 30 },
-  btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  link: { textAlign: 'center', color: '#126D4B', fontWeight: '600', fontSize: 15 }
+  scroll: { paddingBottom: 32 },
+  card: { marginHorizontal: 17, marginTop: 24, borderRadius: 16, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface, padding: 16 },
+  label: { fontSize: 12, fontWeight: '900', marginBottom: 7, color: C.text },
+  chips: { flexDirection: 'row', gap: 10, marginBottom: 15 },
+  chip: { flex: 1, height: 46, borderRadius: 12, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center', backgroundColor: C.field },
+  chipActive: { borderColor: C.primary, backgroundColor: C.primarySoft },
+  chipText: { fontWeight: '700', color: C.text2 },
+  chipTextActive: { color: C.primary },
+  success: { flex: 1, padding: 28, alignItems: 'center', justifyContent: 'center', gap: 14 },
+  successIcon: { width: 84, height: 84, borderRadius: 42, backgroundColor: C.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  successTitle: { fontSize: 24, fontWeight: '900', color: C.text },
+  successText: { fontSize: 15, lineHeight: 22, color: C.text2, textAlign: 'center', marginBottom: 12 },
 });

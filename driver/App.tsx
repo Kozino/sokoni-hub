@@ -1,67 +1,167 @@
 import { registerRootComponent } from 'expo';
-import React, { useState, useEffect } from 'react';
-import { View, ActivityIndicator, StyleSheet, Platform, StatusBar } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/providers/AuthContext';
+import { api } from './src/api';
+import { Welcome } from './src/screens/Welcome';
 import { Login } from './src/screens/Login';
 import { Register } from './src/screens/Register';
+import { Pin } from './src/screens/Pin';
+import { Pending } from './src/screens/Pending';
 import { Home } from './src/screens/Home';
 import { Earnings } from './src/screens/Earnings';
 import { Settings } from './src/screens/Settings';
 import { ActiveDelivery } from './src/screens/ActiveDelivery';
+import type { Stage } from './src/screens/types';
+import { C } from './src/theme';
 
-import { Welcome } from './src/screens/Welcome';
+type PublicScreen = 'welcome' | 'login' | 'register';
+type Tab = 'home' | 'earnings' | 'settings';
+type DriverState = 'checking' | 'approved' | 'pending' | 'suspended' | 'error';
 
 function Router() {
-  const { user, loading } = useAuth();
-  const [screen, setScreen] = useState<'welcome' | 'login' | 'register' | 'home' | 'earnings' | 'settings' | 'delivery'>('welcome');
+  const { user, loading, login, logout } = useAuth();
+  const [publicScreen, setPublicScreen] = useState<PublicScreen>('welcome');
+  const [stage, setStage] = useState<Stage | null>(null);
+  const [tab, setTab] = useState<Tab>('home');
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+  const [driver, setDriver] = useState<DriverState>('checking');
+
+  // Riders must be approved by an admin before they can use the app.
+  const loadDriver = async () => {
+    setDriver('checking');
+    try {
+      const res = await api.get<any>('/drivers/me');
+      const status = res.driver?.status ?? 'pending';
+      setDriver(status === 'approved' ? 'approved' : status === 'suspended' ? 'suspended' : 'pending');
+    } catch {
+      setDriver('error');
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      loadDriver();
+    } else {
+      setDriver('checking');
+      setTab('home');
+      setActiveOrderId(null);
+    }
+  }, [user]);
+
+  // Called after the PIN step. Only rider accounts may use this app.
+  const completeSignIn = async (res: { token: string; user: any }) => {
+    setStage(null);
+    if (res.user?.role !== 'driver') {
+      Alert.alert('Not a rider account', 'This app is for Sokoni Hub riders. Customers use the Sokoni Hub app, and vendors use the web portal.');
+      return;
+    }
+    await login(res.user, res.token);
+  };
+
+  const signOut = async () => {
+    await logout();
+    setPublicScreen('welcome');
+    setStage(null);
+  };
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color="#126D4B" /></View>;
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={C.primary} />
+      </View>
+    );
   }
 
+  // Signed out: welcome → login → PIN, or register.
   if (!user) {
-    if (screen === 'register') return <Register onNav={setScreen} />;
-    if (screen === 'login') return <Login onNav={setScreen} />;
-    return <Welcome onNav={setScreen} />;
+    if (stage) return <Pin stage={stage} onBack={() => setStage(null)} onDone={completeSignIn} />;
+    if (publicScreen === 'register') {
+      return <Register onBack={() => setPublicScreen('login')} onDone={() => setPublicScreen('login')} />;
+    }
+    if (publicScreen === 'login') {
+      return <Login onBack={() => setPublicScreen('welcome')} onRegister={() => setPublicScreen('register')} onStage={setStage} />;
+    }
+    return <Welcome onNav={setPublicScreen} />;
   }
 
-  // Bottom Tab Bar for Main Screens
-  const BottomNav = () => (
-    <View style={styles.tabBar}>
-      <TabButton icon="🏠" label="Home" active={screen === 'home'} onPress={() => setScreen('home')} />
-      <TabButton icon="💰" label="Earnings" active={screen === 'earnings'} onPress={() => setScreen('earnings')} />
-      <TabButton icon="⚙️" label="Settings" active={screen === 'settings'} onPress={() => setScreen('settings')} />
-    </View>
-  );
+  // Signed in: show the rider app only once the rider is approved.
+  if (driver === 'checking') {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={C.primary} />
+      </View>
+    );
+  }
+
+  if (driver === 'error') {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.errorTitle}>Could not load your rider profile</Text>
+        <Pressable onPress={loadDriver} accessibilityRole="button" style={styles.retry}>
+          <Text style={styles.retryText}>Try again</Text>
+        </Pressable>
+        <Pressable onPress={signOut} accessibilityRole="button" style={{ marginTop: 14 }}>
+          <Text style={styles.link}>Sign out</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (driver !== 'approved') {
+    return <Pending status={driver} onRefresh={loadDriver} onSignOut={signOut} />;
+  }
+
+  if (activeOrderId) {
+    return (
+      <ActiveDelivery
+        orderId={activeOrderId}
+        onComplete={() => setActiveOrderId(null)}
+        onCancel={() => setActiveOrderId(null)}
+      />
+    );
+  }
+
+  const tabs: { id: Tab; icon: string; label: string }[] = [
+    { id: 'home', icon: '🏠', label: 'Home' },
+    { id: 'earnings', icon: '💰', label: 'Earnings' },
+    { id: 'settings', icon: '⚙️', label: 'Settings' },
+  ];
 
   return (
     <View style={styles.container}>
-      {screen === 'home' && <Home onStartDelivery={(id) => { setActiveOrderId(id); setScreen('delivery'); }} />}
-      {screen === 'earnings' && <Earnings />}
-      {screen === 'settings' && <Settings onLogout={() => setScreen('login')} />}
-      
-      {screen === 'delivery' && activeOrderId && (
-        <ActiveDelivery orderId={activeOrderId} onComplete={() => setScreen('home')} onCancel={() => setScreen('home')} />
-      )}
-
-      {screen !== 'delivery' && <BottomNav />}
+      <View style={styles.body}>
+        {tab === 'home' && <Home onStartDelivery={(id) => setActiveOrderId(id)} />}
+        {tab === 'earnings' && <Earnings />}
+        {tab === 'settings' && <Settings onLogout={signOut} />}
+      </View>
+      <View style={styles.tabBar}>
+        {tabs.map((t) => {
+          const active = tab === t.id;
+          return (
+            <Pressable
+              key={t.id}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
+              onPress={() => setTab(t.id)}
+              style={styles.tabItem}
+            >
+              <View style={[styles.tabIconWrap, active && styles.tabActive]}>
+                <Text style={styles.tabIcon}>{t.icon}</Text>
+              </View>
+              <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{t.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
 
-const TabButton = ({ icon, label, active, onPress }: any) => (
-  <View style={styles.tabItem} onTouchEnd={onPress}>
-    <View style={[styles.tabIconWrap, active && styles.tabActive]}><React.Text style={styles.tabIcon}>{icon}</React.Text></View>
-    <React.Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{label}</React.Text>
-  </View>
-);
-
 export default function App() {
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       <AuthProvider>
         <Router />
       </AuthProvider>
@@ -70,15 +170,20 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  container: { flex: 1, backgroundColor: '#F8F8FD' },
-  tabBar: { flexDirection: 'row', backgroundColor: '#fff', borderTopWidth: 1, borderColor: '#eee', paddingBottom: Platform.OS === 'ios' ? 24 : 10, paddingTop: 10 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg, padding: 24 },
+  container: { flex: 1, backgroundColor: C.bg },
+  body: { flex: 1 },
+  errorTitle: { fontSize: 17, fontWeight: '800', color: C.text, marginBottom: 14, textAlign: 'center' },
+  retry: { backgroundColor: C.primary, paddingHorizontal: 28, paddingVertical: 14, borderRadius: 25 },
+  retryText: { color: '#fff', fontWeight: '900' },
+  link: { color: C.primary, fontWeight: '800' },
+  tabBar: { flexDirection: 'row', backgroundColor: C.surface, borderTopWidth: 1, borderColor: C.border, paddingBottom: 18, paddingTop: 8 },
   tabItem: { flex: 1, alignItems: 'center' },
-  tabIconWrap: { padding: 8, borderRadius: 20 },
-  tabActive: { backgroundColor: '#E8F5E9' },
-  tabIcon: { fontSize: 20 },
-  tabLabel: { fontSize: 11, color: '#666', marginTop: 4, fontWeight: '500' },
-  tabLabelActive: { color: '#126D4B', fontWeight: '700' }
+  tabIconWrap: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20 },
+  tabActive: { backgroundColor: C.primarySoft },
+  tabIcon: { fontSize: 19 },
+  tabLabel: { fontSize: 11, color: C.text2, marginTop: 3, fontWeight: '600' },
+  tabLabelActive: { color: C.primary, fontWeight: '900' },
 });
 
 registerRootComponent(App);

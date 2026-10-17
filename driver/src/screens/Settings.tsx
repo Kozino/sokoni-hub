@@ -3,10 +3,9 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from '
 import { useAuth } from '../providers/AuthContext';
 
 export function Settings({ onLogout }: { onLogout: () => void }) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
-  const handleLogout = async () => {
-    await logout();
+  const handleLogout = () => {
     onLogout();
   };
 

@@ -1,99 +1,88 @@
 import React, { useState } from 'react';
-import { API_URL } from '../config';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
-import { useAuth } from '../providers/AuthContext';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Image } from 'expo-image';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { api, ApiError } from '../api';
+import { BrandBlock, Button, Divider, Field, normalizeQatarPhone, PhoneField, Topbar } from '../components/AuthUI';
+import { C } from '../theme';
+import type { Stage } from './types';
 
-export function Login({ onNav }: { onNav: (s: 'register') => void }) {
-  const [phone, setPhone] = useState('');
+export function Login({ onBack, onRegister, onStage }: { onBack: () => void; onRegister: () => void; onStage: (stage: Stage) => void }) {
+  const [phoneMode, setPhoneMode] = useState(true);
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
-  const [pin, setPin] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const { login } = useAuth();
+  const [busy, setBusy] = useState(false);
 
-  const handleLogin = async () => {
-    setError('');
-    setLoading(true);
+  const submit = async () => {
+    if (!identifier.trim() || !password) {
+      return Alert.alert('Enter your details', `Enter your ${phoneMode ? 'phone number' : 'email address'} and password.`);
+    }
+    const value = phoneMode ? normalizeQatarPhone(identifier) : identifier.trim();
+    setBusy(true);
     try {
-      const res = await fetch(`${API_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier: phone, password })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Login failed');
-      
-      if (data.pin_required) {
-        // Simple mock bypass for PIN since we didn't build the PIN screen on Driver app yet
-        const pinRes = await fetch(`${API_URL}/api/auth/login/pin`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pin_token: data.pin_token, pin: pin })
-        });
-        const pinData = await pinRes.json();
-        if (!pinRes.ok) throw new Error(pinData.message || 'Incorrect PIN');
-        login(pinData.user, pinData.token);
-      } else {
-        login(data.user, data.token);
-      }
-    } catch (e: any) {
-      setError(e.message);
+      const res = await api.post<any>('/auth/login', { identifier: value, password });
+      if (res.pin_required) onStage({ kind: 'pin', token: res.pin_token, name: res.full_name });
+      else if (res.pin_setup_required) onStage({ kind: 'setup', token: res.setup_token, needsEmail: !!res.needs_email, name: res.full_name });
+      else Alert.alert('Sign-in unavailable', 'This account needs to finish setup on the Sokoni Hub website.');
+    } catch (e) {
+      Alert.alert('Sign-in failed', e instanceof ApiError ? e.message : 'Something went wrong. Please try again.');
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#F8F8FD' }}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
-        <View style={styles.header}>
-          <View style={styles.referenceLogoCircle}>
-            <Image contentFit="cover" source={require('../../assets/logo.png')} style={styles.referenceLogo} />
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: C.bg }}>
+      <Topbar onBack={onBack} />
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scroll}>
+        <BrandBlock title="Welcome Back!" subtitle="Karibu tena • Kaabo • Nno" intro="Sign in to your rider account and start delivering with Sokoni Hub." />
+
+        <View style={styles.card}>
+          <View style={styles.modeToggle}>
+            <Pressable accessibilityRole="button" onPress={() => setPhoneMode(true)} style={[styles.mode, phoneMode && styles.modeActive]}>
+              <Text style={[styles.modeText, phoneMode && styles.modeTextActive]}>Qatar Phone</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => setPhoneMode(false)} style={[styles.mode, !phoneMode && styles.modeActive]}>
+              <Text style={[styles.modeText, !phoneMode && styles.modeTextActive]}>Email Address</Text>
+            </Pressable>
           </View>
-          <Text style={styles.brand}>Welcome Back!</Text>
-          <Text style={styles.subtitle}>Sign in to your rider account</Text>
+
+          {phoneMode ? (
+            <>
+              <Text style={styles.label}>Mobile Number</Text>
+              <PhoneField value={identifier} onChangeText={setIdentifier} />
+            </>
+          ) : (
+            <Field label="Email Address" value={identifier} onChangeText={setIdentifier} autoCapitalize="none" keyboardType="email-address" autoComplete="email" placeholder="you@example.com" />
+          )}
+
+          <Field label="Password" value={password} onChangeText={setPassword} secureTextEntry autoComplete="password" placeholder="Your secure password" />
+
+          <View style={styles.note}>
+            <Text style={styles.noteText}>After your password, we will ask for your four-digit PIN.</Text>
+          </View>
+
+          <Button variant="gold" loading={busy} onPress={submit}>Sign In to Sokoni Driver</Button>
+
+          <Divider label="NEW RIDER?" />
+
+          <Button variant="secondary" onPress={onRegister}>Apply to drive with us</Button>
         </View>
 
-        {error ? <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View> : null}
-
-        <View style={styles.form}>
-          <Text style={styles.label}>Phone Number</Text>
-          <TextInput style={styles.input} keyboardType="phone-pad" value={phone} onChangeText={setPhone} placeholder="e.g. +974 5555 5555" />
-          
-          <Text style={styles.label}>Password</Text>
-          <TextInput style={styles.input} secureTextEntry value={password} onChangeText={setPassword} placeholder="Enter your password" />
-
-          <Text style={styles.label}>4-Digit PIN</Text>
-          <TextInput style={styles.input} secureTextEntry maxLength={4} keyboardType="number-pad" value={pin} onChangeText={setPin} placeholder="Enter your PIN" />
-
-          <TouchableOpacity style={styles.btn} onPress={handleLogin} disabled={loading}>
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Sign In</Text>}
-          </TouchableOpacity>
-        </View>
-
-        <TouchableOpacity onPress={() => onNav('register')} style={{ marginTop: 20 }}>
-          <Text style={styles.link}>New rider? Apply to drive with us</Text>
-        </TouchableOpacity>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        <Text style={styles.footer}>Vendors and administrators use the secure web portal.</Text>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 20 },
-  header: { marginBottom: 30, alignItems: 'center' },
-  referenceLogoCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#E8F5E9', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  referenceLogo: { width: 44, height: 44, tintColor: '#126D4B' },
-  brand: { fontSize: 26, fontWeight: '800', color: '#111' },
-  subtitle: { fontSize: 15, color: '#666', marginTop: 6 },
-  form: { backgroundColor: '#fff', padding: 20, borderRadius: 12, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
-  label: { fontSize: 14, fontWeight: '600', color: '#333', marginBottom: 6 },
-  input: { backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, padding: 14, fontSize: 16, marginBottom: 16 },
-  btn: { backgroundColor: '#126D4B', padding: 16, borderRadius: 8, alignItems: 'center', marginTop: 10 },
-  btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  link: { textAlign: 'center', color: '#126D4B', fontWeight: '600', fontSize: 15 },
-  errorBox: { backgroundColor: '#FEE2E2', padding: 12, borderRadius: 8, marginBottom: 16 },
-  errorText: { color: '#DC2626', textAlign: 'center', fontWeight: '500' }
+  scroll: { paddingBottom: 32 },
+  card: { marginHorizontal: 17, marginTop: 27, borderRadius: 16, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface, padding: 16, shadowColor: '#17291F', shadowOpacity: 0.05, shadowRadius: 12, elevation: 2 },
+  modeToggle: { height: 47, borderRadius: 24, padding: 4, flexDirection: 'row', backgroundColor: C.surface2, marginBottom: 19 },
+  mode: { flex: 1, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  modeActive: { backgroundColor: C.primary },
+  modeText: { fontSize: 13, fontWeight: '900', color: C.text2 },
+  modeTextActive: { color: '#fff' },
+  label: { fontSize: 12, fontWeight: '900', marginBottom: 7, color: C.text },
+  note: { backgroundColor: C.primarySoft, borderRadius: 12, padding: 12, marginBottom: 4 },
+  noteText: { fontSize: 13, color: C.primary, fontWeight: '600' },
+  footer: { textAlign: 'center', fontSize: 12, marginTop: 24, color: C.text2, textDecorationLine: 'underline' },
 });

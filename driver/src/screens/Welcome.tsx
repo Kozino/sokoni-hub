@@ -1,67 +1,66 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, ImageBackground, FlatList, useWindowDimensions, TouchableOpacity, Platform } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Image } from 'expo-image';
+import React, { useRef, useState } from 'react';
+import { FlatList, Image, ImageBackground, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Button } from '../components/AuthUI';
+import { C } from '../theme';
+
+const slides = [
+  { icon: '🏍️', title: 'Deliver and earn on your terms', text: 'Join Sokoni Hub’s local delivery fleet and choose when you ride.' },
+  { icon: '🧭', title: 'Clear routes, live tracking', text: 'See pickups and drop-offs clearly, and share your live location with buyers.' },
+  { icon: '✅', title: 'Ready to ride?', text: 'Create your rider account. Our team reviews every application before you go online.' },
+];
 
 export function Welcome({ onNav }: { onNav: (s: 'login' | 'register') => void }) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const slideWidth = width - 48;
+  const slideWidth = width;
   const [page, setPage] = useState(0);
   const ref = useRef<FlatList>(null);
-
-  const slides = [
-    ['Drive and Earn on your terms', 'Join the fastest growing local delivery fleet in Qatar.', '🏍️'],
-    ['Keep your earnings clear', 'Transparent payouts, real-time map routing, and easy tools.', '💵'],
-    ['Ready to hit the road?', 'Create your rider account to start accepting delivery requests.', '🚀'],
-  ] as const;
+  const last = page === slides.length - 1;
 
   return (
-    <ImageBackground source={require('../../assets/hero.jpg')} resizeMode="cover" style={styles.welcomeBg}>
-      <View style={[styles.welcomeOverlay]}>
-        <View style={[styles.welcomeTop, { paddingTop: insets.top + 16 }]}>
-          <View style={styles.brandContainer}>
-            <Image source={require('../../assets/logo.png')} style={styles.logo} contentFit="contain" />
-            <Text style={styles.brandText}>Sokoni Driver</Text>
-          </View>
+    <ImageBackground source={require('../../assets/hero.jpg')} resizeMode="cover" style={{ flex: 1 }}>
+      <View style={styles.overlay}>
+        <View style={[styles.top, { paddingTop: insets.top + 18 }]}>
+          <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
+          <Text style={styles.brand}>Sokoni <Text style={{ color: C.gold }}>Driver</Text></Text>
         </View>
-        
-        <FlatList 
-          ref={ref} 
-          data={slides} 
-          horizontal 
-          pagingEnabled 
-          showsHorizontalScrollIndicator={false} 
-          getItemLayout={(_, index) => ({ length: slideWidth, offset: slideWidth * index, index })} 
-          onMomentumScrollEnd={(e) => setPage(Math.round(e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width))} 
+
+        <FlatList
+          ref={ref}
+          data={slides}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(_, i) => String(i)}
+          getItemLayout={(_, index) => ({ length: slideWidth, offset: slideWidth * index, index })}
+          onMomentumScrollEnd={(e) => setPage(Math.round(e.nativeEvent.contentOffset.x / slideWidth))}
           renderItem={({ item }) => (
-            <View style={[styles.welcomeSlide, { width: slideWidth }]}>
-              <View style={styles.welcomeIcon}><Text style={{ fontSize: 40 }}>{item[2]}</Text></View>
-              <Text style={styles.welcomeTitle}>{item[0]}</Text>
-              <Text style={styles.welcomeText}>{item[1]}</Text>
+            <View style={[styles.slide, { width: slideWidth }]}>
+              <View style={styles.slideIcon}><Text style={styles.slideEmoji}>{item.icon}</Text></View>
+              <Text style={styles.title}>{item.title}</Text>
+              <Text style={styles.text}>{item.text}</Text>
             </View>
-          )} 
-          keyExtractor={(_, index) => String(index)}
+          )}
         />
-        
+
         <View style={styles.dots}>
-          {slides.map((_, index) => <View key={index} style={[styles.dot, { backgroundColor: index === page ? '#D4AF37' : 'rgba(255,255,255,.45)' }]} />)}
+          {slides.map((_, i) => <View key={i} style={[styles.dot, { backgroundColor: i === page ? C.gold : 'rgba(255,255,255,.45)' }]} />)}
         </View>
-        
-        <View style={[styles.welcomeActions, { paddingBottom: 22 + insets.bottom }]}>
-          {page < 2 ? (
-            <TouchableOpacity style={[styles.btn, styles.btnGold]} onPress={() => ref.current?.scrollToIndex({ index: page + 1 })}>
-              <Text style={styles.btnTextGold}>Continue</Text>
-            </TouchableOpacity>
+
+        <View style={[styles.actions, { paddingBottom: 22 + insets.bottom }]}>
+          {!last ? (
+            <Button variant="gold" onPress={() => ref.current?.scrollToIndex({ index: page + 1 })}>Continue</Button>
           ) : (
             <>
-              <TouchableOpacity style={[styles.btn, styles.btnGold]} onPress={() => onNav('register')}>
-                <Text style={styles.btnTextGold}>Apply to drive with us</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.btn, styles.btnWhite]} onPress={() => onNav('login')}>
-                <Text style={styles.btnTextWhite}>Sign in</Text>
-              </TouchableOpacity>
+              <Button variant="gold" onPress={() => onNav('register')}>Create a rider account</Button>
+              <Button variant="secondary" onPress={() => onNav('login')}>Sign in</Button>
             </>
+          )}
+          {!last && (
+            <Pressable accessibilityRole="button" onPress={() => onNav('login')}>
+              <Text style={styles.skip}>Skip — I already have an account</Text>
+            </Pressable>
           )}
         </View>
       </View>
@@ -70,25 +69,17 @@ export function Welcome({ onNav }: { onNav: (s: 'login' | 'register') => void })
 }
 
 const styles = StyleSheet.create({
-  welcomeBg: { flex: 1, width: '100%' },
-  welcomeOverlay: { flex: 1, backgroundColor: 'rgba(3, 59, 42, 0.85)', paddingHorizontal: 24 },
-  welcomeTop: { flexDirection: 'row', justifyContent: 'center', marginBottom: 40 },
-  brandContainer: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  logo: { width: 36, height: 36, tintColor: '#fff' },
-  brandText: { fontSize: 24, fontWeight: '800', color: '#fff' },
-  
-  welcomeSlide: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },
-  welcomeIcon: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(212, 175, 55, 0.2)', alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
-  welcomeTitle: { fontSize: 28, fontWeight: '800', color: '#fff', textAlign: 'center', marginBottom: 16, lineHeight: 34 },
-  welcomeText: { fontSize: 16, color: 'rgba(255,255,255,0.85)', textAlign: 'center', lineHeight: 24, paddingHorizontal: 10 },
-  
-  dots: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 40 },
+  overlay: { flex: 1, backgroundColor: 'rgba(4,38,26,0.84)' },
+  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 24 },
+  logo: { width: 40, height: 40 },
+  brand: { fontSize: 24, fontWeight: '900', color: '#fff' },
+  slide: { justifyContent: 'center', paddingHorizontal: 28, flex: 1 },
+  slideIcon: { width: 76, height: 76, borderRadius: 23, backgroundColor: 'rgba(255,122,0,.18)', alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
+  slideEmoji: { fontSize: 36 },
+  title: { color: '#fff', fontSize: 32, lineHeight: 38, fontWeight: '900', letterSpacing: -0.8 },
+  text: { color: 'rgba(255,255,255,.86)', fontSize: 16, lineHeight: 24, marginTop: 15 },
+  dots: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 20 },
   dot: { width: 8, height: 8, borderRadius: 4 },
-  
-  welcomeActions: { gap: 12 },
-  btn: { paddingVertical: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  btnGold: { backgroundColor: '#D4AF37' },
-  btnWhite: { backgroundColor: 'rgba(255,255,255,0.15)' },
-  btnTextGold: { fontSize: 16, fontWeight: '700', color: '#111' },
-  btnTextWhite: { fontSize: 16, fontWeight: '700', color: '#fff' }
+  actions: { paddingHorizontal: 24, gap: 12 },
+  skip: { color: '#fff', textAlign: 'center', fontWeight: '800', paddingVertical: 8, fontSize: 14 },
 });
