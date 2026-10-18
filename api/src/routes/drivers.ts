@@ -2,10 +2,35 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { query, one, tx } from '../db';
 import { requireAuth } from '../auth';
+import { HttpError } from '../utils';
 
 export const driverRouter = Router();
 
-// Driver Auth / Profile
+const uuid = z.string().uuid();
+
+/** Loads the rider profile and enforces that an admin has approved it. */
+async function approvedDriver(userId: string) {
+  const d = await one<any>(`select * from drivers where user_id = $1`, [userId]);
+  if (!d) throw new HttpError(403, 'No rider profile found for this account.');
+  if (d.status === 'suspended') throw new HttpError(403, 'Your rider account is suspended. Contact Sokoni Hub support.');
+  if (d.status !== 'approved') throw new HttpError(403, 'Your rider application is still under review.');
+  return d;
+}
+
+const ACTIVE_STATUSES = ['dispatched_to_driver', 'out_for_delivery', 'driver_arrived'];
+
+const orderSelect = `
+  select o.id, o.code, o.status, o.total, o.delivery_fee, o.delivery_address, o.city,
+         o.contact_name, o.contact_phone, o.note, o.created_at, o.driver_lat, o.driver_lng,
+         o.delivery_proof_url,
+         v.business_name, v.address as pickup_address, v.whatsapp as vendor_phone,
+         (select coalesce(json_agg(json_build_object('title', i.title, 'qty', i.qty) order by i.title), '[]'::json)
+            from order_items i where i.order_id = o.id) as items
+  from orders o
+  join vendors v on v.id = o.vendor_id`;
+
+// ---------- Profile ----------
+
 driverRouter.get('/me', requireAuth('driver'), async (req, res, next) => {
   try {
     const driver = await one(`select * from drivers where user_id = $1`, [req.user!.id]);
@@ -13,18 +38,66 @@ driverRouter.get('/me', requireAuth('driver'), async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// Update Status (Online/Offline) and Location
+const ProfileSchema = z.object({
+  vehicle_type: z.enum(['Motorcycle', 'Car', 'Van']).optional(),
+  license_plate: z.string().trim().min(2).max(20).optional(),
+  bank_name: z.string().trim().min(2).max(100).optional(),
+  bank_account_name: z.string().trim().min(2).max(120).optional(),
+  bank_iban: z.string().trim().replace(/\s+/g, '').toUpperCase().min(10).max(34).optional(),
+});
+
+driverRouter.patch('/me', requireAuth('driver'), async (req, res, next) => {
+  try {
+    const b = ProfileSchema.parse(req.body);
+    const driver = await one(
+      `update drivers set
+         vehicle_type = coalesce($2, vehicle_type),
+         license_plate = coalesce($3, license_plate),
+         bank_name = coalesce($4, bank_name),
+         bank_account_name = coalesce($5, bank_account_name),
+         bank_iban = coalesce($6, bank_iban)
+       where user_id = $1
+       returning *`,
+      [req.user!.id, b.vehicle_type ?? null, b.license_plate ?? null, b.bank_name ?? null, b.bank_account_name ?? null, b.bank_iban ?? null]
+    );
+    if (!driver) throw new HttpError(404, 'No rider profile found for this account.');
+    res.json({ driver });
+  } catch (e) { next(e); }
+});
+
+// Document keys come from POST /api/uploads?purpose=kyc, which stores private files.
+const DocumentsSchema = z.object({
+  licence: z.string().startsWith('kyc://').max(300).optional(),
+  id_card: z.string().startsWith('kyc://').max(300).optional(),
+  vehicle_registration: z.string().startsWith('kyc://').max(300).optional(),
+}).refine((v) => Object.keys(v).length > 0, 'Upload at least one document.');
+
+driverRouter.put('/me/documents', requireAuth('driver'), async (req, res, next) => {
+  try {
+    const b = DocumentsSchema.parse(req.body);
+    const driver = await one(
+      `update drivers set documents = documents || $2::jsonb where user_id = $1 returning *`,
+      [req.user!.id, JSON.stringify(b)]
+    );
+    if (!driver) throw new HttpError(404, 'No rider profile found for this account.');
+    res.json({ driver });
+  } catch (e) { next(e); }
+});
+
+// ---------- Online status and location ----------
+
 const LocationSchema = z.object({
   is_online: z.boolean(),
   lat: z.number().optional(),
-  lng: z.number().optional()
+  lng: z.number().optional(),
 });
 
 driverRouter.post('/status', requireAuth('driver'), async (req, res, next) => {
   try {
     const { is_online, lat, lng } = LocationSchema.parse(req.body);
+    await approvedDriver(req.user!.id);
     await query(
-      `update drivers 
+      `update drivers
        set is_online = $1, current_lat = coalesce($2, current_lat), current_lng = coalesce($3, current_lng), last_ping_at = now()
        where user_id = $4`,
       [is_online, lat, lng, req.user!.id]
@@ -33,73 +106,143 @@ driverRouter.post('/status', requireAuth('driver'), async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// Get Available Orders (Broadcast to online drivers)
+// ---------- Orders ----------
+
 driverRouter.get('/available-orders', requireAuth('driver'), async (req, res, next) => {
   try {
+    await approvedDriver(req.user!.id);
     const orders = await query(
-      `select o.id, o.code, o.total, o.delivery_fee, o.delivery_address, 
-              v.business_name, v.address as pickup_address
-       from orders o
-       join vendors v on v.id = o.vendor_id
-       where o.status = 'dispatched' and o.driver_id is null`
+      `${orderSelect}
+       where o.status = 'dispatched' and o.driver_id is null
+       order by o.created_at asc
+       limit 25`
     );
     res.json({ orders });
   } catch (e) { next(e); }
 });
 
-// Accept Order
-driverRouter.post('/orders/:id/accept', requireAuth('driver'), async (req, res, next) => {
+// The rider's current delivery, if any.
+driverRouter.get('/active-order', requireAuth('driver'), async (req, res, next) => {
   try {
-    const success = await tx(async (c) => {
-      const o = (await c.query(`select id, status from orders where id = $1 for update`, [req.params.id])).rows[0];
-      if (!o || o.status !== 'dispatched') throw new Error('Order no longer available');
-      
-      await c.query(
-        `update orders set driver_id = $1, status = 'dispatched_to_driver' where id = $2`,
-        [req.user!.id, req.params.id]
-      );
-      return true;
-    });
-    res.json({ success });
+    const order = await one(
+      `${orderSelect}
+       where o.driver_id = $1 and o.status = any($2::order_status[])
+       order by o.updated_at desc limit 1`,
+      [req.user!.id, ACTIVE_STATUSES]
+    );
+    res.json({ order });
   } catch (e) { next(e); }
 });
 
-// Update Order Location (Live Tracking)
-const OrderLocationSchema = z.object({
-  lat: z.number(),
-  lng: z.number()
+driverRouter.get('/orders/:id', requireAuth('driver'), async (req, res, next) => {
+  try {
+    const id = uuid.parse(req.params.id);
+    const order = await one(`${orderSelect} where o.id = $1 and o.driver_id = $2`, [id, req.user!.id]);
+    if (!order) throw new HttpError(404, 'Delivery not found.');
+    res.json({ order });
+  } catch (e) { next(e); }
 });
+
+driverRouter.post('/orders/:id/accept', requireAuth('driver'), async (req, res, next) => {
+  try {
+    const id = uuid.parse(req.params.id);
+    await approvedDriver(req.user!.id);
+    const order = await tx(async (c) => {
+      const busy = (await c.query(
+        `select id from orders where driver_id = $1 and status = any($2::order_status[]) limit 1`,
+        [req.user!.id, ACTIVE_STATUSES]
+      )).rows[0];
+      if (busy) throw new HttpError(409, 'You already have an active delivery. Finish it first.');
+
+      const o = (await c.query(`select id, status, driver_id from orders where id = $1 for update`, [id])).rows[0];
+      if (!o) throw new HttpError(404, 'Delivery not found.');
+      if (o.status !== 'dispatched' || o.driver_id) throw new HttpError(409, 'This delivery was already taken.');
+
+      await c.query(
+        `update orders set driver_id = $1, status = 'dispatched_to_driver', updated_at = now() where id = $2`,
+        [req.user!.id, id]
+      );
+      return true;
+    });
+    const full = await one(`${orderSelect} where o.id = $1`, [id]);
+    res.json({ success: order, order: full });
+  } catch (e) { next(e); }
+});
+
+// Pickup confirmed: the rider now has the goods and is heading to the buyer.
+driverRouter.post('/orders/:id/pickup', requireAuth('driver'), async (req, res, next) => {
+  try {
+    const id = uuid.parse(req.params.id);
+    const row = await one(
+      `update orders set status = 'out_for_delivery', updated_at = now()
+       where id = $1 and driver_id = $2 and status = 'dispatched_to_driver'
+       returning id`,
+      [id, req.user!.id]
+    );
+    if (!row) throw new HttpError(409, 'This delivery is not waiting for pickup.');
+    res.json({ success: true });
+  } catch (e) { next(e); }
+});
+
+const OrderLocationSchema = z.object({ lat: z.number(), lng: z.number() });
+
 driverRouter.post('/orders/:id/location', requireAuth('driver'), async (req, res, next) => {
   try {
+    const id = uuid.parse(req.params.id);
     const { lat, lng } = OrderLocationSchema.parse(req.body);
     await query(
       `update orders set driver_lat = $1, driver_lng = $2 where id = $3 and driver_id = $4`,
-      [lat, lng, req.params.id, req.user!.id]
+      [lat, lng, id, req.user!.id]
     );
-    
-    // Also update driver's global location
     await query(
       `update drivers set current_lat = $1, current_lng = $2, last_ping_at = now() where user_id = $3`,
       [lat, lng, req.user!.id]
     );
-
     res.json({ success: true });
   } catch (e) { next(e); }
 });
 
-// Complete Order (Proof of Delivery)
-const ProofSchema = z.object({
-  proof_url: z.string().url()
-});
+// Proof of delivery: photo uploaded to /api/uploads first, then its URL is sent here.
+const ProofSchema = z.object({ proof_url: z.string().url().max(2000) });
+
 driverRouter.post('/orders/:id/complete', requireAuth('driver'), async (req, res, next) => {
   try {
+    const id = uuid.parse(req.params.id);
     const { proof_url } = ProofSchema.parse(req.body);
-    await query(
-      `update orders 
-       set status = 'delivered_pending_verification', delivery_proof_url = $1
-       where id = $2 and driver_id = $3`,
-      [proof_url, req.params.id, req.user!.id]
+    const row = await one(
+      `update orders
+       set status = 'delivered_pending_verification', delivery_proof_url = $1, updated_at = now()
+       where id = $2 and driver_id = $3 and status = any($4::order_status[])
+       returning id`,
+      [proof_url, id, req.user!.id, ['out_for_delivery', 'driver_arrived']]
     );
+    if (!row) throw new HttpError(409, 'This delivery cannot be completed right now.');
     res.json({ success: true });
+  } catch (e) { next(e); }
+});
+
+// ---------- Earnings ----------
+
+// Earnings are the delivery fees on orders this rider completed.
+// Payout rules are not built yet, so the app labels this as "earned".
+driverRouter.get('/earnings', requireAuth('driver'), async (req, res, next) => {
+  try {
+    const summary = await one(
+      `select coalesce(sum(delivery_fee), 0)::float as total,
+              count(*)::int as trips,
+              coalesce(sum(delivery_fee) filter (where (created_at at time zone 'Asia/Qatar')::date = (now() at time zone 'Asia/Qatar')::date), 0)::float as today,
+              count(*) filter (where (created_at at time zone 'Asia/Qatar')::date = (now() at time zone 'Asia/Qatar')::date)::int as trips_today
+       from orders
+       where driver_id = $1 and status in ('delivered_pending_verification', 'delivered')`,
+      [req.user!.id]
+    );
+    const recent = await query(
+      `select o.id, o.code, o.status, o.delivery_fee::float as delivery_fee, o.created_at, v.business_name
+       from orders o join vendors v on v.id = o.vendor_id
+       where o.driver_id = $1 and o.status in ('delivered_pending_verification', 'delivered')
+       order by o.updated_at desc limit 30`,
+      [req.user!.id]
+    );
+    res.json({ summary, recent });
   } catch (e) { next(e); }
 });
