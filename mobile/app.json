@@ -22,7 +22,7 @@
       "package": "qa.sokonihub.consumer",
       "config": {
         "googleMaps": {
-          "apiKey": "YOUR_ANDROID_MAPS_KEY"
+          "apiKey": "AIzaSyDu0RB9s3f0ywM76Vm5IgXKp6PCGQe0GTc"
         }
       },
       "adaptiveIcon": {
