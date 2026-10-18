@@ -43,7 +43,12 @@ const ProfileSchema = z.object({
   license_plate: z.string().trim().min(2).max(20).optional(),
   bank_name: z.string().trim().min(2).max(100).optional(),
   bank_account_name: z.string().trim().min(2).max(120).optional(),
-  bank_iban: z.string().trim().replace(/\s+/g, '').toUpperCase().min(10).max(34).optional(),
+  bank_iban: z
+    .string()
+    .trim()
+    .transform((s) => s.replace(/\s+/g, '').toUpperCase())
+    .pipe(z.string().min(10).max(34))
+    .optional(),
 });
 
 driverRouter.patch('/me', requireAuth('driver'), async (req, res, next) => {
