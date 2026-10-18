@@ -13,6 +13,7 @@ import { Home } from './src/screens/Home';
 import { Earnings } from './src/screens/Earnings';
 import { Settings } from './src/screens/Settings';
 import { ActiveDelivery } from './src/screens/ActiveDelivery';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
 import type { Stage } from './src/screens/types';
 import { C } from './src/theme';
 
@@ -115,11 +116,9 @@ function Router() {
 
   if (activeOrderId) {
     return (
-      <ActiveDelivery
-        orderId={activeOrderId}
-        onComplete={() => setActiveOrderId(null)}
-        onCancel={() => setActiveOrderId(null)}
-      />
+      <ErrorBoundary>
+        <ActiveDelivery orderId={activeOrderId} onDone={() => setActiveOrderId(null)} />
+      </ErrorBoundary>
     );
   }
 
@@ -132,9 +131,11 @@ function Router() {
   return (
     <View style={styles.container}>
       <View style={styles.body}>
-        {tab === 'home' && <Home onStartDelivery={(id) => setActiveOrderId(id)} />}
-        {tab === 'earnings' && <Earnings />}
-        {tab === 'settings' && <Settings onLogout={signOut} />}
+        <ErrorBoundary key={tab}>
+          {tab === 'home' && <Home onOpenDelivery={(id) => setActiveOrderId(id)} />}
+          {tab === 'earnings' && <Earnings />}
+          {tab === 'settings' && <Settings onLogout={signOut} />}
+        </ErrorBoundary>
       </View>
       <View style={styles.tabBar}>
         {tabs.map((t) => {

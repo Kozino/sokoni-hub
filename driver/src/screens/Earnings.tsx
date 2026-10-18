@@ -1,67 +1,103 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { BanknotesIcon, ReceiptPercentIcon } from 'react-native-heroicons/outline';
+import { api } from '../api';
+import { Card, EmptyState, Notice, ScreenHeader, Stat } from '../components/UI';
+import { dateTime, errorText, money } from '../format';
+import { C } from '../theme';
+
+type Trip = { id: string; code: string; delivery_fee: number; created_at: string; business_name: string };
+type Summary = { total: number; trips: number; today: number; trips_today: number };
 
 export function Earnings() {
-  const history = [
-    { id: '1', date: 'Today, 2:30 PM', order: 'ORD-8821X', amount: 'QAR 15.00' },
-    { id: '2', date: 'Today, 1:15 PM', order: 'ORD-7742Y', amount: 'QAR 12.00' },
-    { id: '3', date: 'Yesterday', order: 'ORD-1122Z', amount: 'QAR 18.00' },
-    { id: '4', date: 'Yesterday', order: 'ORD-3344A', amount: 'QAR 15.00' },
-  ];
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState('');
+
+  const load = useCallback(async () => {
+    try {
+      const res = await api.get<{ summary: Summary; recent: Trip[] }>('/drivers/earnings');
+      setSummary({ ...res.summary, total: Number(res.summary.total), today: Number(res.summary.today) });
+      setTrips(res.recent.map((t) => ({ ...t, delivery_fee: Number(t.delivery_fee) })));
+      setError('');
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Your Earnings</Text>
-      </View>
+    <View style={{ flex: 1, backgroundColor: C.bg }}>
+      <ScreenHeader title="Earnings" subtitle="Delivery fees from completed trips" />
+      <ScrollView
+        contentContainerStyle={styles.pad}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={C.primary} />}
+      >
+        {loading ? (
+          <View style={styles.center}><ActivityIndicator color={C.primary} /></View>
+        ) : null}
 
-      <View style={styles.summaryCard}>
-        <Text style={styles.summaryLabel}>Available Balance</Text>
-        <Text style={styles.summaryValue}>QAR 60.00</Text>
-        <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <Text style={styles.statNum}>4</Text>
-            <Text style={styles.statLabel}>Trips Today</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statNum}>4.9</Text>
-            <Text style={styles.statLabel}>Rating</Text>
-          </View>
-        </View>
-      </View>
+        {error ? <View style={{ marginBottom: 14 }}><Notice tone="error">{error}</Notice></View> : null}
 
-      <Text style={styles.sectionTitle}>Recent Trips</Text>
-      
-      {history.map((h, i) => (
-        <View key={h.id} style={[styles.historyRow, i === history.length - 1 && { borderBottomWidth: 0 }]}>
-          <View>
-            <Text style={styles.histOrder}>{h.order}</Text>
-            <Text style={styles.histDate}>{h.date}</Text>
+        {summary ? (
+          <View style={styles.hero}>
+            <View style={styles.heroTop}>
+              <View style={styles.heroIcon}><BanknotesIcon size={22} color="#fff" /></View>
+              <Text style={styles.heroLabel}>Total earned</Text>
+            </View>
+            <Text style={styles.heroValue}>{money(summary.total)}</Text>
+            <View style={styles.statRow}>
+              <Stat label="Today" value={money(summary.today)} />
+              <Stat label="Trips" value={String(summary.trips)} />
+              <Stat label="Trips today" value={String(summary.trips_today)} />
+            </View>
           </View>
-          <Text style={styles.histAmount}>+{h.amount}</Text>
-        </View>
-      ))}
-    </ScrollView>
+        ) : null}
+
+        <Text style={styles.section}>Recent trips</Text>
+
+        {!loading && !error && trips.length === 0 ? (
+          <EmptyState
+            icon={<ReceiptPercentIcon size={30} color={C.primary} />}
+            title="No trips yet"
+            text="Completed deliveries will appear here with their fee."
+          />
+        ) : null}
+
+        {trips.map((t) => (
+          <Card key={t.id} style={styles.trip}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.tripBiz} numberOfLines={1}>{t.business_name}</Text>
+              <Text style={styles.tripMeta}>{t.code} · {dateTime(t.created_at)}</Text>
+            </View>
+            <Text style={styles.tripAmount}>+{money(t.delivery_fee)}</Text>
+          </Card>
+        ))}
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F8FD' },
-  header: { padding: 20, paddingTop: Platform.OS === 'ios' ? 60 : 40, backgroundColor: '#fff' },
-  title: { fontSize: 24, fontWeight: 'bold' },
-  
-  summaryCard: { backgroundColor: '#126D4B', margin: 20, padding: 24, borderRadius: 16, shadowColor: '#126D4B', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 10 },
-  summaryLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 14, fontWeight: '600', marginBottom: 8 },
-  summaryValue: { color: '#fff', fontSize: 36, fontWeight: 'bold', marginBottom: 24 },
-  
-  statsRow: { flexDirection: 'row', gap: 20, borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.2)', paddingTop: 20 },
-  statBox: { flex: 1 },
-  statNum: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
-  statLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 13, marginTop: 4 },
-
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginHorizontal: 20, marginTop: 10, marginBottom: 16 },
-  historyRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: 20, marginHorizontal: 20, borderBottomWidth: 1, borderColor: '#F3F4F6' },
-  histOrder: { fontSize: 16, fontWeight: '600', color: '#111', marginBottom: 4 },
-  histDate: { fontSize: 13, color: '#666' },
-  histAmount: { fontSize: 16, fontWeight: 'bold', color: '#126D4B' }
+  pad: { padding: 18, paddingBottom: 32 },
+  center: { paddingVertical: 30, alignItems: 'center' },
+  hero: { backgroundColor: C.primary, borderRadius: 22, padding: 20 },
+  heroTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  heroIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
+  heroLabel: { color: 'rgba(255,255,255,0.85)', fontWeight: '700', fontSize: 14 },
+  heroValue: { color: '#fff', fontSize: 34, fontWeight: '900', letterSpacing: -0.8, marginTop: 14 },
+  statRow: { flexDirection: 'row', gap: 12, marginTop: 18, paddingTop: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.2)' },
+  section: { fontSize: 13, fontWeight: '800', color: C.text2, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 24, marginBottom: 10 },
+  trip: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10, paddingVertical: 14 },
+  tripBiz: { fontSize: 15, fontWeight: '800', color: C.text },
+  tripMeta: { fontSize: 12, color: C.text2, marginTop: 3 },
+  tripAmount: { fontSize: 15, fontWeight: '900', color: C.primary },
 });

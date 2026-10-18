@@ -10,7 +10,10 @@
       "supportsTablet": false,
       "bundleIdentifier": "qa.sokonihub.driver",
       "infoPlist": {
-        "UIBackgroundModes": ["location", "fetch"],
+        "UIBackgroundModes": [
+          "location",
+          "fetch"
+        ],
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Sokoni Driver needs your location to match you with orders and track deliveries in real-time.",
         "NSLocationWhenInUseUsageDescription": "Sokoni Driver needs your location to match you with orders.",
         "NSCameraUsageDescription": "Sokoni Driver needs access to the camera to take proof of delivery photos."
@@ -54,6 +57,13 @@
         "expo-camera",
         {
           "cameraPermission": "Allow Sokoni Driver to access your camera for proof of delivery."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Sokoni Driver uses your photos to upload your rider documents.",
+          "cameraPermission": "Sokoni Driver uses the camera to take proof-of-delivery photos."
         }
       ]
     ]

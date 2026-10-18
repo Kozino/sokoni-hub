@@ -1,122 +1,209 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Switch, Alert, Platform } from 'react-native';
-import { useAuth } from '../providers/AuthContext';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import * as Location from 'expo-location';
+import { ClockIcon, MapPinIcon, TruckIcon } from 'react-native-heroicons/outline';
+import { api } from '../api';
+import { useAuth } from '../providers/AuthContext';
+import { Badge, Button, Card, EmptyState, Notice } from '../components/UI';
+import { dateTime, errorText, money, statusLabel } from '../format';
+import { C } from '../theme';
+import type { Order } from './types';
 
-export function Home({ onStartDelivery }: { onStartDelivery: (orderId: string) => void }) {
+const POLL_MS = 10000;
+
+export function Home({ onOpenDelivery }: { onOpenDelivery: (orderId: string) => void }) {
   const { user } = useAuth();
   const [online, setOnline] = useState(false);
-  const [incomingOrder, setIncomingOrder] = useState<any>(null);
+  const [toggling, setToggling] = useState(false);
+  const [available, setAvailable] = useState<Order[]>([]);
+  const [active, setActive] = useState<Order | null>(null);
+  const [accepting, setAccepting] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState('');
+
+  const load = useCallback(async () => {
+    try {
+      const [current, open] = await Promise.all([
+        api.get<{ order: Order | null }>('/drivers/active-order'),
+        api.get<{ orders: Order[] }>('/drivers/available-orders'),
+      ]);
+      setActive(current.order);
+      setAvailable(open.orders);
+      setError('');
+    } catch (e) {
+      setError(errorText(e));
+    }
+  }, []);
 
   useEffect(() => {
     (async () => {
-      if (online) {
-        let { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert('Permission needed', 'Location permission is required to go online.');
-          setOnline(false);
+      try {
+        const me = await api.get<{ driver: { is_online: boolean } | null }>('/drivers/me');
+        setOnline(!!me.driver?.is_online);
+      } catch {}
+      load();
+    })();
+  }, [load]);
+
+  // Refresh the request list while online.
+  useEffect(() => {
+    if (!online) return;
+    const timer = setInterval(load, POLL_MS);
+    return () => clearInterval(timer);
+  }, [online, load]);
+
+  const toggleOnline = async (value: boolean) => {
+    setToggling(true);
+    try {
+      const body: { is_online: boolean; lat?: number; lng?: number } = { is_online: value };
+      if (value) {
+        const perm = await Location.requestForegroundPermissionsAsync();
+        if (perm.status !== 'granted') {
+          Alert.alert('Location needed', 'Allow location access so Sokoni Hub can match you with nearby deliveries.');
           return;
         }
+        const pos = await Location.getCurrentPositionAsync({});
+        body.lat = pos.coords.latitude;
+        body.lng = pos.coords.longitude;
       }
-    })();
-  }, [online]);
-
-  // Mock an incoming order after 5 seconds of being online
-  useEffect(() => {
-    if (online) {
-      const timer = setTimeout(() => {
-        setIncomingOrder({
-          id: 'ORD-8821X',
-          vendorName: 'Mama Africa Store',
-          pickup: 'Doha Festival City',
-          dropoff: 'Al Wakra',
-          distance: '4.2 km',
-          fee: 'QAR 15.00'
-        });
-      }, 3000);
-      return () => clearTimeout(timer);
-    } else {
-      setIncomingOrder(null);
+      await api.post('/drivers/status', body);
+      setOnline(value);
+      if (value) load();
+    } catch (e) {
+      Alert.alert('Could not change status', errorText(e));
+    } finally {
+      setToggling(false);
     }
-  }, [online]);
+  };
+
+  const accept = async (order: Order) => {
+    setAccepting(order.id);
+    try {
+      await api.post(`/drivers/orders/${order.id}/accept`, {});
+      onOpenDelivery(order.id);
+    } catch (e) {
+      Alert.alert('Could not accept', errorText(e));
+      load();
+    } finally {
+      setAccepting(null);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  };
+
+  const firstName = user?.full_name?.split(' ')[0] ?? 'Rider';
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>Hello, {user?.full_name.split(' ')[0]}</Text>
-          <Text style={styles.statusText}>{online ? 'Searching for orders...' : 'You are offline'}</Text>
+    <ScrollView
+      style={styles.page}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} />}
+    >
+      <View style={styles.hero}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.greet}>Hello, {firstName}</Text>
+          <Text style={styles.heroSub}>{online ? 'Looking for nearby deliveries' : 'You are offline'}</Text>
         </View>
-        <View style={styles.toggleWrap}>
-          <Text style={[styles.toggleLabel, { color: online ? '#126D4B' : '#666' }]}>{online ? 'ONLINE' : 'OFFLINE'}</Text>
-          <Switch value={online} onValueChange={setOnline} trackColor={{ true: '#126D4B', false: '#ccc' }} />
+        <View style={styles.toggle}>
+          <Text style={[styles.toggleText, { color: online ? '#fff' : 'rgba(255,255,255,0.8)' }]}>{online ? 'Online' : 'Offline'}</Text>
+          <Switch value={online} onValueChange={toggleOnline} disabled={toggling || !!active} trackColor={{ true: C.gold, false: '#9AA5A0' }} thumbColor="#fff" />
         </View>
       </View>
 
-      <View style={styles.mapMock}>
-        <Text style={{ color: '#999' }}>Live Map View</Text>
-      </View>
+      {error ? <View style={{ marginTop: 14 }}><Notice tone="error">{error}</Notice></View> : null}
 
-      {incomingOrder && (
-        <View style={styles.orderPopup}>
-          <View style={styles.orderHeader}>
-            <Text style={styles.newAlert}>🔔 NEW DELIVERY</Text>
-            <Text style={styles.fee}>{incomingOrder.fee}</Text>
-          </View>
-          
-          <View style={styles.routeBox}>
-            <View style={styles.dotLine} />
-            <View style={styles.routeItem}>
-              <Text style={styles.routeLabel}>PICKUP</Text>
-              <Text style={styles.routeText}>{incomingOrder.vendorName}</Text>
-              <Text style={styles.routeSub}>{incomingOrder.pickup}</Text>
-            </View>
-            <View style={styles.routeItem}>
-              <Text style={styles.routeLabel}>DROPOFF</Text>
-              <Text style={styles.routeText}>{incomingOrder.dropoff}</Text>
-              <Text style={styles.routeSub}>{incomingOrder.distance} away</Text>
-            </View>
-          </View>
+      {active ? (
+        <>
+          <Text style={styles.section}>Current delivery</Text>
+          <Pressable accessibilityRole="button" onPress={() => onOpenDelivery(active.id)}>
+            <Card style={styles.activeCard}>
+              <View style={styles.rowBetween}>
+                <Text style={styles.code}>{active.code}</Text>
+                <Badge label={statusLabel(active.status)} tone="gold" />
+              </View>
+              <Text style={styles.biz}>{active.business_name}</Text>
+              <Text style={styles.muted}>To {active.delivery_address}</Text>
+              <View style={{ marginTop: 14 }}>
+                <Button title="Continue delivery" tone="gold" onPress={() => onOpenDelivery(active.id)} />
+              </View>
+            </Card>
+          </Pressable>
+        </>
+      ) : null}
 
-          <View style={styles.actions}>
-            <TouchableOpacity style={[styles.btn, styles.btnReject]} onPress={() => setIncomingOrder(null)}>
-              <Text style={styles.btnTextReject}>Reject</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.btn, styles.btnAccept]} onPress={() => onStartDelivery(incomingOrder.id)}>
-              <Text style={styles.btnTextAccept}>Accept Delivery</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-    </View>
+      {!active && !online ? (
+        <EmptyState
+          icon={<TruckIcon size={30} color={C.primary} />}
+          title="Go online to start"
+          text="Switch on when you are ready. New delivery requests will appear here."
+        />
+      ) : null}
+
+      {!active && online ? (
+        <>
+          <Text style={styles.section}>Delivery requests</Text>
+          {available.length === 0 ? (
+            <EmptyState
+              icon={<ClockIcon size={30} color={C.primary} />}
+              title="No requests right now"
+              text="We refresh automatically. Stay online and we will notify you of new orders."
+            />
+          ) : (
+            available.map((o) => (
+              <Card key={o.id} style={styles.requestCard}>
+                <View style={styles.rowBetween}>
+                  <Text style={styles.code}>{o.code}</Text>
+                  <Text style={styles.fee}>{money(o.delivery_fee)}</Text>
+                </View>
+                <View style={styles.stop}>
+                  <MapPinIcon size={18} color={C.primary} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.stopLabel}>PICKUP</Text>
+                    <Text style={styles.stopText}>{o.business_name}</Text>
+                    {o.pickup_address ? <Text style={styles.muted}>{o.pickup_address}</Text> : null}
+                  </View>
+                </View>
+                <View style={styles.stop}>
+                  <MapPinIcon size={18} color={C.gold} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.stopLabel}>DROP-OFF · {o.city}</Text>
+                    <Text style={styles.stopText}>{o.delivery_address}</Text>
+                  </View>
+                </View>
+                <Text style={styles.muted}>Placed {dateTime(o.created_at)}</Text>
+                <View style={{ marginTop: 12 }}>
+                  <Button title="Accept delivery" onPress={() => accept(o)} loading={accepting === o.id} disabled={!!accepting} />
+                </View>
+              </Card>
+            ))
+          )}
+        </>
+      ) : null}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F8FD' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', padding: 20, paddingTop: Platform.OS === 'ios' ? 60 : 40, backgroundColor: '#fff', borderBottomWidth: 1, borderColor: '#eee' },
-  greeting: { fontSize: 20, fontWeight: 'bold', color: '#111' },
-  statusText: { fontSize: 14, color: '#666', marginTop: 4 },
-  toggleWrap: { alignItems: 'center' },
-  toggleLabel: { fontSize: 12, fontWeight: '800', marginBottom: 4 },
-  mapMock: { flex: 1, backgroundColor: '#E5E7EB', justifyContent: 'center', alignItems: 'center' },
-  
-  orderPopup: { position: 'absolute', bottom: 20, left: 20, right: 20, backgroundColor: '#fff', borderRadius: 16, padding: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 10 },
-  orderHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
-  newAlert: { backgroundColor: '#FEF3C7', color: '#B45309', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, fontSize: 12, fontWeight: '800', overflow: 'hidden' },
-  fee: { fontSize: 20, fontWeight: '800', color: '#126D4B' },
-  
-  routeBox: { backgroundColor: '#F9FAFB', padding: 16, borderRadius: 12, marginBottom: 20, marginLeft: 10 },
-  dotLine: { position: 'absolute', left: -10, top: 20, bottom: 20, width: 2, backgroundColor: '#D1D5DB', borderStyle: 'dashed' },
-  routeItem: { marginBottom: 16 },
-  routeLabel: { fontSize: 10, fontWeight: '800', color: '#9CA3AF', marginBottom: 2 },
-  routeText: { fontSize: 16, fontWeight: '600', color: '#111' },
-  routeSub: { fontSize: 13, color: '#666' },
-
-  actions: { flexDirection: 'row', gap: 12 },
-  btn: { flex: 1, padding: 16, borderRadius: 12, alignItems: 'center' },
-  btnReject: { backgroundColor: '#FEE2E2' },
-  btnTextReject: { color: '#DC2626', fontWeight: '700', fontSize: 16 },
-  btnAccept: { backgroundColor: '#126D4B' },
-  btnTextAccept: { color: '#fff', fontWeight: '700', fontSize: 16 }
+  page: { flex: 1, backgroundColor: C.bg },
+  content: { padding: 18, paddingBottom: 32 },
+  hero: { backgroundColor: C.primary, borderRadius: 22, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  greet: { color: '#fff', fontSize: 22, fontWeight: '900', letterSpacing: -0.4 },
+  heroSub: { color: 'rgba(255,255,255,0.82)', marginTop: 4, fontSize: 13 },
+  toggle: { alignItems: 'center', gap: 2 },
+  toggleText: { fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.6 },
+  section: { fontSize: 13, fontWeight: '800', color: C.text2, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 22, marginBottom: 10 },
+  activeCard: { borderColor: C.gold, borderWidth: 1.5 },
+  requestCard: { marginBottom: 14 },
+  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  code: { fontSize: 15, fontWeight: '900', color: C.text },
+  biz: { fontSize: 17, fontWeight: '800', color: C.text, marginTop: 2 },
+  fee: { fontSize: 16, fontWeight: '900', color: C.primary },
+  muted: { fontSize: 13, color: C.text2, marginTop: 2 },
+  stop: { flexDirection: 'row', gap: 10, marginTop: 10, alignItems: 'flex-start' },
+  stopLabel: { fontSize: 10, fontWeight: '900', color: C.muted, letterSpacing: 0.6 },
+  stopText: { fontSize: 15, fontWeight: '700', color: C.text, marginTop: 2 },
 });

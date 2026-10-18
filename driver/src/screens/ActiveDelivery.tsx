@@ -1,118 +1,254 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Linking, Platform } from 'react-native';
-import { Camera, CameraType } from 'expo-camera';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import * as Location from 'expo-location';
+import * as ImagePicker from 'expo-image-picker';
+import { CameraIcon, CheckCircleIcon, MapPinIcon, PhoneIcon, ArrowPathIcon } from 'react-native-heroicons/outline';
+import { api } from '../api';
+import { Badge, Button, Card, Notice, ScreenHeader } from '../components/UI';
+import { errorText, mapsLink, statusLabel } from '../format';
+import { C } from '../theme';
+import type { Order } from './types';
 
-export function ActiveDelivery({ orderId, onComplete, onCancel }: { orderId: string; onComplete: () => void; onCancel: () => void }) {
-  const [step, setStep] = useState<'pickup' | 'transit' | 'proof'>('pickup');
-  const [cameraPermission, requestPermission] = Camera.useCameraPermissions();
-  const [camera, setCamera] = useState<Camera | null>(null);
+const LIVE_STATUSES = ['dispatched_to_driver', 'out_for_delivery', 'driver_arrived'];
 
-  const mockOrder = {
-    id: orderId,
-    vendor: { name: 'Mama Africa Store', address: 'Doha Festival City', phone: '+974 5555 1111' },
-    buyer: { name: 'Sarah M.', address: 'Building 12, Street 8, Al Wakra', phone: '+974 5555 2222' }
+export function ActiveDelivery({ orderId, onDone }: { orderId: string; onDone: () => void }) {
+  const [order, setOrder] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [error, setError] = useState('');
+
+  const reload = useCallback(async () => {
+    try {
+      const res = await api.get<{ order: Order }>(`/drivers/orders/${orderId}`);
+      setOrder(res.order);
+      setError('');
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [orderId]);
+
+  useEffect(() => {
+    reload();
+  }, [reload]);
+
+  // Share the rider's position with the buyer while the delivery is live.
+  const status = order?.status;
+  useEffect(() => {
+    if (!status || !LIVE_STATUSES.includes(status)) return;
+    let stopped = false;
+    const send = async () => {
+      try {
+        const perm = await Location.getForegroundPermissionsAsync();
+        if (perm.status !== 'granted') return;
+        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        if (!stopped) {
+          await api.post(`/drivers/orders/${orderId}/location`, { lat: pos.coords.latitude, lng: pos.coords.longitude });
+        }
+      } catch {
+        // A missed ping is harmless; the next one will retry.
+      }
+    };
+    send();
+    const timer = setInterval(send, 15000);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
+  }, [status, orderId]);
+
+  const confirmPickup = async () => {
+    setBusy(true);
+    try {
+      await api.post(`/drivers/orders/${orderId}/pickup`, {});
+      await reload();
+    } catch (e) {
+      Alert.alert('Could not confirm pickup', errorText(e));
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const openNav = (addr: string) => Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(addr)}`);
-  const call = (num: string) => Linking.openURL(`tel:${num}`);
-
-  if (step === 'proof') {
-    if (!cameraPermission) return <View />;
-    if (!cameraPermission.granted) {
-      return (
-        <SafeAreaView style={styles.container}>
-          <Text style={{ textAlign: 'center', marginTop: 100 }}>We need your permission to show the camera</Text>
-          <TouchableOpacity onPress={requestPermission} style={styles.actionBtn}><Text style={styles.actionBtnText}>Grant Permission</Text></TouchableOpacity>
-        </SafeAreaView>
-      );
+  const takePhoto = async () => {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Camera needed', 'Allow camera access to take a photo of the delivery.');
+      return;
     }
+    const res = await ImagePicker.launchCameraAsync({ quality: 0.7, allowsEditing: false });
+    if (!res.canceled && res.assets?.[0]) setPhoto(res.assets[0].uri);
+  };
 
+  const submitDelivery = async () => {
+    if (!photo) return;
+    setBusy(true);
+    try {
+      const form = new FormData();
+      form.append('files', { uri: photo, name: 'proof.jpg', type: 'image/jpeg' } as any);
+      const upload = await api.post<{ urls: string[] }>('/uploads', form);
+      const proofUrl = upload.urls?.[0];
+      if (!proofUrl) throw new Error('The photo could not be uploaded. Please try again.');
+      await api.post(`/drivers/orders/${orderId}/complete`, { proof_url: proofUrl });
+      Alert.alert('Delivered', 'Thanks! The buyer has been notified.', [{ text: 'Done', onPress: onDone }]);
+    } catch (e) {
+      Alert.alert('Could not complete delivery', errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#000' }}>
-        <Camera style={{ flex: 1 }} type={CameraType.back} ref={setCamera}>
-          <View style={{ flex: 1, justifyContent: 'flex-end', padding: 30 }}>
-            <View style={{ backgroundColor: 'rgba(0,0,0,0.5)', padding: 15, borderRadius: 10, marginBottom: 20 }}>
-              <Text style={{ color: '#fff', textAlign: 'center', fontSize: 16 }}>Take a clear photo of the package at the door</Text>
-            </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <TouchableOpacity onPress={() => setStep('transit')}><Text style={{ color: '#fff', fontSize: 18 }}>Cancel</Text></TouchableOpacity>
-              <TouchableOpacity 
-                style={{ width: 70, height: 70, backgroundColor: '#fff', borderRadius: 35, borderWidth: 4, borderColor: '#ccc' }}
-                onPress={() => {
-                  // Mock picture taken
-                  setTimeout(() => {
-                    alert('Proof of delivery uploaded successfully!');
-                    onComplete();
-                  }, 1000);
-                }}
-              />
-              <View style={{ width: 50 }} />
-            </View>
-          </View>
-        </Camera>
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={C.primary} />
       </View>
     );
   }
 
-  const isTransit = step === 'transit';
-  const target = isTransit ? mockOrder.buyer : mockOrder.vendor;
+  if (!order) {
+    return (
+      <View style={{ flex: 1, backgroundColor: C.bg }}>
+        <ScreenHeader title="Delivery" onBack={onDone} />
+        <View style={styles.pad}>
+          <Notice tone="error">{error || 'This delivery could not be found.'}</Notice>
+        </View>
+      </View>
+    );
+  }
+
+  const pickupStep = order.status === 'dispatched_to_driver';
+  const dropStep = order.status === 'out_for_delivery' || order.status === 'driver_arrived';
+  const finished = !LIVE_STATUSES.includes(order.status);
+  const stepIndex = pickupStep ? 0 : dropStep ? 1 : 2;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>{isTransit ? 'Deliver to Buyer' : 'Pick up Order'}</Text>
-        <Text style={styles.orderId}>{mockOrder.id}</Text>
-      </View>
-
-      <View style={styles.mapMock}>
-        <Text style={{ color: '#999' }}>Live Navigation Map</Text>
-      </View>
-
-      <View style={styles.bottomSheet}>
-        <Text style={styles.destLabel}>{isTransit ? 'DROPOFF AT' : 'PICKUP AT'}</Text>
-        <Text style={styles.destName}>{target.name}</Text>
-        <Text style={styles.destAddr}>{target.address}</Text>
-
-        <View style={styles.btnRow}>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => call(target.phone)}>
-            <Text style={styles.iconBtnText}>📞 Call</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.iconBtn, { flex: 2, backgroundColor: '#111' }]} onPress={() => openNav(target.address)}>
-            <Text style={[styles.iconBtnText, { color: '#fff' }]}>🗺 Navigate</Text>
-          </TouchableOpacity>
+    <View style={{ flex: 1, backgroundColor: C.bg }}>
+      <ScreenHeader
+        title={order.code}
+        subtitle={statusLabel(order.status)}
+        onBack={finished ? onDone : undefined}
+        right={<Badge label={`Step ${Math.min(stepIndex + 1, 3)} of 3`} />}
+      />
+      <ScrollView contentContainerStyle={styles.pad}>
+        <View style={styles.steps}>
+          {['Pick up', 'On the way', 'Delivered'].map((label, i) => (
+            <View key={label} style={styles.stepItem}>
+              <View style={[styles.stepDot, i <= stepIndex && styles.stepDotOn]} />
+              <Text style={[styles.stepLabel, i <= stepIndex && styles.stepLabelOn]}>{label}</Text>
+            </View>
+          ))}
         </View>
 
-        <TouchableOpacity 
-          style={styles.actionBtn} 
-          onPress={() => isTransit ? setStep('proof') : setStep('transit')}
-        >
-          <Text style={styles.actionBtnText}>{isTransit ? 'Confirm Delivery (Camera)' : 'I have picked up the order'}</Text>
-        </TouchableOpacity>
-        
-        {!isTransit && (
-          <TouchableOpacity style={{ marginTop: 15 }} onPress={onCancel}>
-            <Text style={{ color: '#DC2626', textAlign: 'center', fontWeight: '600' }}>Cancel Delivery</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </SafeAreaView>
+        {error ? <View style={{ marginBottom: 12 }}><Notice tone="error">{error}</Notice></View> : null}
+
+        {pickupStep ? (
+          <Card>
+            <Text style={styles.eyebrow}>PICK UP FROM</Text>
+            <Text style={styles.name}>{order.business_name}</Text>
+            {order.pickup_address ? <Text style={styles.muted}>{order.pickup_address}</Text> : null}
+            <View style={styles.actions}>
+              {order.vendor_phone ? <ActionChip label="Call" icon={<PhoneIcon size={18} color={C.primary} />} onPress={() => Linking.openURL(`tel:${order.vendor_phone}`)} /> : null}
+              {order.pickup_address ? <ActionChip label="Navigate" icon={<MapPinIcon size={18} color={C.primary} />} onPress={() => Linking.openURL(mapsLink(order.pickup_address!))} /> : null}
+            </View>
+            <Items items={order.items} />
+            <View style={{ marginTop: 16 }}>
+              <Button title="I have picked up the order" onPress={confirmPickup} loading={busy} icon={<CheckCircleIcon size={20} color="#fff" />} />
+            </View>
+          </Card>
+        ) : null}
+
+        {dropStep ? (
+          <>
+            <Card>
+              <Text style={styles.eyebrow}>DELIVER TO</Text>
+              <Text style={styles.name}>{order.contact_name || 'Buyer'}</Text>
+              <Text style={styles.muted}>{order.delivery_address}, {order.city}</Text>
+              {order.note ? <Text style={[styles.muted, { marginTop: 8 }]}>Note: {order.note}</Text> : null}
+              <View style={styles.actions}>
+                {order.contact_phone ? <ActionChip label="Call buyer" icon={<PhoneIcon size={18} color={C.primary} />} onPress={() => Linking.openURL(`tel:${order.contact_phone}`)} /> : null}
+                <ActionChip label="Navigate" icon={<MapPinIcon size={18} color={C.primary} />} onPress={() => Linking.openURL(mapsLink(order.delivery_address))} />
+              </View>
+            </Card>
+
+            <Card style={{ marginTop: 14 }}>
+              <Text style={styles.eyebrow}>PROOF OF DELIVERY</Text>
+              {photo ? (
+                <Image source={{ uri: photo }} style={styles.preview} resizeMode="cover" />
+              ) : (
+                <View style={styles.previewEmpty}>
+                  <CameraIcon size={30} color={C.muted} />
+                  <Text style={styles.muted}>Take a clear photo of the delivered order at the door.</Text>
+                </View>
+              )}
+              <View style={{ marginTop: 12, gap: 10 }}>
+                <Button
+                  title={photo ? 'Retake photo' : 'Take photo'}
+                  tone="secondary"
+                  onPress={takePhoto}
+                  disabled={busy}
+                  icon={photo ? <ArrowPathIcon size={18} color={C.primary} /> : <CameraIcon size={18} color={C.primary} />}
+                />
+                <Button title="Confirm delivery" onPress={submitDelivery} loading={busy} disabled={!photo} icon={<CheckCircleIcon size={20} color="#fff" />} />
+              </View>
+            </Card>
+          </>
+        ) : null}
+
+        {finished ? (
+          <Card>
+            <View style={{ alignItems: 'center', gap: 10, paddingVertical: 10 }}>
+              <CheckCircleIcon size={44} color={C.primary} />
+              <Text style={styles.name}>Delivery complete</Text>
+              <Text style={styles.muted}>This order has been handed over. Your earnings will show on the Earnings tab.</Text>
+              <Button title="Back to home" onPress={onDone} style={{ alignSelf: 'stretch', marginTop: 8 }} />
+            </View>
+          </Card>
+        ) : null}
+      </ScrollView>
+    </View>
+  );
+}
+
+function ActionChip({ label, icon, onPress }: { label: string; icon: React.ReactNode; onPress: () => void }) {
+  return (
+    <Pressable accessibilityRole="button" onPress={onPress} style={styles.chip}>
+      {icon}
+      <Text style={styles.chipText}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function Items({ items }: { items: Order['items'] }) {
+  if (!items?.length) return null;
+  return (
+    <View style={styles.items}>
+      <Text style={styles.eyebrow}>ITEMS</Text>
+      {items.map((i, idx) => (
+        <Text key={idx} style={styles.itemText}>{i.qty} × {i.title}</Text>
+      ))}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  header: { padding: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  title: { fontSize: 22, fontWeight: 'bold' },
-  orderId: { fontSize: 14, color: '#666', backgroundColor: '#F3F4F6', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, overflow: 'hidden' },
-  mapMock: { flex: 1, backgroundColor: '#E5E7EB', justifyContent: 'center', alignItems: 'center' },
-  bottomSheet: { backgroundColor: '#fff', padding: 24, borderTopLeftRadius: 24, borderTopRightRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: -10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 20 },
-  destLabel: { fontSize: 11, fontWeight: '800', color: '#9CA3AF', marginBottom: 4 },
-  destName: { fontSize: 20, fontWeight: '700', color: '#111', marginBottom: 4 },
-  destAddr: { fontSize: 15, color: '#666', marginBottom: 20 },
-  btnRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
-  iconBtn: { flex: 1, backgroundColor: '#F3F4F6', padding: 14, borderRadius: 12, alignItems: 'center' },
-  iconBtnText: { fontSize: 16, fontWeight: '600', color: '#111' },
-  actionBtn: { backgroundColor: '#126D4B', padding: 18, borderRadius: 12, alignItems: 'center' },
-  actionBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' }
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bg },
+  pad: { padding: 18, paddingBottom: 32 },
+  steps: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16, paddingHorizontal: 6 },
+  stepItem: { alignItems: 'center', flex: 1, gap: 6 },
+  stepDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: C.border },
+  stepDotOn: { backgroundColor: C.primary },
+  stepLabel: { fontSize: 12, color: C.muted, fontWeight: '700' },
+  stepLabelOn: { color: C.primary },
+  eyebrow: { fontSize: 11, fontWeight: '900', color: C.muted, letterSpacing: 0.7 },
+  name: { fontSize: 19, fontWeight: '900', color: C.text, marginTop: 4 },
+  muted: { fontSize: 14, color: C.text2, marginTop: 4, lineHeight: 20 },
+  actions: { flexDirection: 'row', gap: 10, marginTop: 14 },
+  chip: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderRadius: 14, backgroundColor: C.primarySoft },
+  chipText: { fontSize: 14, fontWeight: '800', color: C.primary },
+  items: { marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.border, gap: 4 },
+  itemText: { fontSize: 14, color: C.text },
+  preview: { width: '100%', height: 200, borderRadius: 14, marginTop: 12, backgroundColor: C.surface2 },
+  previewEmpty: { height: 140, borderRadius: 14, marginTop: 12, backgroundColor: C.surface2, alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16 },
 });
