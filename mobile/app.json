@@ -20,12 +20,11 @@
     },
     "android": {
       "package": "qa.sokonihub.consumer",
-       "config": {
+      "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyDu0RB9s3f0ywM76Vm5IgXKp6PCGQe0GTc"
- }
+          "apiKey": "YOUR_ANDROID_MAPS_KEY"
+        }
       },
-
       "adaptiveIcon": {
         "backgroundColor": "#F6F4EE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -61,6 +60,12 @@
             "image": "./assets/splash.png",
             "backgroundColor": "#101815"
           }
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Sokoni Hub uses your location to confirm where your order should be delivered and to show your rider on the map."
         }
       ]
     ]

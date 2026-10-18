@@ -33,6 +33,9 @@ const checkoutSchema = z.object({
   contact_phone: z.string().min(7).max(20),
   contact_email: z.string().trim().email().max(200).optional().or(z.literal('')),
   delivery_address: z.string().min(5).max(300),
+  // Pin the customer confirmed on the map at checkout. Both or neither.
+  delivery_lat: z.number().min(-90).max(90).optional(),
+  delivery_lng: z.number().min(-180).max(180).optional(),
   city: z.string().min(2).max(60),
   country: z.string().min(2).max(60),
   payment_method: z.enum(['cash_on_delivery', 'whatsapp', 'bank_transfer']).default('cash_on_delivery'),
@@ -185,6 +188,9 @@ orderRouter.post('/quote', async (req, res, next) => {
 orderRouter.post('/checkout', optionalAuth, async (req, res, next) => {
   try {
     const b = checkoutSchema.parse(req.body);
+    if ((b.delivery_lat === undefined) !== (b.delivery_lng === undefined)) {
+      throw new HttpError(422, 'Confirm the delivery location on the map before placing your order.');
+    }
     const fingerprint=createHash('sha256').update(JSON.stringify({body:b,buyer:req.user?.id??null})).digest('hex');
     const created = await tx(async (c) => {
       await c.query('select pg_advisory_xact_lock(hashtextextended($1,0))',['checkout:'+b.request_id]);
@@ -211,12 +217,15 @@ orderRouter.post('/checkout', optionalAuth, async (req, res, next) => {
         // constraint on the table enforces this, so a regression fails loudly.
         const { rows: [order] } = await c.query(
           `insert into orders (code, buyer_id, vendor_id, payment_method, subtotal, delivery_fee, total, currency,
-             contact_name, contact_phone, contact_email, delivery_address, city, country, note, fulfilment_mode, source)
-           values ($1,$2,$3,$4::payment_method,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16::fulfilment_mode,$17) returning *`,
+             contact_name, contact_phone, contact_email, delivery_address, city, country, note, fulfilment_mode, source,
+             delivery_lat, delivery_lng)
+           values ($1,$2,$3,$4::payment_method,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16::fulfilment_mode,$17,$18,$19) returning *`,
           [code, req.user?.id ?? null, quote.vendor_id, b.payment_method,
            quote.subtotal, quote.delivery_fee, quote.total, quote.currency,
            b.contact_name, b.contact_phone, contactEmail,
-           b.delivery_address, b.city, b.country, b.note || null, quote.mode, source]
+           b.delivery_address, b.city, b.country, b.note || null, quote.mode, source,
+           quote.mode === 'delivery' ? (b.delivery_lat ?? null) : null,
+           quote.mode === 'delivery' ? (b.delivery_lng ?? null) : null]
         );
         for (const { r, qty, line } of lines) {
           await c.query(
@@ -293,7 +302,7 @@ orderRouter.get('/track', async (req, res, next) => {
       `select o.id, o.code, o.vendor_id, o.status, o.payment_method, o.subtotal,
               o.delivery_fee, o.total, o.currency, o.contact_name, o.contact_phone,
               o.delivery_address, o.city, o.country, o.note, o.fulfilment_mode,
-              o.driver_lat, o.driver_lng, o.delivery_proof_url,
+              o.driver_lat, o.driver_lng, o.delivery_proof_url, o.delivery_lat, o.delivery_lng, o.driver_id,
               o.created_at, o.updated_at, v.business_name, v.whatsapp
          from orders o join vendors v on v.id = o.vendor_id
         where o.code = $1 and regexp_replace(o.contact_phone,'\\D','','g') = regexp_replace($2,'\\D','','g')`,
@@ -304,6 +313,21 @@ orderRouter.get('/track', async (req, res, next) => {
       'select id, listing_id, title, unit_price, qty, unit, line_total from order_items where order_id = $1',
       [order.id]
     );
+    // Rider details for the buyer. The phone is shared only while the rider is
+    // actually on this delivery; it is hidden once the order is finished.
+    if (order.driver_id && order.status !== 'cancelled') {
+      const rider = await one<any>(
+        `select u.full_name as name, u.phone, d.vehicle_type, d.license_plate
+           from drivers d join users u on u.id = d.user_id
+          where d.user_id = $1`,
+        [order.driver_id]
+      );
+      if (rider) {
+        const onTheWay = ['dispatched_to_driver', 'driver_arrived', 'out_for_delivery'].includes(order.status);
+        order.driver = { name: rider.name, vehicle_type: rider.vehicle_type, license_plate: rider.license_plate, phone: onTheWay ? rider.phone : null };
+      }
+    }
+    delete order.driver_id;
     res.json({ order });
   } catch (e) { next(e); }
 });

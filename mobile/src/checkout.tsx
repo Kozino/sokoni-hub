@@ -6,6 +6,7 @@ import { api, ApiError } from './api';
 import { useAuth, useCart, useTheme } from './providers';
 import type { CartQuote, FulfilmentMode, Order, PaymentMethod } from './types';
 import { BottomBar, Button, Card, Divider, EmptyState, Field, Header, Money, Notice, Spinner, Text } from './ui';
+import { DeliveryPin, type DeliveryPinValue } from './DeliveryPin';
 
 const errorText = (e: unknown) => (e instanceof ApiError || e instanceof Error) ? e.message : 'Something went wrong. Please try again.';
 const PAYMENTS: [PaymentMethod, string, string, IconName][] = [
@@ -26,6 +27,8 @@ export function Checkout({ go, back, tab }: { go: (screen: any, params?: any) =>
   const [busy, setBusy] = useState(false);
   const [placed, setPlaced] = useState<Placed | null>(null);
   const [touched, setTouched] = useState(false);
+  // Customer-confirmed delivery point. Required whenever any vendor delivers.
+  const [pin, setPin] = useState<DeliveryPinValue | null>(null);
   // Idempotency: an identical retry (double-tap, flaky network) reuses its key and can never create
   // two orders; any change to the order body gets a fresh key.
   const attempt = useRef<{ key: string; id: string } | null>(null);
@@ -60,6 +63,7 @@ export function Checkout({ go, back, tab }: { go: (screen: any, params?: any) =>
     contact_phone: form.contact_phone.replace(/\D/g, '').length < 7 ? 'Enter a valid phone number' : '',
     delivery_address: needsAddress && form.delivery_address.trim().length < 5 ? 'Enter your building, street and area' : '',
     city: needsAddress && form.city.trim().length < 2 ? 'Enter your city' : '',
+    delivery_pin: needsAddress && !pin ? 'Confirm your delivery location on the map' : '',
   };
   const valid = !Object.values(errors).some(Boolean);
 
@@ -81,6 +85,8 @@ export function Checkout({ go, back, tab }: { go: (screen: any, params?: any) =>
         country: form.country.trim() || 'Qatar',
         payment_method: form.payment_method,
         note: form.note.trim() || undefined,
+        // The pin is sent only when an address is needed; collection orders have no delivery point.
+        ...(needsAddress && pin ? { delivery_lat: pin.latitude, delivery_lng: pin.longitude } : {}),
       };
       const key = JSON.stringify(body);
       if (!attempt.current || attempt.current.key !== key) attempt.current = { key, id: randomUUID() };
@@ -152,6 +158,15 @@ export function Checkout({ go, back, tab }: { go: (screen: any, params?: any) =>
       <Field label="Full name" value={form.contact_name} onChangeText={set('contact_name')} autoComplete="name" error={fieldError('contact_name')} />
       <Field label="Phone number" value={form.contact_phone} onChangeText={set('contact_phone')} keyboardType="phone-pad" placeholder="+974…" error={fieldError('contact_phone')} />
       {needsAddress ? <>
+        <DeliveryPin
+          value={pin}
+          error={fieldError('delivery_pin')}
+          onConfirm={(confirmed, suggestion) => {
+            setPin(confirmed);
+            // Fill the address from the map only if the customer has not typed one yet.
+            if (suggestion) setForm((old) => (old.delivery_address.trim() ? old : { ...old, delivery_address: suggestion }));
+          }}
+        />
         <Field label="Delivery address" value={form.delivery_address} onChangeText={set('delivery_address')} multiline placeholder="Building, street, zone" error={fieldError('delivery_address')} style={{ minHeight: 70, textAlignVertical: 'top', paddingTop: 12 }} />
         <View style={styles.pair}>
           <View style={{ flex: 1 }}><Field label="City" value={form.city} onChangeText={set('city')} error={fieldError('city')} /></View>
