@@ -25,6 +25,9 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 import { tap, success } from '../haptics';
 
+// Sokoni Hub brand colours (logo green and gold).
+const BRAND = { green: '#05663F', greenSoft: '#E1F7E9', gold: '#FF7A00', goldSoft: '#FFF1E0' };
+
 export type Screen = 'welcome' | 'home' | 'browse' | 'cart' | 'account' | 'login' | 'register' | 'pin' | 'pinsetup' | 'forgot' | 'listing' | 'store' | 'checkout' | 'orders' | 'bookings' | 'track' | 'booking' | 'support' | 'saved' | 'notifications' | 'legal';
 export type Nav = { screen: Screen; params?: Record<string, any>; id?: number };
 
@@ -180,60 +183,58 @@ import { WebOnlyAccount } from './WebOnlyAccount';export function Account({ go, 
       contentContainerStyle={{ paddingBottom: 60 }} 
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={colors.primary} />}
     >
-      {/* Premium Header */}
-      <View style={{ paddingHorizontal: 20, paddingTop: 40, paddingBottom: 24, backgroundColor: colors.bg }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 10 }}>
-          <Pressable accessibilityRole="button" onPress={() => go('notifications')} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}>
-            <Icon name="notifications-outline" size={22} color={colors.text} />
+      {/* Brand hero: Sokoni green with gold accents */}
+      <View style={{ backgroundColor: BRAND.green, paddingTop: 56, paddingHorizontal: 20, paddingBottom: 56, borderBottomLeftRadius: 30, borderBottomRightRadius: 30, overflow: 'hidden' }}>
+        <View style={{ position: 'absolute', right: -50, top: -50, width: 170, height: 170, borderRadius: 85, backgroundColor: 'rgba(255,255,255,0.06)' }} />
+        <View style={{ position: 'absolute', left: -40, bottom: -70, width: 150, height: 150, borderRadius: 75, backgroundColor: 'rgba(255,122,0,0.22)' }} />
+
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={{ fontSize: 12, fontWeight: '800', letterSpacing: 1, color: 'rgba(255,255,255,0.72)', textTransform: 'uppercase' }}>My account</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Notifications" onPress={() => go('notifications')} style={({ pressed }) => ({ width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.7 : 1 })}>
+            <Icon name="notifications-outline" size={21} color="#FFFFFF" />
           </Pressable>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-          <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', shadowColor: colors.primary, shadowOpacity: 0.3, shadowRadius: 10, elevation: 4 }}>
-            <Text style={{ fontSize: 28, fontWeight: '800', color: '#fff' }}>{user.full_name.charAt(0).toUpperCase()}</Text>
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 20 }}>
+          <View style={{ width: 82, height: 82, borderRadius: 41, backgroundColor: BRAND.gold, alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: 'rgba(255,255,255,0.9)', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, elevation: 5 }}>
+            <Text style={{ fontSize: 32, fontWeight: '900', color: '#FFFFFF' }}>{user.full_name.charAt(0).toUpperCase()}</Text>
           </View>
           <View style={{ flex: 1 }}>
-            <Text numberOfLines={1} style={{ fontSize: 24, fontWeight: '800', color: colors.text, letterSpacing: -0.5, marginBottom: 2 }}>{user.full_name}</Text>
-            <Text numberOfLines={1} style={{ fontSize: 15, color: colors.text2 }}>{user.email || user.phone}</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6, backgroundColor: colors.primarySoft, alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
-              <Icon name="shield-checkmark" size={12} color={colors.primary} />
-              <Text style={{ fontSize: 11, fontWeight: '700', color: colors.primary }}>Verified Buyer</Text>
+            <Text numberOfLines={1} style={{ fontSize: 23, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.4 }}>{user.full_name}</Text>
+            <Text numberOfLines={1} style={{ fontSize: 14, color: 'rgba(255,255,255,0.82)', marginTop: 2 }}>{user.email || user.phone}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.16)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 }}>
+              <Icon name="shield-checkmark" size={14} color="#FFB36B" />
+              <Text style={{ fontSize: 12, fontWeight: '800', color: '#FFFFFF' }}>Verified buyer</Text>
             </View>
           </View>
         </View>
       </View>
 
-      {/* Quick Tiles Row */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 8, gap: 12 }}>
-        {tiles.map(([icon, label, n, onPress]) => (
-          <Pressable 
-            key={label} 
-            onPress={onPress} 
-            style={({pressed}) => [{ 
-              width: 88, 
-              height: 92, 
-              backgroundColor: colors.surface, 
-              borderRadius: 16, 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              shadowColor: '#000', 
-              shadowOpacity: 0.03, 
-              shadowRadius: 6, 
-              elevation: 1,
-              opacity: pressed ? 0.8 : 1
-            }]}
-          >
-            <View style={{ position: 'relative', marginBottom: 8 }}>
-              <Icon name={icon} size={26} color={colors.text} />
-              {n ? (
-                <View style={{ position: 'absolute', top: -6, right: -10, backgroundColor: colors.primary, minWidth: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 2, borderColor: colors.surface }}>
-                  <Text style={{ fontSize: 9, fontWeight: '800', color: '#fff' }}>{n}</Text>
-                </View>
-              ) : null}
-            </View>
-            <Text style={{ fontSize: 12, fontWeight: '600', color: colors.text2 }}>{label}</Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+      {/* Shortcut card overlapping the hero */}
+      <View style={{ marginHorizontal: 16, marginTop: -30, backgroundColor: colors.surface, borderRadius: 22, padding: 10, flexDirection: 'row', gap: 6, shadowColor: '#0B2B1E', shadowOpacity: 0.1, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 4, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border }}>
+        {tiles.map(([icon, label, n, onPress], index) => {
+          const tone = index % 2 === 0 ? { bg: BRAND.greenSoft, fg: BRAND.green } : { bg: BRAND.goldSoft, fg: BRAND.gold };
+          return (
+            <Pressable
+              key={label}
+              accessibilityRole="button"
+              accessibilityLabel={label}
+              onPress={onPress}
+              style={({ pressed }) => ({ flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 16, opacity: pressed ? 0.7 : 1 })}
+            >
+              <View style={{ width: 50, height: 50, borderRadius: 17, backgroundColor: tone.bg, alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name={icon} size={23} color={tone.fg} />
+                {n ? (
+                  <View style={{ position: 'absolute', top: -5, right: -5, minWidth: 19, height: 19, borderRadius: 10, backgroundColor: BRAND.gold, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 2, borderColor: colors.surface }}>
+                    <Text style={{ fontSize: 10, fontWeight: '900', color: '#FFFFFF' }}>{n}</Text>
+                  </View>
+                ) : null}
+              </View>
+              <Text style={{ marginTop: 8, fontSize: 12, fontWeight: '700', color: colors.text }}>{label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
 
       <GroupTitle>Profile Details</GroupTitle>
       <CardGroup>
