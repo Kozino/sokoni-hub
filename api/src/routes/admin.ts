@@ -521,7 +521,8 @@ adminRouter.get('/drivers', async (req, res, next) => {
     const params = status ? [status] : [];
     
     const drivers = await query(
-      `select d.id, d.status, d.vehicle_type, d.license_plate, d.is_online, 
+      `select d.id, d.user_id, d.status, d.vehicle_type, d.license_plate, d.is_online,
+              d.bank_name, d.bank_account_name, d.bank_iban, d.documents,
               u.full_name, u.phone, u.email, d.created_at
        from drivers d
        join users u on u.id = d.user_id
