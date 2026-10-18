@@ -20,6 +20,12 @@
     },
     "android": {
       "package": "qa.sokonihub.consumer",
+       "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyDu0RB9s3f0ywM76Vm5IgXKp6PCGQe0GTc"
+ }
+      },
+
       "adaptiveIcon": {
         "backgroundColor": "#F6F4EE",
         "foregroundImage": "./assets/android-icon-foreground.png",
