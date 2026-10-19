@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom';
+import { Link, Outlet } from 'react-router-dom';
 import { Header } from '../../components/Layout';
 import DashShell, { DashLink, DashNotification } from '../../components/DashShell';
 import { useAuth } from '../../state/AuthContext';
@@ -72,6 +72,14 @@ function VendorConsole() {
 
   const banner = (
     <>
+      {vendor && (vendor.lat == null || vendor.lng == null) && (
+        <Alert kind="warn">
+          <span>
+            <strong>Set your store location.</strong> Buyers cannot place orders until you drop your shop
+            pin on the map in <Link to="/vendor/profile">Store profile</Link>.
+          </span>
+        </Alert>
+      )}
       {vendor?.status === 'pending' && (
         <Alert kind="warn">
           <span>

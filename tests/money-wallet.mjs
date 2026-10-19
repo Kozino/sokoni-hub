@@ -33,8 +33,8 @@ async function newVendor(){
   const u=await one("insert into users(full_name,phone,email,password_hash,role) values('Money test',$1,$2,$3,'vendor') returning id",
     ['974'+randomUUID().replace(/\D/g,'').slice(0,12),randomUUID()+'@example.invalid',hash]);
   const slug='money-'+randomUUID().slice(0,8);
-  return one(`insert into vendors(user_id,business_name,slug,whatsapp,country,city,status)
-              values($1,'Money test store',$2,'97400000000','QA','Doha','verified') returning id`,[u.id,slug]);
+  return one(`insert into vendors(user_id,business_name,slug,whatsapp,country,city,status,lat,lng)
+              values($1,'Money test store',$2,'97400000000','QA','Doha','verified',25.2854,51.531) returning id`,[u.id,slug]);
 }
 async function newOrder(vendorId,{subtotal,fee=0,goods=subtotal,rider=true}){
   const o=await one(`insert into orders(code,vendor_id,status,payment_method,subtotal,delivery_fee,total,contact_name,contact_phone,

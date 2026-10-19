@@ -54,7 +54,7 @@ try{
  ok((await call('/account-deletion/admin/'+r2.request.id+'/complete','POST',{...completion,history_reviewed:false},at)).status===400,'completion requires explicit historical-data review');
  ok((await call('/account-deletion/admin/'+r2.request.id+'/complete','POST',{...completion,retention_review_date:'2099-02-31'},at)).status===400,'invalid calendar dates rejected');
  ok((await call('/account-deletion/admin/'+r2.request.id+'/complete','POST',{...completion,retention_review_date:'2000-01-01'},at)).status===400,'past retention review dates rejected');
- const v=await one("insert into vendors(user_id,business_name,slug,whatsapp,country,city,status) values($1,'Deletion Store',$2,'97455551111','Qatar','Doha','verified') returning *",[vu.id,'del-'+randomUUID()]);
+ const v=await one("insert into vendors(user_id,business_name,slug,whatsapp,country,city,status,lat,lng) values($1,'Deletion Store',$2,'97455551111','Qatar','Doha','verified',25.2854,51.531) returning *",[vu.id,'del-'+randomUUID()]);
  const cat=await one("insert into categories(name,slug,kind) values($1,$2,'product') returning *",['Deletion '+randomUUID(),'del-'+randomUUID()]);
  const item=await one("insert into listings(vendor_id,category_id,kind,title,slug,price,quantity,status) values($1,$2,'product','Deletion item','deletion-item',50,10,'active') returning *",[v.id,cat.id]);
  async function order(buyer,status='pending'){return one("insert into orders(code,vendor_id,buyer_id,status,contact_name,contact_phone,delivery_address,city,country) values($1,$2,$3,$4,'Historical Contact','97455550002','Historical address','Doha','Qatar') returning *",['DEL-ORDER-'+randomUUID(),v.id,buyer,status]);}

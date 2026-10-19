@@ -5,7 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { CameraIcon, CheckCircleIcon, MapPinIcon, PhoneIcon, ArrowPathIcon } from 'react-native-heroicons/outline';
 import { api } from '../api';
 import { Badge, Button, Card, Notice, ScreenHeader } from '../components/UI';
-import { errorText, mapsLink, money, statusLabel } from '../format';
+import { errorText, mapsLink, mapsPointLink, money, statusLabel } from "../format";
 import { C } from '../theme';
 import type { Order } from './types';
 
@@ -195,7 +195,7 @@ export function ActiveDelivery({ orderId, onDone }: { orderId: string; onDone: (
             {order.pickup_address ? <Text style={styles.muted}>{order.pickup_address}</Text> : null}
             <View style={styles.actions}>
               {order.vendor_phone ? <ActionChip label="Call" icon={<PhoneIcon size={18} color={C.primary} />} onPress={() => Linking.openURL(`tel:${order.vendor_phone}`)} /> : null}
-              {order.pickup_address ? <ActionChip label="Navigate" icon={<MapPinIcon size={18} color={C.primary} />} onPress={() => Linking.openURL(mapsLink(order.pickup_address!))} /> : null}
+              {order.store_lat != null && order.store_lng != null ? <ActionChip label="Navigate" icon={<MapPinIcon size={18} color={C.primary} />} onPress={() => Linking.openURL(mapsPointLink(order.store_lat!, order.store_lng!))} /> : order.pickup_address ? <ActionChip label="Navigate" icon={<MapPinIcon size={18} color={C.primary} />} onPress={() => Linking.openURL(mapsLink(order.pickup_address!))} /> : null}
             </View>
             <Items items={order.items} />
             <View style={{ marginTop: 16 }}>

@@ -19,6 +19,8 @@ export type Order = {
   created_at: string;
   business_name: string;
   pickup_address: string | null;
+  store_lat?: number | string | null;
+  store_lng?: number | string | null;
   vendor_phone: string | null;
   items: OrderItem[];
   delivery_proof_url?: string | null;

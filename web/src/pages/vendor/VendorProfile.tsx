@@ -4,6 +4,7 @@ import { api, ApiError } from '../../lib/api';
 import { useAuth } from '../../state/AuthContext';
 import { Alert, Field, Spinner, StatusBadge } from '../../components/ui';
 import ImageUploader from '../../components/ImageUploader';
+import { DeliveryPin, type PinValue } from '../../components/DeliveryPin';
 import ShareStorePanel from '../../components/ShareStorePanel';
 import { useToast } from '../../state/ToastContext';
 import { date } from '../../lib/format';
@@ -15,6 +16,7 @@ export default function VendorProfile() {
   const [f, setF] = useState<any>(null);
   const [logo, setLogo] = useState<string[]>([]);
   const [doc, setDoc] = useState<string[]>([]);
+  const [pin, setPin] = useState<PinValue | null>(null);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -26,6 +28,7 @@ export default function VendorProfile() {
     });
     setLogo(vendor.logo_url ? [vendor.logo_url] : []);
     setDoc(vendor.id_document_url ? [vendor.id_document_url] : []);
+    setPin(vendor.lat != null && vendor.lng != null ? { latitude: Number(vendor.lat), longitude: Number(vendor.lng) } : null);
   }, [vendor]);
 
   if (!vendor || !f) return <Spinner />;
@@ -34,7 +37,13 @@ export default function VendorProfile() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault(); setErr(''); setBusy(true);
     try {
-      await api.patch('/vendors/me', { ...f, logo_url: logo[0] || null, id_document_url: doc[0] || null });
+      await api.patch('/vendors/me', {
+        ...f,
+        logo_url: logo[0] || null,
+        id_document_url: doc[0] || null,
+        lat: pin?.latitude ?? null,
+        lng: pin?.longitude ?? null,
+      });
       await refresh();
       push('Store profile updated', 'success');
     } catch (e) { setErr(e instanceof ApiError ? e.message : 'Could not save'); }
@@ -75,6 +84,17 @@ export default function VendorProfile() {
         </div>
         <Field label="Phone number *"><input required value={f.whatsapp} onChange={set('whatsapp')} /></Field>
         <Field label="Shop address"><input value={f.address} onChange={set('address')} /></Field>
+        <Field
+          label="Store location on the map *"
+          hint="Drop the pin on your shop entrance or pickup spot, not your home. Riders navigate here to collect orders. Your store cannot take orders until this is set."
+        >
+          <DeliveryPin
+            value={pin}
+            onChange={setPin}
+            emptyText="Tap the map to drop the pin on your shop entrance."
+          />
+        </Field>
+        {!pin && <Alert kind="warn">Your store is not taking orders until you set its location on the map.</Alert>}
         <Field label="Store logo"><ImageUploader value={logo} onChange={setLogo} max={1} label="Upload logo" /></Field>
         <Field label="CR licence" hint="CR or business-registration licence only — not personal ID. Restricted to you and authorised admins."><ImageUploader purpose="kyc" value={doc} onChange={setDoc} max={1} label="Upload CR licence" /></Field>
         {vendor.status === 'rejected' && <Alert kind="warn">Saving changes resubmits your store for verification.</Alert>}

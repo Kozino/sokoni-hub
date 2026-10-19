@@ -1,23 +1,36 @@
 # Sokoni Hub: fixes in this bundle
 
-Copy each file over the same path in your project (the paths are relative to the repo root).
+Copy each file over the same path in your project (paths are relative to the repo root).
 
-## 1. Driver app: "Could not confirm pickup / Something went wrong"
-- File: driver/src/api.ts
-- Cause: the API reports errors as { error }, but the driver app only read { message }, so every failure showed a generic message.
-- Fix: read `error` first, then `message`, and pass along `details`/`errors`.
-- Note: the pickup rule itself still applies. The rider must be within 150 m of the store, and the store needs a map location. The rider will now see the real reason if either fails.
+## 1. Driver pickup: "Could not confirm pickup / Something went wrong"
+- driver/src/api.ts: reads the API's `error` field (it was reading `message`), so the rider sees the real reason.
 
-## 2. Consumer app: "Book now" button on services
-- Mobile: mobile/src/booking.tsx and mobile/src/ui.tsx
-  - The "Book now" button is now a compact pill (40 px tall, 13 px text, auto width) instead of a 48 px button with a 160 px minimum width.
-  - `Button` gets an optional `textStyle` prop, so text size can be changed per button.
-- Web: web/src/styles.css and web/src/styles/MarketplaceTemplate.css
-  - The web "Book now" pill is 30 px tall and sized to its text.
-  - Phones (up to 640 px) show two-column product grids, the usual shop-grid layout.
-  - Tablet and iPad widths keep their multi-column grids.
+## 2. Store map pin, navigation, and pickup (new)
+- Vendors set their store's map pin on the web app (Store profile). Vendors do not use the mobile app.
+  - web/src/pages/vendor/VendorProfile.tsx: "Store location on the map" field using the map picker, saved with the profile.
+  - web/src/components/DeliveryPin.tsx: copy is now configurable (`emptyText`). Buyer wording is unchanged.
+  - web/src/pages/vendor/VendorLayout.tsx: warning banner on every vendor page until the pin is set.
+- A store without a pin cannot take orders. api/src/routes/orders.ts (`loadCart`) returns 422 for it, so both quote and checkout refuse it.
+- Moving the pin does not send a verified store back for review (api/src/routes/vendors.ts). Address, name, and licence changes still do.
+- Driver app: after accepting an order, "Navigate" opens directions to the store's exact pin (driver/src/format.ts `mapsPointLink`). It falls back to the typed address only if no pin exists.
+  - driver/src/screens/ActiveDelivery.tsx, driver/src/screens/types.ts.
+  - api/src/routes/drivers.ts: the driver's order list now includes `store_lat` and `store_lng`.
+- Pickup still requires the rider to be within 150 m of the pin. The error now says how far away the rider is.
+
+## 3. Consumer "Book now" on services (compact, responsive)
+- Mobile: mobile/src/booking.tsx and mobile/src/ui.tsx. A compact 40 px pill. `Button` gets a `textStyle` prop.
+- Web: web/src/styles.css and web/src/styles/MarketplaceTemplate.css. A 30 px pill. Phones show two columns. Tablets and iPads keep multi-column grids.
+
+## 4. Tests
+- tests/money-wallet.mjs, tests/security.mjs, tests/bookings-api.mjs, tests/deletion.mjs: test vendors now have a map pin, since the checkout rule requires one.
 
 ## Checks run
+- API: `tsc` and `build` pass. Integration suites pass against Postgres 17: money-wallet 16/16, security 68/68, bookings 34/34.
 - Driver: `tsc --noEmit` passes.
-- Mobile: `tsc --noEmit` passes (0 errors). Native Android/iOS builds were not run.
-- Web: `vite build` passes. Layout checked with screenshots at 360, 375, 768, and 1024 px.
+- Mobile: `tsc --noEmit` passes.
+- Web: `tsc --noEmit` and `vite build` pass.
+
+## Not yet verified
+- A direct check that checkout refuses a store with no pin (the rule is in place; no test was added for it yet).
+- Native Android and iOS builds, and the driver app on a device.
+- Vendor onboarding does not yet ask for the pin. The profile page and banner cover existing vendors.

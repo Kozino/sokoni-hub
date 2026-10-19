@@ -79,6 +79,10 @@ async function loadCart(items: { listing_id: string; qty: number; option?: strin
       throw new HttpError(422, `"${r.title}" is a service. Request a booking for it instead of adding it to your cart.`);
     if (r.status !== 'active' || r.vendor_status !== 'verified')
       throw new HttpError(400, `"${r.title}" is no longer available`);
+    // Riders navigate to the store's pin and confirm pickup against it. A store
+    // without a pin cannot be collected from, so it takes no orders until it sets one.
+    if (r.vlat === null || r.vlat === undefined || r.vlng === null || r.vlng === undefined)
+      throw new HttpError(422, `${r.business_name} has not set its store location yet, so it cannot take orders. Please try again later.`);
     const want = items.filter((i) => i.listing_id === r.id).reduce((sum, i) => sum + i.qty, 0);
     if (r.quantity !== null && r.quantity < want)
       throw new HttpError(409, `Only ${r.quantity} left of "${r.title}"`);

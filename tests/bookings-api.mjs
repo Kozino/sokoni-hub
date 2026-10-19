@@ -19,7 +19,7 @@ const other=(await db.query("insert into users(full_name,phone,password_hash,rol
 const {signToken}=require('../api/dist/auth');
 const token=await signToken(user,'vendor');
 const otherToken=await signToken(other,'vendor');
-const vendor=(await db.query("insert into vendors(user_id,business_name,slug,whatsapp,country,city,address,status) values($1,'Test Calendar Salon',$2,'97455550000','Qatar','Doha','Salwa Road','verified') returning id",[user,'calendar-'+suffix])).rows[0].id;
+const vendor=(await db.query("insert into vendors(user_id,business_name,slug,whatsapp,country,city,address,status,lat,lng) values($1,'Test Calendar Salon',$2,'97455550000','Qatar','Doha','Salwa Road','verified',25.2854,51.531) returning id",[user,'calendar-'+suffix])).rows[0].id;
 const category=(await db.query("select id from categories where kind='service' and not is_banned limit 1")).rows[0].id;
 const listing=(await db.query("insert into listings(vendor_id,category_id,kind,title,slug,price,duration_mins,status) values($1,$2,'service','Manicure','manicure',80,45,'active') returning id",[vendor,category])).rows[0].id;
 const listing2=(await db.query("insert into listings(vendor_id,category_id,kind,title,slug,price,duration_mins,status) values($1,$2,'service','Braids','braids',250,120,'active') returning id",[vendor,category])).rows[0].id;

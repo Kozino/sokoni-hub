@@ -36,7 +36,17 @@ function FollowPin({ latitude, longitude }: { latitude?: number; longitude?: num
   return null;
 }
 
-export function DeliveryPin({ value, onChange, error }: { value: PinValue | null; onChange: (p: PinValue) => void; error?: string }) {
+export function DeliveryPin({
+  value,
+  onChange,
+  error,
+  emptyText = 'Tap the map to drop the pin on your door.',
+}: {
+  value: PinValue | null;
+  onChange: (p: PinValue) => void;
+  error?: string;
+  emptyText?: string;
+}) {
   const [locating, setLocating] = useState(false);
   const [locErr, setLocErr] = useState('');
   const center = value ?? DOHA;
@@ -88,7 +98,7 @@ export function DeliveryPin({ value, onChange, error }: { value: PinValue | null
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
         <span className="muted" style={{ fontSize: '.85rem' }}>
-          {value ? `Pin set at ${value.latitude.toFixed(5)}, ${value.longitude.toFixed(5)}. Drag it or tap the map to adjust.` : 'Tap the map to drop the pin on your door.'}
+          {value ? `Pin set at ${value.latitude.toFixed(5)}, ${value.longitude.toFixed(5)}. Drag it or tap the map to adjust.` : emptyText}
         </span>
         <button type="button" className="btn btn-outline btn-sm" onClick={locate} disabled={locating}>
           {locating ? 'Locating…' : 'Use my location'}

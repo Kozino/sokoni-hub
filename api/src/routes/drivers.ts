@@ -37,6 +37,7 @@ const orderSelect = `
          o.contact_name, o.contact_phone, o.note, o.created_at, o.driver_lat, o.driver_lng,
          o.delivery_proof_url,
          v.business_name, v.address as pickup_address, v.whatsapp as vendor_phone,
+         v.lat as store_lat, v.lng as store_lng,
          (select coalesce(json_agg(json_build_object('title', i.title, 'qty', i.qty) order by i.title), '[]'::json)
             from order_items i where i.order_id = o.id) as items
   from orders o

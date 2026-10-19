@@ -115,8 +115,8 @@ try {
  // Restore a test admin session for document-ownership checks below.
  auth.data.token=await signToken(admin.id,'admin');
  const vt=await signToken(vendorUser.id,'vendor'),ot=await signToken(other.id,'vendor');
- const vendor=await one("insert into vendors(user_id,business_name,slug,whatsapp,country,city,status) values($1,'Secure Test Store',$2,'97455550001','Qatar','Doha','verified') returning *",[vendorUser.id,'security-'+suffix]);
- await one("insert into vendors(user_id,business_name,slug,whatsapp,country,city,status) values($1,'Other Test Store',$2,'97455550003','Qatar','Doha','verified') returning *",[other.id,'other-security-'+suffix]);
+ const vendor=await one("insert into vendors(user_id,business_name,slug,whatsapp,country,city,status,lat,lng) values($1,'Secure Test Store',$2,'97455550001','Qatar','Doha','verified',25.2854,51.531) returning *",[vendorUser.id,'security-'+suffix]);
+ await one("insert into vendors(user_id,business_name,slug,whatsapp,country,city,status,lat,lng) values($1,'Other Test Store',$2,'97455550003','Qatar','Doha','verified',25.2854,51.531) returning *",[other.id,'other-security-'+suffix]);
  const category=await one("insert into categories(name,slug,kind) values($1,$2,'product') returning *",['Security category '+suffix,'security-category-'+suffix]);
  const listing=await one("insert into listings(vendor_id,category_id,kind,title,slug,price,quantity,status,supplier_note) values($1,$2,'product','Security item','security-item',50,1,'active','PRIVATE SUPPLIER') returning *",[vendor.id,category.id]);
  const publicDetail=await call('/listings/'+listing.id);

@@ -160,8 +160,9 @@ vendorRouter.patch('/me', requireAuth('vendor'), loadVendor, async (req, res, ne
       !sameText(next.city, cur.city) ||
       !sameText(next.address, cur.address) ||
       !sameText(next.id_document_url, cur.id_document_url) ||
-      !sameNum(cur.lat, next.lat) ||
-      !sameNum(cur.lng, next.lng);
+      // The map pin is not part of identity: vendors must be able to move it to the exact
+      // entrance without the store going offline. Address changes still need review.
+      false;
     const reviewRequired = identityChanged && cur.status === 'verified';
 
     const status = reviewRequired || cur.status === 'rejected' ? 'pending' : cur.status;

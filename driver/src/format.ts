@@ -19,3 +19,8 @@ export const errorText = (e: unknown) =>
   e instanceof Error && e.message ? e.message : 'Something went wrong. Please try again.';
 
 export const mapsLink = (address: string) => `https://maps.google.com/?q=${encodeURIComponent(address)}`;
+
+// Turn-by-turn directions to an exact point (the store's map pin), which is more
+// precise than an address search.
+export const mapsPointLink = (lat: number | string, lng: number | string) =>
+  `https://www.google.com/maps/dir/?api=1&destination=${Number(lat)},${Number(lng)}&travelmode=driving`;
