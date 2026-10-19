@@ -1,3 +1,4 @@
+import { orderStatusLabel } from '../orderStatus';
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, BackHandler, FlatList, ImageBackground, KeyboardAvoidingView, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, useWindowDimensions, View, Platform } from 'react-native';
@@ -73,7 +74,7 @@ import { WebOnlyAccount } from './WebOnlyAccount';export function Notifications(
     try {
       const [orders, bookings] = await Promise.all([api.get<{ orders: Order[] }>('/orders/mine'), api.get<{ bookings: Booking[] }>('/bookings/mine')]);
       const list: Note[] = [
-        ...orders.orders.map((o): Note => ({ id: `o-${o.id}`, icon: 'receipt-outline', title: `Order ${o.code}`, text: `${statusLabel(o.status)} · ${o.business_name || o.vendor?.business_name || 'Seller'}`, at: o.created_at, onPress: () => go('track', { code: o.code, phone: user.phone }) })),
+        ...orders.orders.map((o): Note => ({ id: `o-${o.id}`, icon: 'receipt-outline', title: `Order ${o.code}`, text: `${orderStatusLabel(o.status)} · ${o.business_name || o.vendor?.business_name || 'Seller'}`, at: o.created_at, onPress: () => go('track', { code: o.code, phone: user.phone }) })),
         ...bookings.bookings.map((b): Note => ({ id: `b-${b.id}`, icon: 'calendar-outline', title: b.listing_title || `Booking ${b.code}`, text: `${statusLabel(b.status)} · ${dateTime(b.slot_starts_at || b.scheduled_at || b.preferred_at)}`, at: b.created_at, onPress: () => go('track', { bookingCode: b.code, phone: user.phone }) })),
       ].sort((a, b) => +new Date(b.at) - +new Date(a.at));
       setNotes(list);

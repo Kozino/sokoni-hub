@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { api, ApiError, qs } from '../../lib/api';
 import { money, date, dateTime, timeAgo, compactReference } from '../../lib/format';
 import { Alert, Empty, Field, Modal, StatusBadge, Tabs, useConfirm } from '../../components/ui';
+import { orderStatusLabel } from '../../lib/orderStatus';
 import { DataTable, DTColumn } from '../../components/DataTable';
 import { useToast } from '../../state/ToastContext';
 import { useAuth } from '../../state/AuthContext';
@@ -345,7 +346,7 @@ export function AdminOrders() {
         <input className="grow" placeholder="Search code, buyer or phone…" value={q} onChange={(e) => setQ(e.target.value)} style={{ minWidth: 250 }} />
         <select value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">All statuses</option>
-          {['pending', 'confirmed', 'dispatched', 'delivered', 'cancelled'].map((s) => <option key={s} value={s} style={{ textTransform: 'capitalize' }}>{s}</option>)}
+          {['pending', 'confirmed', 'dispatched', 'dispatched_to_driver', 'driver_arrived', 'out_for_delivery', 'delivered_pending_verification', 'delivered', 'cancelled'].map((s) => <option key={s} value={s}>{orderStatusLabel(s)}</option>)}
         </select>
         <button className="btn btn-primary btn-sm">Search</button>
       </form>

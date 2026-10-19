@@ -2,6 +2,7 @@ import { ReactNode, useEffect, useState, useRef, useId } from 'react';
 import { createPortal } from 'react-dom';
 import './booking.css';
 import { IconBox, IconReceipt, IconChart, IconCheck, IconInbox, IconAlert, IconSearch } from './icons';
+import { orderStatusLabel } from '../lib/orderStatus';
 
 /* Pages pass an emoji to <Empty icon="..."/>. Rather than edit every call site,
    emoji are mapped to the line-icon set here so empty states match the rest of
@@ -25,12 +26,13 @@ export function Badge({ tone = 'grey', children }: { tone?: 'grey' | 'green' | '
 const STATUS_TONES: Record<string, 'grey' | 'green' | 'gold' | 'red' | 'blue' | 'terra'> = {
   pending: 'gold', verified: 'green', rejected: 'red', suspended: 'red',
   active: 'green', paused: 'gold', draft: 'grey', removed: 'red', pending_review: 'gold',
-  confirmed: 'blue', dispatched: 'terra', delivered: 'green', cancelled: 'red',
+  confirmed: 'blue', dispatched: 'terra', dispatched_to_driver: 'terra', driver_arrived: 'terra', out_for_delivery: 'terra',
+  delivered_pending_verification: 'gold', delivered: 'green', cancelled: 'red',
   open: 'red', investigating: 'gold', resolved: 'green', dismissed: 'grey',
 };
 
 export const StatusBadge = ({ status }: { status: string }) => (
-  <Badge tone={STATUS_TONES[status] ?? 'grey'}>{status.replace(/_/g, ' ')}</Badge>
+  <Badge tone={STATUS_TONES[status] ?? 'grey'}>{orderStatusLabel(status)}</Badge>
 );
 
 export function Empty({ icon = '📭', title, text, action }: { icon?: string; title: string; text?: string; action?: ReactNode }) {

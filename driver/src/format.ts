@@ -8,7 +8,7 @@ const LABELS: Record<string, string> = {
   dispatched_to_driver: 'Heading to pickup',
   driver_arrived: 'At pickup',
   out_for_delivery: 'On the way',
-  delivered_pending_verification: 'Delivered',
+  delivered_pending_verification: 'Awaiting buyer confirmation',
   delivered: 'Delivered',
   cancelled: 'Cancelled',
 };

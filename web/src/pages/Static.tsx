@@ -8,6 +8,7 @@ import { api, ApiError, setToken } from '../lib/api';
 import { Alert, Field, StatusBadge } from '../components/ui';
 import { useAuth } from '../state/AuthContext';
 import { money, dateTime } from '../lib/format';
+import { orderProgressStep } from '../lib/orderStatus';
 import type { Order } from '../types';
 import { IconBox, IconHistory, IconSettings, IconTrash } from '../components/icons';
 import './account.css';
@@ -185,6 +186,63 @@ export function Support() {
 }
 
 /* ------------------------------------------------------------------ */
+/** Buyer's confirmation step for a delivered order: confirm receipt, or report a problem. */
+function VerifyOrderCard({ order, code, phone, onChanged }: { order: Order; code: string; phone: string; onChanged: () => void }) {
+  const [reporting, setReporting] = useState(false);
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const due = order.verify_by ? dateTime(order.verify_by) : null;
+
+  if (order.disputed_at) {
+    return (
+      <div className="card card-pad mt-3">
+        <strong>Problem reported</strong>
+        {order.dispute_reason && <p style={{ color: 'var(--muted)', fontSize: '.9rem' }}>“{order.dispute_reason}”</p>}
+        <Alert kind="warn">Our team is reviewing this order. Payment stays on hold until the review is complete.</Alert>
+      </div>
+    );
+  }
+
+  const run = async (action: () => Promise<unknown>) => {
+    setBusy(true); setErr('');
+    try { await action(); onChanged(); }
+    catch (e) { setErr(e instanceof ApiError ? e.message : 'Something went wrong. Please try again.'); }
+    finally { setBusy(false); }
+  };
+
+  const confirm = () => run(() => api.post('/orders/track/confirm', { code, phone }));
+  const report = () => {
+    if (reason.trim().length < 5) { setErr('Please describe the problem (at least 5 characters).'); return; }
+    return run(() => api.post('/orders/track/report', { code, phone, reason: reason.trim() }));
+  };
+
+  return (
+    <div className="card card-pad mt-3">
+      <strong>Did your order arrive?</strong>
+      <p style={{ color: 'var(--muted)', fontSize: '.9rem' }}>
+        {due ? `It completes automatically on ${due} unless you report a problem.` : 'It completes automatically unless you report a problem.'}
+      </p>
+      <Alert kind="error">{err}</Alert>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button className="btn btn-primary" disabled={busy} onClick={() => void confirm()}>Yes, I received it</button>
+        {!reporting && <button className="btn btn-outline" disabled={busy} onClick={() => setReporting(true)}>Report a problem</button>}
+      </div>
+      {reporting && (
+        <div className="mt-2">
+          <Field label="What went wrong?">
+            <textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Missing items, not delivered" />
+          </Field>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-ghost" disabled={busy} onClick={() => setReporting(false)}>Cancel</button>
+            <button className="btn btn-primary" disabled={busy} onClick={() => void report()}>Send report</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function TrackOrder() {
   const [f, setF] = useState({ code: '', phone: '' });
   const [order, setOrder] = useState<Order | null>(null);
@@ -197,6 +255,15 @@ export function TrackOrder() {
   };
 
   const steps = ['pending', 'confirmed', 'dispatched', 'delivered'];
+
+  // Re-read the order after confirm or report so the page reflects the new state.
+  const refresh = async () => {
+    try {
+      setOrder((await api.get<{ order: Order }>(`/orders/track?code=${encodeURIComponent(f.code)}&phone=${encodeURIComponent(f.phone)}`)).order);
+    } catch {
+      // Keep the current view if the refresh fails.
+    }
+  };
 
   return (
     <div className="container container-narrow">
@@ -219,10 +286,13 @@ export function TrackOrder() {
             <div><span className="td-mono" style={{ fontWeight: 800 }}>{order.code}</span><div style={{ fontSize: '.82rem', color: 'var(--muted)' }}>{order.business_name}</div></div>
             <StatusBadge status={order.status} />
           </div>
+          {order.status === 'delivered_pending_verification' && (
+            <VerifyOrderCard order={order} code={f.code} phone={f.phone} onChanged={refresh} />
+          )}
           {order.status !== 'cancelled' && (
             <div className="stepper">
               {steps.map((s, i) => {
-                const cur = steps.indexOf(order.status);
+                const cur = orderProgressStep(order.status);
                 return <div key={s} className={`step ${i < cur ? 'done' : i === cur ? 'active' : ''}`} style={{ textTransform: 'capitalize' }}>{s}</div>;
               })}
             </div>

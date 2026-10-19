@@ -95,6 +95,11 @@ export default function VendorOrders() {
               <StatusBadge status={detail.status} />
               <strong style={{ color: 'var(--accent-hover)' }}>{money(detail.total, detail.currency)}</strong>
             </div>
+            {detail.status === 'delivered_pending_verification' && (
+              <p style={{ color: 'var(--muted)', fontSize: '.85rem', margin: '0 0 12px' }}>
+                Delivered. Waiting for the buyer to confirm receipt. If they do not respond, the order completes automatically and the payout is released.
+              </p>
+            )}
             <table className="tbl mb-2">
               <thead><tr><th>Item</th><th>Qty</th><th>Unit price</th><th>Line</th></tr></thead>
               <tbody>

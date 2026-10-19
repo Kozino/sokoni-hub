@@ -2,7 +2,7 @@ export type Role = 'buyer' | 'vendor' | 'admin';
 export type VendorStatus = 'pending' | 'verified' | 'rejected' | 'suspended';
 export type ListingKind = 'product' | 'service';
 export type ListingStatus = 'draft' | 'pending_review' | 'active' | 'paused' | 'rejected' | 'removed';
-export type OrderStatus = 'pending' | 'confirmed' | 'dispatched' | 'delivered' | 'cancelled';
+export type OrderStatus = 'pending' | 'confirmed' | 'dispatched' | 'dispatched_to_driver' | 'driver_arrived' | 'out_for_delivery' | 'delivered_pending_verification' | 'delivered' | 'cancelled';
 export type PaymentMethod = 'cash_on_delivery' | 'whatsapp' | 'bank_transfer';
 export type FulfilmentMode = 'pickup' | 'delivery';
 export type ComplaintStatus = 'open' | 'investigating' | 'resolved' | 'dismissed';
@@ -63,6 +63,7 @@ export interface Order {
   fulfilment_mode?: FulfilmentMode;
   created_at: string; items?: OrderItem[]; business_name?: string;
   whatsapp_url?: string; vendor?: { business_name: string; whatsapp: string };
+  verify_by?: string | null; disputed_at?: string | null; dispute_reason?: string | null; completed_by?: string | null;
 }
 
 /** One message in the admin <-> vendor thread on a complaint. */
