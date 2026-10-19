@@ -218,16 +218,6 @@ export function BookServiceModal({ open, onClose, listing }: Props) {
                 Add to calendar
               </a>
             )}
-            {done.whatsapp && (
-              <a
-                className="btn btn-wa"
-                href={done.whatsapp}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Message the provider
-              </a>
-            )}
           </div>
           <p className="bk-sub mt-2">
             Calendar reminders depend on your calendar app. Downloaded events do

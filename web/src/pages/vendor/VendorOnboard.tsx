@@ -31,6 +31,7 @@ export default function VendorOnboard() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!doc[0]) return setErr('Upload your CR or business-registration licence to apply.');
     if (!agree) return setErr('You must accept the prohibited-goods policy');
     setErr(''); setBusy(true);
     try {
@@ -76,7 +77,7 @@ export default function VendorOnboard() {
               <Field label="Country *"><input required value={f.country} onChange={set('country')} placeholder="Nigeria" /></Field>
               <Field label="City *"><input required value={f.city} onChange={set('city')} placeholder="Lagos" /></Field>
             </div>
-            <Field label="WhatsApp number *" hint="Buyers will message this number directly">
+            <Field label="Phone number *">
               <input required value={f.whatsapp} onChange={set('whatsapp')} placeholder="+234 801 234 5678" />
             </Field>
             <Field label="Shop address (optional)"><input value={f.address} onChange={set('address')} /></Field>
@@ -96,7 +97,7 @@ export default function VendorOnboard() {
             </Field>
             <div className="row">
               <button type="button" className="btn btn-ghost" onClick={() => setStep(1)}>← Back</button>
-              <button type="button" className="btn btn-primary grow" onClick={() => setStep(3)}>Continue</button>
+              <button type="button" className="btn btn-primary grow" disabled={!doc[0]} onClick={() => setStep(3)}>Continue</button>
             </div>
           </>
         )}
@@ -107,9 +108,9 @@ export default function VendorOnboard() {
             <dl className="kv mb-2">
               <dt>Business</dt><dd>{f.business_name}</dd>
               <dt>Location</dt><dd>{f.city}, {f.country}</dd>
-              <dt>WhatsApp</dt><dd>{f.whatsapp}</dd>
+              <dt>Phone</dt><dd>{f.whatsapp}</dd>
               <dt>Logo</dt><dd>{logo[0] ? 'Uploaded' : 'Not provided'}</dd>
-              <dt>CR licence</dt><dd>{doc[0] ? 'Uploaded' : 'Not provided — may delay verification'}</dd>
+              <dt>CR licence</dt><dd>{doc[0] ? 'Uploaded' : 'Missing. Go back and upload it.'}</dd>
             </dl>
             <div className="prohibited mb-2">
               <strong>Reminder:</strong> medicine/drugs are strictly prohibited. Listing them
@@ -121,7 +122,7 @@ export default function VendorOnboard() {
             </label>
             <div className="row">
               <button type="button" className="btn btn-ghost" onClick={() => setStep(2)}>← Back</button>
-              <button className="btn btn-primary grow" disabled={busy}>{busy ? 'Submitting…' : 'Submit for verification'}</button>
+              <button className="btn btn-primary grow" disabled={busy || !doc[0]}>{busy ? 'Submitting…' : 'Submit for verification'}</button>
             </div>
           </>
         )}

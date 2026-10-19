@@ -6,9 +6,15 @@ import { HttpError, audit, secretsEqual, validateUuidParam } from '../utils';
 import { computeStatement, monthPeriod, formatMoney, type SettleableOrder } from '../billing';
 import { receiptHtml, statementHtml, type PlatformSettings } from '../templates';
 import { sendMail, emailEnabled } from '../mailer';
+import { moneyModel } from '../moneyModel';
 
 export const billingRouter = Router();
 billingRouter.param('id', validateUuidParam);
+
+/** Commission rate in use right now. Zero while the admin has commission switched off. */
+async function effectiveRate(cfg: Settings): Promise<number> {
+  return (await moneyModel()).commission_enabled ? cfg.commission_rate : 0;
+}
 
 /** Prefixes drive document numbering; the templates never need them. */
 type Settings = PlatformSettings & {
@@ -106,7 +112,7 @@ billingRouter.post('/statements/preview', requireAuth('admin'), async (req, res,
   try {
     const b = periodSchema.parse(req.body);
     const { period_start, period_end } = resolvePeriod(b);
-    const rate = (await settings()).commission_rate;
+    const rate = await effectiveRate(await settings());
     const groups = await settleableOrders(period_start, period_end, b.vendor_id);
     res.json({
       period_start, period_end, commission_rate: rate,
@@ -131,13 +137,14 @@ billingRouter.post('/statements/generate', requireAuth('admin'), async (req, res
     const b = periodSchema.parse(req.body);
     const { period_start, period_end } = resolvePeriod(b);
     const cfg = await settings();
+    const commissionRate = await effectiveRate(cfg);
     const groups = await settleableOrders(period_start, period_end, b.vendor_id);
     if (!groups.length) throw new HttpError(404, 'No settleable orders found for that period');
 
     const created = await tx(async (c) => {
       const out: any[] = [];
       for (const g of groups) {
-        const t = computeStatement(g.orders, cfg.commission_rate);
+        const t = computeStatement(g.orders, commissionRate);
         const { rows: [st] } = await c.query(
           `insert into vendor_statements
              (vendor_id, period_start, period_end, currency, order_count,
@@ -204,6 +211,7 @@ async function settleableOrders(from: string, to: string, vendorId?: string) {
      join vendors v on v.id = o.vendor_id
      left join statement_orders so on so.order_id = o.id
      where o.status = 'delivered'
+       and o.funds_collected_by = 'vendor'
        and so.order_id is null
        and o.created_at >= $1::date
        and o.created_at < ($2::date + interval '1 day')
@@ -575,12 +583,13 @@ billingRouter.post('/cron/run-statements', async (req, res, next) => {
     const { period_start, period_end } = monthPeriod(d.y, d.m);
 
     const cfg = await settings();
+    const commissionRate = await effectiveRate(cfg);
     const groups = await settleableOrders(period_start, period_end);
     const result = { period_start, period_end, generated: 0, issued: 0, emailed: 0, skipped: 0, errors: [] as string[] };
 
     for (const g of groups) {
       try {
-        const t = computeStatement(g.orders, cfg.commission_rate);
+        const t = computeStatement(g.orders, commissionRate);
         const st = await tx(async (c) => {
           const { rows: [row] } = await c.query(
             `insert into vendor_statements

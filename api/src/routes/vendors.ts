@@ -6,6 +6,7 @@ import { one, query } from '../db';
 import { requireAuth, loadVendor, requireVerifiedVendor, blockImpersonation } from '../auth';
 import { HttpError, audit, slugify, screenProhibited, normalizePhone } from '../utils';
 import { distanceKmSql } from '../delivery';
+import { moneyModel } from '../moneyModel';
 
 export const vendorRouter = Router();
 
@@ -18,7 +19,7 @@ const SELF_VENDOR_COLS = `id, user_id, business_name, slug, description, whatsap
 /* ------------------------------------------------------------------ */
 /* Onboarding                                                          */
 /* ------------------------------------------------------------------ */
-const onboardSchema = z.object({
+const vendorFields = {
   business_name: z.string().min(2).max(120),
   description: z.string().max(2000).optional(),
   whatsapp: z.string().min(7).max(20),
@@ -26,10 +27,21 @@ const onboardSchema = z.object({
   city: z.string().min(2).max(60),
   address: z.string().max(300).optional(),
   logo_url: z.string().url().optional().nullable(),
-  id_document_url: z.string().url().optional().nullable(),
   lat: z.number().min(-90).max(90).optional().nullable(),
   lng: z.number().min(-180).max(180).optional().nullable(),
+};
+
+// The CR (commercial registration) or business-registration licence is required to apply.
+const onboardSchema = z.object({
+  ...vendorFields,
+  id_document_url: z.string().url({ message: 'Upload your CR or business-registration licence to apply.' }),
 });
+
+// Profile edits: the licence can be replaced but not removed.
+const profileSchema = z.object({
+  ...vendorFields,
+  id_document_url: z.string().url().optional().nullable(),
+}).partial();
 
 
 vendorRouter.get('/me/subscriptions', requireAuth('vendor'), loadVendor, async (req, res, next) => {
@@ -41,6 +53,9 @@ vendorRouter.get('/me/subscriptions', requireAuth('vendor'), loadVendor, async (
 
 vendorRouter.post('/me/subscriptions', requireAuth('vendor'), loadVendor, async (req, res, next) => {
   try {
+    if (!(await moneyModel()).subscription_enabled) {
+      throw new HttpError(409, 'Monthly plans are not in use right now. You do not need to buy a plan.');
+    }
     const b = z.object({
       plan: z.enum(['standard', 'pro']),
       months: z.number().int().min(1).max(12),
@@ -100,54 +115,73 @@ vendorRouter.get('/me', requireAuth('vendor', 'admin'), loadVendor, async (req, 
 
 vendorRouter.patch('/me', requireAuth('vendor'), loadVendor, async (req, res, next) => {
   try {
-    const b = onboardSchema.partial().parse(req.body);
+    const b = profileSchema.parse(req.body);
     if (b.id_document_url) await documentKey(b.id_document_url, req.user!.id);
     const bad = await screenProhibited(b.business_name, b.description);
     if (bad) throw new HttpError(422, `Prohibited content detected ("${bad}").`);
 
-    // Verification covers a vendor's identity and location, not merely their
-    // account. Changing those claims sends a verified store through review
-    // again; description and logo changes remain self-service.
-    const whatsapp = b.whatsapp ? normalizePhone(b.whatsapp) : null;
-    const identityChanged = `
-      coalesce($2, business_name) is distinct from business_name or
-      coalesce($4, whatsapp) is distinct from whatsapp or
-      coalesce($5, country) is distinct from country or
-      coalesce($6, city) is distinct from city or
-      coalesce($7, address) is distinct from address or
-      coalesce($9, id_document_url) is distinct from id_document_url or
-      coalesce($10, lat) is distinct from lat or
-      coalesce($11, lng) is distinct from lng`;
+    const cur = await one<any>(`select * from vendors where id = $1`, [req.vendor!.id]);
+    if (!cur) throw new HttpError(404, 'Vendor not found');
+
+    // Compare cleaned values. Blank text is "no value", coordinates are compared to 6 decimals,
+    // so re-saving the same store never counts as a change.
+    const clean = (v: string | null | undefined) => {
+      if (v === undefined || v === null) return null;
+      const t = v.trim();
+      return t === '' ? null : t;
+    };
+    const coord = (v: number | null | undefined) => (v === undefined || v === null ? null : Math.round(v * 1e6) / 1e6);
+    const sameText = (a: string | null | undefined, b: string | null | undefined) => (clean(a) ?? null) === (clean(b) ?? null);
+    const sameNum = (a: any, b: number | null | undefined) => {
+      const x = a === null || a === undefined ? null : Math.round(Number(a) * 1e6) / 1e6;
+      return (x ?? null) === (coord(b) ?? null);
+    };
+
+    const next = {
+      business_name: clean(b.business_name) ?? cur.business_name,
+      description: b.description === undefined ? cur.description : clean(b.description),
+      whatsapp: b.whatsapp ? normalizePhone(b.whatsapp) : cur.whatsapp,
+      country: clean(b.country) ?? cur.country,
+      city: clean(b.city) ?? cur.city,
+      address: b.address === undefined ? cur.address : clean(b.address),
+      logo_url: b.logo_url || cur.logo_url,
+      id_document_url: b.id_document_url || cur.id_document_url,
+      lat: b.lat === undefined || b.lat === null ? cur.lat : coord(b.lat),
+      lng: b.lng === undefined || b.lng === null ? cur.lng : coord(b.lng),
+    };
+
+    // Verification covers identity and location. Changing those (name, phone, country, city,
+    // address, licence, map pin) sends a verified store back to review. Description and logo
+    // changes stay self-service and never take the store offline.
+    const identityChanged =
+      !sameText(next.business_name, cur.business_name) ||
+      !sameText(normalizePhone(next.whatsapp), normalizePhone(cur.whatsapp)) ||
+      !sameText(next.country, cur.country) ||
+      !sameText(next.city, cur.city) ||
+      !sameText(next.address, cur.address) ||
+      !sameText(next.id_document_url, cur.id_document_url) ||
+      !sameNum(cur.lat, next.lat) ||
+      !sameNum(cur.lng, next.lng);
+    const reviewRequired = identityChanged && cur.status === 'verified';
+
+    const status = reviewRequired || cur.status === 'rejected' ? 'pending' : cur.status;
     const vendor = await one<any>(
       `update vendors set
-         business_name   = coalesce($2, business_name),
-         description     = coalesce($3, description),
-         whatsapp        = coalesce($4, whatsapp),
-         country         = coalesce($5, country),
-         city            = coalesce($6, city),
-         address         = coalesce($7, address),
-         logo_url        = coalesce($8, logo_url),
-         id_document_url = coalesce($9, id_document_url),
-         lat             = coalesce($10, lat),
-         lng             = coalesce($11, lng),
-         status = case
-           when status = 'verified' and (${identityChanged}) then 'pending'::vendor_status
-           when status = 'rejected' then 'pending'::vendor_status
-           else status
-         end,
-         verified_at = case when status = 'verified' and (${identityChanged}) then null else verified_at end,
-         verified_by = case when status = 'verified' and (${identityChanged}) then null else verified_by end,
-         rejection_reason = case
-           when (status = 'verified' and (${identityChanged})) or status = 'rejected' then null
-           else rejection_reason
-         end
+         business_name = $2, description = $3, whatsapp = $4, country = $5, city = $6, address = $7,
+         logo_url = $8, id_document_url = $9, lat = $10, lng = $11,
+         status = $12::vendor_status,
+         verified_at = case when $13 then null else verified_at end,
+         verified_by = case when $13 then null else verified_by end,
+         rejection_reason = case when $13 or $14 = 'rejected' then null else rejection_reason end
        where id = $1 returning *`,
-      [req.vendor!.id, b.business_name ?? null, b.description ?? null,
-       whatsapp, b.country ?? null, b.city ?? null, b.address ?? null,
-       b.logo_url ?? null, b.id_document_url ?? null, b.lat ?? null, b.lng ?? null]
+      [
+        req.vendor!.id, next.business_name, next.description, next.whatsapp, next.country, next.city, next.address,
+        next.logo_url, next.id_document_url, next.lat, next.lng,
+        status, reviewRequired, cur.status,
+      ]
     );
     await audit(req.user!, 'vendor.update', 'vendor', vendor.id, {
-      resubmitted_for_review: vendor.status === 'pending' && req.vendor!.status === 'verified',
+      resubmitted_for_review: reviewRequired || (cur.status === 'rejected'),
     });
     res.json({ vendor });
   } catch (e) {

@@ -5,7 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { CameraIcon, CheckCircleIcon, MapPinIcon, PhoneIcon, ArrowPathIcon } from 'react-native-heroicons/outline';
 import { api } from '../api';
 import { Badge, Button, Card, Notice, ScreenHeader } from '../components/UI';
-import { errorText, mapsLink, statusLabel } from '../format';
+import { errorText, mapsLink, money, statusLabel } from '../format';
 import { C } from '../theme';
 import type { Order } from './types';
 
@@ -59,10 +59,49 @@ export function ActiveDelivery({ orderId, onDone }: { orderId: string; onDone: (
     };
   }, [status, orderId]);
 
+  const releaseJob = () => {
+    Alert.alert(
+      'Give this job back?',
+      'It goes back to the pool for another rider. Only do this if you cannot complete the pickup.',
+      [
+        { text: 'Keep job', style: 'cancel' },
+        {
+          text: 'Give back',
+          style: 'destructive',
+          onPress: async () => {
+            setBusy(true);
+            try {
+              await api.post(`/drivers/orders/${orderId}/release`, {});
+              onDone();
+            } catch (e) {
+              Alert.alert('Could not give the job back', errorText(e));
+            } finally {
+              setBusy(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  /** Reads the rider's GPS now. Returns null when location is off, so the caller can stop. */
+  const currentPosition = async (): Promise<{ lat: number; lng: number } | null> => {
+    const permission = await Location.requestForegroundPermissionsAsync();
+    if (permission.status !== 'granted') return null;
+    const fix = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+    return { lat: fix.coords.latitude, lng: fix.coords.longitude };
+  };
+
   const confirmPickup = async () => {
     setBusy(true);
     try {
-      await api.post(`/drivers/orders/${orderId}/pickup`, {});
+      // The server checks you are at the store, so pickup needs your location.
+      const here = await currentPosition();
+      if (!here) {
+        Alert.alert('Location needed', 'Turn on location so we can confirm you are at the store.');
+        return;
+      }
+      await api.post(`/drivers/orders/${orderId}/pickup`, here);
       await reload();
     } catch (e) {
       Alert.alert('Could not confirm pickup', errorText(e));
@@ -86,18 +125,17 @@ export function ActiveDelivery({ orderId, onDone }: { orderId: string; onDone: (
     setBusy(true);
     try {
       // The server checks that you are at the confirmed drop-off point, so read GPS first.
-      let here: { lat: number; lng: number } | null = null;
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (permission.status === 'granted') {
-        const fix = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-        here = { lat: fix.coords.latitude, lng: fix.coords.longitude };
+      const here = await currentPosition();
+      if (!here) {
+        Alert.alert('Location needed', 'Turn on location so we can confirm you are at the delivery point.');
+        return;
       }
       const form = new FormData();
       form.append('files', { uri: photo, name: 'proof.jpg', type: 'image/jpeg' } as any);
       const upload = await api.post<{ urls: string[] }>('/uploads', form);
       const proofUrl = upload.urls?.[0];
       if (!proofUrl) throw new Error('The photo could not be uploaded. Please try again.');
-      await api.post(`/drivers/orders/${orderId}/complete`, { proof_url: proofUrl, lat: here?.lat, lng: here?.lng });
+      await api.post(`/drivers/orders/${orderId}/complete`, { proof_url: proofUrl, lat: here.lat, lng: here.lng });
       Alert.alert('Delivery recorded', 'The customer will confirm receipt. If they do not respond, the order completes automatically.', [{ text: 'Done', onPress: onDone }]);
     } catch (e) {
       Alert.alert('Could not complete delivery', errorText(e));
@@ -162,12 +200,19 @@ export function ActiveDelivery({ orderId, onDone }: { orderId: string; onDone: (
             <Items items={order.items} />
             <View style={{ marginTop: 16 }}>
               <Button title="I have picked up the order" onPress={confirmPickup} loading={busy} icon={<CheckCircleIcon size={20} color="#fff" />} />
+              <Button title="Give this job back" tone="secondary" onPress={releaseJob} disabled={busy} style={{ marginTop: 8 }} />
             </View>
           </Card>
         ) : null}
 
         {dropStep ? (
           <>
+            {order.payment_method === 'cash_on_delivery' && order.payment_status !== 'paid' ? (
+              <View style={{ marginBottom: 14 }}>
+                <Notice>Collect {money(order.total)} in cash from the buyer before you hand over the order.</Notice>
+              </View>
+            ) : null}
+
             <Card>
               <Text style={styles.eyebrow}>DELIVER TO</Text>
               <Text style={styles.name}>{order.contact_name || 'Buyer'}</Text>

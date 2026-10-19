@@ -323,6 +323,21 @@ export function AdminOrders() {
   };
   useEffect(load, [status]);
 
+  // Stuck deliveries: release puts the job back in the rider pool, cancel ends the order and returns stock.
+  const recover = async (o: Order, action: 'release' | 'cancel') => {
+    const question = action === 'release'
+      ? `Put order ${o.code} back in the rider pool? Give a reason (at least 3 characters):`
+      : `Cancel order ${o.code} and return its stock? Give a reason (at least 3 characters):`;
+    const reason = window.prompt(question);
+    if (!reason || reason.trim().length < 3) return;
+    try {
+      await api.post(`/admin/orders/${o.id}/recover`, { action, reason: reason.trim() });
+      load();
+    } catch (e) {
+      window.alert(e instanceof ApiError ? e.message : 'Could not update this order.');
+    }
+  };
+
   const columns: DTColumn<Order>[] = [
     { key: 'code', header: 'Code', alwaysVisible: true, render: (o) => (
       <span className="td-mono td-strong order-code" title={o.code} aria-label={`Order code ${o.code}`}>
@@ -333,10 +348,21 @@ export function AdminOrders() {
     { key: 'store', header: 'Store', sortAccessor: (o) => o.business_name || '', render: (o) => o.business_name },
     { key: 'buyer', header: 'Buyer', render: (o) => <>{o.contact_name}<div style={{ fontSize: '.75rem', color: 'var(--text-muted)' }}>{o.contact_phone}</div></> },
     { key: 'city', header: 'City', defaultHidden: true, sortAccessor: (o) => o.city, render: (o) => o.city },
-    { key: 'payment', header: 'Payment', defaultHidden: true, render: (o) => <span style={{ fontSize: '.8rem', textTransform: 'capitalize' }}>{o.payment_method.replace(/_/g, ' ')}</span> },
+    { key: 'payment', header: 'Payment', defaultHidden: true, render: (o) => <span style={{ fontSize: '.8rem' }}>{String(o.payment_method) === 'cash_on_delivery' ? 'Cash on delivery' : String(o.payment_method).replace(/_/g, ' ')} · {o.payment_status === 'paid' ? 'Paid' : 'Unpaid'}</span> },
     { key: 'total', header: 'Total', align: 'right', sortAccessor: (o) => Number(o.total), render: (o) => <span className="td-strong">{money(o.total, o.currency)}</span> },
     { key: 'status', header: 'Status', sortAccessor: (o) => o.status, render: (o) => <StatusBadge status={o.status} /> },
     { key: 'placed', header: 'Placed', sortAccessor: (o) => o.created_at, render: (o) => <span style={{ fontSize: '.8rem' }}>{dateTime(o.created_at)}</span> },
+    { key: 'recover', header: 'Stuck order', alwaysVisible: true, render: (o) => {
+      const canRelease = o.status === 'dispatched_to_driver' || o.status === 'driver_arrived';
+      const canCancel = canRelease || o.status === 'dispatched';
+      if (!canCancel) return null;
+      return (
+        <div style={{ display: 'flex', gap: '.35rem', flexWrap: 'wrap' }}>
+          {canRelease && <button className="btn btn-sm" onClick={() => recover(o, 'release')}>Release job</button>}
+          <button className="btn btn-sm btn-danger" onClick={() => recover(o, 'cancel')}>Cancel order</button>
+        </div>
+      );
+    } },
   ];
 
   return (

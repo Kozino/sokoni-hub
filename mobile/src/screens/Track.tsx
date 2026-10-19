@@ -243,6 +243,43 @@ function RiderCard({ driver, order, active }: { driver: any; order: any; active:
   );
 }
 
+/** Buyer can cancel until a rider has accepted the order. The server enforces the same rule. */
+function CancelCard({ order, phone, onChanged }: { order: any; phone: string; onChanged: () => void | Promise<void> }) {
+  const { colors } = useTheme();
+  const [busy, setBusy] = useState(false);
+  const cancel = () => {
+    Alert.alert('Cancel this order?', 'The store will be told, and the reserved items are released.', [
+      { text: 'Keep order', style: 'cancel' },
+      {
+        text: 'Cancel order',
+        style: 'destructive',
+        onPress: async () => {
+          setBusy(true);
+          try {
+            await api.post('/orders/track/cancel', { code: order.code, phone });
+            await onChanged();
+          } catch (e) {
+            Alert.alert('Could not cancel', message(e));
+          } finally {
+            setBusy(false);
+          }
+        },
+      },
+    ]);
+  };
+  return (
+    <Card style={{ marginTop: 14, padding: 16, borderRadius: 18 }}>
+      <Text style={{ fontSize: 16, fontWeight: '900', color: colors.text }}>Changed your mind?</Text>
+      <Text style={{ fontSize: 13, color: colors.text2, marginTop: 6, lineHeight: 19 }}>
+        You can cancel until a rider accepts the order. After that, contact the store.
+      </Text>
+      <Button variant="secondary" loading={busy} disabled={busy} onPress={cancel} style={{ marginTop: 14 }}>
+        Cancel order
+      </Button>
+    </Card>
+  );
+}
+
 /** Buyer's confirmation step: confirm receipt, or report a problem before the window closes. */
 function VerifyCard({ order, phone, onChanged }: { order: any; phone: string; onChanged: () => void | Promise<void> }) {
   const { colors } = useTheme();
@@ -484,6 +521,14 @@ export function Track({ go, back, params }: any) {
                 <Text style={[styles.sub, { color: colors.text2 }]}>
                   {order.fulfilment_mode === 'pickup' ? 'Collection from store' : order.delivery_address}
                 </Text>
+                <Text style={[styles.sub, { color: colors.text2 }]}>
+                  {String(order.payment_method) === 'cash_on_delivery' ? 'Cash on delivery' : String(order.payment_method).replace(/_/g, ' ')} ·{' '}
+                  {order.payment_status === 'paid'
+                    ? 'Paid'
+                    : order.status === 'cancelled'
+                      ? 'Not charged'
+                      : order.fulfilment_mode === 'pickup' ? 'Pay at the store' : 'Pay the rider in cash'}
+                </Text>
                 {order.items?.length ? (
                   <>
                     <Divider />
@@ -507,6 +552,10 @@ export function Track({ go, back, params }: any) {
               <VerifyCard order={order} phone={trackedPhone} onChanged={refresh} />
             ) : null}
 
+            {order && ['pending', 'confirmed'].includes(order.status) && !order.driver ? (
+              <CancelCard order={order} phone={trackedPhone} onChanged={refresh} />
+            ) : null}
+
             {order?.delivery_proof_url ? (
               <Card style={{ marginTop: 14, padding: 16, borderRadius: 18 }}>
                 <Text style={[styles.sectionTitle, { color: colors.text }]}>Proof of delivery</Text>
@@ -518,11 +567,6 @@ export function Track({ go, back, params }: any) {
               <View style={{ marginTop: 14 }}><Notice>This order was placed before delivery pins were added, so the map shows the rider only.</Notice></View>
             ) : null}
 
-            {order?.whatsapp_url ? (
-              <Button variant="secondary" onPress={() => Linking.openURL(order.whatsapp_url)} style={{ marginTop: 14 }}>
-                Contact seller on WhatsApp
-              </Button>
-            ) : null}
           </>
         )}
       </ScrollView>

@@ -8,9 +8,11 @@ import { C } from '../theme';
 
 type Trip = { id: string; code: string; delivery_fee: number; created_at: string; business_name: string };
 type Summary = { total: number; trips: number; today: number; trips_today: number };
+type Ledger = { cash_held: number; fee_owed: number };
 
 export function Earnings() {
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [ledger, setLedger] = useState<Ledger | null>(null);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -18,7 +20,8 @@ export function Earnings() {
 
   const load = useCallback(async () => {
     try {
-      const res = await api.get<{ summary: Summary; recent: Trip[] }>('/drivers/earnings');
+      const res = await api.get<{ summary: Summary; recent: Trip[]; ledger?: { cash_held: number | null; fee_owed: number | null } }>('/drivers/earnings');
+      setLedger({ cash_held: Number(res.ledger?.cash_held ?? 0), fee_owed: Number(res.ledger?.fee_owed ?? 0) });
       setSummary({ ...res.summary, total: Number(res.summary.total), today: Number(res.summary.today) });
       setTrips(res.recent.map((t) => ({ ...t, delivery_fee: Number(t.delivery_fee) })));
       setError('');
@@ -60,6 +63,15 @@ export function Earnings() {
               <Stat label="Trips today" value={String(summary.trips_today)} />
             </View>
           </View>
+        ) : null}
+
+        {ledger ? (
+          <Card style={{ marginBottom: 14 }}>
+            <Text style={styles.tripBiz}>Cash to hand to Sokoni Hub: {money(ledger.cash_held)}</Text>
+            <Text style={styles.tripMeta}>
+              Cash collected on delivery that you still need to hand in. Fees owed to you: {money(ledger.fee_owed)}.
+            </Text>
+          </Card>
         ) : null}
 
         <Text style={styles.section}>Recent trips</Text>

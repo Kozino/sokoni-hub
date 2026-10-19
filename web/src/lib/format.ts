@@ -25,8 +25,6 @@ export const timeAgo = (s?: string | null) => {
   return date(s);
 };
 
-export const waLink = (phone: string, text: string) =>
-  `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(text)}`;
 
 export const titleCase = (s: string) => s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 

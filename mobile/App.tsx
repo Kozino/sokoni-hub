@@ -4,6 +4,7 @@ import { ToastContext } from './src/screens/Welcome';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from 'react-error-boundary';
 import { usePushNotifications } from './src/usePushNotifications';
+import { Platform } from 'react-native';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
@@ -140,7 +141,12 @@ export function Marketplace() {
   const fonts = useContext(FontContext);
   const [welcomeLoaded, setWelcomeLoaded] = useState(false);
   const [seenWelcome, setSeenWelcome] = useState(false);
-  usePushNotifications();
+  const { expoPushToken } = usePushNotifications();
+  // Register this device for order alerts once someone is signed in.
+  useEffect(() => {
+    if (!expoPushToken || !auth.user) return;
+    void api.post('/push/token', { token: expoPushToken, platform: Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'unknown' }).catch(() => {});
+  }, [expoPushToken, auth.user?.id]);
   const insets = useSafeAreaInsets();
   const counter = useRef(0);
   const [toast, setToast] = useState<{ text: string; cart: boolean; id: number } | null>(null);

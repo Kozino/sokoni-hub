@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../../lib/api';
-import { money, dateTime, waLink, compactReference } from '../../lib/format';
+import { money, dateTime, compactReference } from '../../lib/format';
 import { StatusBadge, Tabs, Modal } from '../../components/ui';
 import { DataTable, DTColumn } from '../../components/DataTable';
 import { useToast } from '../../state/ToastContext';
@@ -15,7 +15,7 @@ const TABS: { id: string; label: string }[] = [
 const NEXT: Record<string, OrderStatus[]> = {
   pending: ['confirmed', 'cancelled'],
   confirmed: ['dispatched', 'delivered', 'cancelled'],
-  dispatched: ['delivered'],
+  dispatched: ['delivered', 'cancelled'],
   delivered: [], cancelled: [],
 };
 
@@ -33,6 +33,31 @@ export default function VendorOrders() {
       .then((r) => setOrders(r.orders)).catch(() => setOrders([])).finally(() => setLoading(false));
   };
   useEffect(load, [tab]);
+
+  // New orders: check every 30 seconds for pending orders the vendor has not seen yet.
+  const seenPending = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    let stopped = false;
+    const check = async () => {
+      try {
+        const r = await api.get<{ orders: Order[] }>('/orders/vendor?status=pending');
+        if (stopped) return;
+        const previous = seenPending.current;
+        seenPending.current = new Set(r.orders.map((o) => o.id));
+        if (previous) {
+          const fresh = r.orders.filter((o) => !previous.has(o.id));
+          if (fresh.length) {
+            push(`${fresh.length} new order${fresh.length > 1 ? 's' : ''} waiting: ${fresh.map((o) => o.code).join(', ')}`, 'success');
+            load();
+          }
+        }
+      } catch { /* keep the page usable if a check fails */ }
+    };
+    void check();
+    const timer = setInterval(check, 30000);
+    return () => { stopped = true; clearInterval(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
   const move = async (o: Order, status: OrderStatus) => {
     try {
@@ -52,7 +77,7 @@ export default function VendorOrders() {
     { key: 'buyer', header: 'Buyer', sortAccessor: (o) => o.contact_name, render: (o) => <>{o.contact_name}<div style={{ fontSize: '.76rem', color: 'var(--text-muted)' }}>{o.contact_phone}</div></> },
     { key: 'items', header: 'Items', align: 'right', sortAccessor: (o) => o.items?.length ?? 0, render: (o) => o.items?.length ?? 0 },
     { key: 'total', header: 'Total', align: 'right', sortAccessor: (o) => Number(o.total), render: (o) => <span className="td-strong">{money(o.total, o.currency)}</span> },
-    { key: 'payment', header: 'Payment', defaultHidden: true, render: (o) => <span style={{ fontSize: '.8rem', textTransform: 'capitalize' }}>{o.payment_method.replace(/_/g, ' ')}</span> },
+    { key: 'payment', header: 'Payment', defaultHidden: true, render: (o) => <span style={{ fontSize: '.8rem' }}>{String(o.payment_method) === 'cash_on_delivery' ? 'Cash on delivery' : String(o.payment_method).replace(/_/g, ' ')} · {o.payment_status === 'paid' ? 'Paid' : 'Unpaid'}</span> },
     { key: 'delivery', header: 'Delivery', defaultHidden: true, sortAccessor: (o) => o.city, render: (o) => <span style={{ fontSize: '.8rem' }}>{o.city}</span> },
     { key: 'status', header: 'Status', sortAccessor: (o) => o.status, render: (o) => <StatusBadge status={o.status} /> },
     { key: 'placed', header: 'Placed', sortAccessor: (o) => o.created_at, render: (o) => <span style={{ fontSize: '.8rem' }}>{dateTime(o.created_at)}</span> },
@@ -112,13 +137,10 @@ export default function VendorOrders() {
               <dt>Buyer</dt><dd>{detail.contact_name}</dd>
               <dt>Phone</dt><dd>{detail.contact_phone}</dd>
               <dt>Address</dt><dd>{detail.delivery_address}, {detail.city}, {detail.country}</dd>
-              <dt>Payment</dt><dd style={{ textTransform: 'capitalize' }}>{detail.payment_method.replace(/_/g, ' ')}</dd>
+              <dt>Payment</dt><dd>{String(detail.payment_method) === 'cash_on_delivery' ? 'Cash on delivery' : String(detail.payment_method).replace(/_/g, ' ')} · {detail.payment_status === 'paid' ? 'Paid' : 'Unpaid'}</dd>
               <dt>Placed</dt><dd>{dateTime(detail.created_at)}</dd>
               {detail.note && <><dt>Buyer note</dt><dd>{detail.note}</dd></>}
             </dl>
-            <a className="btn btn-wa btn-block mt-2"
-               href={waLink(detail.contact_phone, `Hello ${detail.contact_name}, this is ${vendor?.business_name || 'your vendor'} regarding your Sokoni Hub order ${detail.code}.`)}
-               target="_blank" rel="noreferrer">Message buyer on WhatsApp</a>
           </>
         )}
       </Modal>

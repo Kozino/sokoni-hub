@@ -1,9 +1,11 @@
 import { registerRootComponent } from 'expo';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import './src/backgroundLocation'; // defines the background location task (QC item 14)
 import { AuthProvider, useAuth } from './src/providers/AuthContext';
 import { api } from './src/api';
+import { usePushToken } from './src/usePushToken';
 import { Welcome } from './src/screens/Welcome';
 import { Login } from './src/screens/Login';
 import { Register } from './src/screens/Register';
@@ -28,6 +30,13 @@ function Router() {
   const [tab, setTab] = useState<Tab>('home');
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [driver, setDriver] = useState<DriverState>('checking');
+  const pushToken = usePushToken();
+
+  // Riders get an alert when a job is posted near them.
+  useEffect(() => {
+    if (!pushToken || !user) return;
+    void api.post('/push/token', { token: pushToken, platform: Platform.OS === 'ios' ? 'ios' : 'android' }).catch(() => {});
+  }, [pushToken, user?.id]);
 
   // Riders must be approved by an admin before they can use the app.
   const loadDriver = async () => {

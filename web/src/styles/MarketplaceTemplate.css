@@ -208,7 +208,6 @@
 .marketplace-app .btn-outline { border-color: #bdd8cd; color: var(--market-teal-deep); background: var(--mk-card); }
 :root[data-theme='dark'] .marketplace-app .btn-outline { color: #8fe0bd; border-color: #2a5545; }
 .marketplace-app .btn-outline:hover { border-color: var(--market-teal); color: var(--market-teal-deep); background: #eff8f4; }
-.marketplace-app .btn-wa { background: #1d9a61; border-color: #1d9a61; }
 .marketplace-app .badge-terra { background: #e4f3ed; color: var(--market-teal-deep); border-color: #b8d9cc; }
 .marketplace-app .card-hover:hover { border-color: #bbdacd; box-shadow: 0 12px 28px rgba(18,77,59,.12); }
 

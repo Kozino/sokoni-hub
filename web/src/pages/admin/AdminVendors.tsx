@@ -71,7 +71,7 @@ export default function AdminVendors() {
     },
     { key: 'owner', header: 'Owner', render: (v) => <>{v.owner_name}<div style={{ fontSize: '.76rem', color: 'var(--text-muted)' }}>{v.owner_phone}</div></> },
     { key: 'location', header: 'Location', defaultHidden: true, sortAccessor: (v) => v.city, render: (v) => `${v.city}, ${v.country}` },
-    { key: 'whatsapp', header: 'WhatsApp', defaultHidden: true, render: (v) => <span className="td-mono" style={{ fontSize: '.8rem' }}>{v.whatsapp}</span> },
+    { key: 'whatsapp', header: 'Phone', defaultHidden: true, render: (v) => <span className="td-mono" style={{ fontSize: '.8rem' }}>{v.whatsapp}</span> },
     { key: 'listings', header: 'Listings', align: 'right', sortAccessor: (v) => Number(v.listings as number) || 0, render: (v) => v.listings as number },
     {
       key: 'complaints', header: 'Complaints', align: 'right', sortAccessor: (v) => v.open_complaints ?? 0,
@@ -171,7 +171,7 @@ export default function AdminVendors() {
                   <dt>Owner</dt><dd>{detail.owner_name}</dd>
                   <dt>Phone</dt><dd>{detail.owner_phone}</dd>
                   <dt>Email</dt><dd>{detail.owner_email || '—'}</dd>
-                  <dt>WhatsApp</dt><dd>{detail.whatsapp}</dd>
+                  <dt>Phone</dt><dd>{detail.whatsapp}</dd>
                   <dt>Location</dt><dd>{detail.city}, {detail.country}</dd>
                   <dt>Address</dt><dd>{detail.address || '—'}</dd>
                   <dt>Description</dt><dd>{detail.description || '—'}</dd>

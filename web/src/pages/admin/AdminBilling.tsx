@@ -4,6 +4,7 @@ import { money, date, titleCase } from '../../lib/format';
 import { Alert, Spinner, Empty, Field, Modal, Stat, Badge, Tabs, useConfirm } from '../../components/ui';
 import { useToast } from '../../state/ToastContext';
 import ImageUploader from '../../components/ImageUploader';
+import { AdminMoneyModel } from './AdminMoneyModel';
 import { exportExcel, exportPdf } from '../../lib/exporting';
 
 /* ------------------------------------------------------------------ */
@@ -189,7 +190,7 @@ export default function AdminBilling() {
       )}
 
       {tab === 'payouts' && <Payouts onDone={load} />}
-      {tab === 'settings' && <BillingSettings />}
+      {tab === 'settings' && <><AdminMoneyModel /><BillingSettings /></>}
       {dialog}
     </div>
   );

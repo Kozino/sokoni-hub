@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import type { Listing, Vendor } from '../types';
-import { waLink, date } from '../lib/format';
+import { date } from '../lib/format';
 import ListingCard from '../components/ListingCard';
 import Reviews from '../components/Reviews';
 import { Badge, Empty, Spinner, Tabs } from '../components/ui';

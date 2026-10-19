@@ -50,7 +50,12 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow Sokoni Driver to use your location to track active deliveries."
+          "locationAlwaysAndWhenInUsePermission": "Sokoni Driver uses your location to match you with deliveries and to show buyers your position while you are on a delivery.",
+          "locationAlwaysPermission": "Sokoni Driver uses your location in the background while you are online, so you can receive jobs and buyers can track their delivery.",
+          "locationWhenInUsePermission": "Sokoni Driver uses your location to find deliveries near you and to confirm pickup and drop-off.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
         }
       ],
       [
@@ -65,7 +70,8 @@
           "photosPermission": "Sokoni Driver uses your photos to upload your rider documents.",
           "cameraPermission": "Sokoni Driver uses the camera to take proof-of-delivery photos."
         }
-      ]
+      ],
+      "expo-notifications"
     ]
   }
 }

@@ -4,6 +4,7 @@ import * as Location from 'expo-location';
 import { ClockIcon, MapPinIcon, TruckIcon } from 'react-native-heroicons/outline';
 import { api } from '../api';
 import { useAuth } from '../providers/AuthContext';
+import { resumeRiderTracking, startRiderTracking, stopRiderTracking } from '../backgroundLocation';
 import { Badge, Button, Card, EmptyState, Notice } from '../components/UI';
 import { dateTime, errorText, money, statusLabel } from '../format';
 import { C } from '../theme';
@@ -40,6 +41,7 @@ export function Home({ onOpenDelivery }: { onOpenDelivery: (orderId: string) => 
       try {
         const me = await api.get<{ driver: { is_online: boolean } | null }>('/drivers/me');
         setOnline(!!me.driver?.is_online);
+        if (me.driver?.is_online) void resumeRiderTracking();
       } catch {}
       load();
     })();
@@ -68,7 +70,18 @@ export function Home({ onOpenDelivery }: { onOpenDelivery: (orderId: string) => 
       }
       await api.post('/drivers/status', body);
       setOnline(value);
-      if (value) load();
+      if (value) {
+        load();
+        const tracking = await startRiderTracking();
+        if (!tracking) {
+          Alert.alert(
+            'Background location is off',
+            'You are online, but Sokoni Hub cannot follow you when the app is closed. Allow "Always" location access in Settings so buyers see live tracking and you get matched while the app is in the background.',
+          );
+        }
+      } else {
+        await stopRiderTracking();
+      }
     } catch (e) {
       Alert.alert('Could not change status', errorText(e));
     } finally {

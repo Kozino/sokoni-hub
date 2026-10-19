@@ -3,6 +3,10 @@ import { Platform } from 'react-native';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+/** Where the last Expo push token is kept, so sign-out can remove it from the server. */
+export const PUSH_TOKEN_KEY = 'sokoni.pushToken';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -22,7 +26,10 @@ export function usePushNotifications() {
 
   useEffect(() => {
     registerForPushNotificationsAsync().then(token => {
-      if (token) setExpoPushToken(token);
+      if (token) {
+        setExpoPushToken(token);
+        void AsyncStorage.setItem(PUSH_TOKEN_KEY, token);
+      }
     });
 
     notificationListener.current = Notifications.addNotificationReceivedListener(notification => {

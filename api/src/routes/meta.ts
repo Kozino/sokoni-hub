@@ -1,8 +1,15 @@
 import { Router } from 'express';
 import { query, one } from '../db';
+import { moneyModel } from '../moneyModel';
 
 export const metaRouter = Router();
 
+
+metaRouter.get('/money-model', async (_req, res, next) => {
+  try {
+    res.json(await moneyModel());
+  } catch (e) { next(e); }
+});
 
 metaRouter.get('/plan-limits', async (_req, res, next) => {
   try {
@@ -36,7 +43,7 @@ metaRouter.get('/stats', async (_req, res, next) => {
 metaRouter.get('/policy', (_req, res) => {
   res.json({
     prohibited: ['Cosmetics and skin products', 'Medicine, drugs and pharmaceuticals'],
-    payment_methods: ['cash_on_delivery', 'whatsapp', 'bank_transfer'],
+    payment_methods: ['cash_on_delivery'],
     units: ['kg', 'litre', 'piece', 'bag', 'pack', 'carton', 'bundle'],
   });
 });

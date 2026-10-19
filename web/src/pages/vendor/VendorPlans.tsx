@@ -27,12 +27,14 @@ export default function VendorPlans() {
     }
   });
 
+  const [subsOn, setSubsOn] = useState(true);
   const [prices, setPrices] = useState<any>({
     standard: 100,
     pro: 250
   });
 
   useEffect(() => {
+    api.get<{ subscription_enabled: boolean }>('/meta/money-model').then((m) => setSubsOn(m.subscription_enabled)).catch(() => {});
     Promise.all([
       api.get<{subscriptions: VendorSubscription[]}>('/vendors/me/subscriptions').catch(() => ({ subscriptions: [] })),
       api.get<{limits: any, prices: any}>('/meta/plan-limits').catch(() => ({ limits: null, prices: null }))
@@ -60,6 +62,17 @@ export default function VendorPlans() {
   const plan = vendor?.plan !== 'free' && (!vendor?.plan_expires_at || new Date(vendor.plan_expires_at) > new Date()) ? (vendor?.plan || 'free') : 'free';
 
   if (loading) return <Spinner />;
+
+  if (!subsOn) {
+    return (
+      <div>
+        <div className="dash-header"><h2>Plans</h2></div>
+        <div className="card card-pad">
+          <p style={{ margin: 0 }}>Monthly plans are not in use right now. You do not need to buy a plan to list your products.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

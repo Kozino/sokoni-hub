@@ -13,7 +13,7 @@ import {
   live,
   tone,
 } from "../../lib/booking";
-import { money, waLink } from "../../lib/format";
+import { money } from "../../lib/format";
 import { Alert, Spinner, Empty, Badge, Modal, Stat } from "../../components/ui";
 import { useVendorDashboard } from "../../state/VendorDashboardContext";
 import "../../components/booking.css";
@@ -460,17 +460,6 @@ export default function VendorBookings() {
                 {active.preferred_note}
               </blockquote>
             )}
-            <a
-              className="btn btn-wa btn-block mt-2"
-              href={waLink(
-                active.contact_phone,
-                `Hello ${active.contact_name}, about your ${active.listing_title} booking ${active.code}${selected ? " on " + qWhen(selected) + " (Qatar time)" : ""}.`,
-              )}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Message on WhatsApp
-            </a>
             {active.slot_starts_at ? (
               <div className="booking-slot-info">
                 <small>Booked time (Qatar)</small>

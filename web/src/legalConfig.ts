@@ -42,7 +42,7 @@ export const legalConfig = {
     ['Database provider', 'Stores account, listing, order, booking and complaint records.'],
     ['Email delivery provider', 'Sends verification, order, booking and recovery emails.'],
     ['Google Analytics (Google)', 'Measures site usage. Loaded only if you accept analytics cookies.'],
-    ['WhatsApp (Meta)', 'Used only when you choose to contact support or a vendor on WhatsApp.'],
+    ['WhatsApp (Meta)', 'Used only when you choose to contact Sokoni Hub support on WhatsApp.'],
   ] as [string, string][],
 
   // Shown only when `draft` is true.

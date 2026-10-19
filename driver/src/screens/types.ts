@@ -22,4 +22,8 @@ export type Order = {
   vendor_phone: string | null;
   items: OrderItem[];
   delivery_proof_url?: string | null;
+  subtotal?: number | string;
+  payment_method?: string;
+  payment_status?: 'unpaid' | 'paid';
+  fulfilment_mode?: 'pickup' | 'delivery';
 };

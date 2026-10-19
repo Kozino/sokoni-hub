@@ -2,7 +2,7 @@ export type Role = 'buyer' | 'vendor' | 'admin';
 export type ThemeName = 'light' | 'dark';
 export type ListingKind = 'product' | 'service';
 export type FulfilmentMode = 'pickup' | 'delivery';
-export type PaymentMethod = 'cash_on_delivery' | 'whatsapp' | 'bank_transfer';
+export type PaymentMethod = 'cash_on_delivery';
 
 export interface User {
   id: string;
@@ -137,7 +137,6 @@ export interface Order {
   created_at: string;
   business_name?: string;
   whatsapp?: string;
-  whatsapp_url?: string;
   vendor?: { business_name: string; whatsapp: string };
   items?: { id?: string; title: string; qty: number; unit: string | null; line_total: number | string }[];
 }

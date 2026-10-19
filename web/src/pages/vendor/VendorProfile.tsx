@@ -73,7 +73,7 @@ export default function VendorProfile() {
           <Field label="Country *"><input required value={f.country} onChange={set('country')} /></Field>
           <Field label="City *"><input required value={f.city} onChange={set('city')} /></Field>
         </div>
-        <Field label="WhatsApp number *"><input required value={f.whatsapp} onChange={set('whatsapp')} /></Field>
+        <Field label="Phone number *"><input required value={f.whatsapp} onChange={set('whatsapp')} /></Field>
         <Field label="Shop address"><input value={f.address} onChange={set('address')} /></Field>
         <Field label="Store logo"><ImageUploader value={logo} onChange={setLogo} max={1} label="Upload logo" /></Field>
         <Field label="CR licence" hint="CR or business-registration licence only — not personal ID. Restricted to you and authorised admins."><ImageUploader purpose="kyc" value={doc} onChange={setDoc} max={1} label="Upload CR licence" /></Field>

@@ -1,10 +1,11 @@
+import { notifyBuyerOfOrder, notifyOnlineDrivers, notifyVendorOfOrder, buyerStatusMessage } from '../push';
 import { createHash } from 'crypto';
 import { PoolClient } from 'pg';
 import { Router } from 'express';
 import { z } from 'zod';
 import { one, query, tx } from '../db';
 import { requireAuth, optionalAuth, loadVendor } from '../auth';
-import { HttpError, audit, randomCode, waLink, validateUuidParam } from '../utils';
+import { HttpError, audit, randomCode, validateUuidParam } from '../utils';
 import { sendMailAsync } from '../mailer';
 import { receiptEmailHtml } from '../templates';
 import { orderCustomerEmail, orderVendorEmail } from '../transactionalEmail';
@@ -14,7 +15,9 @@ import {
   type FulfilmentMode, type VendorDeliverySettings,
 } from '../delivery';
 import { attributionSchema, resolveOrderSource } from '../lib/attribution';
-import { verificationSettings } from '../deliveryVerification';
+import { verificationSettings, distanceMetres } from '../deliveryVerification';
+import { restoreOrderStock } from '../orderRecovery';
+import { releaseVendorFunds } from '../walletSettlement';
 
 export const orderRouter = Router();
 orderRouter.param('id', validateUuidParam);
@@ -39,7 +42,7 @@ const checkoutSchema = z.object({
   delivery_lng: z.number().min(-180).max(180).optional(),
   city: z.string().min(2).max(60),
   country: z.string().min(2).max(60),
-  payment_method: z.enum(['cash_on_delivery', 'whatsapp', 'bank_transfer']).default('cash_on_delivery'),
+  payment_method: z.enum(['cash_on_delivery']).default('cash_on_delivery'),
   fulfilment_mode: z.enum(['pickup', 'delivery']).default('delivery'),
   note: z.string().max(500).optional(),
   attribution: attributionSchema,
@@ -55,6 +58,7 @@ async function loadCart(items: { listing_id: string; qty: number; option?: strin
   const read = async (sql:string,args:any[]) => c ? (await c.query(sql,args)).rows : query<any>(sql,args);
   const rows = await read(
     `select l.*, v.id as vid, v.slug as vendor_slug, v.business_name, v.whatsapp, v.status as vendor_status,
+            v.lat as vlat, v.lng as vlng,
             s.offers_pickup, s.offers_delivery, s.delivery_fee as v_delivery_fee,
             s.free_delivery_over, s.delivery_radius_km, s.pickup_address, s.delivery_notes
      from listings l
@@ -87,6 +91,23 @@ async function loadCart(items: { listing_id: string; qty: number; option?: strin
     byVendor.set(r.vid, list);
   }
   return byVendor;
+}
+
+/**
+ * Delivery radius (item 6). The store sets a radius in km; a delivery pin beyond it is refused.
+ * Returns the message to show the buyer, or null when the pin is in range (or no radius is set).
+ */
+function outsideDeliveryRadius(r: any, pin: { lat: number; lng: number }): string | null {
+  const radiusKm = r.delivery_radius_km === null || r.delivery_radius_km === undefined ? null : Number(r.delivery_radius_km);
+  if (radiusKm === null || !Number.isFinite(radiusKm)) return null;
+  if (r.vlat === null || r.vlat === undefined || r.vlng === null || r.vlng === undefined) {
+    return `${r.business_name} has not set its map location, so delivery is not available. Choose collection instead.`;
+  }
+  const metres = distanceMetres({ lat: Number(r.vlat), lng: Number(r.vlng) }, pin);
+  if (metres > radiusKm * 1000) {
+    return `${r.business_name} delivers within ${radiusKm} km. Your delivery point is about ${(metres / 1000).toFixed(1)} km away. Choose collection or a closer address.`;
+  }
+  return null;
 }
 
 const settingsOf = (r: any): VendorDeliverySettings | null =>
@@ -199,6 +220,16 @@ orderRouter.post('/checkout', optionalAuth, async (req, res, next) => {
       if(prior){if(prior.fingerprint!==fingerprint) throw new HttpError(409,'Checkout key already used for a different request');return prior.response as any[];}
       const byVendor=await loadCart(b.items,c);
       const priced=priceCart(byVendor,b.items,b.fulfilment_mode);
+      const deliveryQuotes = priced.filter((p) => p.quote.mode === 'delivery');
+      if (deliveryQuotes.length && b.delivery_lat === undefined) {
+        throw new HttpError(422, 'Confirm the delivery location on the map before placing your order.');
+      }
+      if (b.delivery_lat !== undefined && b.delivery_lng !== undefined) {
+        for (const { vItems } of deliveryQuotes) {
+          const problem = outsideDeliveryRadius(vItems[0], { lat: b.delivery_lat, lng: b.delivery_lng });
+          if (problem) throw new HttpError(422, problem);
+        }
+      }
       // Snapshot the address supplied at checkout. A guest can opt in, while a
       // signed-in buyer falls back to their verified account email.
       const accountEmail = req.user?.id
@@ -260,26 +291,12 @@ orderRouter.post('/checkout', optionalAuth, async (req, res, next) => {
             }
           }
         }
-        const feeLine = quote.mode === 'pickup'
-          ? 'Collection from store'
-          : `Delivery: ${quote.currency} ${quote.delivery_fee.toFixed(2)}`;
-        const text =
-          `New order ${code} from ${b.contact_name}\n` +
-          lines.map(({ r, qty }) => `• ${r.title} x${qty}`).join('\n') +
-          `\nSubtotal: ${quote.currency} ${quote.subtotal.toFixed(2)}` +
-          `\n${feeLine}` +
-          `\nTotal: ${quote.currency} ${quote.total.toFixed(2)}\n` +
-          (quote.mode === 'pickup'
-            ? `Collection${quote.pickup_address ? `: ${quote.pickup_address}` : ''}`
-            : `Deliver to: ${b.delivery_address}, ${b.city}`) +
-          `\nPayment: ${b.payment_method.replace(/_/g, ' ')}`;
         out.push({ ...order,
           // pg returns numeric columns as strings; coerce so the checkout
           // response has the same shape/types as the quote response.
           subtotal: quote.subtotal, delivery_fee: quote.delivery_fee, total: quote.total,
           items: lines.map(({ r, qty, line }) => ({ title: r.title, qty, line_total: line })),
-          vendor: { business_name: vItems[0].business_name, whatsapp: vItems[0].whatsapp },
-          whatsapp_url: waLink(vItems[0].whatsapp, text) });
+          vendor: { business_name: vItems[0].business_name } });
       }
       await c.query('insert into checkout_requests(key,fingerprint,response) values($1,$2,$3)',[b.request_id,fingerprint,JSON.stringify(out)]);
       return out;
@@ -287,7 +304,7 @@ orderRouter.post('/checkout', optionalAuth, async (req, res, next) => {
 
     await audit(req.user ?? null, 'order.create', 'order', created.map((o) => o.code).join(','));
     // Notifications are best-effort and deliberately never delay checkout.
-    created.forEach((order) => { void emailOrderCreated(order.id); });
+    created.forEach((order) => { void emailOrderCreated(order.id); void pushNewOrder(order.id, order.code); });
     res.status(201).json({ orders: created });
   } catch (e) {
     next(e);
@@ -302,7 +319,7 @@ orderRouter.get('/track', async (req, res, next) => {
     const phone = String(req.query.phone || '');
     const order = await one<any>(
       `select o.id, o.code, o.vendor_id, o.status, o.payment_method, o.subtotal,
-              o.delivery_fee, o.total, o.currency, o.contact_name, o.contact_phone,
+              o.delivery_fee, o.total, o.currency, o.contact_name, o.contact_phone, o.payment_status, o.paid_at,
               o.delivery_address, o.city, o.country, o.note, o.fulfilment_mode,
               o.driver_lat, o.driver_lng, o.delivery_proof_url, o.delivery_lat, o.delivery_lng, o.driver_id,
               o.verify_by, o.disputed_at, o.dispute_reason, o.delivered_at, o.completed_by,
@@ -345,7 +362,10 @@ export async function finalizeDueOrders(): Promise<number> {
       where status = 'delivered_pending_verification' and disputed_at is null and verify_by <= now()
       returning id`
   );
-  for (const r of rows) void emailReceipt(r.id);
+  for (const r of rows) {
+    await tx((c) => releaseVendorFunds(c, r.id));
+    void emailReceipt(r.id);
+  }
   return rows.length;
 }
 
@@ -364,6 +384,7 @@ orderRouter.post('/track/confirm', async (req, res, next) => {
       [b.code, b.phone]
     );
     if (row) {
+      await tx((c) => releaseVendorFunds(c, row.id));
       void emailReceipt(row.id);
       return res.json({ ok: true, status: 'delivered' });
     }
@@ -403,6 +424,35 @@ orderRouter.post('/track/report', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+/**
+ * Buyer cancels an order before a rider has accepted it (item 13). Once the store has
+ * dispatched it, or a rider has accepted it, the buyer must contact the store.
+ * Reserved stock goes back to the listings.
+ */
+orderRouter.post('/track/cancel', async (req, res, next) => {
+  try {
+    const b = z.object({ code: z.string().trim().min(3).max(40), phone: z.string().min(7).max(20) }).parse(req.body);
+    const orderId = await tx(async (c) => {
+      const row = (await c.query(
+        `select * from orders where code = $1 and ${phoneMatch('orders')} for update`,
+        [b.code, b.phone],
+      )).rows[0];
+      if (!row) throw new HttpError(404, 'No order found with that code and phone number');
+      if (row.status === 'cancelled') throw new HttpError(409, 'This order is already cancelled.');
+      if (!['pending', 'confirmed'].includes(row.status) || row.driver_id) {
+        throw new HttpError(409, 'This order can no longer be cancelled. Contact the store to cancel it.');
+      }
+      await restoreOrderStock(c, row, null, 'Order cancelled by buyer');
+      await c.query(`update orders set status = 'cancelled', updated_at = now() where id = $1`, [row.id]);
+      return row.id as string;
+    });
+    await audit(null, 'order.cancel_buyer', 'order', orderId, { code: b.code });
+    void notifyVendorOfOrder(orderId, { title: 'Order cancelled', body: `Order ${b.code} was cancelled by the buyer.`, data: { orderId } });
+    void emailOrderStatus(orderId, 'cancelled');
+    res.json({ ok: true, status: 'cancelled' });
+  } catch (e) { next(e); }
+});
+
 orderRouter.get('/mine', requireAuth(), async (req, res, next) => {
   try {
     const rows = await query(
@@ -438,8 +488,9 @@ orderRouter.patch('/vendor/:id/status', requireAuth('vendor'), loadVendor, async
       if(row.status===b.status) return row;
       // A store marking an order delivered starts the buyer confirmation window; it does not settle the order.
       if(row.status==='delivered_pending_verification' && b.status==='delivered') return row;
-      const allowed: Record<string,string[]>={pending:['confirmed','cancelled'],confirmed:['dispatched','delivered','cancelled'],dispatched:['delivered'],delivered:[],cancelled:[]};
+      const allowed: Record<string,string[]>={pending:['confirmed','cancelled'],confirmed:['dispatched','delivered','cancelled'],dispatched:['delivered','cancelled'],delivered:[],cancelled:[]};
       if(!allowed[row.status]?.includes(b.status)) throw new HttpError(409,'This order status change is not allowed.');
+      if(row.status==='dispatched' && b.status==='cancelled' && row.driver_id) throw new HttpError(409,'A rider has already accepted this order. Ask support to reassign it before cancelling.');
       if(b.status==='cancelled' && !row.stock_restored_at) {
        const items=(await c.query('select listing_id,sum(qty)::int as qty from order_items where order_id=$1 and listing_id is not null group by listing_id order by listing_id',[row.id])).rows;
        for(const item of items) {
@@ -460,6 +511,7 @@ orderRouter.patch('/vendor/:id/status', requireAuth('vendor'), loadVendor, async
     if (didChange) {
       // The receipt is sent when the order is finally delivered (buyer, auto or admin), not here.
       if (b.status !== 'delivered') void emailOrderStatus(o.id, b.status);
+      void pushOrderStatus(o.id, o.status);
     }
     res.json({ order: o });
   } catch (e) { next(e); }
@@ -518,6 +570,23 @@ async function emailOrderStatus(orderId: string, status: string) {
       entityId: order.id,
     });
   } catch (error) { console.error('[order status email]', (error as Error).message); }
+}
+
+async function pushNewOrder(orderId: string, code: string) {
+  await notifyVendorOfOrder(orderId, { title: 'New order', body: `Order ${code} is waiting for you.`, data: { orderId } });
+}
+
+async function pushOrderStatus(orderId: string, status: string) {
+  try {
+    const order = await one<{ code: string; fulfilment_mode: string }>('select code, fulfilment_mode from orders where id = $1', [orderId]);
+    const isCollection = order?.fulfilment_mode === 'pickup';
+    const msg = isCollection && status === 'dispatched'
+      ? { title: 'Ready to collect', body: `Your order is ready to collect from the store${order?.code ? ` (${order.code})` : ''}.`, data: { status } }
+      : buyerStatusMessage(status, order?.code);
+    if (msg) await notifyBuyerOfOrder(orderId, { ...msg, data: { ...msg.data, orderId } });
+    // Only delivery orders are rider jobs.
+    if (status === 'dispatched' && !isCollection) await notifyOnlineDrivers({ title: 'New delivery job', body: 'An order is ready for pickup near you.', data: { orderId } });
+  } catch (error) { console.error('[order push]', (error as Error).message); }
 }
 
 /**

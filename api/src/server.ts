@@ -26,6 +26,7 @@ import { promotionRouter } from './routes/promotions';
 import { reviewRouter } from './routes/reviews';
 import { wallet } from './routes/wallet';
 import { driverRouter } from './routes/drivers';
+import { pushRouter } from './routes/push';
 
 const app = express();
 app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS || 1));
@@ -81,6 +82,7 @@ app.use('/api/vendors', vendorRouter);
 app.use('/api/listings', listingRouter);
 app.post('/api/orders/checkout', limit('checkout',20,900));
 app.use('/api/orders', orderRouter);
+app.use('/api/push', pushRouter);
 app.use('/api/complaints', limit('complaints',30,900), complaintRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/uploads', limit('uploads',20,900), uploadRouter);

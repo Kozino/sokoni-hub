@@ -5,9 +5,13 @@
  *
  * The important modelling decision is DIRECTION. On a marketplace that holds
  * the buyer's money, the platform owes the vendor (sales minus commission).
- * Sokoni Hub today takes cash on delivery, WhatsApp and bank transfer, so the
- * VENDOR holds the money and owes the platform commission. Both cases fall out
- * of one calculation, so adding a payment gateway later changes no logic here.
+ * Where the vendor collects the cash itself, the VENDOR holds the money and owes
+ * the platform commission. Both cases fall out of one calculation, so adding a
+ * payment gateway later changes no logic here.
+ *
+ * The delivery fee is never vendor revenue. Every delivery is done by a Sokoni
+ * rider, and the fee is the rider's pay. It is reported, but it is not in the
+ * vendor's sales or balance.
  */
 
 export const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -52,10 +56,8 @@ export interface StatementTotals {
  * Commission is charged on PRODUCT goods only — never on the delivery fee, and
  * never on service work.
  *
- * Delivery: the vendor performs it and sets the fee themselves; it reimburses
- * their fuel and time rather than representing margin the platform helped
- * create. Taking a cut would tax the vendor's costs and push them to quote
- * delivery off-platform.
+ * Delivery: the fee belongs to the rider who delivers the order, so it is not
+ * part of the vendor's sales and is never commissioned or paid to the vendor.
  *
  * Services: the agreed monetisation is a flat fee charged before approval, not
  * a cut of the work. Bookings never become orders, so new service work cannot
@@ -82,16 +84,17 @@ export function computeStatement(orders: SettleableOrder[], commissionRate: numb
       throw new Error(
         `order ${o.id}: goods_subtotal ${commissionable} is not a valid part of subtotal ${o.subtotal}`);
 
+    // Vendor sales exclude the delivery fee, which is the rider's pay.
     goods = round2(goods + Number(o.subtotal));
     base = round2(base + commissionable);
     delivery = round2(delivery + Number(o.delivery_fee));
-    gross = round2(gross + Number(o.total));
-    if (o.funds_collected_by === 'platform') byPlatform = round2(byPlatform + Number(o.total));
-    else byVendor = round2(byVendor + Number(o.total));
+    gross = round2(gross + Number(o.subtotal));
+    if (o.funds_collected_by === 'platform') byPlatform = round2(byPlatform + Number(o.subtotal));
+    else byVendor = round2(byVendor + Number(o.subtotal));
 
     lines.push({
       order_id: o.id,
-      gross: round2(Number(o.total)),
+      gross: round2(Number(o.subtotal)),
       // Rounded per line so the lines always re-add to the header total.
       commission_amount: round2(commissionable * commissionRate),
     });

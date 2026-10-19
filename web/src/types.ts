@@ -3,7 +3,7 @@ export type VendorStatus = 'pending' | 'verified' | 'rejected' | 'suspended';
 export type ListingKind = 'product' | 'service';
 export type ListingStatus = 'draft' | 'pending_review' | 'active' | 'paused' | 'rejected' | 'removed';
 export type OrderStatus = 'pending' | 'confirmed' | 'dispatched' | 'dispatched_to_driver' | 'driver_arrived' | 'out_for_delivery' | 'delivered_pending_verification' | 'delivered' | 'cancelled';
-export type PaymentMethod = 'cash_on_delivery' | 'whatsapp' | 'bank_transfer';
+export type PaymentMethod = 'cash_on_delivery';
 export type FulfilmentMode = 'pickup' | 'delivery';
 export type ComplaintStatus = 'open' | 'investigating' | 'resolved' | 'dismissed';
 
@@ -57,12 +57,13 @@ export interface OrderItem { id?: string; listing_id?: string; title: string; un
 
 export interface Order {
   id: string; code: string; vendor_id: string; status: OrderStatus;
-  payment_method: PaymentMethod; subtotal: string | number; delivery_fee: string | number;
+  payment_method: PaymentMethod; payment_status?: 'unpaid' | 'paid'; paid_at?: string | null;
+  subtotal: string | number; delivery_fee: string | number;
   total: string | number; currency: string; contact_name: string; contact_phone: string;
   delivery_address: string; city: string; country: string; note: string | null;
   fulfilment_mode?: FulfilmentMode;
   created_at: string; items?: OrderItem[]; business_name?: string;
-  whatsapp_url?: string; vendor?: { business_name: string; whatsapp: string };
+  vendor?: { business_name: string };
   verify_by?: string | null; disputed_at?: string | null; dispute_reason?: string | null; completed_by?: string | null;
   /** Rider details; phone is only returned while the rider is on the way. */
   driver?: { name: string; vehicle_type?: string | null; license_plate?: string | null; phone?: string | null } | null;

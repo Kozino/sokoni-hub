@@ -11,8 +11,6 @@ import { DeliveryPin, type DeliveryPinValue } from './DeliveryPin';
 const errorText = (e: unknown) => (e instanceof ApiError || e instanceof Error) ? e.message : 'Something went wrong. Please try again.';
 const PAYMENTS: [PaymentMethod, string, string, IconName][] = [
   ['cash_on_delivery', 'Cash on delivery', 'Pay the seller when you receive or collect your order', 'cash-outline'],
-  ['whatsapp', 'Confirm on WhatsApp', 'Agree payment with the seller in a WhatsApp chat', 'logo-whatsapp'],
-  ['bank_transfer', 'Bank transfer', 'The seller shares their account details after you order', 'business-outline'],
 ];
 
 type Placed = { orders: Order[] };
@@ -112,7 +110,6 @@ export function Checkout({ go, back, tab }: { go: (screen: any, params?: any) =>
           <Text style={[styles.meta, { color: colors.text2 }]}>{item.vendor?.business_name || item.business_name} · {item.fulfilment_mode === 'pickup' ? 'Collection' : 'Delivery'}</Text>
           {item.items?.map((line, index) => <Text key={index} numberOfLines={1} style={[styles.line, { color: colors.text2 }]}>• {line.title} × {line.qty}</Text>)}
           <View style={styles.actions}>
-            {(item as any).whatsapp_url ? <Button variant="secondary" style={styles.actionButton} onPress={() => void Linking.openURL((item as any).whatsapp_url)}>WhatsApp seller</Button> : null}
             <Button style={styles.actionButton} onPress={() => go('track', { code: item.code, phone: form.contact_phone })}>Track</Button>
           </View>
         </Card>)}

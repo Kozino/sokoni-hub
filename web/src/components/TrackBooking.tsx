@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
 import { Booking, qWhen, qTime, tone, calendarURL, live } from "../lib/booking";
-import { waLink } from "../lib/format";
 import { Alert, Badge } from "./ui";
 import "./booking.css";
 export function TrackBooking() {
@@ -139,19 +138,6 @@ export function TrackBooking() {
                   Add to calendar
                 </a>
               )}
-            {booking.vendor_whatsapp && (
-              <a
-                className="btn btn-wa"
-                href={waLink(
-                  booking.vendor_whatsapp,
-                  `Hello, about my booking ${booking.code}.`,
-                )}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Message the provider
-              </a>
-            )}
             {booking.can_cancel && (
               <button
                 className="btn btn-danger"

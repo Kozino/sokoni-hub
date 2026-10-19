@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { api, authStorage } from '../api';
+import { stopRiderTracking } from '../backgroundLocation';
 
 type User = {
   id: string;
@@ -41,6 +42,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    // Stop job alerts for this rider on this device before the session is cleared.
+    try {
+      const pushToken = await AsyncStorage.getItem('sokoni.pushToken');
+      if (pushToken) await api.delete(`/push/token/${encodeURIComponent(pushToken)}`);
+    } catch {}
+    await stopRiderTracking();
     await authStorage.save(null);
     setUser(null);
   };

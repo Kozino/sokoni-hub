@@ -320,13 +320,13 @@ export function statementHtml(st: StatementDoc, s: PlatformSettings): string {
     </div>
 
     ${st.orders.length ? `<table>
-      <thead><tr><th>Order</th><th>Date</th><th class="r">Order total</th><th class="r">Commission</th></tr></thead>
+      <thead><tr><th>Order</th><th>Date</th><th class="r">Sales</th><th class="r">Commission</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>` : '<div class="note">No completed orders in this period.</div>'}
 
     <table class="totals">
       <tr><td>Goods</td><td class="r">${esc(formatMoney(st.goods_subtotal, cur))}</td></tr>
-      <tr><td>Delivery <span class="muted">(vendor's own)</span></td><td class="r">${esc(formatMoney(st.delivery_total, cur))}</td></tr>
+      <tr><td>Delivery fees <span class="muted">(paid to riders, not included above)</span></td><td class="r">${esc(formatMoney(st.delivery_total, cur))}</td></tr>
       <tr><td>Gross sales</td><td class="r">${esc(formatMoney(st.gross_sales, cur))}</td></tr>
       ${excludedServices > 0 ? `
       <tr><td>Service work <span class="muted">(never commissioned)</span></td><td class="r">− ${esc(formatMoney(excludedServices, cur))}</td></tr>

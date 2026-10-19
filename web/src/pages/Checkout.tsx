@@ -131,11 +131,6 @@ export default function Checkout() {
                     Includes {money(o.delivery_fee, o.currency)} delivery
                   </div>
                 )}
-                {o.whatsapp_url && (
-                  <a className="btn btn-wa btn-block mt-2" href={o.whatsapp_url} target="_blank" rel="noreferrer">
-                    Send order details to vendor on WhatsApp
-                  </a>
-                )}
               </div>
             ))}
           </div>
@@ -229,8 +224,6 @@ export default function Checkout() {
           <h3 className="mt-3">Payment method</h3>
           {([
             ['cash_on_delivery', '💵 Cash on delivery', 'Pay the rider or vendor when your items arrive. Recommended.'],
-            ['whatsapp', '💬 Arrange on WhatsApp', "We'll open a chat with the vendor with your order details prefilled."],
-            ['bank_transfer', '🏦 Bank transfer', 'The vendor will send you their account details to confirm the order.'],
           ] as const).map(([v, label, desc]) => (
             <label key={v} className="checkbox card card-pad" style={{ marginBottom: 10, borderColor: form.payment_method === v ? 'var(--terra)' : undefined }}>
               <input type="radio" name="pm" checked={form.payment_method === v} onChange={() => setForm({ ...form, payment_method: v })} />

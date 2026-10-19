@@ -3,6 +3,7 @@ import { api, ApiError } from '../../lib/api';
 import { Alert, Modal, StatusBadge } from '../../components/ui';
 import { dateTime } from '../../lib/format';
 import PrivateDocument from '../../components/PrivateDocument';
+import { AdminDriverCash } from './AdminDriverCash';
 
 // Document keys saved by the driver app (drivers.documents jsonb).
 const DOCUMENTS: { key: string; label: string }[] = [
@@ -58,6 +59,8 @@ export function AdminDrivers() {
 
       {err && <Alert kind="error">{err}</Alert>}
       {msg && <Alert kind="success">{msg}</Alert>}
+
+      <AdminDriverCash />
 
       <div className="card mt-3">
         <div className="card-head"><h3>New Driver Applications</h3></div>

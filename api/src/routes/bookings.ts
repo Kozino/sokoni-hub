@@ -8,7 +8,6 @@ import {
   audit,
   validateUuidParam,
   randomCode,
-  waLink,
   screenProhibited,
 } from "../utils";
 import { DEFAULT_CURRENCY } from "../delivery";
@@ -252,12 +251,6 @@ bookingRouter.post("/", async (req, res, next) => {
       return {
         booking: publicBooking(row, cfg),
         auto_confirmed: row.status === "confirmed",
-        whatsapp: l.whatsapp
-          ? waLink(
-              l.whatsapp,
-              `Hello ${l.business_name}, my booking for ${l.title} is ${row.code}. ${start ? qLong(start) + " (Qatar time)." : ""}`,
-            )
-          : null,
       };
     });
     void emailBookingCreated(result.booking.id);

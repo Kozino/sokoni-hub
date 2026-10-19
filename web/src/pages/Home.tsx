@@ -187,7 +187,7 @@ export default function Home() {
           <ul className="lp-trust-row">
             <li><span className="ic"><Icon name="shield" /></span><div><strong>{t('home.benefit.verified')}</strong><span>{t('home.benefit.verifiedSub')}</span></div></li>
             <li><span className="ic"><Icon name="cash" /></span><div><strong>{t('home.benefit.cod')}</strong><span>{t('home.benefit.codSub')}</span></div></li>
-            <li><span className="ic"><Icon name="chat" /></span><div><strong>{t('home.benefit.whatsapp')}</strong><span>{t('home.benefit.whatsappSub')}</span></div></li>
+            <li><span className="ic"><Icon name="chat" /></span><div><strong>{t('home.benefit.delivery')}</strong><span>{t('home.benefit.deliverySub')}</span></div></li>
             <li><span className="ic"><Icon name="nofee" /></span><div><strong>{t('home.benefit.noFees')}</strong><span>{t('home.benefit.noFeesSub')}</span></div></li>
           </ul>
         </div>

@@ -116,7 +116,6 @@ export function BookService({ listing, go, back, tab }: { listing?: Listing; go:
         </Card>
         <Notice>Nothing has been charged. Payment is arranged directly with the provider.</Notice>
         <View style={{ width: '100%', gap: 10, marginTop: 16 }}>
-          {done.whatsapp ? <Button variant="secondary" onPress={() => void Linking.openURL(done.whatsapp!)}>Message provider on WhatsApp</Button> : null}
           <Button onPress={() => go('bookings')}>View my bookings</Button>
           <Button variant="ghost" onPress={() => tab('home')}>Back to explore</Button>
         </View>

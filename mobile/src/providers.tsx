@@ -134,7 +134,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (res.token) await authStorage.save(res.token);
   }, []);
 
-  const logout = useCallback(async () => { try { await api.post('/auth/logout'); } catch {} await clear(); }, [clear]);
+  const logout = useCallback(async () => {
+    // Stop alerts for this account on this device before the session is cleared.
+    try {
+      const pushToken = await AsyncStorage.getItem('sokoni.pushToken');
+      if (pushToken) await api.del(`/push/token/${encodeURIComponent(pushToken)}`);
+    } catch {}
+    try { await api.post('/auth/logout'); } catch {}
+    await clear();
+  }, [clear]);
 
 
     const value = useMemo(() => ({ user, vendor, loading, stage, refresh, login, verifyPin, verifyMfa, setupPin, register, logout, clearStage: () => setStage({ kind: 'none' }), updateUser: setUser, changePassword, changePin }),

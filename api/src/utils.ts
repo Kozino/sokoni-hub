@@ -101,5 +101,3 @@ export async function audit(
   }
 }
 
-export const waLink = (phone: string, text: string) =>
-  `https://wa.me/${normalizePhone(phone)}?text=${encodeURIComponent(text)}`;

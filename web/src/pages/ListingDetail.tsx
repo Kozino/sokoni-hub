@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
 import { api } from '../lib/api';
 import type { Listing } from '../types';
-import { money, priceLabel, waLink, date } from '../lib/format';
+import { money, priceLabel, date } from '../lib/format';
 import { Badge, Spinner, Empty, Alert, QtyInput, Tabs } from '../components/ui';
 import { useCart } from '../state/CartContext';
 import { useToast } from '../state/ToastContext';

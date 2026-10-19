@@ -4,6 +4,9 @@ import { z } from 'zod';
 import { one, query, tx } from '../db';
 import { requireAuth, signToken } from '../auth';
 import { HttpError, audit, validateUuidParam } from '../utils';
+import { restoreOrderStock } from '../orderRecovery';
+import { notifyBuyerOfOrder, notifyOnlineDrivers, notifyVendorOfOrder } from '../push';
+import { moneyModel } from '../moneyModel';
 
 export const adminRouter = Router();
 adminRouter.param('id', validateUuidParam);
@@ -22,6 +25,42 @@ adminRouter.get('/subscriptions', requireAuth('admin'), async (req, res, next) =
       order by s.created_at desc limit 100
     `);
     res.json({ subscriptions: rows });
+  } catch (e) { next(e); }
+});
+
+// Rescue a stuck delivery: 'release' puts the job back in the rider pool (rider no-show or
+// rider stopped responding); 'cancel' ends the order and returns its stock.
+const RecoverSchema = z.object({
+  action: z.enum(['release', 'cancel']),
+  reason: z.string().trim().min(3).max(300),
+});
+
+adminRouter.post('/orders/:id/recover', async (req, res, next) => {
+  try {
+    const b = RecoverSchema.parse(req.body);
+    const releasable = ['dispatched_to_driver', 'driver_arrived'];
+    const cancellable = ['dispatched', 'dispatched_to_driver', 'driver_arrived'];
+    const result = await tx(async (c) => {
+      const row = (await c.query('select * from orders where id = $1 for update', [req.params.id])).rows[0];
+      if (!row) throw new HttpError(404, 'Order not found');
+      if (b.action === 'release') {
+        if (!releasable.includes(row.status)) throw new HttpError(409, 'Only an order with an assigned rider can be released.');
+        await c.query(`update orders set driver_id = null, status = 'dispatched', updated_at = now() where id = $1`, [row.id]);
+      } else {
+        if (!cancellable.includes(row.status)) throw new HttpError(409, 'This order can no longer be cancelled from here.');
+        await restoreOrderStock(c, row, req.user!.id);
+        await c.query(`update orders set status = 'cancelled', driver_id = null, updated_at = now() where id = $1`, [row.id]);
+      }
+      return row;
+    });
+    await audit(req.user!, 'order.recover', 'order', result.id, { action: b.action, reason: b.reason, from: result.status });
+    if (b.action === 'release') {
+      void notifyOnlineDrivers({ title: 'Delivery job released', body: 'A delivery job is waiting for a rider.', data: { orderId: result.id } });
+    } else {
+      void notifyBuyerOfOrder(result.id, { title: 'Order cancelled', body: 'Your order was cancelled. Sorry about that.', data: { orderId: result.id } });
+      void notifyVendorOfOrder(result.id, { title: 'Order cancelled', body: 'An order was cancelled by Sokoni Hub support.', data: { orderId: result.id } });
+    }
+    res.json({ success: true });
   } catch (e) { next(e); }
 });
 
@@ -189,6 +228,9 @@ adminRouter.get('/vendors/:id', async (req, res, next) => {
 
 adminRouter.post('/vendors/:id/verify', async (req, res, next) => {
   try {
+    const current = await one<any>('select id, id_document_url from vendors where id=$1', [req.params.id]);
+    if (!current) throw new HttpError(404, 'Vendor not found');
+    if (!current.id_document_url) throw new HttpError(409, 'This store has no CR or business-registration licence. Ask the vendor to upload it before verifying.');
     const v = await one<any>(
       `update vendors set status='verified', verified_at=now(), verified_by=$2, rejection_reason=null
        where id=$1 returning *`, [req.params.id, req.user!.id]);
@@ -641,5 +683,114 @@ adminRouter.post('/drivers/:id/suspend', async (req, res, next) => {
   try {
     await query(`update drivers set status = 'suspended', is_online = false where id = $1`, [req.params.id]);
     res.json({ success: true });
+  } catch (e) { next(e); }
+});
+
+/**
+ * Cash and fee reconciliation for riders (item 5).
+ * cash held    = cash collected on delivery - cash remitted
+ * fees owed    = delivery fees earned - fees paid out
+ * Entries are created automatically when a rider completes an order. Remittances and fee payouts
+ * are recorded here by an admin, and can never take a balance below zero.
+ */
+adminRouter.get('/driver-cash', async (req, res, next) => {
+  try {
+    const rows = await query<any>(
+      `select d.id as driver_id, d.user_id, d.status, u.full_name, u.phone,
+              coalesce(sum(l.amount) filter (where l.kind = 'cash_collected'), 0)::float as cash_collected,
+              coalesce(sum(l.amount) filter (where l.kind = 'remittance'), 0)::float as remitted,
+              coalesce(sum(l.amount) filter (where l.kind = 'fee_earned'), 0)::float as fees_earned,
+              coalesce(sum(l.amount) filter (where l.kind = 'fee_paid'), 0)::float as fees_paid
+         from drivers d
+         join users u on u.id = d.user_id
+         left join driver_ledger l on l.driver_user_id = d.user_id
+        group by d.id, d.user_id, d.status, u.full_name, u.phone
+        order by u.full_name`
+    );
+    const drivers = rows.map((r) => ({
+      driver_id: r.driver_id,
+      user_id: r.user_id,
+      status: r.status,
+      full_name: r.full_name,
+      phone: r.phone,
+      cash_collected: round2(r.cash_collected),
+      remitted: round2(r.remitted),
+      cash_held: round2(r.cash_collected - r.remitted),
+      fees_earned: round2(r.fees_earned),
+      fees_paid: round2(r.fees_paid),
+      fees_owed: round2(r.fees_earned - r.fees_paid),
+    }));
+    const entries = await query(
+      `select l.id, l.kind, l.amount, l.note, l.order_id, l.created_at, u.full_name as driver_name,
+              o.code as order_code
+         from driver_ledger l
+         join users u on u.id = l.driver_user_id
+         left join orders o on o.id = l.order_id
+        order by l.created_at desc limit 200`
+    );
+    res.json({ drivers, entries });
+  } catch (e) { next(e); }
+});
+
+const CashEntrySchema = z.object({
+  kind: z.enum(['remittance', 'fee_paid']),
+  amount: z.number().positive().max(100000),
+  note: z.string().trim().min(3).max(300),
+});
+
+adminRouter.post('/driver-cash/:driverId/entries', async (req, res, next) => {
+  try {
+    const driverId = z.string().uuid().parse(req.params.driverId);
+    const b = CashEntrySchema.parse(req.body);
+    const amount = round2(b.amount);
+    await tx(async (c) => {
+      const d = (await c.query('select user_id from drivers where id = $1 for update', [driverId])).rows[0];
+      if (!d) throw new HttpError(404, 'Rider not found');
+      const bal = (await c.query(
+        `select (coalesce(sum(amount) filter (where kind = 'cash_collected'), 0) - coalesce(sum(amount) filter (where kind = 'remittance'), 0))::numeric as cash_held,
+                (coalesce(sum(amount) filter (where kind = 'fee_earned'), 0) - coalesce(sum(amount) filter (where kind = 'fee_paid'), 0))::numeric as fee_owed
+           from driver_ledger where driver_user_id = $1`,
+        [d.user_id]
+      )).rows[0];
+      if (b.kind === 'remittance' && amount > Number(bal.cash_held) + 0.001) {
+        throw new HttpError(409, `The rider holds only ${round2(Number(bal.cash_held)).toFixed(2)} in cash.`);
+      }
+      if (b.kind === 'fee_paid' && amount > Number(bal.fee_owed) + 0.001) {
+        throw new HttpError(409, `Only ${round2(Number(bal.fee_owed)).toFixed(2)} in fees is owed to this rider.`);
+      }
+      await c.query(
+        `insert into driver_ledger (driver_user_id, kind, amount, note, created_by) values ($1, $2, $3, $4, $5)`,
+        [d.user_id, b.kind, amount, b.note, req.user!.id]
+      );
+    });
+    await audit(req.user!, 'driver_cash.entry', 'driver', driverId, { kind: b.kind, amount, note: b.note });
+    res.status(201).json({ success: true });
+  } catch (e) { next(e); }
+});
+
+const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+
+/** Admin switches for commission and monthly plans (QC item 2). Takes effect immediately. */
+adminRouter.get('/money-model', async (_req, res, next) => {
+  try {
+    res.json(await moneyModel());
+  } catch (e) { next(e); }
+});
+
+const MoneyModelSchema = z.object({ commission_enabled: z.boolean(), subscription_enabled: z.boolean() })
+  .refine((m) => m.commission_enabled !== m.subscription_enabled, {
+    message: 'Choose one mode: commission per order, or monthly subscription.',
+  });
+
+adminRouter.put('/money-model', async (req, res, next) => {
+  try {
+    const b = MoneyModelSchema.parse(req.body);
+    await query(
+      `insert into system_settings (key, value, updated_at) values ('money_model', $1, now())
+       on conflict (key) do update set value = excluded.value, updated_at = now()`,
+      [JSON.stringify(b)]
+    );
+    await audit(req.user!, 'money_model.update', 'settings', 'money_model', b);
+    res.json(await moneyModel());
   } catch (e) { next(e); }
 });

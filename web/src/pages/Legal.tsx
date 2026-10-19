@@ -132,7 +132,7 @@ export function Privacy() {
       <section>
         <h2>3. Who can receive information</h2>
         <p>Store profiles, listings and published reviews are visible to visitors. Relevant vendors receive the buyer/contact/order/booking information needed to handle their transactions. Authorised administrators can access records for moderation, support, security and business administration. Verification documents are not intended to be public listings; the current upload flow uses restricted private-document access.</p>
-        <p>Hosting, database, file-storage and other operational providers process information for the service. Information may also be disclosed when legally required or to protect lawful rights. When you choose WhatsApp or pay a vendor directly, the vendor and third-party provider handle information under their own practices; do not send unnecessary sensitive data.</p>
+        <p>Hosting, database, file-storage and other operational providers process information for the service. Information may also be disclosed when legally required or to protect lawful rights. When you pay a vendor directly, the vendor and third-party provider handle information under their own practices; do not send unnecessary sensitive data.</p>
       </section>
       <section>
         <h2>4. Service providers and international transfers</h2>
@@ -159,7 +159,7 @@ export function Privacy() {
         </ul>
         <p>You can submit an authenticated <Link to="/delete-account">account-deletion request</Link>. An administrator reviews open orders, bookings, complaints and financial matters first. Completion removes account-profile contact details and credentials from active use, closes the store where applicable, revokes sessions and removes known account-owned uploaded files through the configured storage service.</p>
         <p>This is not a blind deletion of every linked database row. Transaction/financial records, dispute evidence, security records and a minimal request/closure record may need to remain, with a stated reason and review date. Administrators must review historical free-text, guest records, legacy/public file copies and externally held copies separately. Other customers’ records are not deleted just because your account is closed.</p>
-        <p>Provider backups, caches and copies independently held by vendors or WhatsApp are not automatically erased by the account-closure button. Their treatment and retention must be covered by the approved procedure; the request outcome should explain relevant exceptions. A retention review date is a manual follow-up, not an automatic purge.</p>
+        <p>Provider backups, caches and copies independently held by vendors are not automatically erased by the account-closure button. Their treatment and retention must be covered by the approved procedure; the request outcome should explain relevant exceptions. A retention review date is a manual follow-up, not an automatic purge.</p>
       </section>
       <section>
         <h2>7. Requests, corrections and concerns</h2>
@@ -194,14 +194,14 @@ const faqs: [string, string][] = [
   ['How do I contact Sokoni Hub?', `Use the Support page to submit and track a complaint, email ${c.supportEmail}, or WhatsApp ${c.supportDisplay}. Never share your password, PIN, MFA code or recovery codes.`],
   ['What must a vendor upload for verification?', 'A clear image of the commercial registration (CR) or business-registration licence. Do not upload a personal national ID, passport or driving licence. The current image uploader accepts supported image files, not PDF documents. Verification is reviewed by administrators.'],
   ['What does the verified badge mean?', 'An administrator has reviewed the submitted business information. The badge is not a government endorsement, a guarantee of every licence required for an activity, or a guarantee of a successful transaction.'],
-  ['Does Sokoni Hub hold my payment?', 'The current marketplace does not hold or process buyers’ payment funds. Check the vendor’s available arrangements, such as cash on delivery, bank transfer or WhatsApp coordination, before paying.'],
+  ['Does Sokoni Hub hold my payment?', 'The current marketplace does not hold or process buyers’ payment funds. Check the vendor’s available arrangements, such as cash on delivery or bank transfer, before paying.'],
   ['Is a service booking confirmed immediately?', 'Normally the vendor must confirm it. Some vendors enable auto-accept. Check the status shown in your booking rather than assuming a pending request is confirmed. Service appointments are Qatar-only.'],
   ['Can I choose home service?', 'Where the vendor offers it, select home service or the vendor’s premises in the booking flow. Check the service area and supply only the location details needed for the appointment.'],
   ['Can I cancel my appointment?', 'The vendor’s configured cancellation-notice period controls buyer self-service cancellation. Check your booking and contact the vendor or Support if the online cancellation option is unavailable. Cancellation does not itself process a refund.'],
   ['How do I report a problem?', 'Use Support and retain the tracking reference and required lookup details. Include your order or booking reference where available, without unnecessary sensitive information. You can contact the vendor first; statutory complaint and consumer remedies remain available.'],
   ['How do I delete my account?', 'Open Account deletion, sign in, confirm your current password and submit a request. Download the private receipt. An administrator reviews the request and any outstanding obligations. You can withdraw while it is pending, in review or awaiting your action; processing/completed requests cannot be withdrawn online.'],
   ['Does deletion remove every record immediately?', 'No. Reviewed completion removes the active account profile and known uploaded files, and ends access. Historical transactions, justified retained records, backups and third-party copies require separate handling. Your request outcome records retention exceptions and a review date.'],
-  ['Will I receive email updates?', 'If you provide a valid email address, Sokoni Hub sends account-verification, booking and order confirmations, relevant status updates, and delivered-order receipts. WhatsApp API reminders are not enabled, so check the live order or booking status and use a calendar reminder where available.'],
+  ['Will I receive email updates?', 'If you provide a valid email address, Sokoni Hub sends account-verification, booking and order confirmations, relevant status updates, and delivered-order receipts.'],
 ];
 
 export function FAQ() {

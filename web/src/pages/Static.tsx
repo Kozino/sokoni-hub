@@ -20,7 +20,7 @@ export function Sell() {
   return (
     <div className="container">
       <div className="card card-pad center" style={{ background: 'var(--green)', color: '#fff', borderColor: 'transparent' }}>
-        <h1 style={{ color: '#fff' }}>Turn your WhatsApp hustle into a real storefront</h1>
+        <h1 style={{ color: '#fff' }}>Turn your social media hustle into a real storefront</h1>
         <p style={{ color: 'rgba(255,255,255,.86)', maxWidth: 640, margin: '0 auto 20px' }}>
           Free to join. Admin-verified. Buyers find you by searching — not by scrolling past your status.
         </p>
@@ -53,7 +53,7 @@ export function Sell() {
           ['🛡️', 'Verification badge', 'Admins review your business details and CR licence before you go live. Buyers trust a verified badge.'],
           ['📈', 'Your own dashboard', 'Track views, stock levels, orders by status, revenue trends and complaints in one place.'],
           ['💵', 'Cash on delivery', 'No payment gateway needed to start. Buyers pay you when goods arrive.'],
-          ['💬', 'WhatsApp built in', 'Every listing has a one-tap WhatsApp button with the order details prefilled.'],
+          ['📦', 'Order and track', 'Place an order at checkout and follow it live until it reaches your door.'],
           ['🔔', 'Complaint handling', 'Disputes go through admin, not a shouting match in your DMs.'],
         ].map(([ico, t, d]) => (
           <div key={t} className="card card-pad">
@@ -80,10 +80,10 @@ export function Policy() {
         <p>These restrictions exist because safe distribution of such products requires regulatory licensing that this platform does not verify. Listings are screened automatically at upload and reviewed manually by admins.</p>
 
         <h3 className="mt-3">Vendor verification</h3>
-        <p>Every vendor account is reviewed by an administrator before any listing can be published. We check the business name, city, WhatsApp number and an uploaded CR or business-registration licence. Verification can be revoked if a vendor breaks the rules.</p>
+        <p>Every vendor account is reviewed by an administrator before any listing can be published. We check the business name, city, phone number and an uploaded CR or business-registration licence. Verification can be revoked if a vendor breaks the rules.</p>
 
         <h3 className="mt-3">Payments</h3>
-        <p>Sokoni Hub does not currently hold or process funds. Buyers pay <strong>cash on delivery</strong>, arrange payment over <strong>WhatsApp</strong>, or use <strong>bank transfer</strong> directly with the vendor. Always inspect goods before paying.</p>
+        <p>Sokoni Hub does not currently hold or process funds. Buyers pay <strong>cash on delivery</strong>, or use <strong>bank transfer</strong> directly with the vendor. Always inspect goods before paying.</p>
 
         <h3 className="mt-3">Complaints</h3>
         <p>Any buyer — with or without an account — can file a complaint against a store, a listing or an order. You receive a reference code to track the outcome. Admins can investigate, resolve, dismiss, remove listings and suspend vendors.</p>
@@ -256,6 +256,20 @@ export function TrackOrder() {
 
   const steps = ['pending', 'confirmed', 'dispatched', 'delivered'];
 
+  // Buyers can cancel until a rider has accepted the order (server enforces the same rule).
+  const [cancelBusy, setCancelBusy] = useState(false);
+  const [cancelErr, setCancelErr] = useState('');
+  const canCancel = !!order && ['pending', 'confirmed'].includes(order.status) && !order.driver;
+  const cancelOrder = async () => {
+    if (!order || !confirm('Cancel this order? The store will be told.')) return;
+    setCancelBusy(true); setCancelErr('');
+    try {
+      await api.post('/orders/track/cancel', { code: f.code, phone: f.phone });
+      await refresh();
+    } catch (e) { setCancelErr(e instanceof ApiError ? e.message : 'Could not cancel this order'); }
+    finally { setCancelBusy(false); }
+  };
+
   // Re-read the order after confirm or report so the page reflects the new state.
   const refresh = async () => {
     try {
@@ -317,9 +331,17 @@ export function TrackOrder() {
           </table>
           <dl className="kv mt-2">
             <dt>Placed</dt><dd>{dateTime(order.created_at)}</dd>
-            <dt>Payment</dt><dd style={{ textTransform: 'capitalize' }}>{order.payment_method.replace(/_/g, ' ')}</dd>
+            <dt>Payment</dt><dd>{String(order.payment_method) === 'cash_on_delivery' ? 'Cash on delivery' : String(order.payment_method).replace(/_/g, ' ')} · {order.payment_status === 'paid' ? 'Paid' : (order.status === 'cancelled' ? 'Not charged' : 'Unpaid, pay the rider in cash on delivery')}</dd>
             <dt>Deliver to</dt><dd>{order.delivery_address}, {order.city}</dd>
           </dl>
+          {canCancel && (
+            <div className="mt-2">
+              <Alert kind="error">{cancelErr}</Alert>
+              <button className="btn btn-outline btn-sm" disabled={cancelBusy} onClick={() => void cancelOrder()}>
+                {cancelBusy ? 'Cancelling…' : 'Cancel order'}
+              </button>
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <a
               className="btn btn-primary btn-sm"

@@ -38,8 +38,7 @@ export default function ShareStorePanel({ slug, businessName }: Props) {
       <div className="card-head"><h4>Share your store</h4></div>
       <div className="card-body">
         <p style={{ color: 'var(--muted)', fontSize: '.88rem', marginTop: 0 }}>
-          Put this link in your WhatsApp Business profile, status, or catalog. Customers who open
-          it land on your store and can order without an account.
+          Share this link anywhere. Customers who open it land on your store and can order without an account.
         </p>
 
         <Field label="Your store link">
@@ -50,10 +49,6 @@ export default function ShareStorePanel({ slug, businessName }: Props) {
           <button type="button" className="btn btn-primary btn-sm" onClick={copyLink}>
             {copied ? 'Copied' : 'Copy link'}
           </button>
-          <a className="btn btn-wa btn-sm" target="_blank" rel="noreferrer"
-             href={`https://wa.me/?text=${encodeURIComponent(message)}`}>
-            Send on WhatsApp
-          </a>
           {canNativeShare && (
             <button type="button" className="btn btn-outline btn-sm"
               onClick={() => navigator.share({ title: businessName, text: message }).catch(() => {})}>
