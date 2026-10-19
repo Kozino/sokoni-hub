@@ -14,6 +14,7 @@ import {
   type FulfilmentMode, type VendorDeliverySettings,
 } from '../delivery';
 import { attributionSchema, resolveOrderSource } from '../lib/attribution';
+import { verificationSettings } from '../deliveryVerification';
 
 export const orderRouter = Router();
 orderRouter.param('id', validateUuidParam);
@@ -296,6 +297,7 @@ orderRouter.post('/checkout', optionalAuth, async (req, res, next) => {
 /** Public order lookup by code + phone (buyers have no dashboard). */
 orderRouter.get('/track', async (req, res, next) => {
   try {
+    await finalizeDueOrders().catch(() => 0);
     const code = String(req.query.code || '');
     const phone = String(req.query.phone || '');
     const order = await one<any>(
@@ -303,6 +305,7 @@ orderRouter.get('/track', async (req, res, next) => {
               o.delivery_fee, o.total, o.currency, o.contact_name, o.contact_phone,
               o.delivery_address, o.city, o.country, o.note, o.fulfilment_mode,
               o.driver_lat, o.driver_lng, o.delivery_proof_url, o.delivery_lat, o.delivery_lng, o.driver_id,
+              o.verify_by, o.disputed_at, o.dispute_reason, o.delivered_at, o.completed_by,
               o.created_at, o.updated_at, v.business_name, v.whatsapp
          from orders o join vendors v on v.id = o.vendor_id
         where o.code = $1 and regexp_replace(o.contact_phone,'\\D','','g') = regexp_replace($2,'\\D','','g')`,
@@ -329,6 +332,74 @@ orderRouter.get('/track', async (req, res, next) => {
     }
     delete order.driver_id;
     res.json({ order });
+  } catch (e) { next(e); }
+});
+
+/**
+ * Completes orders whose buyer confirmation window has passed without a problem
+ * report. Atomic, so several server instances can run it safely.
+ */
+export async function finalizeDueOrders(): Promise<number> {
+  const rows = await query<{ id: string }>(
+    `update orders set status = 'delivered', delivered_at = now(), completed_by = 'auto', updated_at = now()
+      where status = 'delivered_pending_verification' and disputed_at is null and verify_by <= now()
+      returning id`
+  );
+  for (const r of rows) void emailReceipt(r.id);
+  return rows.length;
+}
+
+const phoneMatch = (table: string) => `regexp_replace(${table}.contact_phone,'\\D','','g') = regexp_replace($2,'\\D','','g')`;
+
+/** Buyer confirms they received the order. Requires the order code and the checkout phone, like tracking. */
+orderRouter.post('/track/confirm', async (req, res, next) => {
+  try {
+    const b = z.object({ code: z.string().trim().min(3).max(40), phone: z.string().min(7).max(20) }).parse(req.body);
+    const row = await one<{ id: string }>(
+      `update orders set status = 'delivered', delivered_at = now(), buyer_confirmed_at = now(),
+              completed_by = 'buyer', updated_at = now()
+        where code = $1 and status = 'delivered_pending_verification' and disputed_at is null
+          and ${phoneMatch('orders')}
+        returning id`,
+      [b.code, b.phone]
+    );
+    if (row) {
+      void emailReceipt(row.id);
+      return res.json({ ok: true, status: 'delivered' });
+    }
+    const o = await one<{ status: string; disputed_at: string | null }>(
+      `select status, disputed_at from orders where code = $1 and ${phoneMatch('orders')}`,
+      [b.code, b.phone]
+    );
+    if (!o) throw new HttpError(404, 'No order found with that code and phone number');
+    if (o.disputed_at) throw new HttpError(409, 'A problem is already open for this order. Our team is reviewing it.');
+    throw new HttpError(409, 'This order is not waiting for confirmation.');
+  } catch (e) { next(e); }
+});
+
+/** Buyer reports a problem during the confirmation window. Holds the order out of settlement. */
+orderRouter.post('/track/report', async (req, res, next) => {
+  try {
+    const b = z.object({
+      code: z.string().trim().min(3).max(40),
+      phone: z.string().min(7).max(20),
+      reason: z.string().trim().min(5).max(500),
+    }).parse(req.body);
+    const row = await one<{ id: string }>(
+      `update orders set disputed_at = now(), dispute_reason = $3, updated_at = now()
+        where code = $1 and status = 'delivered_pending_verification' and disputed_at is null
+          and ${phoneMatch('orders')}
+        returning id`,
+      [b.code, b.phone, b.reason]
+    );
+    if (row) return res.json({ ok: true });
+    const o = await one<{ status: string; disputed_at: string | null }>(
+      `select status, disputed_at from orders where code = $1 and ${phoneMatch('orders')}`,
+      [b.code, b.phone]
+    );
+    if (!o) throw new HttpError(404, 'No order found with that code and phone number');
+    if (o.disputed_at) throw new HttpError(409, 'You have already reported a problem with this order.');
+    throw new HttpError(409, 'This order can no longer be reported.');
   } catch (e) { next(e); }
 });
 
@@ -365,6 +436,8 @@ orderRouter.patch('/vendor/:id/status', requireAuth('vendor'), loadVendor, async
       const row=(await c.query('select * from orders where id=$1 and vendor_id=$2 for update',[req.params.id,req.vendor!.id])).rows[0];
       if(!row) throw new HttpError(404,'Order not found');
       if(row.status===b.status) return row;
+      // A store marking an order delivered starts the buyer confirmation window; it does not settle the order.
+      if(row.status==='delivered_pending_verification' && b.status==='delivered') return row;
       const allowed: Record<string,string[]>={pending:['confirmed','cancelled'],confirmed:['dispatched','delivered','cancelled'],dispatched:['delivered'],delivered:[],cancelled:[]};
       if(!allowed[row.status]?.includes(b.status)) throw new HttpError(409,'This order status change is not allowed.');
       if(b.status==='cancelled' && !row.stock_restored_at) {
@@ -376,14 +449,17 @@ orderRouter.patch('/vendor/:id/status', requireAuth('vendor'), loadVendor, async
        }
       }
       didChange=true;
+      const target = b.status === 'delivered' ? 'delivered_pending_verification' : b.status;
+      const { auto_complete_hours } = await verificationSettings();
       return (await c.query(`update orders set status=$2::order_status,
+       verify_by=case when $2='delivered_pending_verification' then now() + make_interval(hours => $3::int) else verify_by end,
        stock_restored_at=case when $2='cancelled' then coalesce(stock_restored_at,now()) else stock_restored_at end
-       where id=$1 returning *`,[row.id,b.status])).rows[0];
+       where id=$1 returning *`,[row.id,target,auto_complete_hours])).rows[0];
     });
     await audit(req.user!, 'order.status', 'order', req.params.id, { status: b.status });
     if (didChange) {
-      if (b.status === 'delivered') void emailReceipt(o.id);
-      else void emailOrderStatus(o.id, b.status);
+      // The receipt is sent when the order is finally delivered (buyer, auto or admin), not here.
+      if (b.status !== 'delivered') void emailOrderStatus(o.id, b.status);
     }
     res.json({ order: o });
   } catch (e) { next(e); }

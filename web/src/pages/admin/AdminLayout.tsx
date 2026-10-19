@@ -24,6 +24,7 @@ export default function AdminLayout() {
     { to: '/admin', end: true, ico: IconChart, label: 'Overview', group: 'Analytics' },
     { to: '/admin/vendors', ico: IconShield, label: 'Verification', pill: counts.vendors_pending, group: 'Moderation' },
     { to: '/admin/drivers', ico: IconUsers, label: 'Drivers', group: 'Moderation' },
+    { to: '/admin/disputes', ico: IconAlert, label: 'Disputes', group: 'Moderation' },
     { to: '/admin/listings', ico: IconBox, label: 'Listings', group: 'Moderation' },
     { to: '/admin/complaints', ico: IconAlert, label: 'Complaints', pill: counts.complaints_open, group: 'Moderation' },
     { to: '/admin/orders', ico: IconReceipt, label: 'Orders', group: 'Commerce' },

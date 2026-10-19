@@ -85,13 +85,20 @@ export function ActiveDelivery({ orderId, onDone }: { orderId: string; onDone: (
     if (!photo) return;
     setBusy(true);
     try {
+      // The server checks that you are at the confirmed drop-off point, so read GPS first.
+      let here: { lat: number; lng: number } | null = null;
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status === 'granted') {
+        const fix = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+        here = { lat: fix.coords.latitude, lng: fix.coords.longitude };
+      }
       const form = new FormData();
       form.append('files', { uri: photo, name: 'proof.jpg', type: 'image/jpeg' } as any);
       const upload = await api.post<{ urls: string[] }>('/uploads', form);
       const proofUrl = upload.urls?.[0];
       if (!proofUrl) throw new Error('The photo could not be uploaded. Please try again.');
-      await api.post(`/drivers/orders/${orderId}/complete`, { proof_url: proofUrl });
-      Alert.alert('Delivered', 'Thanks! The buyer has been notified.', [{ text: 'Done', onPress: onDone }]);
+      await api.post(`/drivers/orders/${orderId}/complete`, { proof_url: proofUrl, lat: here?.lat, lng: here?.lng });
+      Alert.alert('Delivery recorded', 'The customer will confirm receipt. If they do not respond, the order completes automatically.', [{ text: 'Done', onPress: onDone }]);
     } catch (e) {
       Alert.alert('Could not complete delivery', errorText(e));
     } finally {
@@ -201,7 +208,7 @@ export function ActiveDelivery({ orderId, onDone }: { orderId: string; onDone: (
             <View style={{ alignItems: 'center', gap: 10, paddingVertical: 10 }}>
               <CheckCircleIcon size={44} color={C.primary} />
               <Text style={styles.name}>Delivery complete</Text>
-              <Text style={styles.muted}>This order has been handed over. Your earnings will show on the Earnings tab.</Text>
+              <Text style={styles.muted}>Handed over. The customer confirms receipt, or the order completes automatically. Your earnings show on the Earnings tab once it is complete.</Text>
               <Button title="Back to home" onPress={onDone} style={{ alignSelf: 'stretch', marginTop: 8 }} />
             </View>
           </Card>

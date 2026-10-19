@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { query, one, tx } from '../db';
 import { requireAuth } from '../auth';
 import { HttpError } from '../utils';
+import { verificationSettings, distanceMetres } from '../deliveryVerification';
 
 export const driverRouter = Router();
 
@@ -208,21 +209,61 @@ driverRouter.post('/orders/:id/location', requireAuth('driver'), async (req, res
 });
 
 // Proof of delivery: photo uploaded to /api/uploads first, then its URL is sent here.
-const ProofSchema = z.object({ proof_url: z.string().url().max(2000) });
+const ProofSchema = z.object({
+  proof_url: z.string().url().max(2000),
+  // The rider's GPS position at the moment they complete the drop-off.
+  lat: z.number().min(-90).max(90).optional(),
+  lng: z.number().min(-180).max(180).optional(),
+});
 
+/**
+ * Rider marks the drop-off complete. If the buyer confirmed a pin, the rider
+ * must be within the geofence of that pin. The order then waits for the buyer
+ * (or the auto-complete window) before it becomes 'delivered' and settles.
+ */
 driverRouter.post('/orders/:id/complete', requireAuth('driver'), async (req, res, next) => {
   try {
     const id = uuid.parse(req.params.id);
-    const { proof_url } = ProofSchema.parse(req.body);
-    const row = await one(
+    const b = ProofSchema.parse(req.body);
+    const order = await one<any>(
+      `select id, status, delivery_lat, delivery_lng from orders
+        where id = $1 and driver_id = $2 and status = any($3::order_status[])`,
+      [id, req.user!.id, ['out_for_delivery', 'driver_arrived']]
+    );
+    if (!order) throw new HttpError(409, 'This delivery cannot be completed right now.');
+
+    let dropDistance: number | null = null;
+    if (order.delivery_lat != null && order.delivery_lng != null) {
+      if (b.lat === undefined || b.lng === undefined) {
+        throw new HttpError(422, 'Turn on location so we can confirm you are at the delivery point, then try again.');
+      }
+      const { geofence_metres } = await verificationSettings();
+      dropDistance = distanceMetres(
+        { lat: b.lat, lng: b.lng },
+        { lat: Number(order.delivery_lat), lng: Number(order.delivery_lng) }
+      );
+      if (dropDistance > geofence_metres) {
+        throw new HttpError(
+          422,
+          `You are about ${Math.round(dropDistance)} m from the delivery point. Move within ${geofence_metres} m of the pin to complete.`
+        );
+      }
+    }
+
+    const { auto_complete_hours } = await verificationSettings();
+    const row = await one<any>(
       `update orders
-       set status = 'delivered_pending_verification', delivery_proof_url = $1, updated_at = now()
-       where id = $2 and driver_id = $3 and status = any($4::order_status[])
-       returning id`,
-      [proof_url, id, req.user!.id, ['out_for_delivery', 'driver_arrived']]
+          set status = 'delivered_pending_verification',
+              delivery_proof_url = $1,
+              drop_lat = $2, drop_lng = $3, drop_distance_m = $4,
+              verify_by = now() + make_interval(hours => $5::int),
+              updated_at = now()
+        where id = $6
+        returning verify_by`,
+      [b.proof_url, b.lat ?? null, b.lng ?? null, dropDistance, auto_complete_hours, id]
     );
     if (!row) throw new HttpError(409, 'This delivery cannot be completed right now.');
-    res.json({ success: true });
+    res.json({ success: true, verify_by: row.verify_by, awaiting_buyer: true });
   } catch (e) { next(e); }
 });
 

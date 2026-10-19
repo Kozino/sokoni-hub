@@ -10,7 +10,8 @@ import { Icon } from '../icons';
 import { Status } from './Status';
 
 const POLL_MS = 15000;
-const CLOSED_ORDER = ['delivered', 'delivered_pending_verification', 'cancelled'];
+// Pending verification stays open so the buyer's confirmation and any report show up live.
+const CLOSED_ORDER = ['delivered', 'cancelled'];
 const CLOSED_BOOKING = ['completed', 'cancelled'];
 const ON_THE_WAY = ['dispatched_to_driver', 'driver_arrived', 'out_for_delivery'];
 const DOHA = { latitude: 25.2854, longitude: 51.531 };
@@ -50,7 +51,11 @@ function headline(order: any): { title: string; sub: string } {
   const status = order?.status;
   const pickup = order?.fulfilment_mode === 'pickup';
   if (status === 'cancelled') return { title: 'Order cancelled', sub: 'Contact the store if you need help.' };
-  if (status === 'delivered' || status === 'delivered_pending_verification') {
+  if (status === 'delivered_pending_verification') {
+    if (order?.disputed_at) return { title: 'Problem reported', sub: 'Our team is reviewing your order and will contact you if needed.' };
+    return { title: 'Did your order arrive?', sub: 'Confirm it arrived, or tell us if something is wrong.' };
+  }
+  if (status === 'delivered') {
     return pickup ? { title: 'Collected', sub: 'Thanks for shopping with Sokoni Hub.' } : { title: 'Delivered', sub: 'Enjoy your order!' };
   }
   if (pickup) {
@@ -238,6 +243,81 @@ function RiderCard({ driver, order, active }: { driver: any; order: any; active:
   );
 }
 
+/** Buyer's confirmation step: confirm receipt, or report a problem before the window closes. */
+function VerifyCard({ order, phone, onChanged }: { order: any; phone: string; onChanged: () => void | Promise<void> }) {
+  const { colors } = useTheme();
+  const [reporting, setReporting] = useState(false);
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState<null | 'confirm' | 'report'>(null);
+  const due = order.verify_by
+    ? new Date(order.verify_by).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+    : null;
+
+  if (order.disputed_at) {
+    return (
+      <Card style={{ marginTop: 14, padding: 16, borderRadius: 18 }}>
+        <Text style={{ fontSize: 16, fontWeight: '900', color: colors.text }}>Problem reported</Text>
+        {order.dispute_reason ? <Text style={{ fontSize: 13, color: colors.text2, marginTop: 6, lineHeight: 19 }}>“{order.dispute_reason}”</Text> : null}
+        <View style={{ marginTop: 12 }}><Notice>Our team is reviewing this order. You will not be charged again for it.</Notice></View>
+      </Card>
+    );
+  }
+
+  const confirm = async () => {
+    setBusy('confirm');
+    try {
+      await api.post('/orders/track/confirm', { code: order.code, phone });
+      await onChanged();
+    } catch (e) {
+      Alert.alert('Could not confirm', message(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const report = async () => {
+    if (reason.trim().length < 5) {
+      return Alert.alert('Tell us what happened', 'Add a few words so we can help.');
+    }
+    setBusy('report');
+    try {
+      await api.post('/orders/track/report', { code: order.code, phone, reason: reason.trim() });
+      await onChanged();
+    } catch (e) {
+      Alert.alert('Could not send your report', message(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <Card style={{ marginTop: 14, padding: 16, borderRadius: 18 }}>
+      <Text style={{ fontSize: 16, fontWeight: '900', color: colors.text }}>Did your order arrive?</Text>
+      <Text style={{ fontSize: 13, color: colors.text2, marginTop: 6, lineHeight: 19 }}>
+        {due
+          ? `It will be marked complete automatically on ${due} unless you tell us there is a problem.`
+          : 'It will be marked complete automatically unless you tell us there is a problem.'}
+      </Text>
+      <Button loading={busy === 'confirm'} disabled={!!busy} onPress={() => void confirm()} style={{ marginTop: 14 }}>
+        Yes, I received it
+      </Button>
+      {reporting ? (
+        <View style={{ marginTop: 6 }}>
+          <Field label="What went wrong?" value={reason} onChangeText={setReason} multiline placeholder="e.g. Missing items, wrong order, not delivered" />
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+            <View style={{ flex: 1 }}><Button variant="secondary" disabled={!!busy} onPress={() => setReporting(false)}>Cancel</Button></View>
+            <View style={{ flex: 1 }}><Button loading={busy === 'report'} disabled={!!busy} onPress={() => void report()}>Send report</Button></View>
+          </View>
+        </View>
+      ) : (
+        <Button variant="secondary" disabled={!!busy} onPress={() => setReporting(true)} style={{ marginTop: 10 }}>
+          Report a problem
+        </Button>
+      )}
+    </Card>
+  );
+}
+
 export function Track({ go, back, params }: any) {
   const { colors } = useTheme();
   const [orderCode, setOrderCode] = useState(params?.code || '');
@@ -272,6 +352,16 @@ export function Track({ go, back, params }: any) {
       Alert.alert('Could not find it', message(e));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const refresh = async () => {
+    if (!trackedCode) return;
+    try {
+      setResult(await fetchStatus(trackedCode.code, trackedCode.isBooking, trackedPhone));
+      setUpdatedAt(new Date());
+    } catch {
+      // The next automatic refresh will try again.
     }
   };
 
@@ -411,6 +501,10 @@ export function Track({ go, back, params }: any) {
                   </>
                 ) : null}
               </Card>
+            ) : null}
+
+            {order && order.status === 'delivered_pending_verification' ? (
+              <VerifyCard order={order} phone={trackedPhone} onChanged={refresh} />
             ) : null}
 
             {order?.delivery_proof_url ? (

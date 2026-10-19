@@ -51,6 +51,7 @@ import AdminSubscriptions from './pages/admin/AdminSubscriptions';
 import AdminPlanLimits from './pages/admin/AdminPlanLimits';
 import { AdminPayouts } from './pages/admin/AdminPayouts';
 import { AdminDrivers } from './pages/admin/AdminDrivers';
+import { AdminDisputes } from './pages/admin/AdminDisputes';
 
 function ScrollTop() {
   const { pathname } = useLocation();
@@ -131,6 +132,7 @@ export default function App() {
                 <Route path="promotions" element={<AdminPromotions />} />
                 <Route path="subscriptions" element={<AdminSubscriptions />} />
                 <Route path="drivers" element={<AdminDrivers />} />
+                <Route path="disputes" element={<AdminDisputes />} />
                 <Route path="payouts" element={<AdminPayouts />} />
                 <Route path="plan-limits" element={<AdminPlanLimits />} />
                 <Route path="categories" element={<AdminCategories />} />

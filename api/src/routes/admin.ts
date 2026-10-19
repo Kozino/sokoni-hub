@@ -511,6 +511,102 @@ adminRouter.post('/payouts/:id/mark-paid', async (req, res, next) => {
 });
 
 /* ------------------------------------------------------------------ */
+/* Delivery verification & disputes                                    */
+/* ------------------------------------------------------------------ */
+
+adminRouter.get('/orders/disputes', async (_req, res, next) => {
+  try {
+    const disputes = await query(
+      `select o.id, o.code, o.status, o.total, o.currency, o.delivery_address, o.contact_name, o.contact_phone,
+              o.dispute_reason, o.disputed_at, o.verify_by, o.delivery_proof_url, o.drop_distance_m,
+              o.drop_lat, o.drop_lng, o.delivery_lat, o.delivery_lng, o.created_at,
+              v.business_name, du.full_name as driver_name, du.phone as driver_phone
+         from orders o
+         join vendors v on v.id = o.vendor_id
+         left join users du on du.id = o.driver_id
+        where o.status = 'delivered_pending_verification' and o.disputed_at is not null
+        order by o.disputed_at asc`
+    );
+    res.json({ disputes });
+  } catch (e) { next(e); }
+});
+
+/**
+ * Admin decision on a reported order.
+ *  - release: the buyer's problem is not upheld; the order completes and settles.
+ *  - cancel:  the order is cancelled and its stock is returned. Refunds are handled
+ *             outside the app, since cash on delivery is not held by the platform.
+ */
+adminRouter.post('/orders/:id/resolve', async (req, res, next) => {
+  try {
+    const id = z.string().uuid().parse(req.params.id);
+    const b = z.object({ action: z.enum(['release', 'cancel']), note: z.string().trim().max(500).optional() }).parse(req.body);
+    await tx(async (c) => {
+      const row = (await c.query(
+        `select id, vendor_id, status, disputed_at from orders where id = $1 for update`, [id]
+      )).rows[0];
+      if (!row) throw new HttpError(404, 'Order not found');
+      if (row.status !== 'delivered_pending_verification' || !row.disputed_at) {
+        throw new HttpError(409, 'Only reported orders waiting for review can be resolved.');
+      }
+      if (b.action === 'release') {
+        await c.query(
+          `update orders set status = 'delivered', delivered_at = now(), completed_by = 'admin', updated_at = now() where id = $1`,
+          [id]
+        );
+      } else {
+        const items = (await c.query(
+          `select listing_id, sum(qty)::int as qty from order_items where order_id = $1 and listing_id is not null
+            group by listing_id order by listing_id`, [id]
+        )).rows;
+        for (const item of items) {
+          const stock = (await c.query(
+            `update listings set quantity = quantity + $2 where id = $1 and quantity is not null returning quantity`,
+            [item.listing_id, item.qty]
+          )).rows[0];
+          if (stock) {
+            await c.query(
+              `insert into stock_movements(listing_id, vendor_id, delta, balance_after, reason, order_id, actor_id, note)
+               values ($1, $2, $3, $4, 'return', $5, $6, 'Reported order cancelled by admin')`,
+              [item.listing_id, row.vendor_id, item.qty, stock.quantity, id, req.user!.id]
+            );
+          }
+        }
+        await c.query(
+          `update orders set status = 'cancelled', stock_restored_at = coalesce(stock_restored_at, now()), updated_at = now() where id = $1`,
+          [id]
+        );
+      }
+    });
+    await audit(req.user!, 'order.resolve', 'order', id, { action: b.action, note: b.note || null });
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
+adminRouter.get('/delivery-verification', async (_req, res, next) => {
+  try {
+    const row = await one<any>(`select value from system_settings where key = 'delivery_verification'`);
+    res.json({ settings: row?.value ?? { auto_complete_hours: 24, geofence_metres: 150 } });
+  } catch (e) { next(e); }
+});
+
+adminRouter.put('/delivery-verification', async (req, res, next) => {
+  try {
+    const b = z.object({
+      auto_complete_hours: z.number().int().min(1).max(168),
+      geofence_metres: z.number().int().min(30).max(1000),
+    }).parse(req.body);
+    await query(
+      `insert into system_settings (key, value, updated_at) values ('delivery_verification', $1, now())
+       on conflict (key) do update set value = excluded.value, updated_at = now()`,
+      [JSON.stringify(b)]
+    );
+    await audit(req.user!, 'settings.delivery_verification', 'system_settings', 'delivery_verification', b);
+    res.json({ ok: true, settings: b });
+  } catch (e) { next(e); }
+});
+
+/* ------------------------------------------------------------------ */
 /* Drivers                                                            */
 /* ------------------------------------------------------------------ */
 

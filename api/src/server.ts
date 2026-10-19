@@ -14,7 +14,7 @@ import { deletionRouter } from './routes/deletion';
 import { authRouter } from './routes/auth';
 import { vendorRouter } from './routes/vendors';
 import { listingRouter } from './routes/listings';
-import { orderRouter } from './routes/orders';
+import { orderRouter, finalizeDueOrders } from './routes/orders';
 import { complaintRouter } from './routes/complaints';
 import { adminRouter } from './routes/admin';
 import { uploadRouter } from './routes/uploads';
@@ -128,5 +128,7 @@ async function start() {
  app.listen(config.port, '0.0.0.0', () => {
   console.log(`Sokoni API listening on :${config.port} (${config.env})`);
  });
+ // Auto-complete delivered orders whose buyer window has passed (also run on every track lookup).
+ setInterval(() => { finalizeDueOrders().catch((e) => console.error('[sweep] delivery verification failed', e?.message)); }, 5 * 60 * 1000).unref();
 }
 start().catch(()=>{console.error('[startup] Database/schema readiness failed. Check verified DB TLS and apply the security migrations.');process.exitCode=1;void pool.end();});
