@@ -4,7 +4,8 @@ import { api, ApiError } from '../../lib/api';
 import { useAuth } from '../../state/AuthContext';
 import { Alert, Field, Spinner, StatusBadge } from '../../components/ui';
 import ImageUploader from '../../components/ImageUploader';
-import { DeliveryPin, type PinValue } from '../../components/DeliveryPin';
+import { type PinValue } from '../../components/DeliveryPin';
+import { VendorPinMap } from '../../components/VendorPinMap';
 import ShareStorePanel from '../../components/ShareStorePanel';
 import { useToast } from '../../state/ToastContext';
 import { date } from '../../lib/format';
@@ -88,7 +89,7 @@ export default function VendorProfile() {
           label="Store location on the map *"
           hint="Drop the pin on your shop entrance or pickup spot, not your home. Riders navigate here to collect orders. Your store cannot take orders until this is set."
         >
-          <DeliveryPin
+          <VendorPinMap
             value={pin}
             onChange={setPin}
             emptyText="Tap the map to drop the pin on your shop entrance."
