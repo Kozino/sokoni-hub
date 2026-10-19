@@ -47,7 +47,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const data = isJson ? await response.json() : await response.text();
 
   if (!response.ok) {
-    throw new ApiError(response.status, data?.message || 'Something went wrong', data?.errors);
+    // The API reports problems as { error }, so read that first. Without it the rider only sees a generic message.
+    throw new ApiError(response.status, data?.error || data?.message || 'Something went wrong', data?.details ?? data?.errors);
   }
 
   return data as T;

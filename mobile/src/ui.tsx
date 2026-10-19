@@ -40,12 +40,12 @@ export function BrandMark({ small = false }: { small?: boolean }) {
   return <View style={[styles.brand, small && styles.brandSmall]}><Image source={require('../assets/logo.png')} style={[styles.logo, small && styles.logoSmall]} /><View><Text style={[styles.brandTitle, { color: colors.text }, small && styles.brandTitleSmall]}>Sokoni <Text style={{ color: colors.gold }}>Hub</Text></Text>{!small && <Text style={[styles.tagline, { color: colors.text2 }]}>Local commerce, made simple</Text>}</View></View>;
 }
 
-export function Button({ children, onPress, variant = 'primary', disabled, loading, style, icon }: { children: ReactNode; onPress: () => void; variant?: 'primary' | 'secondary' | 'gold' | 'ghost' | 'danger'; disabled?: boolean; loading?: boolean; style?: ViewStyle; icon?: IconName }) {
+export function Button({ children, onPress, variant = 'primary', disabled, loading, style, textStyle, icon }: { children: ReactNode; onPress: () => void; variant?: 'primary' | 'secondary' | 'gold' | 'ghost' | 'danger'; disabled?: boolean; loading?: boolean; style?: ViewStyle; textStyle?: TextStyle; icon?: IconName }) {
   const { colors } = useTheme();
   const bg = variant === 'primary' ? colors.primary : variant === 'gold' ? colors.gold : variant === 'danger' ? colors.danger : variant === 'secondary' ? colors.surface : 'transparent';
   const text = variant === 'primary' || variant === 'danger' ? '#FFFFFF' : variant === 'gold' ? '#1C1B17' : colors.primary;
   const borderColor = variant === 'secondary' ? colors.primaryLine : variant === 'ghost' ? 'transparent' : bg;
-  return <Pressable accessibilityRole="button" disabled={disabled || loading} onPress={() => { tap(); onPress(); }} style={({ pressed }) => [{ backgroundColor: bg, borderColor, opacity: disabled ? .52 : pressed ? .84 : 1 }, styles.button, style]}>{loading ? <ActivityIndicator color={text} /> : <View style={styles.buttonInner}><Text style={[styles.buttonText, { color: text }]}>{children}</Text>{icon ? <Icon name={icon} size={18} color={text} /> : null}</View>}</Pressable>;
+  return <Pressable accessibilityRole="button" disabled={disabled || loading} onPress={() => { tap(); onPress(); }} style={({ pressed }) => [{ backgroundColor: bg, borderColor, opacity: disabled ? .52 : pressed ? .84 : 1 }, styles.button, style]}>{loading ? <ActivityIndicator color={text} /> : <View style={styles.buttonInner}><Text style={[styles.buttonText, { color: text }, textStyle]}>{children}</Text>{icon ? <Icon name={icon} size={18} color={text} /> : null}</View>}</Pressable>;
 }
 
 export function IconButton({ icon, onPress, label, badge }: { icon: IconName; onPress: () => void; label: string; badge?: number }) {

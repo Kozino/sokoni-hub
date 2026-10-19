@@ -1285,10 +1285,19 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 .lcard-cart:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .lcard-cart.added { background: var(--success-soft); border-color: var(--success-line); color: var(--success-text); }
 .lcard-cart:disabled { opacity: .55; cursor: not-allowed; }
+/* Phones: product grids use two columns (industry standard for shop grids),
+   and the action pill stays compact. Tablets and iPads keep their multi-column grids. */
 @media (max-width: 640px) {
+  .grid-4, .browse-grid, .store-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-2); }
   .lcard-actions { padding: 0 var(--s-2) var(--s-2); }
-  .lcard-cart { min-height: 34px; padding: 6px var(--s-2); font-size: 12px; gap: 4px; }
-  .lcard-cart svg { width: 14px; height: 14px; }
+  .lcard-cart { min-height: 28px; padding: 4px 10px; font-size: 11px; gap: 4px; border-radius: 999px; width: auto; }
+  .lcard-cart svg { width: 12px; height: 12px; }
+}
+@media (max-width: 640px) {
+  .marketplace-app .lcard-body { padding: 10px 10px 8px; }
+  .marketplace-app .lcard-title { font-size: 13px; }
+  .marketplace-app .lcard-actions { padding: 0 10px 10px; }
+  .marketplace-app .lcard-cart { min-height: 28px; padding: 4px 10px; font-size: 11px; }
 }
 
 .cat-tile { position: relative; border-radius: var(--r-lg); overflow: hidden; aspect-ratio: 3/2; border: 1px solid var(--border); display: block; }
@@ -1755,7 +1764,7 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 
 
 
-  .grid-stats, .grid-3, .grid-4 { grid-template-columns: minmax(0, 1fr); }
+  .grid-stats, .grid-3 { grid-template-columns: minmax(0, 1fr); }
   .form-row, .form-row-3 { grid-template-columns: minmax(0, 1fr); }
   .footer-grid { grid-template-columns: minmax(0, 1fr); gap: var(--s-6); }
   .kv { grid-template-columns: minmax(0, 1fr); gap: 0; }

@@ -174,8 +174,9 @@
 .marketplace-app .lcard-meta { color: #819088; font-size: 11px; }
 .marketplace-app .lcard-price { color: var(--market-teal-deep); font-size: 16px; font-weight: 800; }
 .marketplace-app .lcard-foot { border-top: 0; color: #718178; font-size: 11px; padding-top: 4px; margin-top: 1px; }
-.marketplace-app .lcard-actions { padding: 0 13px 13px; }
-.marketplace-app .lcard-cart { background: #edf8f3; border: 0; border-radius: 8px; color: var(--market-teal-deep); min-height: 38px; font-weight: 750; }
+.marketplace-app .lcard-actions { padding: 0 12px 12px; display: flex; justify-content: flex-start; }
+.marketplace-app .lcard-cart { width: auto; background: #edf8f3; border: 0; border-radius: 999px; color: var(--market-teal-deep); min-height: 30px; padding: 5px 12px; font-size: 12px; font-weight: 750; gap: 5px; }
+.marketplace-app .lcard-cart svg { width: 13px; height: 13px; }
 .marketplace-app .lcard-cart:hover { background: var(--market-teal); color: #fff; }
 .marketplace-app .lcard-cart.added { background: var(--market-teal); color: #fff; }
 
