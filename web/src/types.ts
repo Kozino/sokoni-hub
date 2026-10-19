@@ -64,6 +64,8 @@ export interface Order {
   created_at: string; items?: OrderItem[]; business_name?: string;
   whatsapp_url?: string; vendor?: { business_name: string; whatsapp: string };
   verify_by?: string | null; disputed_at?: string | null; dispute_reason?: string | null; completed_by?: string | null;
+  /** Rider details; phone is only returned while the rider is on the way. */
+  driver?: { name: string; vehicle_type?: string | null; license_plate?: string | null; phone?: string | null } | null;
 }
 
 /** One message in the admin <-> vendor thread on a complaint. */

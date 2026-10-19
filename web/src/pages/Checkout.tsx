@@ -5,6 +5,7 @@ import { useCart } from '../state/CartContext';
 import { useAuth } from '../state/AuthContext';
 import { money } from '../lib/format';
 import { Alert, Field } from '../components/ui';
+import { DeliveryPin, type PinValue } from '../components/DeliveryPin';
 import { getAttribution, clearAttribution } from '../lib/attribution';
 import type { Order, PaymentMethod, FulfilmentMode, CartQuote } from '../types';
 
@@ -20,6 +21,9 @@ export default function Checkout() {
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<Order[] | null>(null);
+  // Where the rider should deliver. Required whenever a vendor delivers this cart.
+  const [pin, setPin] = useState<PinValue | null>(null);
+  const [pinErr, setPinErr] = useState('');
 
   /* The order summary is priced by the server, never in the browser. Whatever
      is shown here is the same number the checkout endpoint will charge, because
@@ -64,7 +68,13 @@ export default function Checkout() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErr(''); setBusy(true);
+    setErr('');
+    if (needsAddress && !pin) {
+      setPinErr('Confirm the delivery location on the map before placing your order.');
+      return;
+    }
+    setPinErr('');
+    setBusy(true);
     try {
       const payload = {
         items: lineItems(),
@@ -77,6 +87,8 @@ export default function Checkout() {
         // undefined when there's nothing stored — the server treats that as
         // an ordinary marketplace order.
         attribution: getAttribution(),
+        // Coordinates are saved with the order so the rider can find the door.
+        ...(needsAddress && pin ? { delivery_lat: pin.latitude, delivery_lng: pin.longitude } : {}),
       };
       const signature = JSON.stringify(payload);
       let saved: { signature: string; key: string } | null = null;
@@ -197,6 +209,16 @@ export default function Checkout() {
             <div className="form-row">
               <Field label="City *"><input required value={form.city} onChange={set('city')} placeholder="Doha" /></Field>
               <Field label="Country *"><input required value={form.country} onChange={set('country')} placeholder="Qatar" /></Field>
+            </div>
+          )}
+
+          {needsAddress && (
+            <div className="mt-2">
+              <strong>Delivery location *</strong>
+              <p className="muted" style={{ fontSize: '.85rem', margin: '4px 0 10px' }}>
+                Confirm the spot on the map so the rider finds the right door.
+              </p>
+              <DeliveryPin value={pin} onChange={(p) => { setPin(p); setPinErr(''); }} error={pinErr} />
             </div>
           )}
 

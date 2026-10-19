@@ -297,6 +297,16 @@ export function TrackOrder() {
               })}
             </div>
           )}
+          {order.driver && order.driver.phone && (
+            <div className="card card-pad mt-3" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '.75rem', flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ fontSize: '.78rem', color: 'var(--muted)', fontWeight: 700 }}>YOUR RIDER</div>
+                <div style={{ fontWeight: 800 }}>{order.driver.name}</div>
+                <div style={{ fontSize: '.82rem', color: 'var(--muted)' }}>{[order.driver.vehicle_type, order.driver.license_plate].filter(Boolean).join(' · ')}</div>
+              </div>
+              <a className="btn btn-primary" href={`tel:${order.driver.phone}`}>Contact driver</a>
+            </div>
+          )}
           <table className="tbl">
             <tbody>
               {order.items?.map((it, i) => (

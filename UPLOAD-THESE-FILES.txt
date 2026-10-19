@@ -1,0 +1,25 @@
+Delivery updates that are NOT yet on GitHub main (checked against main as of 42c15fd).
+Copy each file to the same path in your repo.
+
+WEB - checkout map pin
+  web/src/components/DeliveryPin.tsx        (NEW file)
+  web/src/pages/Checkout.tsx
+  web/package.json                           (adds leaflet, react-leaflet, @types/leaflet)
+  web/package-lock.json
+
+WEB - rider card on the order tracking page
+  web/src/pages/Static.tsx
+  web/src/types.ts                           (adds the driver field to Order)
+
+DRIVER - status label
+  driver/src/format.ts                       ("Awaiting buyer confirmation")
+
+DRIVER - build config
+  driver/eas.json                            (adds a simulator profile for the iOS simulator build)
+
+Verified: web typecheck and production build pass with these files on top of current main.
+
+NOT in this zip on purpose:
+  mobile/app.json - your copy has a placeholder Google Maps key. GitHub main has the real key. Do not overwrite it.
+  mobile/package.json - only the start scripts differ, unrelated to delivery.
+  web/src/pages/Auth.tsx, VerifyEmail.tsx, Home.tsx, ui.tsx, api auth.ts, migrate.ts - older unrelated edits.
