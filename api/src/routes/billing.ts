@@ -5,6 +5,8 @@ import { requireAuth, loadVendor } from '../auth';
 import { HttpError, audit, secretsEqual, validateUuidParam } from '../utils';
 import { computeStatement, monthPeriod, formatMoney, type SettleableOrder } from '../billing';
 import { receiptHtml, statementHtml, type PlatformSettings } from '../templates';
+import { renderStatementPdf } from '../statementPdf';
+import { buildStatementEmail } from '../statementEmail';
 import { sendMail, emailEnabled } from '../mailer';
 import { moneyModel } from '../moneyModel';
 
@@ -309,6 +311,19 @@ billingRouter.get('/statements/:id/document', requireAuth(), async (req, res, ne
   } catch (e) { next(e); }
 });
 
+/** The statement as a PDF file. The same document is attached to the vendor email. */
+billingRouter.get('/statements/:id/pdf', requireAuth(), async (req, res, next) => {
+  try {
+    const st = await loadStatement(req.params.id);
+    assertCanView(st, req.user!);
+    const pdf = await renderStatementPdf(st, await settings());
+    res
+      .set('Content-Type', 'application/pdf')
+      .set('Content-Disposition', `attachment; filename="Statement-${st.number ?? 'draft'}.pdf"`)
+      .send(pdf);
+  } catch (e) { next(e); }
+});
+
 /* ====================== statement state changes =================== */
 
 billingRouter.post('/statements/:id/issue', requireAuth('admin'), async (req, res, next) => {
@@ -440,15 +455,8 @@ billingRouter.post('/statements/:id/send', requireAuth('admin'), async (req, res
     const { email } = await vendorEmail(st.vendor_id);
     if (!email) throw new HttpError(422, 'That vendor has no email address on their account');
 
-    const owed = Number(st.net_due_to_platform) > 0;
-    const amount = formatMoney(owed ? st.net_due_to_platform : st.net_due_to_vendor, st.currency);
-    const r = await sendMail({
-      to: email,
-      subject: `${cfg.business_name} statement ${st.number} — ${amount}`,
-      html: statementHtml(st, cfg),
-      kind: 'statement',
-      entityId: st.id,
-    });
+    const msg = await buildStatementEmail(st, cfg);
+    const r = await sendMail({ to: email, ...msg, kind: 'statement', entityId: st.id });
     if (r.ok) await query('update vendor_statements set emailed_at = now() where id = $1', [st.id]);
     await audit(req.user!, 'billing.statement.email', 'vendor_statement', st.id, { to: email, status: r.status });
     if (!r.ok) throw new HttpError(502, `Email not sent: ${r.error}`);
@@ -624,12 +632,8 @@ billingRouter.post('/cron/run-statements', async (req, res, next) => {
           const full = await loadStatement(st.id);
           const { email } = await vendorEmail(g.vendor_id);
           if (email) {
-            const r = await sendMail({
-              to: email,
-              subject: `${cfg.business_name} statement ${st.number}`,
-              html: statementHtml(full, cfg),
-              kind: 'statement', entityId: st.id,
-            });
+            const msg = await buildStatementEmail(full, cfg);
+            const r = await sendMail({ to: email, ...msg, kind: 'statement', entityId: st.id });
             if (r.ok) {
               await query('update vendor_statements set emailed_at = now() where id = $1', [st.id]);
               result.emailed++;

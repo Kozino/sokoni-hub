@@ -26,10 +26,18 @@ const replyTo = process.env.EMAIL_REPLY_TO || '';
 
 export const emailEnabled = provider !== 'none' && !!apiKey && !!from;
 
+export interface MailAttachment {
+  filename: string;
+  content: Buffer;
+}
+
 export interface SendArgs {
   to: string;
   subject: string;
   html: string;
+  /** Plain-text version. Sent alongside the HTML so every mail app shows a readable message. */
+  text?: string;
+  attachments?: MailAttachment[];
   /** For the email_log row, so failures can be traced to a document. */
   kind: string;
   entityId?: string | null;
@@ -63,6 +71,10 @@ async function viaResend(a: SendArgs): Promise<SendResult> {
       to: [a.to],
       subject: a.subject,
       html: a.html,
+      ...(a.text ? { text: a.text } : {}),
+      ...(a.attachments?.length
+        ? { attachments: a.attachments.map((f) => ({ filename: f.filename, content: f.content.toString('base64') })) }
+        : {}),
       ...(replyTo ? { reply_to: replyTo } : {}),
     }),
   });
@@ -81,6 +93,10 @@ async function viaBrevo(a: SendArgs): Promise<SendResult> {
       to: [{ email: a.to }],
       subject: a.subject,
       htmlContent: a.html,
+      ...(a.text ? { textContent: a.text } : {}),
+      ...(a.attachments?.length
+        ? { attachment: a.attachments.map((f) => ({ name: f.filename, content: f.content.toString('base64') })) }
+        : {}),
       ...(replyTo ? { replyTo: { email: replyTo } } : {}),
     }),
   });

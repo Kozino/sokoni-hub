@@ -18,6 +18,21 @@ interface Payout {
 }
 
 /** Documents sit behind an Authorization header, so open them as a blob. */
+/** Saves a PDF from the API to the user's computer, sending the login token. */
+async function downloadDocument(path: string, filename: string) {
+  const base = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+  const res = await fetch(`${base}/api${path}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+  if (!res.ok) throw new ApiError(res.status, 'Could not download the PDF');
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 async function openDocument(path: string) {
   const base = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
   const res = await fetch(`${base}/api${path}`, { headers: { Authorization: `Bearer ${getToken()}` } });
@@ -110,6 +125,11 @@ export default function VendorStatements() {
                         onClick={() => openDocument(`/billing/statements/${s.id}/document`)
                           .catch((e) => toast.push(e.message, 'error'))}>
                         View / print
+                      </button>
+                      <button className="btn btn-sm btn-outline" style={{ marginLeft: 6 }}
+                        onClick={() => downloadDocument(`/billing/statements/${s.id}/pdf`, `Statement-${s.number ?? 'draft'}.pdf`)
+                          .catch((e) => toast.push(e.message, 'error'))}>
+                        Download PDF
                       </button>
                     </td>
                   </tr>

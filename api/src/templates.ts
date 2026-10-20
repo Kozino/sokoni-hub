@@ -56,7 +56,7 @@ function shell(title: string, body: string) {
         padding-bottom:22px;margin-bottom:28px;border-bottom:1px solid #D8E6DF}
   .head:after{content:"";position:absolute;left:0;bottom:-1px;width:152px;height:4px;border-radius:4px;
               background:linear-gradient(90deg,${EMERALD} 0 72%,${ORANGE} 72%)}
-  .sokoni-logo{display:block;width:205px;height:auto;margin:0 0 10px}
+  .sokoni-logo{display:block;width:110px;height:auto;margin:0 0 8px}
   .brand{font-size:14px;font-weight:800;letter-spacing:.02em;color:${DEEP_EMERALD};margin:0 0 3px}
   .brand-sub{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:#71817A;font-weight:700;margin:0 0 10px}
   .muted{color:#62716B;font-size:13px}
@@ -84,7 +84,7 @@ function shell(title: string, body: string) {
   .foot strong{color:${DEEP_EMERALD}}
   @media(max-width:620px){
     body{padding:0;background:#fff}.actions{padding:12px 14px;margin:0}.sheet{padding:26px 20px;border:0;border-radius:0;box-shadow:none}
-    .head{gap:18px;flex-direction:column}.doctype{text-align:left}.cols{gap:20px}.col{min-width:100%}.sokoni-logo{width:185px}
+    .head{gap:18px;flex-direction:column}.doctype{text-align:left}.cols{gap:20px}.col{min-width:100%}.sokoni-logo{width:96px}
   }
   @media print{
     body{background:#fff;padding:0}.sheet{box-shadow:none;border:0;border-radius:0;max-width:none;padding:0}.actions{display:none}
@@ -106,7 +106,7 @@ function shell(title: string, body: string) {
 function header(s: PlatformSettings, docType: string, docNumber: string, extra = '') {
   return `<div class="head">
     <div>
-      <img class="sokoni-logo" src="${sokoniLogoDataUrl}" width="205" height="85" alt="Sokoni Hub">
+      <img class="sokoni-logo" src="${sokoniLogoDataUrl}" width="110" height="46" alt="Sokoni Hub">
       <p class="brand">${esc(s.business_name || 'Sokoni Hub')}</p>
       <p class="brand-sub">Marketplace ${esc(docType).toLowerCase()}</p>
       <div class="muted">

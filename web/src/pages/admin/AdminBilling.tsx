@@ -4,7 +4,6 @@ import { money, date, titleCase } from '../../lib/format';
 import { Alert, Spinner, Empty, Field, Modal, Stat, Badge, Tabs, useConfirm } from '../../components/ui';
 import { useToast } from '../../state/ToastContext';
 import ImageUploader from '../../components/ImageUploader';
-import { AdminMoneyModel } from './AdminMoneyModel';
 import { exportExcel, exportPdf } from '../../lib/exporting';
 
 /* ------------------------------------------------------------------ */
@@ -21,6 +20,21 @@ async function openDocument(path: string) {
   const w = window.open(url, '_blank');
   if (!w) throw new ApiError(0, 'Your browser blocked the popup — allow popups for this site');
   // Revoke once the new tab has had time to load, otherwise it renders blank.
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+/** Saves a PDF from the API to the user's computer, sending the login token. */
+async function downloadDocument(path: string, filename: string) {
+  const base = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+  const res = await fetch(`${base}/api${path}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+  if (!res.ok) throw new ApiError(res.status, 'Could not download the PDF');
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
@@ -157,6 +171,9 @@ export default function AdminBilling() {
                           <button className="btn btn-sm btn-outline"
                             onClick={() => openDocument(`/billing/statements/${s.id}/document`)
                               .catch((e) => toast.push(e.message, 'error'))}>View</button>
+                          <button className="btn btn-sm btn-outline" style={{ marginLeft: 6 }}
+                            onClick={() => downloadDocument(`/billing/statements/${s.id}/pdf`, `Statement-${s.number ?? 'draft'}.pdf`)
+                              .catch((e) => toast.push(e.message, 'error'))}>PDF</button>
                           {s.status === 'draft' && (
                             <button className="btn btn-sm btn-primary" style={{ marginLeft: 6 }}
                               onClick={() => act(s.id, 'issue', undefined, 'Statement issued')}>Issue</button>
@@ -190,7 +207,7 @@ export default function AdminBilling() {
       )}
 
       {tab === 'payouts' && <Payouts onDone={load} />}
-      {tab === 'settings' && <><AdminMoneyModel /><BillingSettings /></>}
+      {tab === 'settings' && <BillingSettings />}
       {dialog}
     </div>
   );
