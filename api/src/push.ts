@@ -60,13 +60,22 @@ export async function notifyOnlineDrivers(msg: PushMessage): Promise<void> {
   await sendPushToUsers(rows.map((r) => r.user_id), { ...msg, channelId: 'delivery-jobs' });
 }
 
-/** The vendor's owner account, for a given order. */
+/** The vendor's owner account, for a given order. Uses the vendor alert channel (sound on the vendor app). */
 export async function notifyVendorOfOrder(orderId: string, msg: PushMessage): Promise<void> {
   const rows = await query<{ user_id: string }>(
-    `select v.user_id from orders o join vendors v on v.id = o.vendor_id where o.id = $1`,
+    `select v.user_id from orders o join vendors v on v.id = o.vendor_id where o.id = $1 and v.alerts_enabled`,
     [orderId],
   );
-  await sendPushToUsers(rows.map((r) => r.user_id), msg);
+  await sendPushToUsers(rows.map((r) => r.user_id), { ...msg, channelId: 'vendor-alerts' });
+}
+
+/** The vendor's owner account, for a given service booking. */
+export async function notifyVendorOfBooking(bookingId: string, msg: PushMessage): Promise<void> {
+  const rows = await query<{ user_id: string }>(
+    `select v.user_id from service_bookings b join vendors v on v.id = b.vendor_id where b.id = $1 and v.alerts_enabled`,
+    [bookingId],
+  );
+  await sendPushToUsers(rows.map((r) => r.user_id), { ...msg, channelId: 'vendor-alerts' });
 }
 
 /** The buyer, if the order was placed by a signed-in account (guest orders have no account). */

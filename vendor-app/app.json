@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "Sokoni Vendor",
+    "slug": "sokoni-vendor",
+    "scheme": "sokonivendor",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#033B2A"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "qa.sokonihub.vendor",
+      "infoPlist": {
+        "UIBackgroundModes": ["remote-notification"]
+      }
+    },
+    "android": {
+      "package": "qa.sokonihub.vendor",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundColor": "#033B2A"
+      },
+      "permissions": ["POST_NOTIFICATIONS", "VIBRATE"]
+    },
+    "plugins": [
+      "expo-splash-screen",
+      ["expo-notifications", { "color": "#FF7A00" }]
+    ]
+  }
+}

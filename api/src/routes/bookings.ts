@@ -3,6 +3,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { one, query, tx } from "../db";
 import { requireAuth, loadVendor } from "../auth";
+import { notifyVendorOfBooking } from "../push";
 import {
   HttpError,
   audit,
@@ -254,6 +255,11 @@ bookingRouter.post("/", async (req, res, next) => {
       };
     });
     void emailBookingCreated(result.booking.id);
+    void notifyVendorOfBooking(result.booking.id, {
+      title: result.auto_confirmed ? "New confirmed booking" : "New booking request",
+      body: `${result.booking.code} is waiting for you.`,
+      data: { bookingId: result.booking.id },
+    });
     res.status(201).json(result);
   } catch (e: any) {
     next(
@@ -370,6 +376,11 @@ bookingRouter.post("/cancel", async (req, res, next) => {
       b.reason || "Cancelled by buyer",
     );
     void emailBookingUpdate(booking.id, 'cancelled');
+    void notifyVendorOfBooking(booking.id, {
+      title: "Booking cancelled",
+      body: `${booking.code} was cancelled by the customer.`,
+      data: { bookingId: booking.id },
+    });
     res.json({ booking });
   } catch (e) {
     next(e);
@@ -391,6 +402,13 @@ bookingRouter.post(
         "Cancelled by buyer";
       const booking = await cancel(b, reason, req.user!.role === "admin");
       void emailBookingUpdate(booking.id, 'cancelled');
+      if (req.user!.role !== "vendor") {
+        void notifyVendorOfBooking(booking.id, {
+          title: "Booking cancelled",
+          body: `${booking.code} was cancelled by ${req.user!.role === "admin" ? "Sokoni Hub support" : "the customer"}.`,
+          data: { bookingId: booking.id },
+        });
+      }
       res.json({ booking });
     } catch (e) {
       next(e);

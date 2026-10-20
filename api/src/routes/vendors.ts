@@ -14,7 +14,7 @@ export const vendorRouter = Router();
 // but no caller should receive bank/payout fields through a generic select *.
 const SELF_VENDOR_COLS = `id, user_id, business_name, slug, description, whatsapp,
   country, city, address, logo_url, id_document_url, status, rejection_reason,
-  verified_at, rating_avg, rating_count, created_at, lat, lng`;
+  verified_at, rating_avg, rating_count, created_at, lat, lng, alerts_enabled`;
 
 /* ------------------------------------------------------------------ */
 /* Onboarding                                                          */
@@ -107,6 +107,20 @@ vendorRouter.post('/onboard', requireAuth('vendor', 'buyer'), async (req, res, n
 vendorRouter.get('/me', requireAuth('vendor', 'admin'), loadVendor, async (req, res, next) => {
   try {
     const vendor = await one(`select ${SELF_VENDOR_COLS} from vendors where id = $1`, [req.vendor!.id]);
+    res.json({ vendor });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Turn order and booking alerts on or off for this vendor's devices.
+vendorRouter.put('/me/alerts', requireAuth('vendor'), loadVendor, async (req, res, next) => {
+  try {
+    const { enabled } = z.object({ enabled: z.boolean() }).parse(req.body);
+    const vendor = await one(
+      `update vendors set alerts_enabled = $2 where id = $1 returning ${SELF_VENDOR_COLS}`,
+      [req.vendor!.id, enabled],
+    );
     res.json({ vendor });
   } catch (e) {
     next(e);
