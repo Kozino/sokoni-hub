@@ -1,5 +1,6 @@
 
 import { styles, nx, ex } from './src/styles';
+import { OfflineBar } from './src/ui';
 import { ToastContext } from './src/screens/Welcome';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from 'react-error-boundary';
@@ -51,6 +52,7 @@ function AppRouter({ seenWelcome, finishWelcome }: any) {
         <Stack.Screen name="support">{(props) => <Support {...common} />}</Stack.Screen>
         <Stack.Screen name="web">{(props) => <WebOnlyAccount onSignOut={(props.route.params as any)?.onSignOut} />}</Stack.Screen>
       </Stack.Navigator>
+      <OfflineBar />
     </View>
   );
 }

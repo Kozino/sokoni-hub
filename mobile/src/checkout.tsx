@@ -1,7 +1,7 @@
 import { Icon, type IconName } from './icons';
 import { randomUUID } from 'expo-crypto';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { api, ApiError } from './api';
 import { useAuth, useCart, useTheme } from './providers';
 import type { CartQuote, FulfilmentMode, Order, PaymentMethod } from './types';
@@ -25,6 +25,8 @@ export function Checkout({ go, back, tab }: { go: (screen: any, params?: any) =>
   const [busy, setBusy] = useState(false);
   const [placed, setPlaced] = useState<Placed | null>(null);
   const [touched, setTouched] = useState(false);
+  // Errors show inline with a Retry button instead of a blocking popup.
+  const [banner, setBanner] = useState('');
   // Customer-confirmed delivery point. Required whenever any vendor delivers.
   const [pin, setPin] = useState<DeliveryPinValue | null>(null);
   // Idempotency: an identical retry (double-tap, flaky network) reuses its key and can never create
@@ -68,8 +70,9 @@ export function Checkout({ go, back, tab }: { go: (screen: any, params?: any) =>
   const order = async () => {
     if (!user) return go('login');
     setTouched(true);
-    if (!valid) return Alert.alert('Complete checkout', 'Please fix the highlighted fields.');
-    if (!quote) return Alert.alert('Prices not confirmed', quoteError || 'Wait for the order total to load, then try again.');
+    setBanner('');
+    if (!valid) return setBanner('Please fix the highlighted fields.');
+    if (!quote) return setBanner(quoteError || 'Wait for the order total to load, then try again.');
     setBusy(true);
     try {
       const body = {
@@ -94,7 +97,7 @@ export function Checkout({ go, back, tab }: { go: (screen: any, params?: any) =>
       setPlaced(result);
     } catch (e) {
       if (e instanceof ApiError && (e.status === 409 || e.status === 400)) void loadQuote();
-      Alert.alert('Could not place order', errorText(e));
+      setBanner(errorText(e));
     } finally { setBusy(false); }
   };
 
@@ -127,6 +130,7 @@ export function Checkout({ go, back, tab }: { go: (screen: any, params?: any) =>
     <Header title="Checkout" back={back} />
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scroll}>
       {!user ? <Notice type="warning">Sign in to place your order — your cart is saved on this phone.</Notice> : null}
+      {banner ? <View style={{ gap: 8, marginBottom: 8 }}><Notice type="danger">{banner}</Notice><Button variant="secondary" onPress={() => void order()} loading={busy}>Try again</Button></View> : null}
 
       <Text style={[styles.heading, { color: colors.text }]}>Your items</Text>
       <Card>
@@ -153,7 +157,7 @@ export function Checkout({ go, back, tab }: { go: (screen: any, params?: any) =>
 
       <Text style={[styles.heading, { color: colors.text }]}>Contact</Text>
       <Field label="Full name" value={form.contact_name} onChangeText={set('contact_name')} autoComplete="name" error={fieldError('contact_name')} />
-      <Field label="Phone number" value={form.contact_phone} onChangeText={set('contact_phone')} keyboardType="phone-pad" placeholder="+974…" error={fieldError('contact_phone')} />
+      <Field label="Phone number" value={form.contact_phone} onChangeText={set('contact_phone')} keyboardType="phone-pad" autoComplete="tel" textContentType="telephoneNumber" placeholder="+974…" error={fieldError('contact_phone')} />
       {needsAddress ? <>
         <DeliveryPin
           value={pin}
@@ -210,8 +214,8 @@ const styles = StyleSheet.create({
   itemTitle: { fontSize: 14, fontWeight: '800' }, meta: { fontSize: 12, marginTop: 2 }, line: { fontSize: 12, marginTop: 4 },
   toggle: { height: 50, borderRadius: 12, padding: 4, flexDirection: 'row', gap: 4 }, toggleOption: { flex: 1, borderRadius: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 }, toggleText: { fontSize: 13, fontWeight: '900' },
   payment: { minHeight: 64, borderRadius: 13, borderWidth: 1, padding: 11, flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 9 }, payIcon: { width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  payTitle: { fontSize: 14, fontWeight: '800' }, payHint: { fontSize: 11, marginTop: 2, lineHeight: 15 },
-  totalText: { fontSize: 15, fontWeight: '900' }, fine: { fontSize: 11, lineHeight: 16, textAlign: 'center', marginTop: 14 }, barLabel: { fontSize: 9, fontWeight: '800', letterSpacing: .4 }, cta: { minWidth: 170, borderRadius: 24 },
+  payTitle: { fontSize: 14, fontWeight: '800' }, payHint: { fontSize: 12, marginTop: 2, lineHeight: 15 },
+  totalText: { fontSize: 15, fontWeight: '900' }, fine: { fontSize: 12, lineHeight: 16, textAlign: 'center', marginTop: 14 }, barLabel: { fontSize: 12, fontWeight: '800', letterSpacing: .4 }, cta: { minWidth: 170, borderRadius: 24 },
   doneScroll: { padding: 20, alignItems: 'center' }, doneIcon: { width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center', marginTop: 12 },
   doneTitle: { fontSize: 25, fontWeight: '900', marginTop: 16 }, doneCopy: { fontSize: 14, lineHeight: 20, textAlign: 'center', marginTop: 6, maxWidth: 310 }, code: { fontSize: 15, fontWeight: '900' },
   actions: { flexDirection: 'row', gap: 9, marginTop: 13 }, actionButton: { flex: 1, minHeight: 44 },

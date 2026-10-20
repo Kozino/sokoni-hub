@@ -1,7 +1,8 @@
 import { Icon, type IconName } from './icons';
-import { createContext, forwardRef, useContext, useRef, useState } from 'react';
+import { createContext, forwardRef, useContext, useRef, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text as RNText, TextInput as RNTextInput, useWindowDimensions, View, type ImageSourcePropType, type StyleProp, type TextInputProps, type TextProps, type TextStyle, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { connectivity } from './api';
 import { useTheme } from './providers';
 import type { ReactNode } from 'react';
 import { tap } from './haptics';
@@ -26,11 +27,12 @@ function useInter(style: StyleProp<TextStyle>, nested: boolean): StyleProp<TextS
 export function Text(props: TextProps) {
   const nested = useContext(InsideText);
   const style = useInter(props.style, nested);
-  return <InsideText.Provider value><RNText {...props} style={style} /></InsideText.Provider>;
+  // Respect the phone's text-size setting, but cap it so fixed-height chips, tabs and buttons don't clip.
+  return <InsideText.Provider value><RNText maxFontSizeMultiplier={1.4} {...props} style={style} /></InsideText.Provider>;
 }
 export const TextInput = forwardRef<RNTextInput, TextInputProps>(function TextInput(props, ref) {
   const style = useInter(props.style as StyleProp<TextStyle>, false);
-  return <RNTextInput ref={ref} {...props} style={style} />;
+  return <RNTextInput ref={ref} maxFontSizeMultiplier={1.4} {...props} style={style} />;
 });
 export type TextInput = RNTextInput;
 
@@ -114,9 +116,9 @@ export function BottomBar({ children, style }: { children: ReactNode; style?: Vi
 export function Money({ value, currency = 'QAR', strong = false }: { value: string | number; currency?: string; strong?: boolean }) { const { colors } = useTheme(); const number = Number(value || 0); return <Text style={[strong ? styles.moneyStrong : styles.money, { color: strong ? colors.primary : colors.text }]}>{currency} {number.toFixed(2)}</Text>; }
 
 const styles = StyleSheet.create({
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 10 }, brandSmall: { gap: 7 }, logo: { width: 45, height: 45, resizeMode: 'contain' }, logoSmall: { width: 31, height: 31 }, brandTitle: { fontSize: 21, fontWeight: '800', letterSpacing: -.5 }, brandTitleSmall: { fontSize: 17 }, tagline: { fontSize: 11, marginTop: 1 },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: 10 }, brandSmall: { gap: 7 }, logo: { width: 45, height: 45, resizeMode: 'contain' }, logoSmall: { width: 31, height: 31 }, brandTitle: { fontSize: 21, fontWeight: '800', letterSpacing: -.5 }, brandTitleSmall: { fontSize: 17 }, tagline: { fontSize: 12, marginTop: 1 },
   button: { minHeight: 48, borderRadius: 13, borderWidth: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 18 }, buttonText: { fontSize: 15, fontWeight: '800' },
-  iconButton: { width: 40, height: 40, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center', position: 'relative' }, badge: { position: 'absolute', minWidth: 16, height: 16, borderRadius: 8, right: -5, top: -5, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 }, badgeText: { color: '#171C36', fontSize: 9, fontWeight: '800' },
+  iconButton: { width: 40, height: 40, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center', position: 'relative' }, badge: { position: 'absolute', minWidth: 16, height: 16, borderRadius: 8, right: -5, top: -5, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 }, badgeText: { color: '#171C36', fontSize: 10, fontWeight: '800' },
   fieldWrap: { marginBottom: 15 }, fieldLabel: { fontSize: 13, fontWeight: '700', marginBottom: 7 }, field: { minHeight: 50, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, fontSize: 15 }, error: { fontSize: 12, marginTop: 5 },
   card: { borderWidth: 1, borderRadius: 16, padding: 15 }, divider: { height: StyleSheet.hairlineWidth, marginVertical: 13 }, spinner: { minHeight: 260, justifyContent: 'center', alignItems: 'center', gap: 12 }, spinnerText: { fontSize: 14 },
   empty: { alignItems: 'center', paddingHorizontal: 28, paddingVertical: 56, gap: 9 }, emptyIcon: { width: 62, height: 62, borderRadius: 31, alignItems: 'center', justifyContent: 'center', marginBottom: 3 }, emptyTitle: { fontSize: 19, fontWeight: '800', textAlign: 'center' }, emptyText: { fontSize: 14, textAlign: 'center', lineHeight: 20, maxWidth: 290 },
@@ -128,3 +130,14 @@ const styles = StyleSheet.create({
   modalBackdrop: { flex: 1 }, sheet: { maxHeight: '82%', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 9 }, sheetHandle: { width: 40, height: 4, borderRadius: 3, alignSelf: 'center', marginBottom: 8 }, sheetTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 10 }, sheetTitle: { fontSize: 18, fontWeight: '800' }, sheetContent: { padding: 20, paddingTop: 4, paddingBottom: 38 },
   money: { fontSize: 14, fontWeight: '700' }, moneyStrong: { fontSize: 17, fontWeight: '900' },
 });
+
+
+/** Slim "No connection" bar. It appears after a request fails and clears as soon as one succeeds. */
+export function OfflineBar() {
+  const { colors } = useTheme();
+  const off = useSyncExternalStore(connectivity.subscribe, connectivity.isOffline);
+  if (!off) return null;
+  return <View pointerEvents="none" accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ position: 'absolute', left: 12, right: 12, bottom: 92, zIndex: 50, borderRadius: 12, backgroundColor: colors.warning, paddingVertical: 10, paddingHorizontal: 14 }}>
+    <Text style={{ color: '#111827', fontWeight: '800', fontSize: 13, textAlign: 'center' }}>No connection. Check your signal and try again.</Text>
+  </View>;
+}

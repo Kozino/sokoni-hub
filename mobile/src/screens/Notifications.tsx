@@ -99,7 +99,7 @@ import { WebOnlyAccount } from './WebOnlyAccount';export function Notifications(
                 <Text style={{ fontSize: 15, fontWeight: '800', color: colors.text, marginBottom: 4 }}>{item.title}</Text>
                 <Text style={{ fontSize: 13, color: colors.text2, lineHeight: 18 }}>{item.text}</Text>
               </View>
-              <Text style={{ fontSize: 11, color: colors.muted, alignSelf: 'flex-start' }}>{date(item.at)}</Text>
+              <Text style={{ fontSize: 12, color: colors.muted, alignSelf: 'flex-start' }}>{date(item.at)}</Text>
             </View>
           </Pressable>
         )}

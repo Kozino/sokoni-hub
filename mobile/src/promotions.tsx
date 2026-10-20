@@ -97,11 +97,11 @@ export function FeaturedStores({ stores, onOpen }: { stores: Promo[]; onOpen: (s
 
 const styles = StyleSheet.create({
   head: { marginTop: 22, marginBottom: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headTitle: { flexDirection: 'row', alignItems: 'center', gap: 7 }, heading: { fontSize: 18, fontWeight: '900', letterSpacing: -.3 }, sponsored: { fontSize: 10, fontWeight: '800', letterSpacing: .3 },
+  headTitle: { flexDirection: 'row', alignItems: 'center', gap: 7 }, heading: { fontSize: 18, fontWeight: '900', letterSpacing: -.3 }, sponsored: { fontSize: 12, fontWeight: '800', letterSpacing: .3 },
   rail: { gap: 10, paddingHorizontal: 14 }, logo: { overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  vipCard: { width: 196, borderRadius: 16, padding: 14, gap: 4 }, vipBadge: { position: 'absolute', right: 10, top: 10, flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#FFC178', borderRadius: 9, paddingHorizontal: 7, paddingVertical: 3 }, vipBadgeText: { fontSize: 9, fontWeight: '900', color: '#1C1B17' },
-  vipName: { color: '#fff', fontSize: 15, fontWeight: '900', marginTop: 8 }, vipMeta: { color: 'rgba(255,255,255,.72)', fontSize: 11 }, vipRating: { color: '#fff', fontSize: 12, fontWeight: '800' },
-  vipFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }, rating: { flexDirection: 'row', alignItems: 'center', gap: 4 }, visit: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FFC178', borderRadius: 14, paddingHorizontal: 11, height: 27 }, visitText: { fontSize: 11, fontWeight: '900', color: '#1C1B17' },
-  featCard: { width: 158, borderRadius: 14, borderWidth: 1, padding: 12, gap: 3 }, featTag: { position: 'absolute', right: 9, top: 9, borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2 }, featTagText: { fontSize: 7, fontWeight: '900' },
-  featName: { fontSize: 13, fontWeight: '900', marginTop: 8 }, featMeta: { fontSize: 11, marginTop: 1 },
+  vipCard: { width: 196, borderRadius: 16, padding: 14, gap: 4 }, vipBadge: { position: 'absolute', right: 10, top: 10, flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#FFC178', borderRadius: 9, paddingHorizontal: 7, paddingVertical: 3 }, vipBadgeText: { fontSize: 10, fontWeight: '900', color: '#1C1B17' },
+  vipName: { color: '#fff', fontSize: 15, fontWeight: '900', marginTop: 8 }, vipMeta: { color: 'rgba(255,255,255,.72)', fontSize: 12 }, vipRating: { color: '#fff', fontSize: 12, fontWeight: '800' },
+  vipFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }, rating: { flexDirection: 'row', alignItems: 'center', gap: 4 }, visit: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FFC178', borderRadius: 14, paddingHorizontal: 11, height: 27 }, visitText: { fontSize: 12, fontWeight: '900', color: '#1C1B17' },
+  featCard: { width: 158, borderRadius: 14, borderWidth: 1, padding: 12, gap: 3 }, featTag: { position: 'absolute', right: 9, top: 9, borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2 }, featTagText: { fontSize: 12, fontWeight: '900' },
+  featName: { fontSize: 13, fontWeight: '900', marginTop: 8 }, featMeta: { fontSize: 12, marginTop: 1 },
 });

@@ -249,13 +249,13 @@ function Row({ label, value, strong }: { label: string; value: React.ReactNode; 
 const styles = StyleSheet.create({
   page: { flex: 1 }, scroll: { padding: 16, paddingBottom: 24 },
   profile: { flexDirection: 'row', gap: 12, alignItems: 'center' }, avatar: { width: 72, height: 72, borderRadius: 12, resizeMode: 'cover' },
-  name: { fontSize: 16, fontWeight: '900', lineHeight: 20 }, sub: { fontSize: 11, marginTop: 3 }, tags: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 7 },
-  tag: { height: 26, borderRadius: 13, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 4 }, tagText: { fontSize: 10, fontWeight: '800' },
+  name: { fontSize: 16, fontWeight: '900', lineHeight: 20 }, sub: { fontSize: 12, marginTop: 3 }, tags: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 7 },
+  tag: { height: 26, borderRadius: 13, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 4 }, tagText: { fontSize: 12, fontWeight: '800' },
   section: { fontSize: 16, fontWeight: '900', marginTop: 24, marginBottom: 10 },
   dayRail: { gap: 8, paddingRight: 16 }, dayChip: { width: 60, height: 78, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center', gap: 1 },
-  dayWeek: { fontSize: 11, fontWeight: '700' }, dayNum: { fontSize: 20, fontWeight: '900' }, dayMonth: { fontSize: 10, fontWeight: '700' },
+  dayWeek: { fontSize: 12, fontWeight: '700' }, dayNum: { fontSize: 20, fontWeight: '900' }, dayMonth: { fontSize: 12, fontWeight: '700' },
   timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, timeChip: { minWidth: 76, height: 42, borderRadius: 11, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 }, timeText: { fontSize: 14, fontWeight: '800' },
-  caption: { fontSize: 11, marginTop: 9 },
+  caption: { fontSize: 12, marginTop: 9 },
   toggle: { height: 50, borderRadius: 12, padding: 4, flexDirection: 'row', gap: 4 }, toggleOption: { flex: 1, borderRadius: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }, toggleText: { fontSize: 12, fontWeight: '900' },
   totalLabel: { fontSize: 12, fontWeight: '800', letterSpacing: .3 }, totalValue: { fontSize: 13, fontWeight: '900', marginTop: 2 },
   /* Compact CTA: 44px tall (touch minimum), sized to its label, never stretched. */

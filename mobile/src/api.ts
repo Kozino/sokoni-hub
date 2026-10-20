@@ -27,6 +27,15 @@ export const authStorage = {
 
 export const setUnauthorizedHandler = (handler: (() => void) | null) => { onUnauthorized = handler; };
 
+// Connectivity is inferred from real requests: a failed fetch marks us offline, any response marks us online.
+let offline = false;
+const listeners = new Set<() => void>();
+const setOffline = (value: boolean) => { if (offline !== value) { offline = value; listeners.forEach((l) => l()); } };
+export const connectivity = {
+  isOffline: () => offline,
+  subscribe: (l: () => void) => { listeners.add(l); return () => { listeners.delete(l); }; },
+};
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   if (!(init.body instanceof FormData) && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
@@ -36,8 +45,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   try {
     response = await fetch(`${API_URL}/api${path}`, { ...init, headers });
   } catch {
+    setOffline(true);
     throw new ApiError(0, 'Cannot reach Sokoni Hub. Check your connection and try again.');
   }
+  setOffline(false);
 
   const data = response.headers.get('content-type')?.includes('application/json')
     ? await response.json().catch(() => ({}))

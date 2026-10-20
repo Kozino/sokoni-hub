@@ -1,3 +1,4 @@
+import { Appearance } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { api, authStorage, setUnauthorizedHandler } from './api';
@@ -10,13 +11,13 @@ export const palette = {
   // Consumer app design system: emerald marketplace, citrus action colour,
   // generous white surfaces and soft lilac utility panels.
   light: {
-    bg: '#F8F8FD', surface: '#FFFFFF', surface2: '#F0F2FF', text: '#111827', text2: '#56606D', muted: '#7B8794',
+    bg: '#F8F8FD', surface: '#FFFFFF', surface2: '#F0F2FF', text: '#111827', text2: '#56606D', muted: '#5B6674',
     border: '#E8EAF3', primary: '#05663F', primaryPressed: '#034D30', primarySoft: '#E1F7E9', primaryLine: '#BDE9CE',
-    gold: '#FF7A00', goldSoft: '#FFF0E2', teal: '#08715B', tealSoft: '#E2F7F0', success: '#078B57', successSoft: '#E5F8EE',
+    gold: '#C25E00', goldSoft: '#FFF0E2', teal: '#08715B', tealSoft: '#E2F7F0', success: '#078B57', successSoft: '#E5F8EE',
     warning: '#D26A00', warningSoft: '#FFF2DF', danger: '#C43B3B', dangerSoft: '#FDEBEC', tab: '#FFFFFF', overlay: 'rgba(4,35,23,.56)',
   },
   dark: {
-    bg: '#101815', surface: '#18221D', surface2: '#202E27', text: '#F2F8F4', text2: '#B6C5BD', muted: '#84938B',
+    bg: '#101815', surface: '#18221D', surface2: '#202E27', text: '#F2F8F4', text2: '#B6C5BD', muted: '#9AA9A1',
     border: '#304238', primary: '#65D89C', primaryPressed: '#93E8B8', primarySoft: '#173B29', primaryLine: '#2A6846',
     gold: '#FFAA58', goldSoft: '#402A17', teal: '#7CE0BB', tealSoft: '#163E32', success: '#73DCA1', successSoft: '#153525',
     warning: '#FFC178', warningSoft: '#432E17', danger: '#F2AAA7', dangerSoft: '#432021', tab: '#18221D', overlay: 'rgba(0,0,0,.68)',
@@ -28,8 +29,15 @@ const ThemeContext = createContext<{ theme: ThemeName; colors: Colors; toggleThe
 export const useTheme = () => useContext(ThemeContext);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<ThemeName>('light');
+  const [theme, setTheme] = useState<ThemeName>(() => (Appearance.getColorScheme() === 'dark' ? 'dark' : 'light'));
   useEffect(() => { AsyncStorage.getItem(THEME_KEY).then((saved) => { if (saved === 'dark' || saved === 'light') setTheme(saved); }).catch(() => {}); }, []);
+  // Follow the phone's light/dark setting until the buyer picks a theme by hand.
+  useEffect(() => {
+    const sub = Appearance.addChangeListener(({ colorScheme }) => {
+      AsyncStorage.getItem(THEME_KEY).then((saved) => { if (saved !== 'dark' && saved !== 'light') setTheme(colorScheme === 'dark' ? 'dark' : 'light'); }).catch(() => {});
+    });
+    return () => sub.remove();
+  }, []);
   const toggleTheme = useCallback(() => setTheme((current) => {
     const next = current === 'light' ? 'dark' : 'light';
     void AsyncStorage.setItem(THEME_KEY, next);
