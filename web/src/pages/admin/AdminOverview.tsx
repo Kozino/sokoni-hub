@@ -81,8 +81,8 @@ export default function AdminOverview() {
                   <linearGradient id="b" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#2E3B6E" stopOpacity={.4} /><stop offset="100%" stopColor="#2E3B6E" stopOpacity={.02} /></linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E6DFCD" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#8B84A0' }} interval={4} />
-                <YAxis tick={{ fontSize: 11, fill: '#8B84A0' }} width={34} allowDecimals={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#8B84A0' }} interval={4} />
+                <YAxis tick={{ fontSize: 12, fill: '#8B84A0' }} width={34} allowDecimals={false} />
                 <Tooltip /><Legend />
                 <Area type="monotone" dataKey="vendors" stroke="#3D7A4E" strokeWidth={2} fill="url(#v)" name="Vendors" />
                 <Area type="monotone" dataKey="buyers" stroke="#2E3B6E" strokeWidth={2} fill="url(#b)" name="Buyers" />
@@ -97,9 +97,9 @@ export default function AdminOverview() {
             <ResponsiveContainer>
               <LineChart data={d.orderTrend.map((t: any) => ({ ...t, label: t.day.slice(5) }))}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E6DFCD" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#8B84A0' }} interval={4} />
-                <YAxis yAxisId="l" tick={{ fontSize: 11, fill: '#8B84A0' }} width={34} allowDecimals={false} />
-                <YAxis yAxisId="r" orientation="right" tick={{ fontSize: 11, fill: '#8B84A0' }} width={52} />
+                <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#8B84A0' }} interval={4} />
+                <YAxis yAxisId="l" tick={{ fontSize: 12, fill: '#8B84A0' }} width={34} allowDecimals={false} />
+                <YAxis yAxisId="r" orientation="right" tick={{ fontSize: 12, fill: '#8B84A0' }} width={52} />
                 <Tooltip /><Legend />
                 <Line yAxisId="l" type="monotone" dataKey="orders" stroke="#2B5F8A" strokeWidth={2} dot={false} name="Orders" />
                 <Line yAxisId="r" type="monotone" dataKey="gmv" stroke="#D98E2B" strokeWidth={2} dot={false} name="GMV" />
@@ -116,8 +116,8 @@ export default function AdminOverview() {
             <ResponsiveContainer>
               <BarChart data={d.byCategory} layout="vertical" margin={{ left: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E6DFCD" horizontal={false} />
-                <XAxis type="number" tick={{ fontSize: 11, fill: '#8B84A0' }} allowDecimals={false} />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: '#8B84A0' }} width={125} />
+                <XAxis type="number" tick={{ fontSize: 12, fill: '#8B84A0' }} allowDecimals={false} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 12, fill: '#8B84A0' }} width={125} />
                 <Tooltip />
                 <Bar dataKey="listings" fill="#2E3B6E" radius={[0, 6, 6, 0]} name="Listings" />
               </BarChart>

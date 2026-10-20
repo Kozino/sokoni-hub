@@ -143,7 +143,7 @@ export default function VendorPlans() {
                         <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: s.status === 'approved' ? '#d4edda' : s.status === 'rejected' ? '#f8d7da' : '#fff3cd' }}>
                           {s.status}
                         </span>
-                        {s.admin_note && <div style={{fontSize: 11, color: 'red', marginTop: 4}}>{s.admin_note}</div>}
+                        {s.admin_note && <div style={{fontSize: 12, color: 'red', marginTop: 4}}>{s.admin_note}</div>}
                       </td>
                     </tr>
                   ))}

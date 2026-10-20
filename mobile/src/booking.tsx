@@ -235,7 +235,7 @@ export function BookService({ listing, go, back, tab }: { listing?: Listing; go:
         <Text style={[styles.totalLabel, { color: colors.text2 }]}>{chosenLabel ? 'YOUR APPOINTMENT' : 'SELECT DATE & TIME'}</Text>
         <Text numberOfLines={1} style={[styles.totalValue, { color: colors.text }]}>{chosenLabel || '—'}</Text>
       </View>
-      <Button variant="gold" loading={busy} disabled={!ready && !!user} onPress={() => void submit()} style={styles.cta} textStyle={styles.ctaText}>{user ? (config.options.auto_accept && calendar ? 'Book now' : 'Request booking') : 'Sign in to book'}</Button>
+      <Button variant="gold" loading={busy} disabled={!ready && !!user} onPress={() => void submit()} style={layout.isPhone ? styles.ctaPhone : styles.ctaTablet} textStyle={styles.ctaText}>{user ? (config.options.auto_accept && calendar ? 'Book now' : 'Request booking') : 'Sign in to book'}</Button>
       </View>
     </BottomBar>
   </KeyboardAvoidingView>;
@@ -257,7 +257,11 @@ const styles = StyleSheet.create({
   timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, timeChip: { minWidth: 76, height: 42, borderRadius: 11, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 }, timeText: { fontSize: 14, fontWeight: '800' },
   caption: { fontSize: 11, marginTop: 9 },
   toggle: { height: 50, borderRadius: 12, padding: 4, flexDirection: 'row', gap: 4 }, toggleOption: { flex: 1, borderRadius: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }, toggleText: { fontSize: 12, fontWeight: '900' },
-  totalLabel: { fontSize: 9, fontWeight: '800', letterSpacing: .4 }, totalValue: { fontSize: 13, fontWeight: '900', marginTop: 2 }, cta: { minWidth: 0, minHeight: 44, borderRadius: RADIUS.pill, paddingHorizontal: 18, alignSelf: 'center' }, ctaText: { fontSize: 14 },
+  totalLabel: { fontSize: 12, fontWeight: '800', letterSpacing: .3 }, totalValue: { fontSize: 13, fontWeight: '900', marginTop: 2 },
+  /* Compact CTA: 44px tall (touch minimum), sized to its label, never stretched. */
+  ctaPhone: { minHeight: 44, minWidth: 118, maxWidth: 160, borderRadius: RADIUS.pill, paddingHorizontal: 14, alignSelf: 'center', flexShrink: 0 },
+  ctaTablet: { minHeight: 44, minWidth: 148, maxWidth: 200, borderRadius: RADIUS.pill, paddingHorizontal: 20, alignSelf: 'center', flexShrink: 0 },
+  ctaText: { fontSize: 13 },
   barInner: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, alignSelf: 'center' },
   doneScroll: { padding: 20, alignItems: 'center' }, doneIcon: { width: 84, height: 84, borderRadius: 42, alignItems: 'center', justifyContent: 'center', marginTop: 14 },
   doneTitle: { fontSize: 24, fontWeight: '900', marginTop: 16 }, doneCopy: { fontSize: 14, lineHeight: 20, textAlign: 'center', marginTop: 6, maxWidth: 300 },

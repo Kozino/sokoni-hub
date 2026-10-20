@@ -58,7 +58,7 @@ export default function AdminSubscriptions() {
                 <td>{s.amount} {s.currency}</td>
                 <td>
                   <div>{s.payment_method.replace('_', ' ')}</div>
-                  {s.reference && <div style={{fontSize: 11, color: '#666'}}>Ref: {s.reference}</div>}
+                  {s.reference && <div style={{fontSize: 12, color: '#666'}}>Ref: {s.reference}</div>}
                 </td>
                 <td>
                   {s.receipt_url ? <a href={s.receipt_url} target="_blank" rel="noreferrer" style={{color: 'var(--primary)', fontWeight:'bold', fontSize: 13}}>View Receipt</a> : <span style={{color: '#999', fontSize: 13}}>None</span>}
@@ -67,7 +67,7 @@ export default function AdminSubscriptions() {
                   <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: s.status === 'approved' ? '#d4edda' : s.status === 'rejected' ? '#f8d7da' : '#fff3cd' }}>
                     {s.status}
                   </span>
-                  {s.admin_note && <div style={{fontSize: 11, color: 'red', marginTop: 4}}>{s.admin_note}</div>}
+                  {s.admin_note && <div style={{fontSize: 12, color: 'red', marginTop: 4}}>{s.admin_note}</div>}
                 </td>
                 <td>
                   {s.status === 'pending' && (

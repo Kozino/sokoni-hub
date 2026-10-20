@@ -56,7 +56,6 @@ function ProfileMenu({ onNavigate }: { onNavigate: () => void }) {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Account menu"
-        style={{ width: 34, height: 34 }}
       >
         <span className="avatar" style={{ width: 30, height: 30, fontSize: 12 }}>{initialsOf(user.full_name)}</span>
       </button>

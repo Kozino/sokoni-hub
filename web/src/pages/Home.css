@@ -169,14 +169,14 @@
 .lp .lcard { border-radius: var(--r-md); }
 .lp .lcard:hover { border-color: var(--lp-teal); box-shadow: 0 10px 24px rgba(5,42,34,.14); transform: translateY(-2px); }
 .lp .lcard-img { aspect-ratio: 1/1; }
-.lp .lcard-kind .badge { background: rgba(5,42,34,.72); color: #fff; border: none; backdrop-filter: blur(2px); font-size: 10px; text-transform: uppercase; letter-spacing: .03em; }
+.lp .lcard-kind .badge { background: rgba(5,42,34,.72); color: #fff; border: none; backdrop-filter: blur(2px); font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
 .lp .lcard-body { padding: var(--s-2) var(--s-3) var(--s-3); gap: 2px; display: flex; flex-direction: column; }
 .lp .lcard-price { order: 1; margin-top: 0; padding-top: 0; font-size: var(--fs-base); color: var(--text); font-weight: 700; letter-spacing: -.01em; }
 .lp .lcard-title { order: 2; font-size: var(--fs-sm); font-weight: 500; color: var(--text); line-height: 1.35; -webkit-line-clamp: 2; }
 .lp .lcard-meta { display: none; }
 .lp .lcard-foot { order: 3; border-top: none; margin-top: 3px; padding-top: 0; }
 .lp .lcard-foot span:first-child { display: none; }
-.lp .lcard-foot span:last-child { display: flex; align-items: center; gap: 3px; font-size: 11px; color: var(--text-muted); }
+.lp .lcard-foot span:last-child { display: flex; align-items: center; gap: 3px; font-size: 12px; color: var(--text-muted); }
 .lp .lcard-foot span:last-child::before { content: '📍'; font-size: .8em; }
 
 /* ----------------------------------------------------------------------------
@@ -270,7 +270,7 @@
     margin-inline: calc(-1 * var(--s-4)); padding: 0 var(--s-4) var(--s-2);
   }
   .lp-cats::-webkit-scrollbar { display: none; }
-  .lp-cat { flex: 0 0 84px; scroll-snap-align: start; font-size: 11px; }
+  .lp-cat { flex: 0 0 84px; scroll-snap-align: start; font-size: 12px; }
   .lp-cat-ico { width: 64px; height: 64px; }
 
   /* Non-scroll shelves: small 2-up cards, like Jumia / Jiji */
@@ -278,8 +278,8 @@
   .lp .lcard-body { padding: var(--s-2); gap: 1px; }
   .lp .lcard-title { font-size: var(--fs-xs); line-height: 1.3; }
   .lp .lcard-price { font-size: var(--fs-sm); }
-  .lp .lcard-kind .badge { font-size: 9px; padding: 1px 5px; }
-  .lp .lcard-foot span:last-child { font-size: 10px; }
+  .lp .lcard-kind .badge { font-size: 12px; padding: 1px 5px; }
+  .lp .lcard-foot span:last-child { font-size: 12px; }
 
   .lp-sell { padding: var(--s-8) var(--s-5); }
   .lp-sell-inner { flex-direction: column; align-items: flex-start; }
@@ -336,7 +336,7 @@
 .pr-meta { font-size: var(--fs-sm); color: var(--text-muted); }
 .pr-dim { opacity: .7; }
 
-.pr-badge { align-self: flex-start; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 3px var(--s-2); border-radius: var(--r-full); line-height: 1.4; }
+.pr-badge { align-self: flex-start; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 3px var(--s-2); border-radius: var(--r-full); line-height: 1.4; }
 .pr-badge-featured { background: var(--lp-orange-tint); color: var(--lp-orange-deep); border: 1px solid rgba(253,122,0,.35); }
 .pr-badge-vip { background: linear-gradient(135deg, #F0CF8A, #C98A2B); color: #2B1B03; border: 0; box-shadow: 0 1px 0 rgba(255,255,255,.4) inset; }
 
@@ -386,9 +386,9 @@
     font-size: var(--fs-sm); line-height: 1.3;
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
   }
-  .pr-meta { font-size: 11px; }
+  .pr-meta { font-size: 12px; }
   .pr-loc { min-width: 0; overflow-wrap: anywhere; }
   .pr-stats { flex-direction: column; align-items: flex-start; gap: 0; }
   .pr-stats [aria-hidden='true'] { display: none; }  /* the "•" between rating and listings */
-  .pr-badge { font-size: 9px; padding: 2px 6px; }
+  .pr-badge { font-size: 12px; padding: 2px 6px; }
 }

@@ -104,8 +104,8 @@ export default function VendorOverview() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
-                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--chart-axis)' }} interval={4} />
-                  <YAxis tick={{ fontSize: 11, fill: 'var(--chart-axis)' }} width={48} />
+                  <XAxis dataKey="label" tick={{ fontSize: 12, fill: 'var(--chart-axis)' }} interval={4} />
+                  <YAxis tick={{ fontSize: 12, fill: 'var(--chart-axis)' }} width={48} />
                   <Tooltip formatter={(v: any) => money(v, cur)} />
                   <Area type="monotone" dataKey="revenue" stroke="var(--chart-1)" strokeWidth={2} fill="url(#rev)" />
                 </AreaChart>
@@ -147,8 +147,8 @@ export default function VendorOverview() {
                 <ResponsiveContainer>
                   <BarChart data={d.topListings.slice(0, 6).map((t: any) => ({ ...t, short: t.title.slice(0, 14) }))}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
-                    <XAxis dataKey="short" tick={{ fontSize: 11, fill: 'var(--chart-axis)' }} />
-                    <YAxis tick={{ fontSize: 11, fill: 'var(--chart-axis)' }} width={40} />
+                    <XAxis dataKey="short" tick={{ fontSize: 12, fill: 'var(--chart-axis)' }} />
+                    <YAxis tick={{ fontSize: 12, fill: 'var(--chart-axis)' }} width={40} />
                     <Tooltip />
                     <Bar dataKey="views" fill="var(--chart-2)" radius={[6, 6, 0, 0]} name="Views" />
                   </BarChart>

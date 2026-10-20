@@ -1,0 +1,30 @@
+/* Floating support button. Sits above the bottom safe area; on phones the page
+   gets bottom padding so the button never covers footer or last-row content. */
+.wa-fab {
+  position: fixed;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  width: 56px;
+  height: 56px;
+  min-width: 44px;
+  min-height: 44px;
+  background-color: #25D366;
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 900;
+  transition: transform 0.2s ease;
+  cursor: pointer;
+}
+.wa-fab:hover { transform: scale(1.06); }
+.wa-fab:focus-visible { outline: 3px solid #075E54; outline-offset: 3px; }
+@media (max-width: 600px) {
+  .wa-fab { width: 52px; height: 52px; right: 12px; }
+  body { padding-bottom: 80px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wa-fab { transition: none; }
+  .wa-fab:hover { transform: none; }
+}

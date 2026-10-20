@@ -138,7 +138,7 @@ export default function Home() {
         {/* Photo background. An <img> (not CSS background) so it can be the LCP
             element and carry fetchPriority; the overlay in Home.css keeps text readable. */}
         <img className="lp-hero-bg" src="/img/hero.jpg" alt="" width={1584} height={672}
-             fetchPriority="high" decoding="async" />
+             {...({ fetchpriority: 'high' } as Record<string, string>)} decoding="async" />
         <div className="container lp-hero-inner">
           <div className="lp-hero-copy">
             
