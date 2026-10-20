@@ -5,6 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { CameraIcon, CheckCircleIcon, MapPinIcon, PhoneIcon, ArrowPathIcon } from 'react-native-heroicons/outline';
 import { api } from '../api';
+import { pendingDelivery, sendDelivery, isOffline, type PendingDelivery } from '../pendingDelivery';
 import { Badge, Button, Card, Notice, ScreenHeader } from '../components/UI';
 import { errorText, mapsLink, mapsPointLink, money, statusLabel } from "../format";
 import { C } from '../theme';
@@ -21,6 +22,11 @@ export function ActiveDelivery({ orderId, onDone }: { orderId: string; onDone: (
   const [busy, setBusy] = useState(false);
   const [photo, setPhoto] = useState<string | null>(null);
   const [error, setError] = useState('');
+  // Cash-on-delivery: the rider must say they collected the money before they can finish.
+  const [cashConfirmed, setCashConfirmed] = useState(false);
+  // A delivery saved on the phone that is still waiting for signal.
+  const [queued, setQueued] = useState<PendingDelivery | null>(null);
+  const [finishError, setFinishError] = useState('');
 
   const reload = useCallback(async () => {
     try {
@@ -158,29 +164,75 @@ export function ActiveDelivery({ orderId, onDone }: { orderId: string; onDone: (
     }
   };
 
+  const finishedOk = useCallback(async () => {
+    await pendingDelivery.clear(orderId);
+    await FileSystem.deleteAsync(proofPath(orderId), { idempotent: true }).catch(() => {});
+    setQueued(null);
+    Alert.alert('Delivery recorded', 'The customer will confirm receipt. If they do not respond, the order completes automatically.', [{ text: 'Done', onPress: onDone }]);
+  }, [orderId, onDone]);
+
+  /** One attempt to send a saved delivery. Network failures keep it queued; other errors stop the queue. */
+  const attemptSend = useCallback(async (p: PendingDelivery) => {
+    setBusy(true);
+    try {
+      await sendDelivery(p);
+      await finishedOk();
+    } catch (e) {
+      if (isOffline(e)) {
+        setQueued(p);
+        setFinishError('No signal. Your delivery is saved on this phone and will be sent automatically when you are back online.');
+      } else {
+        // The server may already have it (reply lost on a weak connection). Check before showing an error.
+        try {
+          const res = await api.get<{ order: Order }>(`/drivers/orders/${orderId}`);
+          if (!LIVE_STATUSES.includes(res.order.status)) { await finishedOk(); return; }
+        } catch { /* fall through to the error */ }
+        await pendingDelivery.clear(orderId);
+        setQueued(null);
+        setFinishError(errorText(e));
+      }
+    } finally {
+      setBusy(false);
+    }
+  }, [orderId, finishedOk]);
+
+  // Pick up a delivery that was saved before the app closed.
+  useEffect(() => {
+    let cancelled = false;
+    pendingDelivery.load(orderId).then((p) => { if (p && !cancelled) { setQueued(p); setCashConfirmed(p.cashCollected); } });
+    return () => { cancelled = true; };
+  }, [orderId]);
+
+  // While a delivery is queued, keep retrying quietly.
+  useEffect(() => {
+    if (!queued) return;
+    const timer = setInterval(() => { if (!busy) void attemptSend(queued); }, 10000);
+    return () => clearInterval(timer);
+  }, [queued, busy, attemptSend]);
+
   const submitDelivery = async () => {
     if (!photo) return;
+    setFinishError('');
+    if (queued) return attemptSend(queued);
     setBusy(true);
+    let pending: PendingDelivery;
     try {
       // The server checks that you are at the confirmed drop-off point, so read GPS first.
       const here = await currentPosition();
       if (!here) {
-        Alert.alert('Location needed', 'Turn on location so we can confirm you are at the delivery point.');
+        setFinishError('Turn on location so we can confirm you are at the delivery point.');
+        setBusy(false);
         return;
       }
-      const form = new FormData();
-      form.append('files', { uri: photo, name: 'proof.jpg', type: 'image/jpeg' } as any);
-      const upload = await api.post<{ urls: string[] }>('/uploads', form);
-      const proofUrl = upload.urls?.[0];
-      if (!proofUrl) throw new Error('The photo could not be uploaded. Please try again.');
-      await api.post(`/drivers/orders/${orderId}/complete`, { proof_url: proofUrl, lat: here.lat, lng: here.lng });
-      await FileSystem.deleteAsync(proofPath(orderId), { idempotent: true }).catch(() => {});
-      Alert.alert('Delivery recorded', 'The customer will confirm receipt. If they do not respond, the order completes automatically.', [{ text: 'Done', onPress: onDone }]);
+      pending = { orderId, proofUri: photo, lat: here.lat, lng: here.lng, cashCollected: cashConfirmed };
+      await pendingDelivery.save(pending);   // saved first, so nothing is lost if the signal drops
     } catch (e) {
-      Alert.alert('Could not complete delivery', errorText(e));
-    } finally {
+      setFinishError(errorText(e));
       setBusy(false);
+      return;
     }
+    setBusy(false);
+    await attemptSend(pending);
   };
 
   if (loading) {
@@ -207,6 +259,7 @@ export function ActiveDelivery({ orderId, onDone }: { orderId: string; onDone: (
   const dropStep = order.status === 'out_for_delivery';
   const finished = !LIVE_STATUSES.includes(order.status);
   const stepIndex = pickupStep ? 0 : dropStep ? 1 : 2;
+  const needsCash = order.payment_method === 'cash_on_delivery' && order.payment_status !== 'paid';
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
@@ -256,9 +309,20 @@ export function ActiveDelivery({ orderId, onDone }: { orderId: string; onDone: (
 
         {dropStep ? (
           <>
-            {order.payment_method === 'cash_on_delivery' && order.payment_status !== 'paid' ? (
-              <View style={{ marginBottom: 14 }}>
+            {needsCash ? (
+              <View style={{ marginBottom: 14, gap: 10 }}>
                 <Notice>Collect {money(order.total)} in cash from the buyer before you hand over the order.</Notice>
+                <Pressable
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: cashConfirmed, disabled: !!queued }}
+                  accessibilityLabel={`I collected ${money(order.total)} in cash`}
+                  disabled={!!queued}
+                  onPress={() => setCashConfirmed((v) => !v)}
+                  style={[styles.cashRow, cashConfirmed && styles.cashRowOn]}
+                >
+                  <View style={[styles.box, cashConfirmed && styles.boxOn]}>{cashConfirmed ? <CheckCircleIcon size={20} color="#fff" /> : null}</View>
+                  <Text style={styles.cashText}>I collected {money(order.total)} in cash</Text>
+                </Pressable>
               </View>
             ) : null}
 
@@ -291,7 +355,15 @@ export function ActiveDelivery({ orderId, onDone }: { orderId: string; onDone: (
                   disabled={busy}
                   icon={photo ? <ArrowPathIcon size={18} color={C.primary} /> : <CameraIcon size={18} color={C.primary} />}
                 />
-                <Button title="Confirm delivery" onPress={submitDelivery} loading={busy} disabled={!photo} icon={<CheckCircleIcon size={20} color="#fff" />} />
+                {finishError ? <Notice tone={queued ? 'info' : 'error'}>{finishError}</Notice> : null}
+                <Button
+                  title={queued ? 'Send now' : 'Confirm delivery'}
+                  onPress={submitDelivery}
+                  loading={busy}
+                  disabled={!photo || (needsCash && !cashConfirmed)}
+                  icon={<CheckCircleIcon size={20} color="#fff" />}
+                />
+                {needsCash && !cashConfirmed && !queued ? <Text style={styles.muted}>Tick the box above once you have the cash.</Text> : null}
               </View>
             </Card>
           </>
@@ -314,7 +386,7 @@ export function ActiveDelivery({ orderId, onDone }: { orderId: string; onDone: (
 
 function ActionChip({ label, icon, onPress }: { label: string; icon: React.ReactNode; onPress: () => void }) {
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={styles.chip}>
+    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={styles.chip}>
       {icon}
       <Text style={styles.chipText}>{label}</Text>
     </Pressable>
@@ -342,11 +414,16 @@ const styles = StyleSheet.create({
   stepDotOn: { backgroundColor: C.primary },
   stepLabel: { fontSize: 12, color: C.muted, fontWeight: '700' },
   stepLabelOn: { color: C.primary },
-  eyebrow: { fontSize: 11, fontWeight: '900', color: C.muted, letterSpacing: 0.7 },
+  eyebrow: { fontSize: 12, fontWeight: '900', color: C.muted, letterSpacing: 0.7 },
   name: { fontSize: 19, fontWeight: '900', color: C.text, marginTop: 4 },
   muted: { fontSize: 14, color: C.text2, marginTop: 4, lineHeight: 20 },
   actions: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  chip: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderRadius: 14, backgroundColor: C.primarySoft },
+  cashRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingHorizontal: 14, borderRadius: 14, borderWidth: 2, borderColor: C.border, backgroundColor: C.surface },
+  cashRowOn: { borderColor: C.primary, backgroundColor: C.primarySoft },
+  box: { width: 28, height: 28, borderRadius: 8, borderWidth: 2, borderColor: C.text2, alignItems: 'center', justifyContent: 'center' },
+  boxOn: { backgroundColor: C.primary, borderColor: C.primary },
+  cashText: { flex: 1, fontSize: 16, fontWeight: '800', color: C.text },
+  chip: { minHeight: 48, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderRadius: 14, backgroundColor: C.primarySoft },
   chipText: { fontSize: 14, fontWeight: '800', color: C.primary },
   items: { marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.border, gap: 4 },
   itemText: { fontSize: 14, color: C.text },
