@@ -8,8 +8,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 /** Where the last Expo push token is kept, so sign-out can remove it from the server. */
 export const PUSH_TOKEN_KEY = 'sokoni.pushToken';
 
+/** Android channel for delivery-job alerts. Channel sound is fixed when a channel is first created,
+ *  so this is a new id: installs that already have the old 'default' channel still get the sound. */
+export const JOB_CHANNEL_ID = 'delivery-jobs';
+
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({ shouldShowAlert: true, shouldPlaySound: true, shouldSetBadge: false }),
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
 });
 
 /** Returns this device's Expo push token once permission is granted ('' otherwise). */
@@ -33,6 +43,18 @@ async function registerForPush(): Promise<string> {
     await Notifications.setNotificationChannelAsync('default', {
       name: 'default',
       importance: Notifications.AndroidImportance.MAX,
+      sound: 'default',
+    });
+    await Notifications.setNotificationChannelAsync(JOB_CHANNEL_ID, {
+      name: 'Delivery jobs',
+      description: 'New delivery jobs near you',
+      importance: Notifications.AndroidImportance.MAX,
+      sound: 'default',
+      vibrationPattern: [0, 300, 200, 300],
+      lightColor: '#FF7A00',
+      enableVibrate: true,
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+      bypassDnd: false,
     });
   }
   const current = await Notifications.getPermissionsAsync();
