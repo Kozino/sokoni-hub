@@ -45,6 +45,7 @@ import AdminOverview from './pages/admin/AdminOverview';
 import AdminVendors from './pages/admin/AdminVendors';
 import { AdminListings, AdminComplaints, AdminOrders, AdminUsers, AdminCategories, AdminAudit } from './pages/admin/AdminMisc';
 import AdminBilling from './pages/admin/AdminBilling';
+import { AdminMoneyModelPage } from './pages/admin/AdminMoneyModel';
 import AdminBookings from './pages/admin/AdminBookings';
 import AdminPromotions from './pages/admin/AdminPromotions';
 import AdminSubscriptions from './pages/admin/AdminSubscriptions';
@@ -128,6 +129,7 @@ export default function App() {
                 <Route path="complaints" element={<AdminComplaints />} />
                 <Route path="users" element={<AdminUsers />} />
                 <Route path="billing" element={<AdminBilling />} />
+                <Route path="money-model" element={<AdminMoneyModelPage />} />
                 <Route path="bookings" element={<AdminBookings />} />
                 <Route path="promotions" element={<AdminPromotions />} />
                 <Route path="subscriptions" element={<AdminSubscriptions />} />

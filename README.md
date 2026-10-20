@@ -1,17 +1,20 @@
-# Vendor store pin: Mapbox
+# Money model switch: fix
 
-Affected files (copy over the same paths in your project):
+Replace these files at the same paths. No database migration is needed: the switch is stored in the existing system_settings table (key money_model).
 
-- web/src/components/VendorPinMap.tsx  (Mapbox picker, English MapLibre fallback, Google removed)
-- web/package.json                     (adds mapbox-gl ^3)
-- web/package-lock.json                (lock for mapbox-gl)
-- web/.env.example                     (VITE_MAPBOX_TOKEN replaces the Google key line)
+API (api/src):
+- moneyModel.ts (reads the switch; defaults)
+- walletSettlement.ts (commission only when commission mode is on)
+- routes/admin.ts (GET/PUT /admin/money-model)
+- routes/billing.ts, routes/vendors.ts, routes/listings.ts, routes/meta.ts
 
-Setup:
-1. In Mapbox, create a public token (pk.…) and add your site domain(s) under URL restrictions.
-2. Set VITE_MAPBOX_TOKEN in the web host's environment (Netlify, or Render if the web is a Static Site).
-3. Redeploy. Vite reads the value at build time, so a redeploy is needed after changing it.
+Web (web/src):
+- App.tsx (route /admin/money-model)
+- pages/admin/AdminLayout.tsx (sidebar "Money model" link, Commerce group)
+- pages/admin/AdminMoneyModel.tsx (the switch page)
+- pages/vendor/VendorPlans.tsx
 
-If the token is missing or refused, the vendor map falls back to the English MapLibre map, so vendors can still place the pin.
+Tests:
+- tests/money-wallet.mjs
 
-Then run `npm install` in web/ and `npm run build`.
+Then: cd api && npm run build; cd web && npm run build.

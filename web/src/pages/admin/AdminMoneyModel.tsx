@@ -96,3 +96,16 @@ export function AdminMoneyModel() {
     </div>
   );
 }
+
+/** The dedicated admin page at /admin/money-model. */
+export function AdminMoneyModelPage() {
+  return (
+    <div>
+      <h1 style={{ margin: 0 }}>Money model</h1>
+      <p style={{ color: 'var(--muted)', margin: '4px 0 16px' }}>
+        How Sokoni Hub earns from vendors. Pick one model; switching applies straight away.
+      </p>
+      <AdminMoneyModel />
+    </div>
+  );
+}
