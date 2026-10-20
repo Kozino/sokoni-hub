@@ -319,6 +319,8 @@ const ProofSchema = z.object({
   // The rider's GPS position at the moment they complete the drop-off.
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
+  // The rider confirms they collected the cash. Required for cash-on-delivery orders (checked below).
+  cash_collected: z.boolean().optional(),
 });
 
 const UUID_JPG = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.jpg$/i;
@@ -343,11 +345,14 @@ driverRouter.post('/orders/:id/complete', requireAuth('driver'), async (req, res
     const b = ProofSchema.parse(req.body);
     assertOwnProofPhoto(b.proof_url, req.user!.id);
     const order = await one<any>(
-      `select id, status, delivery_lat, delivery_lng, fulfilment_mode from orders
+      `select id, status, delivery_lat, delivery_lng, fulfilment_mode, payment_method, total from orders
         where id = $1 and driver_id = $2 and status = any($3::order_status[])`,
       [id, req.user!.id, ['out_for_delivery', 'driver_arrived']]
     );
     if (!order) throw new HttpError(409, 'This delivery cannot be completed right now.');
+    if (order.payment_method === 'cash_on_delivery' && Number(order.total) > 0 && b.cash_collected !== true) {
+      throw new HttpError(422, 'Confirm that you collected the cash before completing this delivery.');
+    }
 
     let dropDistance: number | null = null;
     if (order.delivery_lat != null && order.delivery_lng != null) {

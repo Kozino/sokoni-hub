@@ -484,7 +484,8 @@ orderRouter.get('/vendor', requireAuth('vendor'), loadVendor, async (req, res, n
 
 orderRouter.patch('/vendor/:id/status', requireAuth('vendor'), loadVendor, async (req, res, next) => {
   try {
-    const b = z.object({ status: z.enum(['pending', 'confirmed', 'dispatched', 'delivered', 'cancelled']) }).parse(req.body);
+    const b = z.object({ status: z.enum(['pending', 'confirmed', 'dispatched', 'delivered', 'cancelled']), reason: z.string().trim().min(5).max(300).optional() }).parse(req.body);
+    if(b.status==='cancelled' && !b.reason) throw new HttpError(422,'Tell the buyer why you are cancelling this order.');
     let didChange=false;
     const o=await tx(async c=>{
       const row=(await c.query('select * from orders where id=$1 and vendor_id=$2 for update',[req.params.id,req.vendor!.id])).rows[0];
@@ -492,8 +493,11 @@ orderRouter.patch('/vendor/:id/status', requireAuth('vendor'), loadVendor, async
       if(row.status===b.status) return row;
       // A store marking an order delivered starts the buyer confirmation window; it does not settle the order.
       if(row.status==='delivered_pending_verification' && b.status==='delivered') return row;
-      const allowed: Record<string,string[]>={pending:['confirmed','cancelled'],confirmed:['dispatched','delivered','cancelled'],dispatched:['delivered','cancelled'],delivered:[],cancelled:[]};
+      // A confirmed order must be dispatched before it can be delivered, except store collection (no rider, no dispatch step).
+      const allowed: Record<string,string[]>={pending:['confirmed','cancelled'],confirmed:row.fulfilment_mode==='pickup'?['dispatched','delivered','cancelled']:['dispatched','cancelled'],dispatched:['delivered','cancelled'],delivered:[],cancelled:[]};
       if(!allowed[row.status]?.includes(b.status)) throw new HttpError(409,'This order status change is not allowed.');
+      // Once a rider is assigned, only the rider's GPS-checked proof of delivery can complete the order.
+      if(b.status==='delivered' && row.driver_id) throw new HttpError(409,'A rider is delivering this order. It completes when the rider submits proof of delivery.');
       if(row.status==='dispatched' && b.status==='cancelled' && row.driver_id) throw new HttpError(409,'A rider has already accepted this order. Ask support to reassign it before cancelling.');
       if(b.status==='cancelled' && !row.stock_restored_at) {
        const items=(await c.query('select listing_id,sum(qty)::int as qty from order_items where order_id=$1 and listing_id is not null group by listing_id order by listing_id',[row.id])).rows;
@@ -511,7 +515,7 @@ orderRouter.patch('/vendor/:id/status', requireAuth('vendor'), loadVendor, async
        stock_restored_at=case when $2='cancelled' then coalesce(stock_restored_at,now()) else stock_restored_at end
        where id=$1 returning *`,[row.id,target,auto_complete_hours])).rows[0];
     });
-    await audit(req.user!, 'order.status', 'order', req.params.id, { status: b.status });
+    await audit(req.user!, 'order.status', 'order', req.params.id, { status: b.status, ...(b.reason ? { reason: b.reason } : {}) });
     if (didChange) {
       // The receipt is sent when the order is finally delivered (buyer, auto or admin), not here.
       if (b.status !== 'delivered') void emailOrderStatus(o.id, b.status);
