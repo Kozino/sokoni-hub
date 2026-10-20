@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 import { CameraIcon, CheckCircleIcon, MapPinIcon, PhoneIcon, ArrowPathIcon } from 'react-native-heroicons/outline';
 import { api } from '../api';
 import { Badge, Button, Card, Notice, ScreenHeader } from '../components/UI';
@@ -10,6 +11,9 @@ import { C } from '../theme';
 import type { Order } from './types';
 
 const LIVE_STATUSES = ['dispatched_to_driver', 'out_for_delivery', 'driver_arrived'];
+
+/** Proof photo is kept on the device per order, so it survives an app restart at the door. */
+const proofPath = (orderId: string) => `${FileSystem.documentDirectory ?? ''}proof-${orderId}.jpg`;
 
 export function ActiveDelivery({ orderId, onDone }: { orderId: string; onDone: () => void }) {
   const [order, setOrder] = useState<Order | null>(null);
@@ -33,6 +37,14 @@ export function ActiveDelivery({ orderId, onDone }: { orderId: string; onDone: (
   useEffect(() => {
     reload();
   }, [reload]);
+
+  useEffect(() => {
+    let cancelled = false;
+    FileSystem.getInfoAsync(proofPath(orderId))
+      .then((info) => { if (!cancelled && info.exists) setPhoto(info.uri); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [orderId]);
 
   // Share the rider's position with the buyer while the delivery is live.
   const status = order?.status;
@@ -110,6 +122,24 @@ export function ActiveDelivery({ orderId, onDone }: { orderId: string; onDone: (
     }
   };
 
+  const confirmArrival = async () => {
+    setBusy(true);
+    try {
+      // The server checks you are at the store, so arrival needs your location.
+      const here = await currentPosition();
+      if (!here) {
+        Alert.alert('Location needed', 'Turn on location so we can confirm you are at the store.');
+        return;
+      }
+      await api.post(`/drivers/orders/${orderId}/arrive`, here);
+      await reload();
+    } catch (e) {
+      Alert.alert('Could not confirm arrival', errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const takePhoto = async () => {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) {
@@ -117,7 +147,15 @@ export function ActiveDelivery({ orderId, onDone }: { orderId: string; onDone: (
       return;
     }
     const res = await ImagePicker.launchCameraAsync({ quality: 0.7, allowsEditing: false });
-    if (!res.canceled && res.assets?.[0]) setPhoto(res.assets[0].uri);
+    if (res.canceled || !res.assets?.[0]) return;
+    const dest = proofPath(orderId);
+    try {
+      await FileSystem.deleteAsync(dest, { idempotent: true }).catch(() => {});
+      await FileSystem.copyAsync({ from: res.assets[0].uri, to: dest });
+      setPhoto(dest);
+    } catch {
+      setPhoto(res.assets[0].uri);
+    }
   };
 
   const submitDelivery = async () => {
@@ -136,6 +174,7 @@ export function ActiveDelivery({ orderId, onDone }: { orderId: string; onDone: (
       const proofUrl = upload.urls?.[0];
       if (!proofUrl) throw new Error('The photo could not be uploaded. Please try again.');
       await api.post(`/drivers/orders/${orderId}/complete`, { proof_url: proofUrl, lat: here.lat, lng: here.lng });
+      await FileSystem.deleteAsync(proofPath(orderId), { idempotent: true }).catch(() => {});
       Alert.alert('Delivery recorded', 'The customer will confirm receipt. If they do not respond, the order completes automatically.', [{ text: 'Done', onPress: onDone }]);
     } catch (e) {
       Alert.alert('Could not complete delivery', errorText(e));
@@ -163,8 +202,9 @@ export function ActiveDelivery({ orderId, onDone }: { orderId: string; onDone: (
     );
   }
 
-  const pickupStep = order.status === 'dispatched_to_driver';
-  const dropStep = order.status === 'out_for_delivery' || order.status === 'driver_arrived';
+  // Pickup covers both: heading to the store, and arrived at the store (waiting for the goods).
+  const pickupStep = order.status === 'dispatched_to_driver' || order.status === 'driver_arrived';
+  const dropStep = order.status === 'out_for_delivery';
   const finished = !LIVE_STATUSES.includes(order.status);
   const stepIndex = pickupStep ? 0 : dropStep ? 1 : 2;
 
@@ -198,8 +238,17 @@ export function ActiveDelivery({ orderId, onDone }: { orderId: string; onDone: (
               {order.store_lat != null && order.store_lng != null ? <ActionChip label="Navigate" icon={<MapPinIcon size={18} color={C.primary} />} onPress={() => Linking.openURL(mapsPointLink(order.store_lat!, order.store_lng!))} /> : order.pickup_address ? <ActionChip label="Navigate" icon={<MapPinIcon size={18} color={C.primary} />} onPress={() => Linking.openURL(mapsLink(order.pickup_address!))} /> : null}
             </View>
             <Items items={order.items} />
+            {order.status === 'driver_arrived' ? (
+              <View style={{ marginTop: 14 }}>
+                <Notice>You are at the store. Collect the order, then confirm pickup.</Notice>
+              </View>
+            ) : null}
             <View style={{ marginTop: 16 }}>
-              <Button title="I have picked up the order" onPress={confirmPickup} loading={busy} icon={<CheckCircleIcon size={20} color="#fff" />} />
+              {order.status === 'dispatched_to_driver' ? (
+                <Button title="I have arrived at the store" onPress={confirmArrival} loading={busy} icon={<MapPinIcon size={20} color="#fff" />} />
+              ) : (
+                <Button title="I have picked up the order" onPress={confirmPickup} loading={busy} icon={<CheckCircleIcon size={20} color="#fff" />} />
+              )}
               <Button title="Give this job back" tone="secondary" onPress={releaseJob} disabled={busy} style={{ marginTop: 8 }} />
             </View>
           </Card>

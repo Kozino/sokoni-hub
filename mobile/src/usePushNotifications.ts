@@ -36,9 +36,8 @@ export function usePushNotifications() {
       setNotification(notification);
     });
 
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
-      console.log('Notification tapped:', response);
-    });
+    // Tapping a notification needs no extra work here yet.
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(() => {});
 
     return () => {
       if (notificationListener.current) {
@@ -86,8 +85,8 @@ async function registerForPushNotificationsAsync() {
           projectId,
         })
       ).data;
-    } catch (e) {
-      console.log('Push notification error:', e);
+    } catch {
+      // The token fetch can fail (for example when offline). The next launch tries again.
     }
   } else {
     // Must use physical device for Push Notifications

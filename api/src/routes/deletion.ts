@@ -15,7 +15,7 @@ const digest=(s:string)=>createHash('sha256').update(s).digest('hex');
 const id=z.string().uuid();
 const open=['pending','in_review','needs_action','processing'];
 const publicCols='id,reference,status,public_message,retention_summary,retention_review_date,created_at,updated_at,completed_at';
-const customerAuth=[requireAuth('buyer','vendor'),blockImpersonation];
+const customerAuth=[requireAuth('buyer','vendor','driver'),blockImpersonation];
 const adminAuth=[requireAuth('admin'),blockImpersonation];
 
 async function blockers(c:PoolClient,user:string){
@@ -23,6 +23,8 @@ async function blockers(c:PoolClient,user:string){
  (select count(*)::int from orders where (buyer_id=$1 or vendor_id in(select id from vendors where user_id=$1)) and status not in ('delivered','cancelled')) as open_orders,
  (select count(*)::int from service_bookings where (buyer_id=$1 or vendor_id in(select id from vendors where user_id=$1)) and status in ('new','contacted','confirmed')) as open_bookings,
  (select count(*)::int from complaints where (reporter_id=$1 or vendor_id in(select id from vendors where user_id=$1)) and status in ('open','investigating')) as open_complaints,
+ (select count(*)::int from orders where driver_id=$1 and status in('dispatched_to_driver','driver_arrived','out_for_delivery')) as open_deliveries,
+ (select (coalesce(sum(amount) filter (where kind='cash_collected'),0)-coalesce(sum(amount) filter (where kind='remittance'),0))::float from driver_ledger where driver_user_id=$1) as cash_held_by_rider,
  (select count(*)::int from vendor_statements where vendor_id in(select id from vendors where user_id=$1) and status in('draft','issued') and (net_due_to_platform<>0 or net_due_to_vendor<>0)) as unsettled_statements`,[user]);
  return r.rows[0];
 }

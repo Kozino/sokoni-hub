@@ -178,6 +178,9 @@ export function Home({ onOpenDelivery }: { onOpenDelivery: (orderId: string) => 
                     <Text style={styles.stopLabel}>PICKUP</Text>
                     <Text style={styles.stopText}>{o.business_name}</Text>
                     {o.pickup_address ? <Text style={styles.muted}>{o.pickup_address}</Text> : null}
+                    <Text style={styles.distance}>
+                      {o.pickup_km != null ? `${o.pickup_km.toFixed(1)} km away` : 'Distance unknown until you go online and share location'}
+                    </Text>
                   </View>
                 </View>
                 <View style={styles.stop}>
@@ -216,6 +219,7 @@ const styles = StyleSheet.create({
   biz: { fontSize: 17, fontWeight: '800', color: C.text, marginTop: 2 },
   fee: { fontSize: 16, fontWeight: '900', color: C.primary },
   muted: { fontSize: 13, color: C.text2, marginTop: 2 },
+  distance: { fontSize: 12, fontWeight: '800', color: C.primary, marginTop: 4 },
   stop: { flexDirection: 'row', gap: 10, marginTop: 10, alignItems: 'flex-start' },
   stopLabel: { fontSize: 10, fontWeight: '900', color: C.muted, letterSpacing: 0.6 },
   stopText: { fontSize: 15, fontWeight: '700', color: C.text, marginTop: 2 },

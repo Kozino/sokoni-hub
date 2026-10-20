@@ -231,12 +231,12 @@ function RiderCard({ driver, order, active }: { driver: any; order: any; active:
       {driver.phone ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Call ${driver.name}`}
+          accessibilityLabel={`Contact ${driver.name}`}
           onPress={() => Linking.openURL(`tel:${driver.phone}`)}
           style={[styles.callButton, { backgroundColor: colors.primary }]}
         >
           <Icon name="call" size={18} color="#FFFFFF" />
-          <Text style={styles.callText}>Call rider</Text>
+          <Text style={styles.callText}>Contact driver</Text>
         </Pressable>
       ) : null}
     </View>

@@ -132,12 +132,21 @@ driverRouter.get('/available-orders', requireAuth('driver'), async (req, res, ne
     const d = await approvedDriver(req.user!.id);
     // Offline riders see no jobs. Collection orders are never rider jobs.
     if (!d.is_online) return res.json({ orders: [] });
-    const orders = await query(
+    const rows = await query<any>(
       `${orderSelect}
        where o.status = 'dispatched' and o.driver_id is null and o.fulfilment_mode = 'delivery'
        order by o.created_at asc
        limit 25`
     );
+    // Straight-line distance from the rider's last known position to each store, so riders
+    // can judge a job before accepting. Null when either position is unknown.
+    const here = d.current_lat != null && d.current_lng != null ? { lat: Number(d.current_lat), lng: Number(d.current_lng) } : null;
+    const orders = rows.map((o: any) => ({
+      ...o,
+      pickup_km: here && o.store_lat != null && o.store_lng != null
+        ? Math.round(distanceMetres(here, { lat: Number(o.store_lat), lng: Number(o.store_lng) }) / 100) / 10
+        : null,
+    }));
     res.json({ orders });
   } catch (e) { next(e); }
 });
@@ -200,7 +209,7 @@ driverRouter.post('/orders/:id/release', requireAuth('driver'), async (req, res,
     const id = uuid.parse(req.params.id);
     const row = await one(
       `update orders set driver_id = null, status = 'dispatched', updated_at = now()
-       where id = $1 and driver_id = $2 and status = 'dispatched_to_driver'
+       where id = $1 and driver_id = $2 and status in ('dispatched_to_driver', 'driver_arrived')
        returning id`,
       [id, req.user!.id],
     );
@@ -218,7 +227,9 @@ const PickupSchema = z.object({
   lng: z.number().min(-180).max(180),
 });
 
-driverRouter.post('/orders/:id/pickup', requireAuth('driver'), async (req, res, next) => {
+// Rider has reached the store. Same geofence as pickup, so buyers see "Rider at the store"
+// only when the rider is really there. Pickup is then confirmed as before.
+driverRouter.post('/orders/:id/arrive', requireAuth('driver'), async (req, res, next) => {
   try {
     const id = uuid.parse(req.params.id);
     const { lat, lng } = PickupSchema.parse(req.body);
@@ -226,6 +237,37 @@ driverRouter.post('/orders/:id/pickup', requireAuth('driver'), async (req, res, 
       `select o.id, v.lat as store_lat, v.lng as store_lng
          from orders o join vendors v on v.id = o.vendor_id
         where o.id = $1 and o.driver_id = $2 and o.status = 'dispatched_to_driver'`,
+      [id, req.user!.id]
+    );
+    if (!order) throw new HttpError(409, 'This delivery is not waiting for pickup.');
+    if (order.store_lat == null || order.store_lng == null) {
+      throw new HttpError(422, 'This store has not set its map location, so arrival cannot be confirmed yet. Ask the store to add it in Store profile.');
+    }
+    const { geofence_metres } = await verificationSettings();
+    const distance = distanceMetres({ lat, lng }, { lat: Number(order.store_lat), lng: Number(order.store_lng) });
+    if (distance > geofence_metres) {
+      throw new HttpError(422, `You are about ${Math.round(distance)} m from the store. Go to the store to mark your arrival (within ${geofence_metres} m).`);
+    }
+    const row = await one(
+      `update orders set status = 'driver_arrived', updated_at = now()
+        where id = $1 and driver_id = $2 and status = 'dispatched_to_driver'
+        returning id`,
+      [id, req.user!.id]
+    );
+    if (!row) throw new HttpError(409, 'This delivery is not waiting for pickup.');
+    void notifyBuyerOfOrder(id, { title: 'Rider at the store', body: 'Your rider has arrived at the store.', data: { orderId: id } });
+    res.json({ success: true });
+  } catch (e) { next(e); }
+});
+
+driverRouter.post('/orders/:id/pickup', requireAuth('driver'), async (req, res, next) => {
+  try {
+    const id = uuid.parse(req.params.id);
+    const { lat, lng } = PickupSchema.parse(req.body);
+    const order = await one<any>(
+      `select o.id, v.lat as store_lat, v.lng as store_lng
+         from orders o join vendors v on v.id = o.vendor_id
+        where o.id = $1 and o.driver_id = $2 and o.status in ('dispatched_to_driver', 'driver_arrived')`,
       [id, req.user!.id]
     );
     if (!order) throw new HttpError(409, 'This delivery is not waiting for pickup.');
@@ -243,7 +285,7 @@ driverRouter.post('/orders/:id/pickup', requireAuth('driver'), async (req, res, 
     const row = await one(
       `update orders set status = 'out_for_delivery', updated_at = now(),
               pickup_lat = $3, pickup_lng = $4, pickup_distance_m = $5
-       where id = $1 and driver_id = $2 and status = 'dispatched_to_driver'
+       where id = $1 and driver_id = $2 and status in ('dispatched_to_driver', 'driver_arrived')
        returning id`,
       [id, req.user!.id, lat, lng, distance]
     );

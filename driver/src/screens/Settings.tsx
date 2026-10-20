@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { BuildingLibraryIcon, DocumentArrowUpIcon, QuestionMarkCircleIcon, ArrowRightOnRectangleIcon, TruckIcon } from 'react-native-heroicons/outline';
+import { BuildingLibraryIcon, DocumentArrowUpIcon, QuestionMarkCircleIcon, ArrowRightOnRectangleIcon, TruckIcon, KeyIcon, TrashIcon } from 'react-native-heroicons/outline';
 import { api } from '../api';
 import { useAuth } from '../providers/AuthContext';
 import { Badge, Card, Notice, ScreenHeader } from '../components/UI';
@@ -11,9 +11,11 @@ import { VehicleDetails } from './settings/VehicleDetails';
 import { BankDetails } from './settings/BankDetails';
 import { Documents } from './settings/Documents';
 import { HelpSupport } from './settings/HelpSupport';
+import { ChangePin } from './settings/ChangePin';
+import { DeleteAccount } from './settings/DeleteAccount';
 import type { DriverProfile } from './settings/types';
 
-type Page = 'home' | 'vehicle' | 'bank' | 'documents' | 'help';
+type Page = 'home' | 'vehicle' | 'bank' | 'documents' | 'help' | 'pin' | 'delete';
 
 export function Settings({ onLogout }: { onLogout: () => void }) {
   const { user } = useAuth();
@@ -41,6 +43,8 @@ export function Settings({ onLogout }: { onLogout: () => void }) {
   if (page === 'bank' && driver) return <BankDetails driver={driver} onBack={back} onSaved={(d) => { setDriver(d); }} />;
   if (page === 'documents' && driver) return <Documents driver={driver} onBack={back} onSaved={(d) => { setDriver(d); }} />;
   if (page === 'help') return <HelpSupport onBack={back} />;
+  if (page === 'pin') return <ChangePin onBack={back} />;
+  if (page === 'delete') return <DeleteAccount onBack={back} />;
 
   const vehicleSummary = driver ? `${driver.vehicle_type} · ${driver.license_plate}` : 'Loading…';
   const bankSummary = driver?.bank_iban ? `${driver.bank_name ?? 'Bank'} · •••• ${driver.bank_iban.slice(-4)}` : 'Add your bank for payouts';
@@ -68,12 +72,18 @@ export function Settings({ onLogout }: { onLogout: () => void }) {
         <Card style={styles.group}>
           <SettingsRow icon={<TruckIcon size={20} color={C.primary} />} title="Vehicle details" subtitle={vehicleSummary} onPress={() => setPage('vehicle')} />
           <SettingsRow icon={<BuildingLibraryIcon size={20} color={C.primary} />} title="Bank information" subtitle={bankSummary} onPress={() => setPage('bank')} />
-          <SettingsRow icon={<DocumentArrowUpIcon size={20} color={C.primary} />} title="Upload documents" subtitle={docSummary} onPress={() => setPage('documents')} last />
+          <SettingsRow icon={<DocumentArrowUpIcon size={20} color={C.primary} />} title="Upload documents" subtitle={docSummary} onPress={() => setPage('documents')} />
+          <SettingsRow icon={<KeyIcon size={20} color={C.primary} />} title="Change PIN" subtitle="Update your 4-digit security PIN" onPress={() => setPage('pin')} last />
         </Card>
 
         <Text style={styles.section}>Support</Text>
         <Card style={styles.group}>
           <SettingsRow icon={<QuestionMarkCircleIcon size={20} color={C.primary} />} title="Help & support" subtitle="Contact the Sokoni Hub team" onPress={() => setPage('help')} last />
+        </Card>
+
+        <Text style={styles.section}>Account</Text>
+        <Card style={styles.group}>
+          <SettingsRow icon={<TrashIcon size={20} color={C.danger} />} title="Delete account" subtitle="Request permanent deletion" onPress={() => setPage('delete')} danger last />
         </Card>
 
         <Text style={styles.section}>Session</Text>

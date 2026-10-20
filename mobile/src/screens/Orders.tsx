@@ -76,7 +76,7 @@ import { WebOnlyAccount } from './WebOnlyAccount';export function Orders({ go, b
   
   if (!user) return <GuestGate heading="My orders" title="Sign in to see orders" text="Your order history and status are stored securely in your buyer account." go={go} back={back}/>; 
   return <View style={styles.page}>
-    <Header title="My orders" back={back}/>
+    <Header title="My orders" back={back} right={<IconButton icon="navigate-outline" label="Track an order" onPress={() => go('track')} />}/>
     {isLoading ? <Spinner label="Loading your orders…"/> : <FlatList data={orders} keyExtractor={(order) => order.id} contentContainerStyle={{ padding: 16, paddingBottom: 40 }} refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary}/>} renderItem={({ item }) => (
       <Card style={{ padding: 16, marginBottom: 12, borderRadius: 16, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8 }}>
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 12 }}>

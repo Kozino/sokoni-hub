@@ -10,6 +10,8 @@ export function Pin({ stage, onBack, onDone }: { stage: Stage; onBack: () => voi
   const [pin, setPin] = useState('');
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
+  // Setup asks for the PIN twice, so a typo cannot lock the rider out.
+  const [firstPin, setFirstPin] = useState<string | null>(null);
 
   const press = (key: string) => {
     if (key === 'back') return setPin((v) => v.slice(0, -1));
@@ -18,6 +20,17 @@ export function Pin({ stage, onBack, onDone }: { stage: Stage; onBack: () => voi
 
   const submit = async () => {
     if (pin.length !== 4) return Alert.alert('Enter your PIN', 'Your PIN must contain exactly four digits.');
+    if (setup && firstPin === null) {
+      setFirstPin(pin);
+      setPin('');
+      return;
+    }
+    if (setup && pin !== firstPin) {
+      Alert.alert('PINs do not match', 'Enter the same four digits both times.');
+      setFirstPin(null);
+      setPin('');
+      return;
+    }
     setBusy(true);
     try {
       const res = setup
@@ -38,7 +51,7 @@ export function Pin({ stage, onBack, onDone }: { stage: Stage; onBack: () => voi
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <BrandBlock
           title={setup ? 'Create Security PIN' : 'Enter Security PIN'}
-          intro={setup ? 'Choose a unique 4-digit PIN for future sign-ins.' : 'Enter the four-digit PIN that protects your rider account.'}
+          intro={setup ? (firstPin === null ? 'Choose a unique 4-digit PIN for future sign-ins.' : 'Enter the same PIN again to confirm.') : 'Enter the four-digit PIN that protects your rider account.'}
         />
 
         <View style={styles.card}>
@@ -56,7 +69,7 @@ export function Pin({ stage, onBack, onDone }: { stage: Stage; onBack: () => voi
 
           <Notice>Your PIN is checked securely on Sokoni Hub. We never store the digits on this device.</Notice>
 
-          <Button variant="gold" loading={busy} onPress={submit}>{setup ? 'Save PIN and continue' : 'Verify and continue'}</Button>
+          <Button variant="gold" loading={busy} onPress={submit}>{setup ? (firstPin === null ? 'Next' : 'Confirm PIN') : 'Verify and continue'}</Button>
 
           <View style={styles.keypad}>
             {['1', '2', '3', '4', '5', '6', '7', '8', '9', 'back', '0', 'ok'].map((key) => (

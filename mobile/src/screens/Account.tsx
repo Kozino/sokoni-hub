@@ -81,6 +81,10 @@ import { WebOnlyAccount } from './WebOnlyAccount';export function Account({ go, 
   const [pinForm, setPinForm] = useState({ current: '', newPin: '', confirm: '' });
   const [pinBusy, setPinBusy] = useState(false);
 
+  const [deleteSheet, setDeleteSheet] = useState(false);
+  const [deleteForm, setDeleteForm] = useState({ password: '', reason: '', agree: false });
+  const [deleteBusy, setDeleteBusy] = useState(false);
+
   const submitPass = async () => {
     if (!passForm.current || passForm.newPass.length < 12) return Alert.alert('Invalid', 'New password must be at least 12 characters.');
     setPassBusy(true);
@@ -90,6 +94,27 @@ import { WebOnlyAccount } from './WebOnlyAccount';export function Account({ go, 
       Alert.alert('Success', 'Your password has been changed.');
     } catch(e: any) { Alert.alert('Error', e.message); }
     finally { setPassBusy(false); }
+  };
+
+  /** Starts a durable deletion request (same process as the web portal). Sokoni Hub reviews it. */
+  const submitDelete = async () => {
+    if (!deleteForm.password) return Alert.alert('Password needed', 'Enter your current password to confirm.');
+    if (!deleteForm.agree) return Alert.alert('Confirm first', 'Tick the box to confirm you understand the request.');
+    setDeleteBusy(true);
+    try {
+      const res = await api.post<{ request: { reference: string } }>('/account-deletion/requests', {
+        password: deleteForm.password,
+        acknowledge: true,
+        reason: deleteForm.reason.trim() || undefined,
+      });
+      setDeleteSheet(false);
+      setDeleteForm({ password: '', reason: '', agree: false });
+      Alert.alert('Deletion requested', `We have your request. Keep this reference: ${res.request.reference}`);
+    } catch (e: any) {
+      Alert.alert('Could not start deletion', e instanceof ApiError ? e.message : (e?.message || 'Something went wrong. Please try again.'));
+    } finally {
+      setDeleteBusy(false);
+    }
   };
 
   const submitPin = async () => {
@@ -250,6 +275,8 @@ import { WebOnlyAccount } from './WebOnlyAccount';export function Account({ go, 
         <AccountRow icon="lock-closed-outline" title="Change password" subtitle="Update your 12+ character password" onPress={() => setPassSheet(true)} />
         <Line />
         <AccountRow icon="key-outline" title="Change PIN" subtitle="Update your 4-digit security PIN" onPress={() => setPinSheet(true)} />
+        <Line />
+        <AccountRow icon="trash" title="Delete account" subtitle="Request permanent deletion" onPress={() => setDeleteSheet(true)} />
       </CardGroup>
 
       <GroupTitle>My Activity</GroupTitle>
@@ -300,6 +327,19 @@ import { WebOnlyAccount } from './WebOnlyAccount';export function Account({ go, 
       <Field label="New PIN" value={pinForm.newPin} onChangeText={(v) => setPinForm({...pinForm, newPin: v})} secureTextEntry keyboardType="number-pad" maxLength={4} />
       <Field label="Confirm New PIN" value={pinForm.confirm} onChangeText={(v) => setPinForm({...pinForm, confirm: v})} secureTextEntry keyboardType="number-pad" maxLength={4} />
       <Button onPress={submitPin} loading={pinBusy} style={{ marginTop: 12 }}>Update PIN</Button>
+    </Sheet>
+
+    <Sheet visible={deleteSheet} title="Delete account" onClose={() => setDeleteSheet(false)}>
+      <Notice>Your account is reviewed, then deleted: your profile, login and uploaded documents are removed. Order and payment records we must keep are retained under our privacy policy. Finish any open orders or bookings first.</Notice>
+      <Field label="Current Password" value={deleteForm.password} onChangeText={(v) => setDeleteForm({ ...deleteForm, password: v })} secureTextEntry />
+      <Field label="Reason (optional)" value={deleteForm.reason} onChangeText={(v) => setDeleteForm({ ...deleteForm, reason: v })} multiline maxLength={500} />
+      <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: deleteForm.agree }} onPress={() => setDeleteForm({ ...deleteForm, agree: !deleteForm.agree })} style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start', marginBottom: 12 }}>
+        <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: deleteForm.agree ? colors.primary : colors.border, backgroundColor: deleteForm.agree ? colors.primary : 'transparent', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
+          {deleteForm.agree ? <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '900' }}>✓</Text> : null}
+        </View>
+        <Text style={{ flex: 1, fontSize: 13, color: colors.text, lineHeight: 19 }}>I understand my account will be deleted after review and cannot be undone.</Text>
+      </Pressable>
+      <Button variant="danger" onPress={submitDelete} loading={deleteBusy}>Request deletion</Button>
     </Sheet>
   </View>;
 }

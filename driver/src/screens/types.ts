@@ -28,4 +28,6 @@ export type Order = {
   payment_method?: string;
   payment_status?: 'unpaid' | 'paid';
   fulfilment_mode?: 'pickup' | 'delivery';
+  /** Km from the rider's last known position to the store. Null when unknown. */
+  pickup_km?: number | null;
 };

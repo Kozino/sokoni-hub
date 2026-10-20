@@ -392,7 +392,7 @@ authRouter.post('/pin/setup', async (req, res, next) => {
 /* Change PIN (signed in). Wrong current PIN is a 400, not a 401: the  */
 /* web client signs the user out on any 401.                           */
 /* ------------------------------------------------------------------ */
-authRouter.post('/pin/change', requireAuth('buyer', 'vendor'), blockImpersonation, async (req, res, next) => {
+authRouter.post('/pin/change', requireAuth('buyer', 'vendor', 'driver'), blockImpersonation, async (req, res, next) => {
   try {
     const b = z.object({ current_pin: pinField, new_pin: pinField }).parse(req.body);
     const row = await one<any>('select pin_hash, phone, role, session_version from users where id = $1', [req.user!.id]);
