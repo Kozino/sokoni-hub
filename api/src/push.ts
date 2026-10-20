@@ -12,6 +12,8 @@ export interface PushMessage {
   title: string;
   body: string;
   data?: Record<string, unknown>;
+  /** Android notification channel on the device. Must match the driver app's channel id. */
+  channelId?: string;
 }
 
 export async function sendPushToUsers(userIds: Array<string | null | undefined>, msg: PushMessage): Promise<void> {
@@ -30,6 +32,7 @@ export async function sendPushToUsers(userIds: Array<string | null | undefined>,
         body: msg.body,
         data: msg.data ?? {},
         sound: 'default',
+        channelId: msg.channelId,
         priority: 'high',
       }));
       const res = await fetch(EXPO_PUSH_URL, {
@@ -54,7 +57,7 @@ export async function notifyOnlineDrivers(msg: PushMessage): Promise<void> {
   const rows = await query<{ user_id: string }>(
     `select user_id from drivers where status = 'approved' and is_online = true`,
   );
-  await sendPushToUsers(rows.map((r) => r.user_id), msg);
+  await sendPushToUsers(rows.map((r) => r.user_id), { ...msg, channelId: 'delivery-jobs' });
 }
 
 /** The vendor's owner account, for a given order. */
