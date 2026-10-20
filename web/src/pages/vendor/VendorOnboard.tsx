@@ -10,7 +10,7 @@ export default function VendorOnboard() {
   const nav = useNavigate();
   const [step, setStep] = useState(1);
   const [f, setF] = useState({
-    business_name: '', description: '', whatsapp: '', country: '', city: '', address: '',
+    business_name: '', description: '', whatsapp: '', country: 'Qatar', city: '', address: '',
   });
   const [logo, setLogo] = useState<string[]>([]);
   const [doc, setDoc] = useState<string[]>([]);
@@ -74,13 +74,13 @@ export default function VendorOnboard() {
               <textarea required value={f.description} onChange={set('description')} placeholder="We sell bulk rice, beans, palm oil and spices, delivered across the city." />
             </Field>
             <div className="form-row">
-              <Field label="Country *"><input required value={f.country} onChange={set('country')} placeholder="Nigeria" /></Field>
-              <Field label="City *"><input required value={f.city} onChange={set('city')} placeholder="Lagos" /></Field>
+              <Field label="Country *"><input required value={f.country} onChange={set('country')} placeholder="Qatar" autoComplete="country-name" /></Field>
+              <Field label="City *"><input required value={f.city} onChange={set('city')} placeholder="Doha" autoComplete="address-level2" /></Field>
             </div>
             <Field label="Phone number *">
-              <input required value={f.whatsapp} onChange={set('whatsapp')} placeholder="+234 801 234 5678" />
+              <input required type="tel" inputMode="tel" autoComplete="tel" value={f.whatsapp} onChange={set('whatsapp')} placeholder="+974 5512 3456" />
             </Field>
-            <Field label="Shop address (optional)"><input value={f.address} onChange={set('address')} /></Field>
+            <Field label="Shop address (optional)"><input autoComplete="street-address" value={f.address} onChange={set('address')} placeholder="Street 12, Al Sadd, Doha" /></Field>
             <button type="button" className="btn btn-primary btn-block"
               disabled={!f.business_name || !f.description || !f.country || !f.city || !f.whatsapp}
               onClick={() => setStep(2)}>Continue</button>

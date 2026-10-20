@@ -3,11 +3,26 @@ import { useCart } from '../state/CartContext';
 import { money } from '../lib/format';
 import { Empty, QtyInput } from '../components/ui';
 import { useT } from '../i18n';
+import { useEffect, useState } from 'react';
+import { api } from '../lib/api';
+import type { CartQuote } from '../types';
 
 export default function Cart() {
   const t = useT();
   const { items, byVendor, subtotal, currency, setQty, remove, clear } = useCart();
   const nav = useNavigate();
+
+  // Show the real delivery fee in the cart so the total doesn't jump at checkout.
+  const [quote, setQuote] = useState<CartQuote | null>(null);
+  useEffect(() => {
+    if (items.length === 0) { setQuote(null); return; }
+    let cancelled = false;
+    api.post<CartQuote>('/orders/quote', {
+      items: items.map((i) => ({ listing_id: i.listing_id, qty: i.qty, option: i.option || undefined })),
+      fulfilment_mode: 'delivery',
+    }).then((q) => { if (!cancelled) setQuote(q); }).catch(() => { if (!cancelled) setQuote(null); });
+    return () => { cancelled = true; };
+  }, [items]);
 
   if (items.length === 0)
     return (
@@ -41,7 +56,7 @@ export default function Cart() {
                       <Link to={`/listing/${i.listing_id}`} className="cart-line-title">{i.title}</Link>
                       {i.option && (
                         <div style={{ fontSize: '.8rem', color: 'var(--muted)', fontWeight: 600 }}>
-                          Size / option: {i.option}
+                          {t('cart.option', { option: i.option })}
                         </div>
                       )}
                       <div className="cart-line-price">
@@ -51,7 +66,7 @@ export default function Cart() {
                     <div className="cart-line-controls">
                       <QtyInput value={i.qty} min={1} max={i.max ?? 999} onChange={(n) => setQty(i.listing_id, n, i.option)} />
                       <strong className="cart-line-total">{money(i.price * i.qty, i.currency)}</strong>
-                      <button className="btn btn-ghost btn-sm" onClick={() => remove(i.listing_id, i.option)} aria-label="Remove">✕</button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => remove(i.listing_id, i.option)} aria-label={t('cart.removeItem', { title: i.title })}>✕</button>
                     </div>
                   </div>
                 ))}
@@ -60,8 +75,7 @@ export default function Cart() {
           ))}
           {byVendor.length > 1 && (
             <div className="alert alert-info">
-              Your cart has items from {byVendor.length} stores — we'll create a separate order for each
-              so every vendor gets their own delivery instruction.
+              {t('cart.multiStore', { count: byVendor.length })}
             </div>
           )}
         </div>
@@ -71,7 +85,8 @@ export default function Cart() {
           <div className="row-between"><span>{t('cart.itemsLabel')}</span><strong>{items.reduce((s, i) => s + i.qty, 0)}</strong></div>
           <div className="row-between"><span>{t('cart.subtotal')}</span><strong>{money(subtotal, currency)}</strong></div>
           <div className="row-between" style={{ fontSize: '.82rem', color: 'var(--muted)' }}>
-            <span>{t('cart.delivery')}</span><span>{t('cart.deliveryAgreed')}</span>
+            <span>{t('cart.delivery')}</span>
+            <span>{quote ? (quote.delivery_fee > 0 ? t('cart.deliveryUpTo', { fee: money(quote.delivery_fee, quote.currency) }) : t('cart.deliveryFree')) : t('cart.deliveryAgreed')}</span>
           </div>
           <hr />
           <div className="row-between" style={{ fontSize: '1.15rem' }}>
@@ -79,7 +94,7 @@ export default function Cart() {
           </div>
           <button className="btn btn-primary btn-block btn-lg mt-2" onClick={() => nav('/checkout')}>{t('cart.proceed')}</button>
           <p className="center mt-1" style={{ fontSize: '.78rem', color: 'var(--muted)', margin: 0 }}>
-            Cash on delivery · No account required
+            {t('cart.codNote')}
           </p>
         </div>
       </div>

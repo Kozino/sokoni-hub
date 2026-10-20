@@ -13,6 +13,20 @@ type IncompleteUser = {
   email: string | null; is_active: boolean; created_at: string;
 };
 
+const REASON_TEMPLATES: Record<'reject' | 'suspend', string[]> = {
+  reject: [
+    'The CR licence is unreadable. Please re-upload a clear photo or PDF.',
+    'The CR licence does not match the business name you entered.',
+    'The CR licence has expired. Please upload a current one.',
+    'Your store description is unclear. Please say what you sell.',
+  ],
+  suspend: [
+    'Repeated complaints about undelivered or wrong orders.',
+    'Listing prohibited items.',
+    'Suspected fake or misleading listings.',
+  ],
+};
+
 const TABS = [
   { id: 'pending', label: 'Pending' }, { id: 'verified', label: 'Verified' },
   { id: 'rejected', label: 'Rejected' }, { id: 'suspended', label: 'Suspended' },
@@ -27,7 +41,7 @@ export default function AdminVendors() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
   const [detail, setDetail] = useState<any>(null);
-  const [action, setAction] = useState<'reject' | 'suspend' | null>(null);
+  const [action, setAction] = useState<'reject' | 'suspend' | 'verify' | null>(null);
   const [reason, setReason] = useState('');
   const [err, setErr] = useState('');
   const { push } = useToast();
@@ -141,27 +155,61 @@ export default function AdminVendors() {
       <Modal open={!!detail} title={detail?.business_name ?? ''} onClose={() => { setDetail(null); setAction(null); }}
         footer={detail && !action ? (
           <>
-            {detail.status !== 'verified' && <button className="btn btn-green" onClick={() => act(detail.status === 'suspended' ? 'reinstate' : 'verify', undefined, 'Vendor verified')}>✓ Verify &amp; publish</button>}
+            {detail.status !== 'verified' && <button className="btn btn-green" onClick={() => setAction('verify')}>{detail.status === 'suspended' ? '✓ Reinstate' : '✓ Verify & publish'}</button>}
             {detail.status !== 'rejected' && <button className="btn btn-outline" onClick={() => setAction('reject')}>Reject</button>}
             {detail.status === 'verified' && <button className="btn btn-danger" onClick={() => setAction('suspend')}>Suspend</button>}
           </>
         ) : action ? (
           <>
             <button className="btn btn-ghost" onClick={() => setAction(null)}>Back</button>
-            <button className="btn btn-danger" disabled={action === 'reject' && reason.trim().length < 3}
-              onClick={() => act(action, { reason }, action === 'reject' ? 'Vendor rejected' : 'Vendor suspended')}>
-              Confirm {action}
-            </button>
+            {action === 'verify' ? (
+              <button className="btn btn-green"
+                onClick={() => act(detail.status === 'suspended' ? 'reinstate' : 'verify', undefined, detail.status === 'suspended' ? 'Vendor reinstated' : 'Vendor verified')}>
+                {detail.status === 'suspended' ? 'Confirm reinstate' : 'Confirm verify & publish'}
+              </button>
+            ) : (
+              <button className="btn btn-danger" disabled={reason.trim().length < 15}
+                onClick={() => act(action, { reason: reason.trim() }, action === 'reject' ? 'Vendor rejected' : 'Vendor suspended')}>
+                Confirm {action}
+              </button>
+            )}
           </>
         ) : null}>
         {detail && (
           <>
             <Alert kind="error">{err}</Alert>
-            {action ? (
+            {action === 'verify' ? (
+              <div>
+                <h3 style={{ marginTop: 0 }}>{detail.status === 'suspended' ? 'Reinstate' : 'Verify'} {detail.business_name}?</h3>
+                <p style={{ color: 'var(--text-muted)' }}>
+                  {detail.status === 'suspended' ? 'The store and its active listings become visible to buyers again.' : 'The store goes live and the owner can publish listings. Check the details below first.'}
+                </p>
+                <dl className="kv">
+                  <dt>Owner</dt><dd>{detail.owner_name} · {detail.owner_phone}</dd>
+                  <dt>Location</dt><dd>{detail.city}, {detail.country}</dd>
+                  <dt>CR licence</dt><dd>{detail.id_document_url ? 'Uploaded (open it in the review screen to check it)' : 'MISSING. Do not verify without one.'}</dd>
+                </dl>
+              </div>
+            ) : action ? (
               <div className="field">
-                <label>Reason {action === 'reject' ? '*' : '(optional)'}</label>
-                <textarea value={reason} onChange={(e) => setReason(e.target.value)}
-                  placeholder={action === 'reject' ? 'e.g. CR licence is unreadable — please re-upload a clear photo.' : 'e.g. Repeated complaints about undelivered orders.'} />
+                {action === 'suspend' && (
+                  <Alert kind="warn">
+                    {(() => {
+                      const live = (detail.listings ?? []).filter((l: any) => l.status === 'active').length;
+                      return live > 0
+                        ? <><strong>{live} live listing{live > 1 ? 's' : ''} will be hidden from buyers</strong> until the store is reinstated.</>
+                        : <>This store has no live listings right now. Suspending it also blocks new listings and orders.</>;
+                    })()}
+                  </Alert>
+                )}
+                <label htmlFor="admin-reason">Reason * <span style={{ fontWeight: 400 }}>(at least 15 characters)</span></label>
+                <div className="row" style={{ gap: 6, flexWrap: 'wrap', margin: '6px 0' }}>
+                  {REASON_TEMPLATES[action].map((t) => (
+                    <button key={t} type="button" className="btn btn-outline btn-sm" onClick={() => setReason(t)}>{t.length > 38 ? t.slice(0, 36) + '…' : t}</button>
+                  ))}
+                </div>
+                <textarea id="admin-reason" value={reason} onChange={(e) => setReason(e.target.value)}
+                  placeholder={action === 'reject' ? 'Tell the vendor what to fix.' : 'Say why the store is being suspended.'} />
                 <div className="hint">The vendor sees this message on their dashboard.</div>
               </div>
             ) : (

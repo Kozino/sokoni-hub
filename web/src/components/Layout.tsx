@@ -281,6 +281,7 @@ export function Footer() {
 }
 
 export default function Layout() {
+  const t = useT();
   const { pathname } = useLocation();
   // The buyer account centre is a dashboard surface, not a marketing page.
   // Its focused account navigation replaces the public-site footer.
@@ -288,8 +289,9 @@ export default function Layout() {
 
   return (
     <div className="app marketplace-app">
+      <a className="skip-link" href="#main-content">{t('ui.skip')}</a>
       <Header />
-      <main className="page"><Outlet /></main>
+      <main id="main-content" tabIndex={-1} className="page"><Outlet /></main>
       {!isUserDashboard && <Footer />}
       <WhatsAppWidget />
     </div>

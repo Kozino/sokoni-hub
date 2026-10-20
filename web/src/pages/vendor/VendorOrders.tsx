@@ -12,9 +12,31 @@ const TABS: { id: string; label: string }[] = [
   { id: 'dispatched', label: 'Dispatched' }, { id: 'delivered', label: 'Delivered' }, { id: 'cancelled', label: 'Cancelled' },
 ];
 
+const STATUS_WORDS: Record<string, string> = {
+  confirmed: 'confirmed', dispatched: 'marked as dispatched', delivered: 'marked as delivered', cancelled: 'cancelled',
+};
+const CANCEL_REASONS = ['Out of stock', 'Cannot deliver to this area', 'Buyer asked to cancel', 'Price or listing error', 'Other'];
+
+// Short two-tone chime so vendors notice a new order without watching the screen.
+function chime() {
+  try {
+    const AC = window.AudioContext || (window as any).webkitAudioContext;
+    const ctx = new AC();
+    [880, 1175].forEach((freq, i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.frequency.value = freq; o.connect(g); g.connect(ctx.destination);
+      const t = ctx.currentTime + i * 0.18;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.25, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+      o.start(t); o.stop(t + 0.17);
+    });
+    setTimeout(() => ctx.close(), 800);
+  } catch { /* autoplay can be blocked; the toast still shows */ }
+}
+
 const NEXT: Record<string, OrderStatus[]> = {
   pending: ['confirmed', 'cancelled'],
-  confirmed: ['dispatched', 'delivered', 'cancelled'],
+  // No direct confirmed -> delivered: an order must be dispatched first so driver proof and payout rules always apply.
+  confirmed: ['dispatched', 'cancelled'],
   dispatched: ['delivered', 'cancelled'],
   delivered: [], cancelled: [],
 };
@@ -24,6 +46,10 @@ export default function VendorOrders() {
   const [tab, setTab] = useState('');
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<Order | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [reason, setReason] = useState('');
+  const [other, setOther] = useState('');
+  const [busy, setBusy] = useState(false);
   const { push } = useToast();
   const { vendor } = useAuth();
 
@@ -48,6 +74,12 @@ export default function VendorOrders() {
           const fresh = r.orders.filter((o) => !previous.has(o.id));
           if (fresh.length) {
             push(`${fresh.length} new order${fresh.length > 1 ? 's' : ''} waiting: ${fresh.map((o) => o.code).join(', ')}`, 'success');
+            chime();
+            try {
+              if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
+                new Notification('New order', { body: `${fresh.length} order${fresh.length > 1 ? 's' : ''} waiting for you` });
+              }
+            } catch { /* optional */ }
             load();
           }
         }
@@ -59,13 +91,25 @@ export default function VendorOrders() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
-  const move = async (o: Order, status: OrderStatus) => {
+  // Ask once for browser notifications (only used when the tab is in the background).
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') void Notification.requestPermission().catch(() => {});
+  }, []);
+
+  const closeDetail = () => { setDetail(null); setCancelling(false); setReason(''); setOther(''); };
+
+  const move = async (o: Order, status: OrderStatus, cancelReason?: string) => {
+    setBusy(true);
     try {
-      await api.patch(`/orders/vendor/${o.id}/status`, { status });
-      push(`Order ${o.code} → ${status}`, 'success');
-      setDetail(null); load();
-    } catch (e) { push(e instanceof ApiError ? e.message : 'Failed', 'error'); }
+      await api.patch(`/orders/vendor/${o.id}/status`, cancelReason ? { status, reason: cancelReason } : { status });
+      push(`Order ${o.code} ${STATUS_WORDS[status] ?? status}.`, 'success');
+      closeDetail(); load();
+    } catch (e) { push(e instanceof ApiError ? e.message : 'Could not update the order. Please try again.', 'error'); }
+    finally { setBusy(false); }
   };
+
+  const finalReason = reason === 'Other' ? other.trim() : reason;
+  const canCancel = !!finalReason && (reason !== 'Other' || other.trim().length >= 5);
 
   const columns: DTColumn<Order>[] = [
     { key: 'code', header: 'Code', alwaysVisible: true, sortAccessor: (o) => o.code, render: (o) => (
@@ -101,20 +145,47 @@ export default function VendorOrders() {
         rowActions={(o) => <button className="btn btn-outline btn-sm" onClick={() => setDetail(o)}>View</button>}
       />
 
-      <Modal open={!!detail} title={`Order ${detail?.code ?? ''}`} onClose={() => setDetail(null)}
+      <Modal open={!!detail} title={`Order ${detail?.code ?? ''}`} onClose={closeDetail}
         footer={
           detail ? (
+            cancelling ? (
+              <>
+                <button className="btn btn-ghost" disabled={busy} onClick={() => setCancelling(false)}>Keep order</button>
+                <button className="btn btn-danger" disabled={busy || !canCancel} onClick={() => move(detail, 'cancelled', finalReason)}>
+                  {busy ? 'Cancelling…' : 'Yes, cancel this order'}
+                </button>
+              </>
+            ) : (
             <>
               {NEXT[detail.status]?.map((s) => (
-                <button key={s} className={`btn ${s === 'cancelled' ? 'btn-danger' : 'btn-primary'}`} onClick={() => move(detail, s)}>
-                  Mark {s}
+                <button key={s} className={`btn ${s === 'cancelled' ? 'btn-danger' : 'btn-primary'}`} disabled={busy}
+                  onClick={() => (s === 'cancelled' ? setCancelling(true) : move(detail, s))}>
+                  {s === 'cancelled' ? 'Cancel order' : s === 'confirmed' ? 'Confirm order' : s === 'dispatched' ? 'Mark as dispatched' : 'Mark as delivered'}
                 </button>
               ))}
               {NEXT[detail.status]?.length === 0 && <span style={{ color: 'var(--text-muted)', fontSize: '.85rem' }}>No further action</span>}
             </>
+            )
           ) : null
         }>
-        {detail && (
+        {detail && cancelling && (
+          <div role="group" aria-labelledby="cancel-h">
+            <h3 id="cancel-h" style={{ marginTop: 0 }}>Cancel order {detail.code}?</h3>
+            <p style={{ color: 'var(--text-muted)' }}>
+              The buyer will be told the order is cancelled. {detail.payment_status === 'paid' ? 'This order is already paid, so it will be refunded.' : 'This cannot be undone.'}
+            </p>
+            <label htmlFor="cancel-reason" style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Reason *</label>
+            <select id="cancel-reason" value={reason} onChange={(e) => setReason(e.target.value)} style={{ width: '100%' }}>
+              <option value="">Choose a reason</option>
+              {CANCEL_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
+            </select>
+            {reason === 'Other' && (
+              <textarea aria-label="Describe the reason" value={other} onChange={(e) => setOther(e.target.value)}
+                placeholder="Tell the buyer briefly why (at least 5 characters)" style={{ width: '100%', marginTop: 8 }} />
+            )}
+          </div>
+        )}
+        {detail && !cancelling && (
           <>
             <div className="row-between mb-2">
               <StatusBadge status={detail.status} />

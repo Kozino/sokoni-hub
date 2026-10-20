@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState, useRef, useId } from 'react';
+import { ReactNode, useEffect, useState, useRef, useId, isValidElement, cloneElement } from 'react';
 import { createPortal } from 'react-dom';
 import './booking.css';
 import { IconBox, IconReceipt, IconChart, IconCheck, IconInbox, IconAlert, IconSearch } from './icons';
@@ -100,12 +100,24 @@ export function Modal({ open, title, onClose, children, footer }: {
 }
 
 export function Field({ label, hint, error, children }: { label: string; hint?: string; error?: string; children: ReactNode }) {
+  const id = useId();
+  const descId = `${id}-d`;
+  // Wire the label, hint and error to the control so screen readers announce them
+  // and invalid fields are exposed as invalid.
+  const control = isValidElement(children)
+    ? cloneElement(children as React.ReactElement<any>, {
+        id: (children as any).props.id ?? id,
+        'aria-invalid': error ? true : undefined,
+        'aria-describedby': (hint || error) ? descId : undefined,
+      })
+    : children;
+  const forId = isValidElement(children) ? ((children as any).props.id ?? id) : undefined;
   return (
     <div className="field">
-      <label>{label}</label>
-      {children}
-      {hint && !error && <div className="hint">{hint}</div>}
-      {error && <div className="err">{error}</div>}
+      <label htmlFor={forId}>{label}</label>
+      {control}
+      {hint && !error && <div className="hint" id={descId}>{hint}</div>}
+      {error && <div className="err" id={descId} role="alert">{error}</div>}
     </div>
   );
 }

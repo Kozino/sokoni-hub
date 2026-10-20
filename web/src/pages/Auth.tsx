@@ -207,7 +207,7 @@ export function Login() {
             required
             value={f.identifier}
             onChange={(e) => setF({ ...f, identifier: e.target.value })}
-            placeholder="+234 801 234 5678"
+            placeholder="+974 5512 3456"
             autoComplete="username"
           />
         </Field>
@@ -344,7 +344,7 @@ export function Register() {
 
           <div className="form-row">
             <Field label={t('auth.phoneReq')} hint={t('auth.phoneHint')}>
-              <input required value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} placeholder="+234 801 234 5678" autoComplete="tel" />
+              <input required value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} placeholder="+974 5512 3456" autoComplete="tel" />
             </Field>
             <Field label="Email address *">
               <input required type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} autoComplete="email" />

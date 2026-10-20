@@ -74,12 +74,12 @@
 
   /* data-viz ------------------------------------------------------------- */
   --chart-1: #2E3B6E;
-  --chart-2: #2F7A4C;
-  --chart-3: #C98A2B;
+  --chart-2: #1F5E3A;
+  --chart-3: #B26F12;
   --chart-4: #2B5F8A;
   --chart-5: #8A6FB0;
   --chart-grid: #E8EAF0;
-  --chart-axis: #98A0B3;
+  --chart-axis: #5B6478;
 
   /* radii ---------------------------------------------------------------- */
   --r-xs: 4px;
@@ -209,7 +209,7 @@
   --chart-4: #6AA6D6;
   --chart-5: #A88CCB;
   --chart-grid: #242A36;
-  --chart-axis: #6F7788;
+  --chart-axis: #9AA3B5;
 
   --shadow-xs: 0 1px 2px rgba(0,0,0,.35);
   --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
@@ -836,7 +836,7 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 
 /* Recharts strokes pie/bar segments with a hardcoded white. Bind it to the
    surface token so segment separators disappear correctly in dark mode. */
-.recharts-pie-sector path, .recharts-sector { stroke: var(--surface); stroke-width: 2; }
+.recharts-pie-sector path, .recharts-sector { stroke: var(--surface); stroke-width: 3; }
 .recharts-legend-wrapper { padding-top: 4px; }
 :root[data-theme='dark'] .recharts-surface { filter: saturate(.94) brightness(1.04); }
 
@@ -2374,12 +2374,12 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
 
   /* data-viz — a five-colour classic set, in fixed meaning order --------- */
   --chart-1: #2B3A72;   /* indigo   */
-  --chart-2: #1F6B4A;   /* forest   */
-  --chart-3: #B5852A;   /* brass    */
+  --chart-2: #14502F;   /* forest   */
+  --chart-3: #C07E1F;   /* brass    */
   --chart-4: #1B6473;   /* teal     */
   --chart-5: #6B4485;   /* plum     */
   --chart-grid: #E9E3D5;
-  --chart-axis: #8C8778;
+  --chart-axis: #5E5A4C;
 
   /* shadows carry the ink, so they read warm rather than grey-blue ------- */
   --shadow-xs: 0 1px 2px rgba(23,28,54,.06);
@@ -2455,7 +2455,7 @@ table.tbl td:last-child:has(.btn), table.tbl th:last-child { white-space: nowrap
   --chart-4: #74B6C8;
   --chart-5: #B58FD0;
   --chart-grid: #2A2C36;
-  --chart-axis: #7B8093;
+  --chart-axis: #A3A9BA;
 
   --shadow-xs: 0 1px 2px rgba(0,0,0,.4);
   --shadow-sm: 0 1px 2px rgba(0,0,0,.45);
@@ -3123,3 +3123,18 @@ body:has(.dash) .brand small { color: var(--gold-deep); letter-spacing: .04em; }
      series, extend --chart-6 rather than reusing --chart-1: a colour that means
      two things means nothing.
    ========================================================================= */
+
+/* Uploader is a real button now (keyboard + screen-reader operable) */
+button.dropzone-btn { width: 100%; font: inherit; }
+button.dropzone-btn:disabled { opacity: .6; cursor: not-allowed; }
+.dropzone:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.gallery .g-item button { width: 28px; height: 28px; }
+
+/* Skip link: hidden until focused, so keyboard users can bypass the header */
+.skip-link {
+  position: absolute; inset-inline-start: 8px; top: -48px; z-index: 1000;
+  background: var(--accent); color: #fff; padding: 10px 16px; border-radius: 8px; font-weight: 700;
+  text-decoration: none; transition: top .15s ease;
+}
+.skip-link:focus { top: 8px; }
+main:focus { outline: none; }
