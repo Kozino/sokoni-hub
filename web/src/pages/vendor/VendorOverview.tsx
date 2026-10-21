@@ -9,6 +9,13 @@ import {
 import { money, num, dateTime, compactReference } from '../../lib/format';
 import { Empty, Spinner, Stat, StatusBadge } from '../../components/ui';
 import { exportExcel, exportPdf } from '../../lib/exporting';
+import { IconAlert, IconBox, IconChart, IconReceipt, IconStar, IconStore, IconHistory } from '../../components/icons';
+
+/** Time-of-day greeting in Qatar time, for the dashboard header. */
+const greeting = () => {
+  const h = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Qatar', hour: '2-digit', hour12: false }).format(new Date()));
+  return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+};
 
 const COLORS = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
 
@@ -41,7 +48,7 @@ export default function VendorOverview() {
     <>
       <div className="dash-title vendor-welcome">
         <div>
-          <span className="vendor-eyebrow">YOUR STORE AT A GLANCE</span>
+          <span className="vendor-eyebrow">{greeting()}</span>
           <h1>{d.vendor.business_name}</h1>
           <p>Your business, in focus. Store totals are all-time; the revenue chart shows recent activity.</p>
         </div>
@@ -74,20 +81,20 @@ export default function VendorOverview() {
       </section>
 
       <div className="grid grid-stats mb-3">
-        <Stat accent="terra" label="Active listings" value={num(s.listings_active)} sub={`${s.products_active} products · ${s.services_active} services`} />
-        <Stat accent="green" label="Revenue (delivered)" value={money(s.revenue_delivered, cur)} sub={`${money(s.revenue_pipeline, cur)} incl. in-progress`} />
-        <Stat accent="blue" label="Orders" value={num(s.orders_total)} sub={`${s.orders_pending} pending · ${s.orders_delivered} delivered`} />
-        <Stat accent="gold" label="Total views" value={num(s.total_views)} sub="Across all your listings" />
+        <Stat icon={IconBox} accent="terra" label="Active listings" value={num(s.listings_active)} sub={`${s.products_active} products · ${s.services_active} services`} />
+        <Stat icon={IconChart} accent="green" label="Revenue (delivered)" value={money(s.revenue_delivered, cur)} sub={`${money(s.revenue_pipeline, cur)} incl. in-progress`} />
+        <Stat icon={IconReceipt} accent="blue" label="Orders" value={num(s.orders_total)} sub={`${s.orders_pending} pending · ${s.orders_delivered} delivered`} />
+        <Stat icon={IconHistory} accent="gold" label="Total views" value={num(s.total_views)} sub="Across all your listings" />
         {/* Products only, and only when there are products to count. A services
             vendor has no stock, so a card reading 0 / 0 is pure noise. The
             threshold is now per-vendor, so the old "(≤5)" caption would lie. */}
         {Number(s.products_tracked ?? 0) > 0 && (
-          <Stat accent={Number(s.out_of_stock) > 0 ? 'red' : Number(s.low_stock) > 0 ? 'gold' : 'green'}
+          <Stat icon={IconStore} accent={Number(s.out_of_stock) > 0 ? 'red' : Number(s.low_stock) > 0 ? 'gold' : 'green'}
             label="Stock alerts" value={`${s.out_of_stock} / ${s.low_stock}`}
             sub="Out of stock / at reorder point" />
         )}
-        <Stat accent="gold" label="Store rating" value={Number(vendor?.rating_count) > 0 ? Number(vendor?.rating_avg).toFixed(1) : '—'} sub={`${num(vendor?.rating_count || 0)} customer reviews`} />
-        <Stat accent={Number(s.open_complaints) > 0 ? 'red' : 'green'} label="Open complaints" value={num(s.open_complaints)} sub="Filed against your store" />
+        <Stat icon={IconStar} accent="gold" label="Store rating" value={Number(vendor?.rating_count) > 0 ? Number(vendor?.rating_avg).toFixed(1) : '—'} sub={`${num(vendor?.rating_count || 0)} customer reviews`} />
+        <Stat icon={IconAlert} accent={Number(s.open_complaints) > 0 ? 'red' : 'green'} label="Open complaints" value={num(s.open_complaints)} sub="Filed against your store" />
       </div>
 
       <div className="grid grid-2 mb-3">

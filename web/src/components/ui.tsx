@@ -47,9 +47,10 @@ export function Empty({ icon = '📭', title, text, action }: { icon?: string; t
   );
 }
 
-export function Stat({ label, value, sub, accent }: { label: string; value: ReactNode; sub?: string; accent?: 'terra' | 'green' | 'gold' | 'red' | 'blue' }) {
+export function Stat({ label, value, sub, accent, icon }: { label: string; value: ReactNode; sub?: string; accent?: 'terra' | 'green' | 'gold' | 'red' | 'blue'; icon?: ReactNode }) {
   return (
     <div className={`stat${accent ? ` accent-${accent}` : ''}`}>
+      {icon && <span className="stat-icon" aria-hidden="true">{icon}</span>}
       <div className="label">{label}</div>
       <div className="value">{value}</div>
       {sub && <div className="sub">{sub}</div>}
