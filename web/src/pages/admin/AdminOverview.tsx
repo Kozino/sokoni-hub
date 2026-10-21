@@ -8,6 +8,7 @@ import { api } from '../../lib/api';
 import { money, num, timeAgo } from '../../lib/format';
 import { Empty, Spinner, Stat } from '../../components/ui';
 import { exportExcel, exportPdf } from '../../lib/exporting';
+import { IconAlert, IconBox, IconChart, IconFolder, IconHistory, IconReceipt, IconShield, IconUsers } from '../../components/icons';
 
 export default function AdminOverview() {
   const [d, setD] = useState<any>(null);
@@ -32,7 +33,7 @@ export default function AdminOverview() {
   return (
     <>
       <div className="dash-title">
-        <div><h1>Platform overview</h1><p>Everything happening on Sokoni Hub right now.</p></div>
+        <div><span className="admin-eyebrow">Admin console</span><h1>Platform overview</h1><p>Everything happening on Sokoni Hub right now.</p></div>
         <div className="actions">
           <button className="btn btn-outline btn-sm" onClick={() => exportExcel(summaryReport)}>Export Excel</button>
           <button className="btn btn-outline btn-sm" onClick={() => { void exportPdf(summaryReport); }}>Export PDF</button>
@@ -59,15 +60,15 @@ export default function AdminOverview() {
       )}
 
       <div className="grid grid-stats mb-3">
-        <Stat accent="terra" label="Total users" value={num(s.users_total)} sub={`${s.users_7d} joined in 7 days`} />
-        <Stat accent="green" label="Verified vendors" value={num(s.vendors_verified)} sub={`${s.vendors_total} registered total`} />
-        <Stat accent="gold" label="Pending verification" value={num(s.vendors_pending)} sub={`${s.vendors_rejected} rejected · ${s.vendors_suspended} suspended`} />
-        <Stat accent="blue" label="Active listings" value={num(s.listings_active)} sub={`${s.products_active} products · ${s.services_active} services`} />
-        <Stat accent="gold" label="Pending listings" value={num(s.listings_pending)} sub="Awaiting your approval" />
-        <Stat accent="terra" label="Orders" value={num(s.orders_total)} sub={`${s.orders_7d} in the last 7 days`} />
-        <Stat accent="green" label="GMV" value={money(s.gmv)} sub="Excluding cancelled orders" />
-        <Stat accent={Number(s.complaints_open) > 0 ? 'red' : 'green'} label="Open complaints" value={num(s.complaints_open)} sub={`${s.complaints_total} filed all-time`} />
-        <Stat accent="blue" label="Buyers" value={num(s.buyers)} sub={`${s.vendors_users} vendor accounts`} />
+        <Stat icon={IconUsers} accent="terra" label="Total users" value={num(s.users_total)} sub={`${s.users_7d} joined in 7 days`} />
+        <Stat icon={IconShield} accent="green" label="Verified vendors" value={num(s.vendors_verified)} sub={`${s.vendors_total} registered total`} />
+        <Stat icon={IconHistory} accent="gold" label="Pending verification" value={num(s.vendors_pending)} sub={`${s.vendors_rejected} rejected · ${s.vendors_suspended} suspended`} />
+        <Stat icon={IconBox} accent="blue" label="Active listings" value={num(s.listings_active)} sub={`${s.products_active} products · ${s.services_active} services`} />
+        <Stat icon={IconFolder} accent="gold" label="Pending listings" value={num(s.listings_pending)} sub="Awaiting your approval" />
+        <Stat icon={IconReceipt} accent="terra" label="Orders" value={num(s.orders_total)} sub={`${s.orders_7d} in the last 7 days`} />
+        <Stat icon={IconChart} accent="green" label="GMV" value={money(s.gmv)} sub="Excluding cancelled orders" />
+        <Stat icon={IconAlert} accent={Number(s.complaints_open) > 0 ? 'red' : 'green'} label="Open complaints" value={num(s.complaints_open)} sub={`${s.complaints_total} filed all-time`} />
+        <Stat icon={IconUsers} accent="blue" label="Buyers" value={num(s.buyers)} sub={`${s.vendors_users} vendor accounts`} />
       </div>
 
       <div className="grid grid-2 mb-3">

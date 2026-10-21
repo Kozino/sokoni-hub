@@ -1,0 +1,175 @@
+/* Admin dashboard skin (UI only).
+   Light-blue sidebar, clean white cards, medium borders, gradient primary.
+   Scoped to .admin-console (doubled selectors win over the shared dashboard skin).
+   Markup, routes and data are unchanged; this file only sets how they look. */
+
+.admin-console.admin-console, .admin-console.admin-console .dash {
+  /* surfaces */
+  --bg:#F3F7FD; --bg-subtle:#F8FBFF; --surface:#FFFFFF; --surface-2:#F5F9FF;
+  --surface-3:#EAF2FE; --elevated:#FFFFFF; --header:#FFFFFF;
+  --admin-rail:#E6F0FE;
+
+  /* borders: clearly visible but still light */
+  --border:#D3E0F2; --border-strong:#A7BCDC; --border-subtle:#E3EBF7;
+
+  /* text */
+  --text:#101B33; --text-2:#34446A; --text-muted:#6A7A99; --text-invert:#FFFFFF;
+
+  /* primary */
+  --accent:#2563EB; --accent-hover:#1D4FCB; --accent-active:#1A44AE;
+  --accent-soft:#E4EEFF; --accent-softer:#F1F6FF; --accent-line:#B7CDF7; --accent-text:#1F55C9;
+  --ring:rgba(37,99,235,.22);
+
+  /* gold tokens (used by older components) mapped to amber */
+  --gold:#F59E0B; --gold-bright:#FBBF24; --gold-soft:#FFF7E6; --gold-line:#F9DFA6; --gold-deep:#9A5B05;
+
+  /* status */
+  --success:#12A36E; --success-soft:#E6F7EF; --success-line:#B2E6CD; --success-text:#0E7C54;
+  --warning:#E88A0C; --warning-soft:#FFF4E2; --warning-line:#F6D39C; --warning-text:#9C5A05;
+  --danger:#E5484D; --danger-soft:#FDECEC; --danger-line:#F5C2C4; --danger-text:#B42328;
+  --info:#0EA5C6; --info-soft:#E4F6FB; --info-line:#B2E2EF; --info-text:#0B7F98;
+
+  /* charts: mixed colours */
+  --chart-1:#2563EB; --chart-2:#12A36E; --chart-3:#F59E0B; --chart-4:#8B5CF6; --chart-5:#EC4899;
+  --chart-grid:#DDE7F5; --chart-axis:#7384A3;
+
+  /* radii and shadows */
+  --r-sm:10px; --r-md:12px; --r-lg:18px; --r-xl:22px;
+  --shadow-xs:0 1px 2px rgba(16,27,51,.04);
+  --shadow-sm:0 1px 2px rgba(16,27,51,.05), 0 2px 8px rgba(16,27,51,.05);
+  --shadow:0 1px 3px rgba(16,27,51,.05), 0 8px 24px rgba(37,99,235,.07);
+  --shadow-md:0 6px 14px rgba(16,27,51,.08), 0 18px 40px rgba(37,99,235,.12);
+
+  background-color:var(--bg); color:var(--text-2);
+}
+:root[data-theme='dark'] .admin-console.admin-console, :root[data-theme='dark'] .admin-console.admin-console .dash {
+  --bg:#0E1424; --bg-subtle:#111A2E; --surface:#161F34; --surface-2:#1A2440; --surface-3:#213055;
+  --header:#161F34; --admin-rail:#121B30;
+  --border:#2A3857; --border-strong:#41527A; --border-subtle:#222F4B;
+  --text:#EEF3FF; --text-2:#C2CDE6; --text-muted:#8F9DBD; --text-invert:#0E1424;
+  --accent:#6E9BFF; --accent-hover:#8AAEFF; --accent-active:#A3BFFF;
+  --accent-soft:#1B2A4F; --accent-softer:#18243F; --accent-line:#34498A; --accent-text:#A9C4FF;
+  --gold:#FBBF24; --gold-soft:#2A2213; --gold-line:#4E3E1C; --gold-deep:#FCD171;
+  --success:#4CC38F; --success-soft:#13291F; --success-line:#24503D; --success-text:#7ADAB0;
+  --warning:#F5A524; --warning-soft:#2C2112; --warning-line:#554021; --warning-text:#FBC466;
+  --danger:#F07178; --danger-soft:#2E1A1E; --danger-line:#56302F; --danger-text:#F4949A;
+  --info:#38BDD8; --info-soft:#132A33; --info-line:#24505D; --info-text:#7BD4E6;
+  --chart-1:#6E9BFF; --chart-2:#4CC38F; --chart-3:#FBBF24; --chart-4:#A78BFA; --chart-5:#F28CA6;
+  --chart-grid:#26314F; --chart-axis:#8F9DBD;
+  --shadow:0 2px 10px rgba(0,0,0,.35); --shadow-md:0 8px 24px rgba(0,0,0,.45);
+}
+
+/* Page canvas: a soft blue glow in the corner, then the sidebar track. */
+.admin-console.admin-console .dash {
+  background-color:var(--bg);
+  background-image:
+    radial-gradient(900px 420px at 85% -10%, rgba(37,99,235,.08), transparent 60%),
+    linear-gradient(to right, var(--admin-rail) 0 var(--side-w), var(--border) var(--side-w) calc(var(--side-w) + 1px), var(--bg) calc(var(--side-w) + 1px));
+}
+.admin-console.admin-console .dash[data-collapsed='true'] {
+  background-image:
+    radial-gradient(900px 420px at 85% -10%, rgba(37,99,235,.08), transparent 60%),
+    linear-gradient(to right, var(--admin-rail) 0 var(--side-w-collapsed), var(--border) var(--side-w-collapsed) calc(var(--side-w-collapsed) + 1px), var(--bg) calc(var(--side-w-collapsed) + 1px));
+}
+
+/* Header */
+.admin-console.admin-console .header { background:rgba(255,255,255,.92); border-bottom:1px solid var(--border); box-shadow:0 1px 0 rgba(255,255,255,.6), 0 4px 16px rgba(16,27,51,.04); }
+.admin-console.admin-console .brand small { color:var(--text-muted); }
+
+/* Sidebar: light blue rail across its full height */
+.admin-console.admin-console .dash-side { background:var(--admin-rail); scrollbar-color:var(--border-strong) transparent; }
+.admin-console.admin-console .dash-side .who { border-bottom:1px solid #C7D9F2; padding-bottom:var(--s-4); }
+.admin-console.admin-console .dash-side .who strong { color:var(--text); font-weight:700; }
+.admin-console.admin-console .dash-side .who-text > span:not(.badge), .admin-console.admin-console .nav-group-label {
+  color:#5B6F95; font-size:11px; font-weight:700; letter-spacing:.09em; text-transform:uppercase;
+}
+.admin-console.admin-console .dash-side .avatar {
+  background:linear-gradient(135deg,#2563EB,#7C3AED); color:#fff; border:2px solid #fff; font-weight:700;
+  box-shadow:0 4px 12px rgba(37,99,235,.35);
+}
+.admin-console.admin-console .dash-nav a, .admin-console.admin-console .dash-side-foot .menu-item { color:#2F4170; border-radius:12px; font-weight:600; }
+.admin-console.admin-console .dash-nav a:hover, .admin-console.admin-console .dash-side-foot .menu-item:hover { background:rgba(255,255,255,.75); color:var(--text); }
+.admin-console.admin-console .dash-nav a.active {
+  color:#fff; background:linear-gradient(135deg,#2563EB 0%,#3B82F6 100%);
+  box-shadow:0 10px 20px -10px rgba(37,99,235,.7); font-weight:700;
+}
+.admin-console.admin-console .dash-nav a.active::before { display:none; }
+.admin-console.admin-console .dash-nav a.active .ico { color:#fff; opacity:1; }
+.admin-console.admin-console .dash-nav a .ico { color:#2F62C9; opacity:.85; }
+.admin-console.admin-console .dash-nav a .pill { background:#F59E0B; color:#fff; font-weight:700; }
+.admin-console.admin-console .dash-side-foot { border-top-color:#C7D9F2; }
+.admin-console.admin-console .dash-nav a:focus-visible { outline-color:var(--accent); }
+.admin-console.admin-console .breadcrumb .sep { color:var(--text-muted); opacity:.6; }
+
+/* Titles */
+.admin-console.admin-console .dash-title h1 { font-size:28px; font-weight:750; letter-spacing:-.025em; color:var(--text); }
+.admin-console.admin-console .dash-title p { color:var(--text-muted); }
+.admin-eyebrow { display:inline-block; font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--accent-text); background:var(--accent-soft); border:1px solid var(--accent-line); padding:3px 10px; border-radius:999px; margin-bottom:8px; }
+
+/* Cards */
+.admin-console.admin-console .card { border:1px solid var(--border); border-radius:var(--r-lg); background:var(--surface); box-shadow:var(--shadow-xs); border-top:1px solid var(--border); }
+.admin-console.admin-console .card:hover { border-color:var(--border-strong); }
+.admin-console.admin-console .card-head { background:linear-gradient(180deg,#FFFFFF 0%,#F8FBFF 100%); border-bottom:1px solid var(--border); padding:var(--s-4) var(--s-5); }
+.admin-console.admin-console .card-head h3, .admin-console.admin-console .card-head h4 { color:var(--text); font-weight:700; }
+.admin-console.admin-console .card-foot { background:var(--surface-2); border-top:1px solid var(--border); }
+
+/* Stat cards: gradient icon tile, clear border */
+.admin-console.admin-console .stat {
+  --stat-hue:var(--accent); --stat-grad:linear-gradient(135deg,#DCE9FF,#EEF5FF); --stat-ink:#1F55C9;
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg);
+  padding:20px 22px; box-shadow:var(--shadow-xs); position:relative; overflow:hidden;
+}
+.admin-console.admin-console .stat::before { display:none; }
+.admin-console.admin-console .stat.accent-green { --stat-hue:#12A36E; --stat-grad:linear-gradient(135deg,#D5F5E7,#EEFBF5); --stat-ink:#0E7C54; }
+.admin-console.admin-console .stat.accent-gold { --stat-hue:#E88A0C; --stat-grad:linear-gradient(135deg,#FFE9C2,#FFF8EA); --stat-ink:#9C5A05; }
+.admin-console.admin-console .stat.accent-red { --stat-hue:#E5484D; --stat-grad:linear-gradient(135deg,#FCDADB,#FEF2F2); --stat-ink:#B42328; }
+.admin-console.admin-console .stat.accent-blue { --stat-hue:#0EA5C6; --stat-grad:linear-gradient(135deg,#CDEEF8,#EEF9FD); --stat-ink:#0B7F98; }
+.admin-console.admin-console .stat.accent-terra { --stat-hue:#8B5CF6; --stat-grad:linear-gradient(135deg,#E6DCFD,#F5F0FF); --stat-ink:#6D3FE0; }
+.admin-console.admin-console .stat .label { color:var(--text-muted); text-transform:none; letter-spacing:0; font-size:14px; font-weight:600; }
+.admin-console.admin-console .stat .value { color:var(--text); font-size:28px; font-weight:750; }
+.admin-console.admin-console .stat .sub { color:var(--text-muted); }
+.admin-console.admin-console .stat:hover { border-color:var(--border-strong); box-shadow:var(--shadow); }
+.admin-console.admin-console .stat-icon {
+  position:absolute; top:18px; inset-inline-end:18px; width:42px; height:42px; border-radius:14px;
+  display:grid; place-items:center; background:var(--stat-grad); color:var(--stat-ink);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.7);
+}
+.admin-console.admin-console .stat-icon svg { width:20px; height:20px; }
+
+/* Buttons */
+.admin-console.admin-console .btn { border-radius:12px; font-weight:650; }
+.admin-console.admin-console .btn-primary { background:linear-gradient(135deg,#2563EB,#3B82F6); border-color:#2563EB; box-shadow:0 8px 18px -8px rgba(37,99,235,.7); }
+.admin-console.admin-console .btn-primary:hover:not(:disabled) { background:linear-gradient(135deg,#1D4FCB,#2563EB); border-color:#1D4FCB; }
+.admin-console.admin-console .btn-outline { background:#fff; border-color:var(--border-strong); color:var(--accent-text); }
+.admin-console.admin-console .btn-outline:hover:not(:disabled) { background:var(--accent-softer); border-color:var(--accent-line); }
+.admin-console.admin-console .btn-group button { border-radius:9px; }
+.admin-console.admin-console .btn-group button[aria-pressed='true'], .admin-console.admin-console .btn-group button.active { background:var(--accent); color:#fff; }
+.admin-console.admin-console .tabs button.active { border-bottom-color:var(--accent); color:var(--accent-text); }
+
+/* Inputs */
+.admin-console.admin-console input, .admin-console.admin-console select, .admin-console.admin-console textarea { border-radius:12px; border-color:var(--border-strong); background:#fff; }
+.admin-console.admin-console input:focus, .admin-console.admin-console select:focus, .admin-console.admin-console textarea:focus { border-color:var(--accent); box-shadow:0 0 0 4px var(--ring); }
+
+/* Tables */
+.admin-console.admin-console table.tbl th, .admin-console.admin-console .bk-head {
+  color:var(--text-muted); background:var(--surface-3); border-bottom:1px solid var(--border-strong);
+  font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+}
+.admin-console.admin-console table.tbl td { border-bottom-color:var(--border-subtle); }
+.admin-console.admin-console table.tbl tbody tr:nth-child(even) { background:transparent; }
+.admin-console.admin-console table.tbl tbody tr:hover { background:var(--accent-softer); }
+
+/* Alerts and modals */
+.admin-console.admin-console .alert { border-inline-start-width:3px; border-radius:var(--r-md); }
+.admin-console.admin-console .modal { border-top:none; border-radius:var(--r-xl); box-shadow:var(--shadow-md); }
+.admin-console.admin-console .modal-head { border-bottom:1px solid var(--border); }
+.admin-console.admin-console .modal-foot { border-top:1px solid var(--border); }
+.modal-portal.admin-console.admin-console .modal { border-top:none; }
+
+@media (max-width:640px) {
+  .admin-console.admin-console .grid-stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .admin-console.admin-console .stat .label { font-size:12px; }
+  .admin-console.admin-console .stat .value { white-space:normal; overflow-wrap:anywhere; font-size:21px; }
+  .admin-console.admin-console .stat { padding:16px 12px; }
+  .admin-console.admin-console .stat-icon { width:32px; height:32px; top:12px; inset-inline-end:12px; border-radius:10px; }
+}

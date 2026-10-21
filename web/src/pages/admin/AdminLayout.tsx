@@ -6,6 +6,7 @@ import { useAuth } from '../../state/AuthContext';
 import { api } from '../../lib/api';
 import { IconChart, IconShield, IconBox, IconAlert, IconReceipt, IconUsers, IconFolder, IconHistory, IconStar } from '../../components/icons';
 import { EnglishScope } from '../../i18n';
+import './admin-classic.css';
 
 export default function AdminLayout() {
   const { user } = useAuth();
@@ -62,7 +63,7 @@ export default function AdminLayout() {
           and flipping an unchecked console into RTL is worse than not
           offering it. */}
       <EnglishScope />
-      <div className="app">
+      <div className="app admin-console">
       <Header />
       <DashShell
         links={links}

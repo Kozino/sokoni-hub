@@ -86,9 +86,9 @@ export function Modal({ open, title, onClose, children, footer }: {
     return () => { document.removeEventListener('keydown',key); document.body.style.overflow=overflow; if(appRoot)appRoot.inert=wasInert; if(previous?.isConnected)previous.focus(); };
   }, [open]);
   if (!open) return null;
-  const vendor = !!document.querySelector('.app.vendor-console');
+  const scope = document.querySelector('.app.vendor-console') ? ' vendor-console' : document.querySelector('.app.admin-console') ? ' admin-console' : '';
   return createPortal(
-    <div className={`modal-portal${vendor ? ' vendor-console' : ''}`}>
+    <div className={`modal-portal${scope}`}>
       <div className="modal-backdrop" onClick={onClose}>
         <div ref={dialog} className="modal" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onClick={e=>e.stopPropagation()}>
           <div className="modal-head"><h3 id={titleId}>{title}</h3><button className="x-btn" type="button" onClick={onClose} aria-label="Close">×</button></div>
