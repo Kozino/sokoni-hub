@@ -163,7 +163,7 @@ export function Header() {
                 <Link to="/" className="brand" onClick={close} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <img src="/logo.png" alt="Sokoni Hub" />
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span>Sokoni Hub</span>
+            <span>Sokoni Hub Retail and Business Support Platforms</span>
             <small style={{ fontSize: '0.65rem', color: 'var(--muted)', marginTop: '-2px' }}>CR: 254111</small>
           </div>
         </Link>
