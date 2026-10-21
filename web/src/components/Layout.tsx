@@ -228,8 +228,8 @@ export function Footer() {
               <span className="footer-logo">
                 <img src="/logo.png" alt="" width={32} height={32} />
               </span>
-              <span className="footer-brand-name">Sokoni Hub Retail and Business Support Platforms</span>
-               <small style={{ fontSize: '0.65rem', color: 'var(--muted)', marginTop: '-2px' }}>CR: 254111</small>
+              <span className="footer-brand-name">Sokoni Hub</span>
+            
             </Link>
             <p style={{ maxWidth: 320 }}>
               {t('footer.blurb')}
