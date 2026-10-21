@@ -4,6 +4,7 @@ import { api, ApiError } from '../api';
 import { BrandBlock, Button, Field, normalizeQatarPhone, PhoneField, Topbar } from '../components/AuthUI';
 import { C } from '../theme';
 import type { Stage } from './types';
+import { fw } from '../ui/type';
 
 export function Login({ onStage }: { onStage: (stage: Stage) => void }) {
   const [phoneMode, setPhoneMode] = useState(true);
@@ -76,10 +77,10 @@ const styles = StyleSheet.create({
   modeToggle: { height: 47, borderRadius: 24, padding: 4, flexDirection: 'row', backgroundColor: C.surface2, marginBottom: 19 },
   mode: { flex: 1, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
   modeActive: { backgroundColor: C.primary },
-  modeText: { fontSize: 13, fontWeight: '900', color: C.text2 },
+  modeText: { fontSize: 13, ...fw('900'), color: C.text2 },
   modeTextActive: { color: '#fff' },
-  label: { fontSize: 12, fontWeight: '900', marginBottom: 7, color: C.text },
+  label: { fontSize: 12, ...fw('900'), marginBottom: 7, color: C.text },
   note: { backgroundColor: C.primarySoft, borderRadius: 12, padding: 12, marginBottom: 4 },
-  noteText: { fontSize: 13, color: C.primary, fontWeight: '600' },
+  noteText: { fontSize: 13, color: C.primary, ...fw('600') },
   footer: { textAlign: 'center', fontSize: 12, marginTop: 24, color: C.text2, textDecorationLine: 'underline' },
 });

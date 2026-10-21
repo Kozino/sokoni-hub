@@ -1,6 +1,8 @@
 import React, { ReactNode } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
 import { C } from '../theme';
+import { Icon } from '../ui/kit';
+import { fw } from '../ui/type';
 
 /** Qatari numbers are stored as 974XXXXXXXX (same rule as the consumer app). */
 export function normalizeQatarPhone(input: string) {
@@ -15,12 +17,12 @@ export function Topbar({ onBack }: { onBack?: () => void }) {
     <View style={s.topbar}>
       {onBack ? (
         <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={onBack} style={s.back}>
-          <Text style={s.backIcon}>←</Text>
+          <Icon name="chevron-left" size={24} color={C.text} />
         </Pressable>
       ) : <View style={s.back} />}
       <View style={s.brandSmall}>
         <Image source={require('../../assets/logo.png')} style={s.logoSmall} />
-        <Text style={s.brandSmallText}>Sokoni <Text style={{ color: C.gold }}>Vendor</Text></Text>
+        <Text style={s.brandSmallText}>Sokoni <Text style={{ color: C.goldText }}>Vendor</Text></Text>
       </View>
       <View style={s.currency}>
         <Text style={s.currencyText}>QATAR{'\n'}(QAR)</Text>
@@ -119,38 +121,38 @@ const s = StyleSheet.create({
   backIcon: { fontSize: 26, color: C.text },
   brandSmall: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
   logoSmall: { width: 26, height: 26, resizeMode: 'contain' },
-  brandSmallText: { fontSize: 16, fontWeight: '900', color: C.text },
+  brandSmallText: { fontSize: 16, ...fw('900'), color: C.text },
   currency: { backgroundColor: C.surface2, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 4 },
-  currencyText: { fontSize: 10, fontWeight: '900', color: C.text, textAlign: 'center', lineHeight: 12 },
+  currencyText: { fontSize: 10, ...fw('900'), color: C.text, textAlign: 'center', lineHeight: 12 },
 
   brandBlock: { alignItems: 'center', paddingTop: 22 },
   logoCircle: { width: 94, height: 94, borderRadius: 47, backgroundColor: C.primarySoft, alignItems: 'center', justifyContent: 'center' },
   logo: { width: 69, height: 69 },
-  welcome: { fontSize: 29, fontWeight: '900', letterSpacing: -0.8, marginTop: 19, color: C.text, textAlign: 'center' },
-  language: { fontSize: 15, fontWeight: '900', marginTop: 4, color: C.primary, textAlign: 'center' },
+  welcome: { fontSize: 29, ...fw('900'), letterSpacing: -0.8, marginTop: 19, color: C.text, textAlign: 'center' },
+  language: { fontSize: 15, ...fw('900'), marginTop: 4, color: C.primary, textAlign: 'center' },
   intro: { fontSize: 13, lineHeight: 19, textAlign: 'center', marginTop: 12, maxWidth: 310, color: C.text2 },
 
   fieldWrap: { marginBottom: 15 },
-  fieldLabel: { fontSize: 12, fontWeight: '900', marginBottom: 7, color: C.text },
+  fieldLabel: { fontSize: 12, ...fw('900'), marginBottom: 7, color: C.text },
   field: { minHeight: 50, borderRadius: 10, backgroundColor: C.field, paddingHorizontal: 14, fontSize: 15, color: C.text },
   error: { color: C.danger, fontSize: 12, marginTop: 4 },
 
   phoneField: { height: 50, borderRadius: 12, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface2, flexDirection: 'row', alignItems: 'center', marginBottom: 15, overflow: 'hidden' },
   phonePrefix: { paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 6 },
   flag: { fontSize: 16 },
-  prefixText: { fontSize: 15, fontWeight: '800', color: C.text },
+  prefixText: { fontSize: 15, ...fw('800'), color: C.text },
   phoneDivider: { width: 1, height: 24, backgroundColor: C.border },
   phoneInput: { flex: 1, height: 50, paddingHorizontal: 12, fontSize: 15, color: C.text },
 
   button: { minHeight: 55, borderRadius: 25, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, marginTop: 6 },
-  buttonText: { fontSize: 16, fontWeight: '900' },
+  buttonText: { fontSize: 16, ...fw('900') },
 
   notice: { borderRadius: 12, padding: 12, marginBottom: 12 },
-  noticeText: { fontSize: 13, lineHeight: 18, fontWeight: '600' },
+  noticeText: { fontSize: 13, lineHeight: 18, ...fw('600') },
 
   orLine: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 16 },
   orStroke: { flex: 1, height: 1, backgroundColor: C.border },
-  orText: { fontSize: 11, fontWeight: '800', color: C.text2, letterSpacing: 0.5 },
+  orText: { fontSize: 11, ...fw('800'), color: C.text2, letterSpacing: 0.5 },
 });
 
 export const authStyles = s;

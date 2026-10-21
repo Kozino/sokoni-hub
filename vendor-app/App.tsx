@@ -3,6 +3,8 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
+import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold } from '@expo-google-fonts/inter';
 import { AuthProvider, useAuth } from './src/providers/AuthContext';
 import { api, setUnauthorizedHandler } from './src/api';
 import { usePushToken } from './src/usePushToken';
@@ -61,10 +63,19 @@ function Router() {
 }
 
 export default function App() {
+  // Load Inter before the first frame so text never flashes in a fallback font.
+  const [fontsLoaded] = useFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold });
+  if (!fontsLoaded) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color={C.primary} />
+      </View>
+    );
+  }
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <StatusBar style="auto" />
+        <StatusBar style="dark" />
         <Router />
       </AuthProvider>
     </SafeAreaProvider>

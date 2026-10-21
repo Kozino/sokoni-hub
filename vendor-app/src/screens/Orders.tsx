@@ -1,39 +1,55 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, Linking, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import { api, ApiError } from '../api';
-import { Button, Notice } from '../components/AuthUI';
-import { C } from '../theme';
-import { CANCEL_REASONS, ORDER_FILTERS, STATUS_LABEL, VendorOrder, canCancel, money, nextSteps } from '../orders/model';
+import { Banner, Btn, Card, Chips, EmptyState, Icon, Pill, ScreenHeader } from '../ui/kit';
+import { C, TONES } from '../theme';
+import {
+  CANCEL_REASONS,
+  ORDER_FILTERS,
+  ORDER_STATUS_LABEL,
+  ORDER_TONE,
+  OrderFilter,
+  VendorOrder,
+  canCancel,
+  itemCount,
+  matchesFilter,
+  money,
+  nextStep,
+  timeAgo,
+} from '../orders/model';
+import { fw } from '../ui/type';
 
 const REFRESH_MS = 30000;
 
 export function Orders() {
-  const [filter, setFilter] = useState('pending');
-  const [orders, setOrders] = useState<VendorOrder[]>([]);
+  const [all, setAll] = useState<VendorOrder[]>([]);
+  const [filter, setFilter] = useState<OrderFilter>('pending');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [selected, setSelected] = useState<VendorOrder | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const { width } = useWindowDimensions();
+  const wide = width >= 720;
 
-  const load = useCallback(async (showSpinner = false) => {
-    if (showSpinner) setRefreshing(true);
+  // One request loads every order. Filters and counts are computed on the device, so switching chips is instant.
+  const load = useCallback(async (spin = false) => {
+    if (spin) setRefreshing(true);
     try {
-      const q = filter ? `?status=${encodeURIComponent(filter)}` : '';
-      const res = await api.get<{ orders: VendorOrder[] }>(`/orders/vendor${q}`);
-      setOrders(res.orders);
+      const res = await api.get<{ orders: VendorOrder[] }>('/orders/vendor');
+      setAll(res.orders);
       setError('');
     } catch (e: any) {
-      setError(e?.message || 'Could not load orders.');
+      setError(e?.message || 'Could not load orders. Pull down to try again.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [filter]);
+  }, []);
 
-  // Reload on filter change, every 30 seconds, and whenever an alert arrives while the app is open.
   useEffect(() => {
-    setLoading(true);
     void load();
     const timer = setInterval(() => void load(), REFRESH_MS);
     const sub = Notifications.addNotificationReceivedListener(() => void load());
@@ -43,62 +59,125 @@ export function Orders() {
     };
   }, [load]);
 
-  return (
-    <View style={{ flex: 1 }}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-        {ORDER_FILTERS.map((f) => (
-          <Pressable
-            key={f.key || 'all'}
-            accessibilityRole="button"
-            accessibilityState={{ selected: filter === f.key }}
-            onPress={() => setFilter(f.key)}
-            style={[styles.chip, filter === f.key && styles.chipOn]}
-          >
-            <Text style={[styles.chipText, filter === f.key && styles.chipTextOn]}>{f.label}</Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+  const counts = useMemo(() => {
+    const map = {} as Record<OrderFilter, number>;
+    for (const f of ORDER_FILTERS) map[f.key] = all.filter((o) => matchesFilter(o, f.key)).length;
+    return map;
+  }, [all]);
 
-      {error ? <Notice tone="error">{error}</Notice> : null}
+  const visible = useMemo(() => {
+    const list = all.filter((o) => matchesFilter(o, filter));
+    // New orders are handled oldest first. Everything else is newest first.
+    return filter === 'pending'
+      ? [...list].sort((a, b) => +new Date(a.created_at) - +new Date(b.created_at))
+      : [...list].sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
+  }, [all, filter]);
+
+  const advance = async (o: VendorOrder, status: string) => {
+    setBusyId(o.id);
+    try {
+      await api.patch(`/orders/vendor/${o.id}/status`, { status });
+      await load();
+    } catch (e: any) {
+      Alert.alert('Order not updated', e instanceof ApiError ? e.message : 'Check your connection and try again.');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const summary = counts.pending
+    ? `${counts.pending} new · ${counts.confirmed} preparing`
+    : counts.confirmed || counts.dispatched
+      ? `${counts.confirmed} preparing · ${counts.dispatched} on the way`
+      : 'All caught up';
+
+  return (
+    <View style={styles.screen}>
+      <ScreenHeader title="Orders" subtitle={summary} />
+      <Chips items={ORDER_FILTERS.map((f) => ({ key: f.key, label: f.label, count: counts[f.key] || undefined }))} value={filter} onChange={(k) => setFilter(k)} />
+
+      {error ? (
+        <View style={styles.pad}>
+          <Banner tone="error">{error}</Banner>
+        </View>
+      ) : null}
 
       {loading ? (
-        <ActivityIndicator color={C.primary} style={{ marginTop: 32 }} />
+        <ActivityIndicator color={C.primary} style={{ marginTop: 40 }} />
       ) : (
         <ScrollView
-          contentContainerStyle={styles.list}
+          style={styles.frame}
+          contentContainerStyle={[styles.list, wide && styles.listWide]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={C.primary} />}
         >
-          {orders.length === 0 ? <Text style={styles.empty}>No orders here right now.</Text> : null}
-          {orders.map((o) => (
-            <Pressable key={o.id} accessibilityRole="button" onPress={() => setSelected(o)} style={styles.card}>
-              <View style={styles.row}>
-                <Text style={styles.code}>#{o.code}</Text>
-                <Text style={[styles.badge, o.status === 'pending' && styles.badgeNew]}>{STATUS_LABEL[o.status] || o.status}</Text>
-              </View>
-              <Text style={styles.muted}>
-                {o.fulfilment_mode === 'pickup' ? 'Pickup' : 'Delivery'} · {money(o.total)} · {o.items.reduce((n, i) => n + i.qty, 0)} items
-              </Text>
-              <Text numberOfLines={1} style={styles.items}>
-                {o.items.map((i) => `${i.qty}× ${i.title}`).join(', ')}
-              </Text>
-            </Pressable>
+          {visible.length === 0 ? (
+            <EmptyState icon="shopping-bag" title={filter === 'pending' ? 'No new orders' : 'No orders here'} body="New orders appear here and ring on your phone." />
+          ) : null}
+          {visible.map((o) => (
+            <View key={o.id} style={{ width: wide ? '49%' : '100%' }}>
+              <OrderCard order={o} busy={busyId === o.id} onOpen={() => setSelected(o)} onAdvance={(status) => advance(o, status)} />
+            </View>
           ))}
         </ScrollView>
       )}
 
-      <OrderDetail
+      <OrderSheet
         order={selected}
         onClose={() => setSelected(null)}
-        onChanged={() => {
+        onChanged={async () => {
           setSelected(null);
-          void load();
+          await load();
         }}
       />
     </View>
   );
 }
 
-function OrderDetail({ order, onClose, onChanged }: { order: VendorOrder | null; onClose: () => void; onChanged: () => void }) {
+function OrderCard({ order: o, busy, onOpen, onAdvance }: { order: VendorOrder; busy: boolean; onOpen: () => void; onAdvance: (status: string) => void }) {
+  const tone = TONES[ORDER_TONE[o.status]];
+  const step = nextStep(o);
+  const pickup = o.fulfilment_mode === 'pickup';
+  const place = pickup ? o.pickup_address : o.delivery_address;
+
+  return (
+    <Card padded={false} style={styles.orderCard}>
+      <View style={[styles.accent, { backgroundColor: tone.fg }]} />
+      <View style={{ flex: 1 }}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Order ${o.code}`} onPress={onOpen} style={styles.orderBody}>
+          <View style={styles.rowBetween}>
+            <Text style={styles.code}>#{o.code}</Text>
+            <Pill label={ORDER_STATUS_LABEL[o.status]} tone={ORDER_TONE[o.status]} />
+          </View>
+          <View style={styles.metaRow}>
+            <Icon name={pickup ? 'building-storefront' : 'truck'} size={16} color={C.muted} />
+            <Text style={styles.meta}>{pickup ? 'Pickup' : 'Delivery'}</Text>
+            <Text style={styles.dot}>·</Text>
+            <Text style={styles.meta}>{itemCount(o)} {itemCount(o) === 1 ? 'item' : 'items'}</Text>
+            <Text style={styles.dot}>·</Text>
+            <Text style={styles.metaStrong}>{money(o.total)}</Text>
+            <View style={{ flex: 1 }} />
+            <Text style={styles.time}>{timeAgo(o.created_at)}</Text>
+          </View>
+          <Text style={styles.items} numberOfLines={2}>{o.items.map((i) => `${i.qty}× ${i.title}`).join(', ')}</Text>
+          {place ? (
+            <View style={styles.metaRow}>
+              <Icon name="map-pin" size={16} color={C.muted} />
+              <Text style={styles.place} numberOfLines={1}>{place}</Text>
+            </View>
+          ) : null}
+        </Pressable>
+
+        {step ? (
+          <View style={styles.actionRow}>
+            <Btn compact label={step.label} icon={step.icon} loading={busy} onPress={() => onAdvance(step.status)} />
+          </View>
+        ) : null}
+      </View>
+    </Card>
+  );
+}
+
+function OrderSheet({ order, onClose, onChanged }: { order: VendorOrder | null; onClose: () => void; onChanged: () => Promise<void> }) {
   const [busy, setBusy] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [reason, setReason] = useState('');
@@ -116,126 +195,182 @@ function OrderDetail({ order, onClose, onChanged }: { order: VendorOrder | null;
 
   const finalReason = reason === 'Other' ? other.trim() : reason;
   const reasonOk = !!finalReason && (reason !== 'Other' || finalReason.length >= 5);
+  const pickup = order.fulfilment_mode === 'pickup';
+  const step = nextStep(order);
 
   const change = async (status: string, why?: string) => {
     setBusy(true);
     setErr('');
     try {
       await api.patch(`/orders/vendor/${order.id}/status`, why ? { status, reason: why } : { status });
-      onChanged();
+      await onChanged();
     } catch (e: any) {
-      // The API explains refused moves (for example, a rider already assigned). Show its message.
+      // The API explains refused moves, such as a rider already being assigned. Show its message.
       setErr(e instanceof ApiError ? e.message : 'Could not update this order. Check your connection and try again.');
     } finally {
       setBusy(false);
     }
   };
 
-  const steps = nextSteps(order);
-  const address = order.fulfilment_mode === 'pickup' ? order.pickup_address : order.delivery_address;
-
   return (
     <Modal visible animationType="slide" onRequestClose={onClose} presentationStyle="pageSheet">
-      <ScrollView contentContainerStyle={styles.sheet}>
-        <View style={styles.row}>
-          <Text style={styles.title}>Order #{order.code}</Text>
-          <Pressable accessibilityRole="button" onPress={onClose} style={styles.close}>
-            <Text style={styles.closeText}>Close</Text>
+      <SafeAreaView style={styles.sheet} edges={['top', 'bottom']}>
+        <View style={styles.sheetHeader}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.sheetKicker}>{pickup ? 'Pickup order' : 'Delivery order'}</Text>
+            <Text style={styles.sheetTitle}>#{order.code}</Text>
+          </View>
+          <Pill label={ORDER_STATUS_LABEL[order.status]} tone={ORDER_TONE[order.status]} />
+          <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={onClose} style={styles.closeBtn}>
+            <Icon name="x-mark" size={22} color={C.text2} />
           </Pressable>
         </View>
-        <Text style={styles.muted}>
-          {STATUS_LABEL[order.status] || order.status} · {order.fulfilment_mode === 'pickup' ? 'Pickup' : 'Delivery'} · {money(order.total)}
-        </Text>
 
-        <Text style={styles.section}>Items</Text>
-        {order.items.map((i, idx) => (
-          <Text key={idx} style={styles.line}>{i.qty}× {i.title}</Text>
-        ))}
+        <ScrollView contentContainerStyle={styles.sheetBody}>
+          {err ? <Banner tone="error">{err}</Banner> : null}
 
-        <Text style={styles.section}>{order.fulfilment_mode === 'pickup' ? 'Pickup' : 'Delivery to'}</Text>
-        <Text style={styles.line}>{address || 'No address given'}</Text>
-        {order.contact_name ? <Text style={styles.line}>{order.contact_name}{order.contact_phone ? ` · ${order.contact_phone}` : ''}</Text> : null}
-        {order.note ? <Text style={styles.muted}>Note: {order.note}</Text> : null}
+          {!cancelling ? (
+            <>
+              <Card>
+                <Text style={styles.cardTitle}>Items</Text>
+                {order.items.map((i, idx) => (
+                  <View key={idx} style={styles.itemRow}>
+                    <View style={styles.qty}>
+                      <Text style={styles.qtyText}>{i.qty}</Text>
+                    </View>
+                    <Text style={styles.itemTitle}>{i.title}</Text>
+                  </View>
+                ))}
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>Total</Text>
+                  <Text style={styles.totalValue}>{money(order.total)}</Text>
+                </View>
+                {order.payment_status ? (
+                  <View style={{ marginTop: 12 }}>
+                    <Pill label={order.payment_status === 'paid' ? 'Paid' : 'Unpaid'} tone={order.payment_status === 'paid' ? 'green' : 'amber'} icon={order.payment_status === 'paid' ? 'check-circle' : 'banknotes'} />
+                  </View>
+                ) : null}
+              </Card>
 
-        {err ? <Notice tone="error">{err}</Notice> : null}
+              <Card>
+                <Text style={styles.cardTitle}>Customer</Text>
+                <View style={styles.infoRow}>
+                  <Icon name="user" size={18} color={C.muted} />
+                  <Text style={styles.infoText}>{order.contact_name || 'No name given'}</Text>
+                </View>
+                {order.contact_phone ? (
+                  <Pressable accessibilityRole="button" accessibilityLabel="Call customer" onPress={() => Linking.openURL(`tel:${order.contact_phone}`)} style={styles.infoRow}>
+                    <Icon name="phone" size={18} color={C.primary} />
+                    <Text style={[styles.infoText, { color: C.primary, ...fw('700') }]}>{order.contact_phone}</Text>
+                  </Pressable>
+                ) : null}
+                <View style={styles.infoRow}>
+                  <Icon name={pickup ? 'building-storefront' : 'map-pin'} size={18} color={C.muted} />
+                  <Text style={styles.infoText}>{(pickup ? order.pickup_address : order.delivery_address) || (pickup ? 'Collected from your store' : 'No address given')}</Text>
+                </View>
+                {order.note ? (
+                  <View style={styles.note}>
+                    <Text style={styles.noteText}>“{order.note}”</Text>
+                  </View>
+                ) : null}
+              </Card>
+            </>
+          ) : (
+            <Card>
+              <Text style={styles.cardTitle}>Why are you cancelling?</Text>
+              <Text style={styles.helper}>The customer is told the reason.</Text>
+              <View style={{ gap: 8, marginTop: 12 }}>
+                {CANCEL_REASONS.map((r) => {
+                  const on = reason === r;
+                  return (
+                    <Pressable key={r} accessibilityRole="radio" accessibilityState={{ selected: on }} onPress={() => setReason(r)} style={[styles.reason, on && styles.reasonOn]}>
+                      <View style={[styles.radio, on && styles.radioOn]}>{on ? <View style={styles.radioDot} /> : null}</View>
+                      <Text style={[styles.reasonText, on && { color: C.primary, ...fw('700') }]}>{r}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              {reason === 'Other' ? (
+                <TextInput value={other} onChangeText={setOther} placeholder="Tell the customer why (at least 5 characters)" placeholderTextColor={C.muted} style={styles.input} maxLength={300} multiline />
+              ) : null}
+            </Card>
+          )}
+        </ScrollView>
 
-        {!cancelling ? (
-          <View style={{ gap: 10, marginTop: 20 }}>
-            {steps.map((s) => (
-              <Button key={s.status} loading={busy} onPress={() => change(s.status)} variant={s.status === 'confirmed' ? 'primary' : 'gold'}>
-                {s.label}
-              </Button>
-            ))}
-            {canCancel(order) ? (
-              <Button variant="secondary" disabled={busy} onPress={() => setCancelling(true)}>
-                Cancel order
-              </Button>
-            ) : null}
-          </View>
-        ) : (
-          <View style={{ gap: 10, marginTop: 20 }}>
-            <Text style={styles.section}>Why are you cancelling?</Text>
-            <View style={styles.reasons}>
-              {CANCEL_REASONS.map((r) => (
-                <Pressable
-                  key={r}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: reason === r }}
-                  onPress={() => setReason(r)}
-                  style={[styles.chip, reason === r && styles.chipOn]}
-                >
-                  <Text style={[styles.chipText, reason === r && styles.chipTextOn]}>{r}</Text>
-                </Pressable>
-              ))}
-            </View>
-            {reason === 'Other' ? (
-              <TextInput
-                value={other}
-                onChangeText={setOther}
-                placeholder="Tell the buyer why (at least 5 characters)"
-                style={styles.input}
-                maxLength={300}
+        <View style={styles.footer}>
+          {!cancelling ? (
+            <>
+              {step ? <Btn label={step.label} icon={step.icon} loading={busy} onPress={() => change(step.status)} /> : null}
+              {canCancel(order) ? <Btn label="Cancel order" variant="danger" icon="x-circle" disabled={busy} onPress={() => setCancelling(true)} /> : null}
+            </>
+          ) : (
+            <>
+              <Btn
+                label="Confirm cancellation"
+                variant="danger"
+                icon="x-circle"
+                loading={busy}
+                disabled={!reasonOk}
+                onPress={() =>
+                  Alert.alert('Cancel this order?', 'The customer will be told why.', [
+                    { text: 'Keep order', style: 'cancel' },
+                    { text: 'Cancel order', style: 'destructive', onPress: () => change('cancelled', finalReason) },
+                  ])
+                }
               />
-            ) : null}
-            <Button variant="gold" loading={busy} disabled={!reasonOk} onPress={() => {
-              Alert.alert('Cancel this order?', 'The buyer will be told why.', [
-                { text: 'Keep order', style: 'cancel' },
-                { text: 'Cancel order', style: 'destructive', onPress: () => change('cancelled', finalReason) },
-              ]);
-            }}>
-              Confirm cancellation
-            </Button>
-            <Button variant="secondary" disabled={busy} onPress={() => setCancelling(false)}>
-              Back
-            </Button>
-          </View>
-        )}
-      </ScrollView>
+              <Btn label="Back" variant="secondary" disabled={busy} onPress={() => setCancelling(false)} />
+            </>
+          )}
+        </View>
+      </SafeAreaView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  chips: { paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
-  chip: { minHeight: 44, paddingHorizontal: 16, justifyContent: 'center', borderRadius: 22, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface, marginRight: 8 },
-  chipOn: { backgroundColor: C.primary, borderColor: C.primary },
-  chipText: { color: C.text, fontWeight: '600' },
-  chipTextOn: { color: '#fff' },
-  list: { padding: 16, gap: 12, paddingTop: 4 },
-  empty: { textAlign: 'center', color: C.muted, marginTop: 40 },
-  card: { backgroundColor: C.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: C.border, gap: 6 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  code: { fontSize: 16, fontWeight: '700', color: C.text },
-  badge: { fontSize: 12, fontWeight: '700', color: C.primary, backgroundColor: C.primarySoft, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, overflow: 'hidden' },
-  badgeNew: { color: '#fff', backgroundColor: C.gold },
-  muted: { color: C.muted, fontSize: 14 },
-  items: { color: C.text, fontSize: 14 },
-  sheet: { padding: 20, gap: 6, paddingBottom: 40 },
-  title: { fontSize: 20, fontWeight: '700', color: C.text },
-  close: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
-  closeText: { color: C.primary, fontWeight: '700', fontSize: 16 },
-  section: { marginTop: 14, fontWeight: '700', color: C.text, fontSize: 15 },
-  line: { color: C.text, fontSize: 15 },
-  reasons: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  input: { borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 12, minHeight: 44, fontSize: 16, color: C.text, backgroundColor: C.surface },
+  screen: { flex: 1, backgroundColor: C.bg },
+  frame: { width: '100%', maxWidth: 760, alignSelf: 'center', flex: 1 },
+  listWide: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start' },
+  pad: { paddingHorizontal: 16, paddingTop: 8 },
+  list: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 32, gap: 12 },
+  orderCard: { flexDirection: 'row', overflow: 'hidden' },
+  accent: { width: 4 },
+  orderBody: { padding: 14, gap: 8 },
+  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  code: { fontSize: 17, ...fw('800'), color: C.text, letterSpacing: 0.2 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  meta: { fontSize: 13, color: C.muted, ...fw('600') },
+  metaStrong: { fontSize: 13, color: C.text, ...fw('800') },
+  dot: { color: C.muted },
+  time: { fontSize: 12, color: C.muted, ...fw('600') },
+  items: { fontSize: 14, color: C.text2, lineHeight: 20 },
+  place: { flex: 1, fontSize: 13, color: C.muted },
+  actionRow: { paddingHorizontal: 14, paddingBottom: 14 },
+  sheet: { flex: 1, backgroundColor: C.bg },
+  sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 12, backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.borderSoft },
+  sheetKicker: { fontSize: 12, color: C.muted, ...fw('700'), textTransform: 'uppercase', letterSpacing: 0.5 },
+  sheetTitle: { fontSize: 22, ...fw('800'), color: C.text },
+  closeBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: C.surface2 },
+  sheetBody: { padding: 16, gap: 12, paddingBottom: 24 },
+  footer: { padding: 16, gap: 10, backgroundColor: C.surface, borderTopWidth: 1, borderTopColor: C.borderSoft },
+  cardTitle: { fontSize: 13, ...fw('800'), color: C.muted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 },
+  itemRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6 },
+  qty: { minWidth: 30, height: 30, borderRadius: 8, backgroundColor: C.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  qtyText: { color: C.primary, ...fw('800') },
+  itemTitle: { flex: 1, fontSize: 15, color: C.text, ...fw('600') },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.borderSoft },
+  totalLabel: { fontSize: 15, color: C.text2, ...fw('600') },
+  totalValue: { fontSize: 17, color: C.text, ...fw('800') },
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
+  infoText: { flex: 1, fontSize: 15, color: C.text, lineHeight: 21 },
+  note: { marginTop: 8, padding: 12, borderRadius: 10, backgroundColor: C.goldSoft },
+  noteText: { color: '#7C2D12', fontSize: 14, lineHeight: 20 },
+  helper: { fontSize: 13, color: C.muted },
+  reason: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: C.border },
+  reasonOn: { borderColor: C.primary, backgroundColor: C.primarySoft },
+  reasonText: { fontSize: 15, color: C.text, ...fw('500') },
+  radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
+  radioOn: { borderColor: C.primary },
+  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: C.primary },
+  input: { marginTop: 12, borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 12, minHeight: 80, fontSize: 15, color: C.text, backgroundColor: C.field, textAlignVertical: 'top' },
 });

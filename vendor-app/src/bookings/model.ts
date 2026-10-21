@@ -1,4 +1,5 @@
 /** Service booking shapes and status rules for the vendor app. Mirrors the API's transition table. */
+import { Tone } from '../theme';
 
 export type Booking = {
   id: string;
@@ -19,19 +20,34 @@ export type Booking = {
   created_at: string;
 };
 
-export const BOOKING_FILTERS: { key: string; label: string }[] = [
+export type BookingFilter = 'new' | 'contacted' | 'confirmed' | 'all';
+
+export const BOOKING_FILTERS: { key: BookingFilter; label: string }[] = [
   { key: 'new', label: 'New' },
   { key: 'contacted', label: 'Contacted' },
   { key: 'confirmed', label: 'Confirmed' },
-  { key: '', label: 'All' },
+  { key: 'all', label: 'All' },
 ];
 
-export const BOOKING_STATUS_LABEL: Record<string, string> = {
+export const BOOKING_TONE: Record<Booking['status'], Tone> = {
+  new: 'amber',
+  contacted: 'blue',
+  confirmed: 'violet',
+  completed: 'green',
+  cancelled: 'red',
+  no_show: 'slate',
+};
+
+export function matchesBookingFilter(b: Booking, f: BookingFilter): boolean {
+  return f === 'all' || b.status === f;
+}
+
+export const BOOKING_STATUS_LABEL: Record<Booking['status'], string> = {
   new: 'New',
   contacted: 'Contacted',
   confirmed: 'Confirmed',
   completed: 'Completed',
-  cancelled: 'Declined / cancelled',
+  cancelled: 'Declined',
   no_show: 'No-show',
 };
 

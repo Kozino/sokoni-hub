@@ -16,7 +16,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "qa.sokonihub.vendor",
       "infoPlist": {
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       }
     },
     "android": {
@@ -25,11 +27,31 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundColor": "#033B2A"
       },
-      "permissions": ["POST_NOTIFICATIONS", "VIBRATE"]
+      "permissions": [
+        "POST_NOTIFICATIONS",
+        "VIBRATE"
+      ]
     },
     "plugins": [
       "expo-splash-screen",
-      ["expo-notifications", { "color": "#FF7A00" }]
+      [
+        "expo-notifications",
+        {
+          "color": "#FC7800",
+          "sounds": [
+            "./assets/sounds/order_alert.wav"
+          ]
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 24
+          }
+        }
+      ],
+      "expo-font"
     ]
   }
 }

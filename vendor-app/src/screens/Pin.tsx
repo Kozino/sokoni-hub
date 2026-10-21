@@ -4,6 +4,7 @@ import { api, ApiError } from '../api';
 import { BrandBlock, Button, Field, Notice, Topbar } from '../components/AuthUI';
 import { C } from '../theme';
 import type { Stage } from './types';
+import { fw } from '../ui/type';
 
 export function Pin({ stage, onBack, onDone }: { stage: Stage; onBack: () => void; onDone: (res: { token: string; user: any }) => void }) {
   const setup = stage.kind === 'setup';
@@ -97,8 +98,8 @@ const styles = StyleSheet.create({
   card: { marginHorizontal: 17, marginTop: 24, borderRadius: 16, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface, padding: 16 },
   boxes: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginVertical: 16 },
   box: { height: 55, width: 55, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.surface },
-  dot: { fontSize: 26, color: C.primary, fontWeight: '900' },
+  dot: { fontSize: 26, color: C.primary, ...fw('900') },
   keypad: { flexDirection: 'row', flexWrap: 'wrap', gap: 11, justifyContent: 'space-between', marginTop: 18 },
   key: { width: '30.5%', height: 50, borderRadius: 15, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
-  keyText: { fontSize: 24, fontWeight: '800' },
+  keyText: { fontSize: 24, ...fw('800') },
 });

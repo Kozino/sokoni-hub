@@ -1,4 +1,5 @@
-/** Order shapes and status rules for the vendor app. Mirrors the rules the API enforces. */
+/** Order shapes, status rules and display helpers for the vendor app. Mirrors the rules the API enforces. */
+import { Tone } from '../theme';
 
 export type OrderItem = { title: string; qty: number };
 
@@ -22,17 +23,20 @@ export type VendorOrder = {
   items: OrderItem[];
 };
 
-export const ORDER_FILTERS: { key: string; label: string }[] = [
+export type OrderFilter = 'pending' | 'confirmed' | 'dispatched' | 'completed' | 'all';
+
+export const ORDER_FILTERS: { key: OrderFilter; label: string }[] = [
   { key: 'pending', label: 'New' },
   { key: 'confirmed', label: 'Preparing' },
   { key: 'dispatched', label: 'On the way' },
-  { key: '', label: 'All' },
+  { key: 'completed', label: 'Completed' },
+  { key: 'all', label: 'All' },
 ];
 
 /** Reasons the API asks for when an order is cancelled. "Other" needs at least five characters. */
 export const CANCEL_REASONS = ['Out of stock', 'Cannot deliver to this area', 'Buyer asked to cancel', 'Price or listing error', 'Other'];
 
-export const STATUS_LABEL: Record<string, string> = {
+export const ORDER_STATUS_LABEL: Record<VendorOrder['status'], string> = {
   pending: 'New',
   confirmed: 'Preparing',
   dispatched: 'On the way',
@@ -41,19 +45,36 @@ export const STATUS_LABEL: Record<string, string> = {
   cancelled: 'Cancelled',
 };
 
-/** The one or two forward steps a vendor can take from the current status. */
-export function nextSteps(o: VendorOrder): { status: string; label: string }[] {
+export const ORDER_TONE: Record<VendorOrder['status'], Tone> = {
+  pending: 'amber',
+  confirmed: 'blue',
+  dispatched: 'violet',
+  delivered_pending_verification: 'green',
+  delivered: 'green',
+  cancelled: 'red',
+};
+
+export function matchesFilter(o: VendorOrder, f: OrderFilter): boolean {
+  switch (f) {
+    case 'all': return true;
+    case 'completed': return o.status === 'delivered' || o.status === 'delivered_pending_verification';
+    default: return o.status === f;
+  }
+}
+
+/** The one forward step a vendor can take from the current status. */
+export function nextStep(o: VendorOrder): { status: string; label: string; icon: 'check' | 'truck' | 'check-circle' } | null {
   switch (o.status) {
     case 'pending':
-      return [{ status: 'confirmed', label: 'Accept order' }];
+      return { status: 'confirmed', label: 'Accept order', icon: 'check' };
     case 'confirmed':
       return o.fulfilment_mode === 'pickup'
-        ? [{ status: 'delivered', label: 'Mark collected' }]
-        : [{ status: 'dispatched', label: 'Ready for rider' }];
+        ? { status: 'delivered', label: 'Mark collected', icon: 'check-circle' }
+        : { status: 'dispatched', label: 'Ready for rider', icon: 'truck' };
     case 'dispatched':
-      return [{ status: 'delivered', label: 'Mark delivered' }];
+      return { status: 'delivered', label: 'Mark delivered', icon: 'check-circle' };
     default:
-      return [];
+      return null;
   }
 }
 
@@ -63,4 +84,19 @@ export function canCancel(o: VendorOrder): boolean {
 
 export function money(value: number | string | undefined): string {
   return `QAR ${Number(value || 0).toFixed(2)}`;
+}
+
+export function itemCount(o: VendorOrder): number {
+  return o.items.reduce((n, i) => n + i.qty, 0);
+}
+
+/** "Just now", "12 min ago", "3 h ago", then a short date. Shown in Doha time. */
+export function timeAgo(iso: string, now = Date.now()): string {
+  const diff = Math.max(0, now - new Date(iso).getTime());
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins} min ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} h ago`;
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'Asia/Qatar' });
 }
