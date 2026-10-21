@@ -107,7 +107,7 @@ export function Account({ onGo, onSignOut }: { onGo: (tab: 'availability') => vo
           <Group label="Store">
             <Row icon="calendar-days" tone="violet" title="Availability" subtitle="Opening hours, closures and booking rules" onPress={() => onGo('availability')} />
             <Row icon="building-storefront" tone="amber" title="Listings and store profile" subtitle="Edit on the Sokoni Hub website" onPress={() => Linking.openURL(WEB_URL)} />
-            <Row icon="banknotes" tone="green" title="Statements, wallet and plans" subtitle="Manage on the Sokoni Hub website" onPress={() => Linking.openURL(WEB_URL)} />
+            <Row icon="banknotes" tone="green" title="Statements, wallet, platform bill and plans" subtitle="Pay or view your monthly service fee bill on the Sokoni Hub website" onPress={() => Linking.openURL(WEB_URL)} />
           </Group>
 
           <Group label="About">

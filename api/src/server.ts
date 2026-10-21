@@ -27,6 +27,7 @@ import { reviewRouter } from './routes/reviews';
 import { wallet } from './routes/wallet';
 import { driverRouter } from './routes/drivers';
 import { pushRouter } from './routes/push';
+import { startServiceFeeBillScheduler } from './serviceFeeSchedule';
 
 const app = express();
 app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS || 1));
@@ -130,6 +131,8 @@ async function start() {
  app.listen(config.port, '0.0.0.0', () => {
   console.log(`Sokoni API listening on :${config.port} (${config.env})`);
  });
+ // Monthly service-fee bills: runs only when the admin has switched the schedule on.
+ startServiceFeeBillScheduler();
  // Auto-complete delivered orders whose buyer window has passed (also run on every track lookup).
  setInterval(() => { finalizeDueOrders().catch((e) => console.error('[sweep] delivery verification failed', e?.message)); }, 5 * 60 * 1000).unref();
 }

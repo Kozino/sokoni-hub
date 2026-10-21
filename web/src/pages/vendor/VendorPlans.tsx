@@ -28,13 +28,21 @@ export default function VendorPlans() {
   });
 
   const [subsOn, setSubsOn] = useState(true);
+  const [serviceOnly, setServiceOnly] = useState(false);
   const [prices, setPrices] = useState<any>({
     standard: 100,
     pro: 250
   });
 
   useEffect(() => {
-    api.get<{ subscription_enabled: boolean }>('/meta/money-model').then((m) => setSubsOn(m.subscription_enabled)).catch(() => {});
+    // Plans show when product subscriptions are on, or when the admin offers plans to service vendors.
+    Promise.all([
+      api.get<{ subscription_enabled: boolean }>('/meta/money-model').catch(() => ({ subscription_enabled: false })),
+      api.get<{ rules: { plan_enabled: boolean } }>('/vendors/service-fee-rules').catch(() => ({ rules: { plan_enabled: false } })),
+    ]).then(([m, sf]) => {
+      setSubsOn(m.subscription_enabled || sf.rules.plan_enabled);
+      setServiceOnly(!m.subscription_enabled && sf.rules.plan_enabled);
+    }).catch(() => {});
     Promise.all([
       api.get<{subscriptions: VendorSubscription[]}>('/vendors/me/subscriptions').catch(() => ({ subscriptions: [] })),
       api.get<{limits: any, prices: any}>('/meta/plan-limits').catch(() => ({ limits: null, prices: null }))
@@ -80,6 +88,11 @@ export default function VendorPlans() {
         <h1>Plans & Billing</h1>
         {form.visible ? <button className="btn btn-ghost" onClick={() => setForm({...form, visible: false})}>Back</button> : null}
       </div>
+      {serviceOnly ? (
+        <div className="card card-pad" style={{ marginBottom: 16 }}>
+          <p style={{ margin: 0 }}>A plan sets the limits for your <strong>service</strong> listings. Your product listings are not affected.</p>
+        </div>
+      ) : null}
 
       {!form.visible ? (
         <>

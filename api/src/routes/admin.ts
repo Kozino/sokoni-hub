@@ -7,6 +7,9 @@ import { HttpError, audit, validateUuidParam } from '../utils';
 import { restoreOrderStock } from '../orderRecovery';
 import { notifyBuyerOfOrder, notifyOnlineDrivers, notifyVendorOfOrder } from '../push';
 import { moneyModel } from '../moneyModel';
+import { getServiceFeeSettings } from '../serviceFees';
+import { generateMonthlyBills } from '../serviceFeeBills';
+import { getSchedule, saveScheduleSettings } from '../serviceFeeSchedule';
 
 export const adminRouter = Router();
 adminRouter.param('id', validateUuidParam);
@@ -792,5 +795,190 @@ adminRouter.put('/money-model', async (req, res, next) => {
     );
     await audit(req.user!, 'money_model.update', 'settings', 'money_model', b);
     res.json(await moneyModel());
+  } catch (e) { next(e); }
+});
+
+/* ------------------------------------------------------------------ */
+/* Service booking fees and service plans                              */
+/* ------------------------------------------------------------------ */
+
+const ServiceFeesSchema = z.object({
+  fee_enabled: z.boolean(),
+  amount: z.number().min(0).max(10000),
+  charge_on: z.enum(['every_booking', 'new_clients']),
+  waive_for_plan: z.boolean(),
+  plan_enabled: z.boolean(),
+  due_days: z.number().int().min(1).max(90),
+  payment_instructions: z.string().max(1000).default(''),
+});
+
+/** Current fee rules, the fee ledger, and totals. */
+adminRouter.get('/service-fees', async (req, res, next) => {
+  try {
+    const status = String(req.query.status || '').trim();
+    const allowed = ['due', 'paid', 'waived', 'void'];
+    const filter = allowed.includes(status) ? status : null;
+    const rows = await query(
+      `select f.id, f.amount, f.currency, f.status, f.charge_on, f.created_at, f.paid_at, f.payment_reference,
+              b.code as booking_code, v.business_name, v.id as vendor_id
+         from service_booking_fees f
+         join service_bookings b on b.id = f.booking_id
+         join vendors v on v.id = f.vendor_id
+        where ($1::text is null or f.status = $1::text)
+        order by f.created_at desc limit 300`,
+      [filter],
+    );
+    const totals = await one<any>(
+      `select coalesce(sum(amount) filter (where status='due'),0)::float as due,
+              coalesce(sum(amount) filter (where status='paid'),0)::float as paid,
+              count(*) filter (where status='due')::int as due_count
+         from service_booking_fees`,
+    );
+    res.json({ rules: await getServiceFeeSettings(), fees: rows, totals });
+  } catch (e) { next(e); }
+});
+
+/** Save the fee rules. Takes effect for bookings made from now on. */
+adminRouter.put('/service-fees', async (req, res, next) => {
+  try {
+    const b = ServiceFeesSchema.parse(req.body);
+    await query(
+      `insert into system_settings (key, value, updated_at) values ('service_fees', $1, now())
+       on conflict (key) do update set value = excluded.value, updated_at = now()`,
+      [JSON.stringify(b)],
+    );
+    await audit(req.user!, 'service_fees.update', 'settings', 'service_fees', b);
+    res.json({ rules: await getServiceFeeSettings() });
+  } catch (e) { next(e); }
+});
+
+/** Mark a due fee as paid, with the bank or cash reference. */
+adminRouter.post('/service-fees/:id/paid', async (req, res, next) => {
+  try {
+    const reference = z.string().max(120).optional().parse(req.body?.reference) || null;
+    const row = await one<any>(
+      `update service_booking_fees set status='paid', paid_at=now(), payment_reference=$2
+        where id=$1 and status='due' returning *`,
+      [req.params.id, reference],
+    );
+    if (!row) throw new HttpError(409, 'Only a due fee can be marked as paid.');
+    await audit(req.user!, 'service_fees.paid', 'service_booking_fees', req.params.id, { reference });
+    res.json({ fee: row });
+  } catch (e) { next(e); }
+});
+
+/** Waive a due fee, for example as a goodwill gesture. */
+adminRouter.post('/service-fees/:id/waive', async (req, res, next) => {
+  try {
+    const row = await one<any>(
+      `update service_booking_fees set status='waived' where id=$1 and status='due' returning *`,
+      [req.params.id],
+    );
+    if (!row) throw new HttpError(409, 'Only a due fee can be waived.');
+    await audit(req.user!, 'service_fees.waive', 'service_booking_fees', req.params.id, {});
+    res.json({ fee: row });
+  } catch (e) { next(e); }
+});
+
+/* ------------------------------------------------------------------ */
+/* Monthly service fee bills                                           */
+/* ------------------------------------------------------------------ */
+
+/** Issue the bills for a closed month. Idempotent: a vendor is never billed twice for the same month. */
+adminRouter.post('/service-fee-bills/generate', async (req, res, next) => {
+  try {
+    const { month } = z.object({ month: z.string() }).parse(req.body);
+    const result = await generateMonthlyBills(month);
+    await audit(req.user!, 'service_fee_bills.generate', 'settings', month, result);
+    res.json({ month, ...result });
+  } catch (e) { next(e); }
+});
+
+/** Bills, filtered by status, with the vendor name and the transfer details. */
+adminRouter.get('/service-fee-bills', async (req, res, next) => {
+  try {
+    const status = String(req.query.status || '').trim();
+    const allowed = ['open', 'submitted', 'paid', 'void'];
+    const filter = allowed.includes(status) ? status : null;
+    const rows = await query(
+      `select b.id, b.period_start, b.period_end, b.amount, b.status, b.due_date, b.payment_method,
+              b.payment_reference, b.receipt_url, b.submitted_at, b.paid_at, b.paid_from_wallet, b.admin_note,
+              v.business_name, v.id as vendor_id,
+              (select count(*)::int from service_booking_fees f where f.bill_id = b.id) as fee_count
+         from service_fee_bills b join vendors v on v.id = b.vendor_id
+        where ($1::text is null or b.status = $1::text)
+        order by case b.status when 'submitted' then 0 when 'open' then 1 else 2 end, b.period_start desc
+        limit 300`,
+      [filter],
+    );
+    const totals = await one<any>(
+      `select coalesce(sum(amount) filter (where status='open'),0)::float as open,
+              coalesce(sum(amount) filter (where status='submitted'),0)::float as submitted,
+              count(*) filter (where status='submitted')::int as submitted_count
+         from service_fee_bills`,
+    );
+    res.json({ bills: rows, totals });
+  } catch (e) { next(e); }
+});
+
+/** Confirm a bill as paid: a submitted transfer, or a transfer the admin received without a submission. */
+adminRouter.post('/service-fee-bills/:id/confirm', async (req, res, next) => {
+  try {
+    const reference = z.string().trim().max(120).optional().parse(req.body?.reference) || null;
+    const bill = await tx(async (c) => {
+      const row = (await c.query(
+        `update service_fee_bills set status = 'paid', paid_at = now(), paid_from_wallet = false,
+                payment_method = coalesce(payment_method, 'bank_transfer'),
+                payment_reference = coalesce($2, payment_reference), reviewed_by = $3
+          where id = $1 and status in ('open', 'submitted') returning *`,
+        [req.params.id, reference, req.user!.id],
+      )).rows[0];
+      if (!row) throw new HttpError(409, 'Only an open or submitted bill can be confirmed.');
+      await c.query(
+        `update service_booking_fees set status = 'paid', paid_at = now() where bill_id = $1 and status = 'billed'`,
+        [row.id],
+      );
+      return row;
+    });
+    await audit(req.user!, 'service_fee_bills.confirm', 'service_fee_bills', req.params.id, { reference });
+    res.json({ bill });
+  } catch (e) { next(e); }
+});
+
+/** Send a submitted transfer back to the vendor, with a reason. The bill is open again. */
+adminRouter.post('/service-fee-bills/:id/reject', async (req, res, next) => {
+  try {
+    const note = z.string().trim().min(3).max(500).parse(req.body?.note);
+    const row = await one<any>(
+      `update service_fee_bills set status = 'open', admin_note = $2, reviewed_by = $3,
+              receipt_url = null, payment_reference = null, submitted_at = null
+        where id = $1 and status = 'submitted' returning *`,
+      [req.params.id, note, req.user!.id],
+    );
+    if (!row) throw new HttpError(409, 'Only a submitted bill can be sent back.');
+    await audit(req.user!, 'service_fee_bills.reject', 'service_fee_bills', req.params.id, { note });
+    res.json({ bill: row });
+  } catch (e) { next(e); }
+});
+
+/** The monthly bill schedule: ON or OFF, the day and hour, and the last run. */
+adminRouter.get('/service-fee-bills/schedule', async (_req, res, next) => {
+  try {
+    res.json({ schedule: await getSchedule() });
+  } catch (e) { next(e); }
+});
+
+const ScheduleSchema = z.object({
+  enabled: z.boolean(),
+  day_of_month: z.number().int().min(1).max(28),
+  hour: z.number().int().min(0).max(23),
+});
+
+adminRouter.put('/service-fee-bills/schedule', async (req, res, next) => {
+  try {
+    const b = ScheduleSchema.parse(req.body);
+    const schedule = await saveScheduleSettings(b);
+    await audit(req.user!, 'service_fee_bills.schedule', 'settings', 'service_fee_bill_schedule', b);
+    res.json({ schedule });
   } catch (e) { next(e); }
 });

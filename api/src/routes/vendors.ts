@@ -7,6 +7,7 @@ import { requireAuth, loadVendor, requireVerifiedVendor, blockImpersonation } fr
 import { HttpError, audit, slugify, screenProhibited, normalizePhone } from '../utils';
 import { distanceKmSql } from '../delivery';
 import { moneyModel } from '../moneyModel';
+import { getServiceFeeSettings } from '../serviceFees';
 
 export const vendorRouter = Router();
 
@@ -53,7 +54,9 @@ vendorRouter.get('/me/subscriptions', requireAuth('vendor'), loadVendor, async (
 
 vendorRouter.post('/me/subscriptions', requireAuth('vendor'), loadVendor, async (req, res, next) => {
   try {
-    if (!(await moneyModel()).subscription_enabled) {
+    const mm = await moneyModel();
+    const svc = await getServiceFeeSettings();
+    if (!mm.subscription_enabled && !svc.plan_enabled) {
       throw new HttpError(409, 'Monthly plans are not in use right now. You do not need to buy a plan.');
     }
     const b = z.object({
@@ -71,6 +74,88 @@ vendorRouter.post('/me/subscriptions', requireAuth('vendor'), loadVendor, async 
     const sub = await one(`insert into vendor_subscriptions (vendor_id, plan, months, amount, payment_method, reference, receipt_url) values ($1, $2, $3, $4, $5, $6, $7) returning *`, [req.vendor!.id, b.plan, b.months, amount, b.payment_method, b.reference || null, b.receipt_url || null]);
     res.json({ subscription: sub });
   } catch(e) { next(e); }
+});
+
+/** The admin's booking-fee rules and whether service plans are offered. Public, so vendors can read them. */
+vendorRouter.get('/service-fee-rules', async (_req, res, next) => {
+  try {
+    res.json({ rules: await getServiceFeeSettings() });
+  } catch (e) { next(e); }
+});
+
+/** This vendor's booking fees, with totals, so they can see what is owed and what is paid. */
+vendorRouter.get('/me/service-fees', requireAuth('vendor'), loadVendor, async (req, res, next) => {
+  try {
+    const rows = await query(
+      `select f.id, f.amount, f.currency, f.status, f.charge_on, f.created_at, f.paid_at, f.payment_reference,
+              b.code as booking_code, b.scheduled_at, b.slot_starts_at
+         from service_booking_fees f join service_bookings b on b.id = f.booking_id
+        where f.vendor_id = $1 order by f.created_at desc limit 200`,
+      [req.vendor!.id],
+    );
+    const totals = await one<any>(
+      `select coalesce(sum(amount) filter (where status='due'),0)::float as due,
+              coalesce(sum(amount) filter (where status='paid'),0)::float as paid
+         from service_booking_fees where vendor_id = $1`,
+      [req.vendor!.id],
+    );
+    res.json({ fees: rows, totals });
+  } catch (e) { next(e); }
+});
+
+/** The vendor's monthly bills, each with the bookings it covers, plus fees not yet billed. */
+vendorRouter.get('/me/service-fee-bills', requireAuth('vendor'), loadVendor, async (req, res, next) => {
+  try {
+    const bills = await query(
+      `select b.id, b.period_start, b.period_end, b.amount, b.currency, b.status, b.due_date,
+              b.payment_method, b.payment_reference, b.receipt_url, b.submitted_at, b.paid_at,
+              b.paid_from_wallet, b.admin_note,
+              coalesce((select json_agg(json_build_object(
+                  'id', f.id, 'amount', f.amount, 'status', f.status, 'created_at', f.created_at,
+                  'booking_code', bk.code, 'service', l.title, 'scheduled_at', coalesce(bk.slot_starts_at, bk.scheduled_at)
+                ) order by f.created_at)
+                 from service_booking_fees f
+                 join service_bookings bk on bk.id = f.booking_id
+                 left join listings l on l.id = bk.listing_id
+                where f.bill_id = b.id), '[]'::json) as fees
+         from service_fee_bills b
+        where b.vendor_id = $1
+        order by b.period_start desc
+        limit 36`,
+      [req.vendor!.id],
+    );
+    const pending = await one<any>(
+      `select coalesce(sum(amount),0)::float as amount, count(*)::int as count
+         from service_booking_fees where vendor_id = $1 and status = 'due'`,
+      [req.vendor!.id],
+    );
+    const rules = await getServiceFeeSettings();
+    res.json({
+      bills,
+      pending,
+      payment_instructions: rules.payment_instructions,
+      due_days: rules.due_days,
+    });
+  } catch (e) { next(e); }
+});
+
+/** Vendor reports a bank transfer for an open bill, with the reference and the receipt. The admin confirms it. */
+vendorRouter.post('/me/service-fee-bills/:id/payment', requireAuth('vendor'), loadVendor, async (req, res, next) => {
+  try {
+    const id = z.string().uuid().parse(req.params.id);
+    const b = z.object({
+      reference: z.string().trim().min(3).max(120),
+      receipt_url: z.string().url().max(2000),
+    }).parse(req.body);
+    const row = await one<any>(
+      `update service_fee_bills set status = 'submitted', payment_method = 'bank_transfer',
+              payment_reference = $3, receipt_url = $4, submitted_at = now(), admin_note = null
+        where id = $1 and vendor_id = $2 and status = 'open' returning *`,
+      [id, req.vendor!.id, b.reference, b.receipt_url],
+    );
+    if (!row) throw new HttpError(409, 'This bill is not open for payment. It may already be submitted or paid.');
+    res.json({ bill: row });
+  } catch (e) { next(e); }
 });
 
 vendorRouter.post('/onboard', requireAuth('vendor', 'buyer'), async (req, res, next) => {

@@ -6,6 +6,7 @@ import { requireAuth, loadVendor, requireVerifiedVendor } from '../auth';
 import { HttpError, audit, slugify, screenProhibited, validateUuidParam } from '../utils';
 import { config } from '../config';
 import { moneyModel } from '../moneyModel';
+import { getServiceFeeSettings } from '../serviceFees';
 
 
 export const DEFAULT_PLAN_LIMITS = {
@@ -24,6 +25,16 @@ export const DEFAULT_PLAN_LIMITS = {
 async function getPlanLimits() {
   const row = await one<any>("select value from system_settings where key='plan_limits'");
   return row?.value || DEFAULT_PLAN_LIMITS;
+}
+
+/**
+ * The plan that sets this listing's limits. Product listings follow monthly subscriptions.
+ * Service listings also follow plans when the admin turns on service plans, so service
+ * vendors can buy a plan while product subscriptions are off.
+ */
+async function planFor(kind: string, v: any): Promise<string> {
+  const applies = (await moneyModel()).subscription_enabled || (kind === 'service' && (await getServiceFeeSettings()).plan_enabled);
+  return applies ? getEffectivePlan(v) : 'pro';
 }
 
 export function getEffectivePlan(v: any) {
@@ -191,7 +202,7 @@ listingRouter.post('/', requireAuth('vendor'), loadVendor, requireVerifiedVendor
     const b = listingSchema.parse(req.body);
 
     // While subscriptions are switched off, plan limits do not apply (top limits).
-    const plan = (await moneyModel()).subscription_enabled ? getEffectivePlan(req.vendor) : 'pro';
+    const plan = await planFor(b.kind, req.vendor);
     const dbLimits = await getPlanLimits();
     const limits = dbLimits[b.kind as 'product'|'service'][plan as 'free'|'standard'|'pro'];
     if (b.images && b.images.length > limits.photos) throw new HttpError(403, `Your ${plan} plan allows up to ${limits.photos} photos per listing.`);
@@ -245,8 +256,8 @@ listingRouter.patch('/:id', requireAuth('vendor'), loadVendor, requireVerifiedVe
     const owned = await one<any>('select id, status, first_approved_at from listings where id=$1 and vendor_id=$2', [req.params.id, req.vendor!.id]);
     if (!owned) throw new HttpError(404, 'Listing not found');
 
-    const plan = (await moneyModel()).subscription_enabled ? getEffectivePlan(req.vendor) : 'pro';
     const kind = b.kind || owned.kind;
+    const plan = await planFor(kind, req.vendor);
     const dbLimits = await getPlanLimits();
     const limits = dbLimits[kind as 'product'|'service'][plan as 'free'|'standard'|'pro'];
     if (b.images && b.images.length > limits.photos) throw new HttpError(403, `Your ${plan} plan allows up to ${limits.photos} photos per listing.`);

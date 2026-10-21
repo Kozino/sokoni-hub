@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, ApiError } from '../../lib/api';
 import { Spinner } from '../../components/ui';
 import { useToast } from '../../state/ToastContext';
+import { ServiceFeesAdmin } from '../../components/ServiceFeesAdmin';
 
 // How Sokoni Hub earns from vendors. Exactly one mode is active at a time (QC item 2).
 // Changes apply straight away, with no code change.
@@ -106,6 +107,7 @@ export function AdminMoneyModelPage() {
         How Sokoni Hub earns from vendors. Pick one model; switching applies straight away.
       </p>
       <AdminMoneyModel />
+      <ServiceFeesAdmin />
     </div>
   );
 }

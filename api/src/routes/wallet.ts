@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { HttpError } from '../utils';
 import { query, one, tx } from '../db';
 import { requireAuth, loadVendor } from '../auth';
+import { settleBillsFromWallet } from '../serviceFeeBills';
 
 export const wallet = Router();
 
@@ -49,7 +51,14 @@ wallet.post('/payout', requireAuth('vendor'), loadVendor, async (req, res, next)
       
       if (!v) throw new Error('Vendor not found');
       if (!v.bank_iban) throw new Error('Bank IBAN not set. Please update your bank details first.');
-      if (v.wallet_available < body.amount) throw new Error('Insufficient available balance');
+      // Open Sokoni Hub bills (booking fees) are settled from the balance first, oldest first.
+      const available = await settleBillsFromWallet(c, req.vendor!.id, Number(v.wallet_available));
+      if (available < body.amount) {
+        const netted = Number(v.wallet_available) - available;
+        throw new HttpError(422, netted > 0
+          ? `Insufficient available balance. Sokoni Hub bills of QAR ${netted.toFixed(2)} were deducted first, so you can request up to QAR ${available.toFixed(2)}.`
+          : `Insufficient available balance. You can request up to QAR ${available.toFixed(2)}.`);
+      }
 
       // Deduct from available
       await c.query(

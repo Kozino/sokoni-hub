@@ -3,6 +3,7 @@ import { api, ApiError } from '../../lib/api';
 import { Alert, Field, StatusBadge } from '../../components/ui';
 import { money, dateTime } from '../../lib/format';
 import { useAuth } from '../../state/AuthContext';
+import { ServiceFeeBillsVendor } from '../../components/ServiceFeeBillsVendor';
 
 export function VendorWallet() {
   const { vendor } = useAuth();
@@ -51,6 +52,8 @@ export function VendorWallet() {
   };
 
   return (
+    <>
+    <ServiceFeeBillsVendor />
     <div className="card card-pad">
       <h2>Wallet &amp; Earnings</h2>
       {err && <Alert kind="error">{err}</Alert>}
@@ -114,5 +117,6 @@ export function VendorWallet() {
         </table>
       </div>
     </div>
+    </>
   );
 }

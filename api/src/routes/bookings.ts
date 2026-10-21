@@ -12,6 +12,8 @@ import {
   screenProhibited,
 } from "../utils";
 import { DEFAULT_CURRENCY } from "../delivery";
+import { recordServiceFeeForBooking } from "../serviceFees";
+import { hasOverdueServiceFeeBill } from "../serviceFeeBills";
 import { config } from "../config";
 import { sendMailAsync } from "../mailer";
 import { bookingCustomerEmail, bookingVendorEmail } from "../transactionalEmail";
@@ -169,6 +171,12 @@ bookingRouter.post("/", async (req, res, next) => {
         throw new HttpError(409, "This service is not currently available.");
       if (req.user?.id === l.vendor_user_id)
         throw new HttpError(403, "You cannot book your own service.");
+      // A vendor with an overdue Sokoni Hub fee bill cannot take new bookings until it is settled.
+      if (await hasOverdueServiceFeeBill(c, vendorId))
+        throw new HttpError(
+          409,
+          "This provider is not taking new bookings right now.",
+        );
       const cfg = await settings(vendorId, c),
         calendar = await calendarEnabled(vendorId, c);
       let start: string | null = null,
@@ -249,6 +257,8 @@ bookingRouter.post("/", async (req, res, next) => {
         ).rows[0];
       }
       if (!row) throw new HttpError(503, "Please try your booking again.");
+      // Admin-set per-booking fee for the vendor (no-op when the fee is off or waived).
+      await recordServiceFeeForBooking(c, { bookingId: row.id, vendorId, phone });
       return {
         booking: publicBooking(row, cfg),
         auto_confirmed: row.status === "confirmed",
