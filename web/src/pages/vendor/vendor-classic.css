@@ -6,7 +6,7 @@
 .vendor-console.vendor-console, .vendor-console.vendor-console .dash {
   /* surfaces */
   --bg:#F3F6FB; --bg-subtle:#F8FAFD; --surface:#FFFFFF; --surface-2:#F7F9FD;
-  --surface-3:#EDF2FA; --elevated:#FFFFFF; --sidebar:#FFFFFF; --header:#FFFFFF;
+  --surface-3:#EDF2FA; --elevated:#FFFFFF; --sidebar:#E6EDF9; --header:#FFFFFF;
   --border:#E3E9F3; --border-strong:#C9D3E4; --border-subtle:#EEF2F8;
 
   /* text */
@@ -171,3 +171,9 @@
 .vendor-console.vendor-console .dash .dash-side .who .badge {
   display:inline-flex; align-items:center; margin-top:6px; font-size:12px; font-weight:650; line-height:18px;
 }
+
+/* Sidebar on the tinted rail: hover and dividers are tuned for the blue-grey background. */
+.vendor-console.vendor-console .dash-side .who { border-bottom-color:#C9D6EE; }
+.vendor-console.vendor-console .dash-side .avatar { background:#FFFFFF; }
+.vendor-console.vendor-console .dash-nav a:hover, .vendor-console.vendor-console .dash-side-foot .menu-item:hover { background:rgba(255,255,255,.7); color:var(--text); }
+.vendor-console.vendor-console .dash-side-foot { border-top-color:#C9D6EE; }
