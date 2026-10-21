@@ -76,7 +76,7 @@ function NotifBell({ items }: { items: DashNotification[] }) {
  * Mobile   — off-canvas drawer with a scrim; closes on route change and Escape.
  */
 export default function DashShell({
-  links, who, banner, children, notifications = [], settingsTo,
+  links, who, banner, children, notifications = [], settingsTo, onSignOut,
 }: {
   links: DashLink[];
   who: ReactNode;
@@ -84,6 +84,8 @@ export default function DashShell({
   children: ReactNode;
   notifications?: DashNotification[];
   settingsTo?: string;
+  /** Optional sign-out action shown as the last sidebar item. */
+  onSignOut?: () => void;
 }) {
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     try { return localStorage.getItem(KEY) === '1'; } catch { return false; }
@@ -145,6 +147,21 @@ export default function DashShell({
             </nav>
           </div>
         ))}
+
+        {onSignOut && (
+          <div className="nav-group">
+            <nav className="dash-nav">
+              <button type="button" className="dash-nav-action" onClick={onSignOut} data-label="Sign out" title="Sign out">
+                <span className="ico" aria-hidden="true">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" />
+                  </svg>
+                </span>
+                <span className="label">Sign out</span>
+              </button>
+            </nav>
+          </div>
+        )}
 
         <div className="dash-side-foot">
           <button

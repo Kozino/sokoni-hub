@@ -234,7 +234,8 @@ bookingRouter.post("/", async (req, res, next) => {
     values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
     on conflict(code) do nothing returning *`,
             [
-              randomCode("BKG"),
+              // Same short form as order codes (8 random bytes, 16 hex characters).
+              randomCode("BKG", 8),
               l.id,
               vendorId,
               req.user?.id ?? null,

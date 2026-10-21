@@ -1,4 +1,4 @@
-import { Link, Outlet } from 'react-router-dom';
+import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { Header } from '../../components/Layout';
 import DashShell, { DashLink, DashNotification } from '../../components/DashShell';
 import { useAuth } from '../../state/AuthContext';
@@ -12,7 +12,8 @@ export default function VendorLayout() {
   return <VendorDashboardProvider><VendorConsole /></VendorDashboardProvider>;
 }
 function VendorConsole() {
-  const { user, vendor } = useAuth();
+  const { user, vendor, logout } = useAuth();
+  const nav = useNavigate();
   const name = vendor?.business_name || user?.full_name || 'V';
   const initials = name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
 
@@ -117,6 +118,7 @@ function VendorConsole() {
         banner={banner}
         notifications={notifications}
         settingsTo="/vendor/profile"
+        onSignOut={() => { logout(); nav('/'); }}
         who={
           <>
             <span className="avatar" aria-hidden="true">{initials}</span>

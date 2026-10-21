@@ -3138,3 +3138,16 @@ button.dropzone-btn:disabled { opacity: .6; cursor: not-allowed; }
 }
 .skip-link:focus { top: 8px; }
 main:focus { outline: none; }
+
+/* Sidebar action button (sign out): matches the nav links. */
+.dash-nav button.dash-nav-action {
+  display: flex; align-items: center; gap: var(--s-3); width: 100%;
+  padding: var(--s-2) var(--s-3); min-height: 38px;
+  border: 0; border-radius: var(--r-sm); background: transparent; cursor: pointer; text-align: start;
+  color: var(--text-2); font: inherit; font-weight: 550; font-size: var(--fs-md); white-space: nowrap;
+}
+.dash-nav button.dash-nav-action:hover { background: var(--surface-3); color: var(--text); }
+.dash-nav button.dash-nav-action .ico { width: 18px; height: 18px; display: grid; place-items: center; flex: 0 0 auto; opacity: .75; }
+.dash-nav button.dash-nav-action:hover .ico { opacity: 1; }
+.dash[data-collapsed='true'] .dash-nav button.dash-nav-action { justify-content: center; padding: var(--s-2); gap: 0; }
+.dash[data-collapsed='true'] .dash-nav button.dash-nav-action .label { display: none; }

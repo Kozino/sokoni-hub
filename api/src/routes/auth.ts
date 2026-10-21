@@ -34,8 +34,9 @@ const pub = (u: any) => ({
   role: u.role, is_active: u.is_active, created_at: u.created_at,
 });
 
+// Same projection as /auth/me, so a fresh login fills the store profile straight away.
 const vendorOf = (userId: string) =>
-  one('select id, status, business_name, slug, plan, plan_expires_at from vendors where user_id = $1', [userId]);
+  one(`select ${SELF_VENDOR_COLS} from vendors where user_id = $1`, [userId]);
 
 async function startSession(res: Response, user: any) {
   await audit(user.id, 'user.login', 'user', user.id);
