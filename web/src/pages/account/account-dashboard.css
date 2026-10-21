@@ -1,0 +1,24 @@
+/* Buyer account dashboard: layout details on top of the shared admin skin.
+   Scoped to .account-console so the admin and vendor consoles are untouched. */
+.account-console .dash-title { margin-bottom: 20px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: start; }
+.account-console .dash-title p { margin: 0; max-width: 62ch; }
+.account-console .dash-title .eyebrow { margin-bottom: 4px; }
+.account-console .card + .card { margin-top: 16px; }
+.account-console .card-pad { padding: 20px 22px; }
+.account-console .card h3 { margin-bottom: 14px; }
+.account-console .booking-row { padding: 14px 0; border-bottom: 1px solid var(--border-subtle); }
+.account-console .booking-row:last-child { border-bottom: 0; }
+.account-console .booking-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; font-size: 14px; color: var(--text-muted); }
+
+@media (max-width: 640px) {
+  .account-console .dash-title h1 { font-size: 1.5rem; }
+  .account-console .card-pad { padding: 16px; }
+  .account-console .form-row { grid-template-columns: 1fr; }
+  .account-console .btn { width: 100%; }
+}
+
+/* Keep the sidebar column full-height on short pages (orders, bookings). */
+@media (min-width: 861px) {
+  .account-console .dash { min-height: 100vh; }
+  .account-console .dash-side { min-height: 100%; align-self: stretch; }
+}

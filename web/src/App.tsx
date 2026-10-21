@@ -23,7 +23,8 @@ import { Terms, Privacy, FAQ } from './pages/Legal';
 import CookieSettings from './pages/CookieSettings';
 import DeleteAccount from './pages/DeleteAccount';
 import AdminDeletion from './pages/admin/AdminDeletion';
-import { Sell, Policy, Support, TrackOrder, Account, NotFound } from './pages/Static';
+import { Sell, Policy, Support, TrackOrder, NotFound } from './pages/Static';
+import { AccountLayout, AccountProfile, AccountBookings, AccountOrders } from './pages/account/AccountDashboard';
 
 import VendorLayout from './pages/vendor/VendorLayout';
 import VendorPlans from './pages/vendor/VendorPlans';
@@ -96,9 +97,17 @@ export default function App() {
                 <Route path="/policy" element={<Policy />} />
                 <Route path="/support" element={<Support />} />
                 <Route path="/track" element={<TrackOrder />} />
-                <Route path="/account" element={<RequireAuth><Account /></RequireAuth>} />
                 <Route path="/vendor/onboard" element={<RequireAuth><VendorOnboard /></RequireAuth>} />
                 <Route path="*" element={<NotFound />} />
+              </Route>
+
+              {/* buyer account dashboard */}
+              <Route path="/account" element={<RequireAuth><AccountLayout /></RequireAuth>}>
+                <Route index element={<AccountProfile />} />
+                <Route path="bookings" element={<AccountBookings />} />
+                <Route path="orders" element={<AccountOrders />} />
+                <Route path="delete-account" element={<DeleteAccount />} />
+                <Route path="*" element={<Navigate to="/account" replace />} />
               </Route>
 
               {/* vendor dashboard */}

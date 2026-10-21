@@ -76,9 +76,11 @@ function NotifBell({ items }: { items: DashNotification[] }) {
  * Mobile   — off-canvas drawer with a scrim; closes on route change and Escape.
  */
 export default function DashShell({
-  links, who, banner, children, notifications = [], settingsTo, onSignOut,
+  links, who, banner, children, notifications = [], settingsTo, onSignOut, breadcrumbLabel,
 }: {
   links: DashLink[];
+  /** Breadcrumb root label. Defaults to Admin/Vendor based on the path. */
+  breadcrumbLabel?: string;
   who: ReactNode;
   banner?: ReactNode;
   children: ReactNode;
@@ -199,7 +201,7 @@ export default function DashShell({
           <nav className="breadcrumb" aria-label="Breadcrumb">
             <Link to="/">Home</Link>
             <span className="sep" aria-hidden="true">/</span>
-            <Link to={links[0]?.to ?? '/'}>{pathname.startsWith('/admin') ? 'Admin' : 'Vendor'}</Link>
+            <Link to={links[0]?.to ?? '/'}>{breadcrumbLabel ?? (pathname.startsWith('/admin') ? 'Admin' : 'Vendor')}</Link>
             {current && current !== links[0] && (
               <>
                 <span className="sep" aria-hidden="true">/</span>
