@@ -91,7 +91,7 @@ export function AdminListings() {
       <Tabs value={status} onChange={(v) => setParams(v ? { status: v } : {})} tabs={LTABS as any} />
 
       <form className="filters" onSubmit={(e) => { e.preventDefault(); load(); }}>
-        <input className="grow" placeholder="Search title or store…" value={q} onChange={(e) => setQ(e.target.value)} style={{ minWidth: 250 }} />
+        <input className="grow" placeholder="Search title or store…" value={q} onChange={(e) => setQ(e.target.value)} />
         <button className="btn btn-primary btn-sm">Search</button>
       </form>
 
@@ -369,7 +369,7 @@ export function AdminOrders() {
     <>
       <div className="dash-title"><h1>Orders</h1><p>Every order placed across the marketplace.</p></div>
       <form className="filters" onSubmit={(e) => { e.preventDefault(); load(); }}>
-        <input className="grow" placeholder="Search code, buyer or phone…" value={q} onChange={(e) => setQ(e.target.value)} style={{ minWidth: 250 }} />
+        <input className="grow" placeholder="Search code, buyer or phone…" value={q} onChange={(e) => setQ(e.target.value)} />
         <select value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">All statuses</option>
           {['pending', 'confirmed', 'dispatched', 'dispatched_to_driver', 'driver_arrived', 'out_for_delivery', 'delivered_pending_verification', 'delivered', 'cancelled'].map((s) => <option key={s} value={s}>{orderStatusLabel(s)}</option>)}
@@ -450,7 +450,7 @@ export function AdminUsers() {
       </div>
 
       <form className="filters" onSubmit={(e) => { e.preventDefault(); load(); }}>
-        <input className="grow" placeholder="Search name, phone or email…" value={q} onChange={(e) => setQ(e.target.value)} style={{ minWidth: 250 }} />
+        <input className="grow" placeholder="Search name, phone or email…" value={q} onChange={(e) => setQ(e.target.value)} />
         <select value={role} onChange={(e) => setRole(e.target.value)}>
           <option value="">All roles</option><option value="buyer">Buyers</option>
           <option value="vendor">Vendors</option><option value="admin">Admins</option>

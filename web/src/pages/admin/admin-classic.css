@@ -173,3 +173,24 @@
   .admin-console.admin-console .stat { padding:16px 12px; }
   .admin-console.admin-console .stat-icon { width:32px; height:32px; top:12px; inset-inline-end:12px; border-radius:10px; }
 }
+
+/* Admin search fields: standard compact size, and mobile-safe filter rows (UI only). */
+.admin-console.admin-console .filters input,
+.admin-console.admin-console .filters select {
+  height: 36px; min-height: 36px; font-size: 14px; padding-block: 0; min-width: 0;
+}
+.admin-console.admin-console .filters > .grow {
+  flex: 1 1 220px; height: 36px; max-width: 360px;
+}
+.admin-console.admin-console .filters .btn { height: 36px; }
+@media (max-width: 640px) {
+  .admin-console.admin-console .filters > .grow { flex: 0 0 auto; max-width: none; width: 100%; }
+  .admin-console.admin-console .filters .btn { width: 100%; }
+}
+/* On phones/tablets the sidebar is a drawer, so the fixed sidebar-colour stripe in the
+   page background must not paint over the content. */
+@media (max-width: 860px) {
+  .admin-console.admin-console .dash {
+    background-image: radial-gradient(900px 420px at 85% -10%, rgba(37,99,235,.08), transparent 60%);
+  }
+}

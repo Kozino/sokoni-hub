@@ -115,7 +115,7 @@ export default function AdminVendors() {
       <Tabs value={status} onChange={(v) => setParams(v ? { status: v } : {})} tabs={TABS as any} />
 
       <form className="filters" onSubmit={(e) => { e.preventDefault(); load(); }}>
-        <input className="grow" placeholder="Search business, owner or phone…" value={q} onChange={(e) => setQ(e.target.value)} style={{ minWidth: 260 }} />
+        <input className="grow" placeholder="Search business, owner or phone…" value={q} onChange={(e) => setQ(e.target.value)} />
         <button className="btn btn-primary btn-sm">Search</button>
       </form>
 

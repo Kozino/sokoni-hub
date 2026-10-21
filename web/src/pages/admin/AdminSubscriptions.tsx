@@ -42,7 +42,8 @@ export default function AdminSubscriptions() {
       </div>
       
       <div className="card">
-        <table className="table" style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
+        <div className="table-wrap">
+        <table className="tbl">
           <thead>
             <tr>
               <th>Date</th><th>Vendor</th><th>Plan</th><th>Amount</th><th>Method</th><th>Receipt</th><th>Status</th><th>Actions</th>
@@ -81,6 +82,7 @@ export default function AdminSubscriptions() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );
