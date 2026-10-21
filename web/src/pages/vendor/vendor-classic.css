@@ -7,7 +7,7 @@
   /* surfaces */
   --bg:#F3F6FB; --bg-subtle:#F8FAFD; --surface:#FFFFFF; --surface-2:#F7F9FD;
   --surface-3:#EDF2FA; --elevated:#FFFFFF; --sidebar:#E6EDF9; --header:#FFFFFF;
-  --border:#E3E9F3; --border-strong:#C9D3E4; --border-subtle:#EEF2F8;
+  --border:#D2DCEB; --border-strong:#AABBD6; --border-subtle:#E0E7F2;
 
   /* text */
   --text:#14203B; --text-2:#3E4C68; --text-muted:#6E7C94; --text-invert:#FFFFFF;
@@ -28,7 +28,7 @@
 
   /* charts: mixed colours, as allowed for graphs */
   --chart-1:#2F6FDE; --chart-2:#16A36F; --chart-3:#F59E0B; --chart-4:#8B5CF6; --chart-5:#EF6B8A;
-  --chart-grid:#E8EDF6; --chart-axis:#7A88A1;
+  --chart-grid:#DCE4F0; --chart-axis:#7A88A1;
 
   /* radii and shadows used by the shared components */
   --r-sm:8px; --r-md:10px; --r-lg:16px; --r-xl:18px;
@@ -65,7 +65,7 @@
 /* Header: white bar with a hairline, no gold rule */
 .vendor-console.vendor-console .header { background:var(--surface); border-bottom:1px solid var(--border); box-shadow:none; }
 .vendor-console.vendor-console .brand small { color:var(--text-muted); }
-.vendor-console.vendor-console .dash { background:var(--bg); }
+.vendor-console.vendor-console .dash { background-color:var(--bg); }
 
 /* Sidebar: white rail, blue pill for the active item */
 .vendor-console.vendor-console .dash-side { scrollbar-color:var(--border-strong) transparent; }
@@ -172,6 +172,26 @@
   display:inline-flex; align-items:center; margin-top:6px; font-size:12px; font-weight:650; line-height:18px;
 }
 
+/* Whole sidebar column: tint the aside itself as well as the track. */
+.vendor-console.vendor-console .dash-side { background:var(--vendor-rail); }
+/* The shared shell re-declares --sidebar, so the sidebar tint uses its own variable. */
+.vendor-console.vendor-console, .vendor-console.vendor-console .dash { --vendor-rail:#E6EDF9; }
+.vendor-console.vendor-console .dash {
+  background-image: linear-gradient(to right, var(--vendor-rail) 0 var(--side-w), var(--border-strong) var(--side-w) calc(var(--side-w) + 1px), var(--bg) calc(var(--side-w) + 1px));
+}
+.vendor-console.vendor-console .dash[data-collapsed='true'] {
+  background-image: linear-gradient(to right, var(--vendor-rail) 0 var(--side-w-collapsed), var(--border-strong) var(--side-w-collapsed) calc(var(--side-w-collapsed) + 1px), var(--bg) calc(var(--side-w-collapsed) + 1px));
+}
+/* Needs-attention strip: clearer dividers and card edge. */
+.vendor-console.vendor-console .vendor-attention { border:1px solid var(--border-strong); }
+.vendor-console.vendor-console .vendor-task-grid a { border-inline-end:1px solid var(--border-strong); }
+.vendor-console.vendor-console .vendor-task-grid a:last-child { border-inline-end:0; }
+.vendor-console.vendor-console .vendor-task-grid { border-top:1px solid var(--border-strong); }
+/* Status badge under the business name: readable on the tinted rail. */
+.vendor-console.vendor-console .dash-side .who .badge { background:#FFFFFF; border:1px solid #9FB2D2; color:var(--text-2); }
+.vendor-console.vendor-console .dash-side .who .badge.badge-green { background:#FFFFFF; border-color:#8CCBAE; color:var(--success-text); }
+.vendor-console.vendor-console .dash-side .who .badge.badge-gold { background:#FFFFFF; border-color:#E9C27A; color:var(--warning-text); }
+.vendor-console.vendor-console .dash-side .who .badge.badge-red { background:#FFFFFF; border-color:#F0A9AD; color:var(--danger-text); }
 /* Sidebar on the tinted rail: hover and dividers are tuned for the blue-grey background. */
 .vendor-console.vendor-console .dash-side .who { border-bottom-color:#C9D6EE; }
 .vendor-console.vendor-console .dash-side .avatar { background:#FFFFFF; }
