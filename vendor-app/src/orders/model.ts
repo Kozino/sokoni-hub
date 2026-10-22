@@ -1,7 +1,8 @@
 /** Order shapes, status rules and display helpers for the vendor app. Mirrors the rules the API enforces. */
 import { Tone } from '../theme';
+import { qar } from '../format';
 
-export type OrderItem = { title: string; qty: number };
+export type OrderItem = { title: string; qty: number; unit_price?: number | string; line_total?: number | string };
 
 export type VendorOrder = {
   id: string;
@@ -19,6 +20,7 @@ export type VendorOrder = {
   fulfilment_mode?: 'pickup' | 'delivery';
   payment_method?: string;
   payment_status?: 'unpaid' | 'paid';
+  payment_provider?: string | null;
   driver_id?: string | null;
   items: OrderItem[];
 };
@@ -83,7 +85,7 @@ export function canCancel(o: VendorOrder): boolean {
 }
 
 export function money(value: number | string | undefined): string {
-  return `QAR ${Number(value || 0).toFixed(2)}`;
+  return qar(value);
 }
 
 export function itemCount(o: VendorOrder): number {

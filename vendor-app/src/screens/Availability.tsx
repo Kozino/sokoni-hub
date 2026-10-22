@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, ApiError } from '../api';
-import { Banner, Btn, Card, Icon, ScreenHeader, Stepper } from '../ui/kit';
-import { C } from '../theme';
+import { Banner, Btn, Card, Icon, Pill, ScreenHeader, Segmented, Stepper } from '../ui/kit';
+import { C, TONES } from '../theme';
+import { Booking, BOOKING_STATUS_LABEL, BOOKING_TONE } from '../bookings/model';
+import { dohaDay, dohaToday, dohaTime, qar } from '../format';
 import { fw } from '../ui/type';
 
 // Weekday numbers follow the API (0 = Sunday). The list is shown Monday first, as most Qatari businesses plan their week.
@@ -12,6 +14,11 @@ const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
 const DAY_NAME = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 const MAX_PERIODS = 3;
+
+const VIEW_ITEMS: { key: 'slots' | 'stock'; label: string }[] = [
+  { key: 'slots', label: 'Service Slots' },
+  { key: 'stock', label: 'Product Stock' },
+];
 
 type Settings = {
   auto_accept: boolean;
@@ -79,6 +86,8 @@ export function Availability() {
   const [configured, setConfigured] = useState(true);
   const [baseline, setBaseline] = useState('');
   const [picker, setPicker] = useState<PickerState>(null);
+  const [view, setView] = useState<'slots' | 'stock'>('slots');
+  const [todayBookings, setTodayBookings] = useState<Booking[]>([]);
 
   // Time-off form state
   const [fromDate, setFromDate] = useState(new Date());
@@ -107,6 +116,11 @@ export function Availability() {
     void load();
   }, [load]);
 
+  // Today's slots are read from the vendor's bookings. Nothing is stored on this screen.
+  useEffect(() => {
+    api.get<{ bookings: Booking[] }>('/bookings/vendor').then((r) => setTodayBookings(r.bookings)).catch(() => {});
+  }, []);
+
   const dirty = useMemo(() => !!settings && JSON.stringify({ s: settings, h: periods }) !== baseline, [settings, periods, baseline]);
 
   const dayErrors = useMemo(() => {
@@ -120,6 +134,18 @@ export function Availability() {
       <View style={styles.screen}>
         <ScreenHeader title="Availability" subtitle="Your booking calendar" />
         {error ? <View style={styles.pad}><Banner tone="error">{error}</Banner></View> : <ActivityIndicator color={C.primary} style={{ marginTop: 40 }} />}
+      </View>
+    );
+  }
+
+  if (view === 'stock') {
+    return (
+      <View style={styles.screen}>
+        <ScreenHeader title="Availability" subtitle="Product stock" />
+        <View style={styles.segWrap}>
+          <Segmented items={VIEW_ITEMS} value={view} onChange={(k) => setView(k)} />
+        </View>
+        <ProductStock />
       </View>
     );
   }
@@ -243,6 +269,10 @@ export function Availability() {
     <View style={styles.screen}>
       <ScreenHeader title="Availability" subtitle={dirty ? 'Unsaved changes' : 'Your booking calendar'} />
 
+      <View style={styles.segWrap}>
+        <Segmented items={VIEW_ITEMS} value={view} onChange={(k) => setView(k)} />
+      </View>
+
       <ScrollView style={styles.frame} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         {!configured ? (
           <Banner tone="info" icon="information-circle">Your booking calendar is not switched on yet. Set your hours below, and customers will see your open slots.</Banner>
@@ -336,6 +366,10 @@ export function Availability() {
               );
             })}
           </Card>
+        </Section>
+
+        <Section title="Today's slots">
+          <TodaySlots bookings={todayBookings} />
         </Section>
 
         <Section title="Closures" hint="Closures are saved as soon as you add them.">
@@ -502,12 +536,158 @@ function PickerSheet({ picker, onClose }: { picker: PickerState; onClose: () => 
   );
 }
 
+/** Appointments booked for today in Doha, earliest first. Cancelled bookings are not shown. */
+function TodaySlots({ bookings }: { bookings: Booking[] }) {
+  const day = dohaToday();
+  const rows = bookings
+    .map((b) => ({ b, at: b.slot_starts_at || b.scheduled_at || null }))
+    .filter((x): x is { b: Booking; at: string } => !!x.at && x.b.status !== 'cancelled' && dohaDay(x.at) === day)
+    .sort((a, b) => +new Date(a.at) - +new Date(b.at));
+
+  if (rows.length === 0) {
+    return (
+      <Card>
+        <Text style={styles.muted}>No appointments booked for today.</Text>
+      </Card>
+    );
+  }
+  return (
+    <Card padded={false}>
+      {rows.map((x, i) => (
+        <View key={x.b.id}>
+          <View style={styles.slotRow}>
+            <View style={styles.slotTime}>
+              <Text style={styles.slotTimeText}>{dohaTime(x.at)}</Text>
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.ruleTitle} numberOfLines={2}>{x.b.listing_title}</Text>
+              <Text style={styles.ruleHelp} numberOfLines={2}>{x.b.contact_name} · {x.b.duration_mins} min</Text>
+            </View>
+            <Pill label={BOOKING_STATUS_LABEL[x.b.status]} tone={BOOKING_TONE[x.b.status]} />
+          </View>
+          {i < rows.length - 1 ? <View style={styles.divider} /> : null}
+        </View>
+      ))}
+    </Card>
+  );
+}
+
+type StockItem = {
+  id: string;
+  title: string;
+  quantity: number | null;
+  unit: string | null;
+  price: number | string | null;
+  images?: unknown;
+  stock_state: 'out' | 'low' | 'ok' | 'untracked';
+};
+const STOCK_TONE = { out: 'red', low: 'amber', ok: 'green', untracked: 'slate' } as const;
+const STOCK_LABEL = { out: 'Out of stock', low: 'Low stock', ok: 'In stock', untracked: 'Not tracked' } as const;
+
+/** Product stock. Each tap saves straight away, through the same adjust endpoint the web inventory page uses. */
+function ProductStock() {
+  const [items, setItems] = useState<StockItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const load = useCallback(async () => {
+    try {
+      const r = await api.get<{ items: StockItem[] }>('/inventory?state=all');
+      setItems(r.items);
+      setError('');
+    } catch (e: any) {
+      setError(e?.message || 'Could not load product stock.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const setQty = async (item: StockItem, value: number) => {
+    const previous = item.quantity;
+    setError('');
+    setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, quantity: value } : i)));
+    try {
+      await api.post(`/inventory/${item.id}/adjust`, { set_to: value, reason: 'adjustment' });
+      await load();
+    } catch (e: any) {
+      setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, quantity: previous } : i)));
+      setError(e instanceof ApiError ? e.message : 'Could not change the stock. Try again.');
+    }
+  };
+
+  if (loading) return <ActivityIndicator color={C.primary} style={{ marginTop: 40 }} />;
+
+  const attention = items.filter((i) => i.stock_state === 'out' || i.stock_state === 'low').length;
+
+  return (
+    <ScrollView style={styles.frame} contentContainerStyle={styles.body}>
+      {error ? <Banner tone="error">{error}</Banner> : null}
+      {items.length === 0 ? (
+        <Card>
+          <Text style={styles.muted}>No products to track. Services do not use stock, so this list only shows products you sell.</Text>
+        </Card>
+      ) : (
+        <Section title="Live inventory" hint={attention ? `${attention} ${attention === 1 ? 'product needs' : 'products need'} attention` : 'Everything is in stock'}>
+          <Card padded={false}>
+            {items.map((item, idx) => {
+              const img = Array.isArray(item.images) && typeof item.images[0] === 'string' ? (item.images[0] as string) : null;
+              return (
+                <View key={item.id}>
+                  <View style={styles.stockRow}>
+                    {img ? (
+                      <Image source={{ uri: img }} style={styles.stockImg} />
+                    ) : (
+                      <View style={[styles.stockImg, styles.stockImgEmpty]}>
+                        <Icon name="cube" size={22} color={C.muted} />
+                      </View>
+                    )}
+                    <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+                      <Text style={styles.ruleTitle} numberOfLines={2}>{item.title}</Text>
+                      <View style={styles.stockMeta}>
+                        <Pill label={STOCK_LABEL[item.stock_state]} tone={STOCK_TONE[item.stock_state]} />
+                        {item.price !== null && item.price !== undefined ? <Text style={styles.ruleHelp}>{qar(item.price)}</Text> : null}
+                      </View>
+                    </View>
+                  </View>
+                  {item.quantity !== null && item.stock_state !== 'untracked' ? (
+                    <View style={styles.stockControl}>
+                      <Text style={styles.ruleHelp}>Quantity available</Text>
+                      <Stepper label={item.title} value={item.quantity} min={0} max={100000} unit={item.unit || 'units'} onChange={(v) => void setQty(item, v)} />
+                    </View>
+                  ) : (
+                    <Text style={styles.stockNote}>Stock is not counted for this product.</Text>
+                  )}
+                  {idx < items.length - 1 ? <View style={styles.divider} /> : null}
+                </View>
+              );
+            })}
+          </Card>
+        </Section>
+      )}
+    </ScrollView>
+  );
+}
+
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
   frame: { width: '100%', maxWidth: 760, alignSelf: 'center', flex: 1 },
   pad: { paddingHorizontal: 16, paddingTop: 12 },
   body: { padding: 16, gap: 22, paddingBottom: 24 },
-  sectionTitle: { fontSize: 13, ...fw('800'), color: C.muted, textTransform: 'uppercase', letterSpacing: 0.6, marginLeft: 4 },
+  sectionTitle: { fontSize: 16, ...fw('800'), color: C.text, marginLeft: 4, letterSpacing: -0.2 },
+  segWrap: { paddingHorizontal: 16, paddingBottom: 12 },
+  slotRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
+  slotTime: { minWidth: 62, height: 40, borderRadius: 12, backgroundColor: C.primarySoft, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  slotTimeText: { fontSize: 14, ...fw('800'), color: C.primaryDeep },
+  stockRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
+  stockImg: { width: 56, height: 56, borderRadius: 14, backgroundColor: C.surface2 },
+  stockImgEmpty: { alignItems: 'center', justifyContent: 'center' },
+  stockMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  stockControl: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingHorizontal: 14, paddingBottom: 14 },
+  stockNote: { fontSize: 13, color: C.muted, paddingHorizontal: 14, paddingBottom: 14 },
   hint: { fontSize: 13, color: C.muted, marginLeft: 4 },
   muted: { fontSize: 14, color: C.muted },
   divider: { height: 1, backgroundColor: C.borderSoft, marginLeft: 16 },

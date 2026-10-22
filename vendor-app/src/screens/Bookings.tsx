@@ -3,7 +3,7 @@ import { ActivityIndicator, Alert, Linking, Modal, Pressable, RefreshControl, Sc
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import { api, ApiError } from '../api';
-import { Banner, Btn, Card, Chips, EmptyState, Icon, Pill, ScreenHeader } from '../ui/kit';
+import { Banner, Btn, Card, Chips, EmptyState, Icon, Pill, ScreenHeader, StatRow, StatTile } from '../ui/kit';
 import { C, TONES } from '../theme';
 import {
   Booking,
@@ -12,14 +12,21 @@ import {
   BOOKING_TONE,
   BookingFilter,
   DECLINE_REASONS,
+  bookingPrice,
   bookingSteps,
   canDecline,
   matchesBookingFilter,
   when,
 } from '../bookings/model';
+import { dohaDay, dohaToday, qar } from '../format';
+import { useVendor } from '../providers/VendorContext';
 import { fw } from '../ui/type';
 
 const REFRESH_MS = 30000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** The time a booking is held for: the agreed slot, else the scheduled or preferred time. */
+const bookingAt = (b: Booking) => b.slot_starts_at || b.scheduled_at || b.preferred_at || null;
 
 export function Bookings() {
   const [all, setAll] = useState<Booking[]>([]);
@@ -30,6 +37,7 @@ export function Bookings() {
   const [selected, setSelected] = useState<Booking | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const { width } = useWindowDimensions();
+  const { go } = useVendor();
   const wide = width >= 720;
 
   const load = useCallback(async (spin = false) => {
@@ -62,8 +70,24 @@ export function Bookings() {
     return map;
   }, [all]);
 
+  // Pulse figures. Cancelled bookings are left out. Times use the Doha calendar day.
+  const pulse = useMemo(() => {
+    const day = dohaToday();
+    const now = Date.now();
+    const live = all.filter((b) => b.status !== 'cancelled');
+    const todayCount = live.filter((b) => { const t = bookingAt(b); return !!t && dohaDay(t) === day; }).length;
+    const nextWeek = live.filter((b) => {
+      const t = bookingAt(b);
+      if (!t) return false;
+      const ahead = +new Date(t) - now;
+      return ahead >= -DAY_MS && ahead <= 7 * DAY_MS;
+    }).length;
+    const waiting = all.filter((b) => b.status === 'new' || b.status === 'contacted').length;
+    return { todayCount, nextWeek, waiting };
+  }, [all]);
+
   const visible = useMemo(
-    () => all.filter((b) => matchesBookingFilter(b, filter)).sort((a, b) => +new Date(a.slot_starts_at || a.preferred_at || a.created_at) - +new Date(b.slot_starts_at || b.preferred_at || b.created_at)),
+    () => all.filter((b) => matchesBookingFilter(b, filter)).sort((a, b) => +new Date(bookingAt(a) || a.created_at) - +new Date(bookingAt(b) || b.created_at)),
     [all, filter],
   );
 
@@ -84,7 +108,29 @@ export function Bookings() {
 
   return (
     <View style={styles.screen}>
-      <ScreenHeader title="Bookings" subtitle={summary} />
+      <ScreenHeader
+        title="Service Appointments"
+        subtitle={summary}
+        right={
+          <Pressable accessibilityRole="button" accessibilityLabel="Open calendar and availability" onPress={() => go('availability')} style={styles.calendarBtn}>
+            <Icon name="calendar-days" size={18} color={C.primaryDeep} />
+            <Text style={styles.calendarText}>Calendar</Text>
+          </Pressable>
+        }
+      />
+
+      <View style={styles.pulse}>
+        <View style={styles.pulseHead}>
+          <Text style={styles.pulseTitle}>APPOINTMENT PULSE</Text>
+          <Text style={styles.pulseHint}>Refreshes every 30 s</Text>
+        </View>
+        <StatRow>
+          <StatTile label="Today" value={String(pulse.todayCount)} sub={pulse.todayCount === 1 ? '1 appointment' : `${pulse.todayCount} appointments`} tone="brand" />
+          <StatTile label="Next 7 days" value={String(pulse.nextWeek)} sub="booked" tone="violet" />
+          <StatTile label="Waiting" value={String(pulse.waiting)} sub={pulse.waiting ? 'to reply' : 'all replied'} tone="amber" />
+        </StatRow>
+      </View>
+
       <Chips items={BOOKING_FILTERS.map((f) => ({ key: f.key, label: f.label, count: counts[f.key] || undefined }))} value={filter} onChange={(k) => setFilter(k)} />
 
       {error ? (
@@ -125,40 +171,77 @@ function BookingCard({ booking: b, busy, onOpen, onStep }: { booking: Booking; b
   const primary = bookingSteps(b).find((s) => s.primary);
   const home = b.location_type === 'home';
   const noTime = !b.slot_starts_at && !b.scheduled_at;
+  const price = bookingPrice(b);
+  const code = b.code || `#${b.id.slice(0, 8).toUpperCase()}`;
 
   return (
     <Card padded={false} style={styles.card}>
-      <View style={[styles.accent, { backgroundColor: tone.fg }]} />
       <View style={{ flex: 1 }}>
         <Pressable accessibilityRole="button" accessibilityLabel={`Booking for ${b.listing_title}`} onPress={onOpen} style={styles.body}>
           <View style={styles.rowBetween}>
-            <Text style={styles.title} numberOfLines={1}>{b.listing_title}</Text>
-            <Pill label={BOOKING_STATUS_LABEL[b.status]} tone={BOOKING_TONE[b.status]} />
+            <View style={{ flex: 1, minWidth: 0, gap: 6 }}>
+              <Text style={styles.code} numberOfLines={1}>{code}</Text>
+              <Pill label={BOOKING_STATUS_LABEL[b.status]} tone={BOOKING_TONE[b.status]} />
+            </View>
+            {price !== null ? (
+              <View style={styles.priceCol}>
+                <Text style={[styles.price, { color: tone.fg }]}>{qar(price)}</Text>
+                <Text style={styles.priceHint}>{b.quoted_price_type === 'from' ? 'Starting price' : 'Quoted price'}</Text>
+              </View>
+            ) : null}
           </View>
+
           <View style={styles.metaRow}>
-            <Icon name="calendar-days" size={16} color={C.muted} />
-            <Text style={[styles.meta, noTime && { color: C.goldText }]}>{when(b)}</Text>
+            <Icon name="calendar-days" size={16} color={noTime ? C.goldText : C.muted} />
+            <Text style={[styles.metaStrong, noTime && { color: C.goldText }]}>{when(b)}</Text>
           </View>
-          <View style={styles.metaRow}>
-            <Icon name="clock" size={16} color={C.muted} />
-            <Text style={styles.meta}>{b.duration_mins} min</Text>
-            <Text style={styles.dot}>·</Text>
-            <Icon name={home ? 'home' : 'building-storefront'} size={16} color={C.muted} />
-            <Text style={styles.meta}>{home ? 'At customer' : 'At your location'}</Text>
+
+          <View style={styles.serviceTile}>
+            <View style={[styles.serviceIcon, { backgroundColor: tone.bg }]}>
+              <Icon name={home ? 'home' : 'building-storefront'} size={20} color={tone.fg} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.title} numberOfLines={2}>{b.listing_title}</Text>
+              <Text style={styles.meta} numberOfLines={2}>{b.duration_mins} min · {home ? 'At customer' : 'At your location'}</Text>
+            </View>
           </View>
+
           <View style={styles.metaRow}>
             <Icon name="user" size={16} color={C.muted} />
-            <Text style={styles.meta} numberOfLines={1}>{b.contact_name}</Text>
+            <Text style={styles.metaStrong} numberOfLines={2}>{b.contact_name}</Text>
+            {home && b.address ? (
+              <>
+                <Text style={styles.dot}>·</Text>
+                <Icon name="map-pin" size={14} color={C.muted} />
+                <Text style={styles.meta} numberOfLines={2}>{b.address}</Text>
+              </>
+            ) : null}
           </View>
+
+          {b.preferred_note ? (
+            <View style={styles.note}>
+              <Text style={styles.noteText}>“{b.preferred_note}”</Text>
+            </View>
+          ) : null}
         </Pressable>
 
         {primary && noTime && primary.status === 'confirmed' ? (
-          <View style={styles.actionRow}>
+          <View>
             <Banner tone="info" icon="information-circle">Agree a time with the customer, then set it on the website to accept.</Banner>
           </View>
-        ) : primary ? (
+        ) : primary || b.contact_phone ? (
           <View style={styles.actionRow}>
-            <Btn compact label={primary.label} icon={primary.status === 'confirmed' ? 'check' : 'check-circle'} loading={busy} onPress={() => onStep(primary.status)} />
+            {b.contact_phone ? (
+              <Pressable accessibilityRole="button" accessibilityLabel="Call customer" onPress={() => Linking.openURL(`tel:${b.contact_phone}`)} style={styles.callBtn}>
+                <Icon name="phone" size={17} color={C.primary} />
+                <Text style={styles.callText}>Call</Text>
+              </Pressable>
+            ) : null}
+            {primary ? (
+              <View style={{ flex: 1 }}>
+                <Btn compact variant={primary.status === 'confirmed' ? 'primary' : 'gold'} label={primary.label} icon={primary.status === 'confirmed' ? 'check' : 'check-circle'} loading={busy} onPress={() => onStep(primary.status)} />
+              </View>
+            ) : null}
           </View>
         ) : null}
       </View>
@@ -319,15 +402,29 @@ const styles = StyleSheet.create({
   listWide: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start' },
   pad: { paddingHorizontal: 16, paddingTop: 8 },
   list: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 32, gap: 12 },
+  calendarBtn: { height: 40, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  calendarText: { fontSize: 13, ...fw('800'), color: C.primaryDeep },
+  pulse: { marginHorizontal: 16, marginBottom: 12, padding: 14, borderRadius: 22, backgroundColor: C.primarySoft, borderWidth: 1, borderColor: C.primaryLine, gap: 12 },
+  pulseHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 },
+  pulseTitle: { fontSize: 12, ...fw('800'), color: C.primaryDeep, letterSpacing: 0.8, flexShrink: 1 },
+  pulseHint: { fontSize: 12, color: C.text2, ...fw('600'), flexShrink: 1 },
   card: { flexDirection: 'row', overflow: 'hidden' },
-  accent: { width: 4 },
-  body: { padding: 14, gap: 8 },
-  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  title: { flex: 1, fontSize: 16, ...fw('800'), color: C.text },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  meta: { fontSize: 13, color: C.text2, ...fw('600') },
+  body: { padding: 16, gap: 12 },
+  rowBetween: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 },
+  code: { fontSize: 17, ...fw('800'), color: C.text, letterSpacing: 0.2 },
+  priceCol: { alignItems: 'flex-end' },
+  price: { fontSize: 19, ...fw('800') },
+  priceHint: { fontSize: 11, color: C.muted, ...fw('700') },
+  title: { fontSize: 15, ...fw('800'), color: C.text },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  meta: { fontSize: 13, color: C.muted, ...fw('600') },
+  metaStrong: { fontSize: 14, color: C.text, ...fw('700') },
   dot: { color: C.muted },
-  actionRow: { paddingHorizontal: 14, paddingBottom: 14 },
+  serviceTile: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 16, backgroundColor: C.surface2 },
+  serviceIcon: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  actionRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingBottom: 16 },
+  callBtn: { height: 46, paddingHorizontal: 14, borderRadius: 14, borderWidth: 1, borderColor: C.primaryLine, backgroundColor: C.surface, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  callText: { fontSize: 14, ...fw('800'), color: C.primary },
   sheet: { flex: 1, backgroundColor: C.bg },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 12, backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.borderSoft },
   sheetKicker: { fontSize: 12, color: C.muted, ...fw('700'), textTransform: 'uppercase', letterSpacing: 0.5 },

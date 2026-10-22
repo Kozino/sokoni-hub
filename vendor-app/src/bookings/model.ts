@@ -3,6 +3,9 @@ import { Tone } from '../theme';
 
 export type Booking = {
   id: string;
+  code?: string | null;
+  quoted_price?: number | string | null;
+  quoted_price_type?: string | null;
   status: 'new' | 'contacted' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
   listing_title: string;
   duration_mins: number;
@@ -75,6 +78,13 @@ export function bookingSteps(b: Booking): { status: string; label: string; prima
 
 export function canDecline(b: Booking): boolean {
   return b.status === 'new' || b.status === 'contacted' || b.status === 'confirmed';
+}
+
+/** The advertised price snapshot for this booking, or null when none was quoted. */
+export function bookingPrice(b: Booking): number | null {
+  if (b.quoted_price === null || b.quoted_price === undefined || b.quoted_price === '') return null;
+  const n = Number(b.quoted_price);
+  return Number.isFinite(n) ? n : null;
 }
 
 export function when(b: Booking): string {
