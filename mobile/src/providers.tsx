@@ -16,6 +16,8 @@ export const palette = {
     onPrimary: '#FFFFFF', deep: '#004C2D', onDeep: '#FFFFFF', orange: '#FC7800', orangeSoft: '#FFF0E2', orangeLine: '#FFD9B8', onOrange: '#FFFFFF', brown: '#974800',
     gold: '#C25E00', goldSoft: '#FFF0E2', teal: '#08715B', tealSoft: '#E2F7F0', success: '#078B57', successSoft: '#E1F7E9',
     warning: '#D26A00', warningSoft: '#FFF2DF', danger: '#C43B3B', dangerSoft: '#FDEBEC', dangerText: '#BA1A1A', heart: '#D9304F',
+    heroA: '#004C2D', heroB: '#05663F', heroC: '#08715B',
+    violet: '#5B4BDB', violetSoft: '#ECE9FF', sky: '#0B76C2', skySoft: '#E1F1FD', rose: '#D9304F', roseSoft: '#FDE7EC', amber: '#B97800', amberSoft: '#FFF4D6',
     tab: '#FFFFFF', overlay: 'rgba(4,35,23,.56)', shadow: '#1B2A4A',
   },
   dark: {
@@ -24,6 +26,8 @@ export const palette = {
     onPrimary: '#06251A', deep: '#0E3A27', onDeep: '#F2F8F4', orange: '#FFA050', orangeSoft: '#402A17', orangeLine: '#6B4521', onOrange: '#2A1500', brown: '#FFB27A',
     gold: '#FFAA58', goldSoft: '#402A17', teal: '#7CE0BB', tealSoft: '#163E32', success: '#73DCA1', successSoft: '#153525',
     warning: '#FFC178', warningSoft: '#432E17', danger: '#F2AAA7', dangerSoft: '#432021', dangerText: '#F2AAA7', heart: '#FF7A93',
+    heroA: '#0B3B27', heroB: '#14573C', heroC: '#17684A',
+    violet: '#B9AFFF', violetSoft: '#2B2752', sky: '#86CBFF', skySoft: '#153149', rose: '#FF8FA6', roseSoft: '#47202B', amber: '#FFD166', amberSoft: '#463716',
     tab: '#18221D', overlay: 'rgba(0,0,0,.68)', shadow: '#000000',
   },
 };

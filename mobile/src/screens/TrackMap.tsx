@@ -136,10 +136,10 @@ export { TrackMap };
 
 const styles = StyleSheet.create({
   mapBox: { height: 250, borderTopLeftRadius: 22, borderTopRightRadius: 22, overflow: 'hidden' },
-  liveBadge: { position: 'absolute', top: 12, left: 12, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFFFFF', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, elevation: 3 },
+  liveBadge: { position: 'absolute', top: 12, left: 12, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFFFFF', paddingHorizontal: 8, paddingVertical: 6, borderRadius: 999, elevation: 3 },
   liveDot: { width: 8, height: 8, borderRadius: 4 },
-  liveText: { fontSize: 12, fontWeight: '800', color: '#111827' },
-  riderDot: { width: 46, height: 46, borderRadius: 23, borderWidth: 3, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 5 },
+  liveText: { fontSize: 11, fontWeight: '700', color: '#111827' },
+  riderDot: { width: 38, height: 38, borderRadius: 19, borderWidth: 3, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 5 },
   destDot: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF', elevation: 4 },
   destTip: { width: 0, height: 0, borderLeftWidth: 6, borderRightWidth: 6, borderTopWidth: 8, borderLeftColor: 'transparent', borderRightColor: 'transparent', marginTop: -1 },
 });

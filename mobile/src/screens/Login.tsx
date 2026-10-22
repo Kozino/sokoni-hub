@@ -79,7 +79,7 @@ import { WebOnlyAccount } from './WebOnlyAccount';export function Login({ go, ba
       <Button loading={busy} onPress={submit} icon="arrow-forward" style={styles.referenceSignIn}>Sign In to Sokoni Hub</Button>
       <View style={styles.orLine}><View style={[styles.orStroke,{backgroundColor:colors.border}]}/><Text style={[styles.orText,{color:colors.text2}]}>OR SECURE ACCESS</Text><View style={[styles.orStroke,{backgroundColor:colors.border}]}/></View>
       <Button variant="secondary" onPress={() => go('browse')} style={styles.guestAccess}>Continue exploring listings as guest</Button>
-      <Text style={[styles.authSwitch,{color:colors.text2}]}>New to Qatar or Sokoni? <Text accessibilityRole="link" onPress={() => go('register')} style={{color:colors.gold,fontWeight:'900'}}>Create an account</Text></Text>
+      <Text style={[styles.authSwitch,{color:colors.text2}]}>New to Qatar or Sokoni? <Text accessibilityRole="link" onPress={() => go('register')} style={{color:colors.gold,fontWeight: '800'}}>Create an account</Text></Text>
     </View>
     <Pressable accessibilityRole="button" onPress={() => WebBrowser.openBrowserAsync(WEB_URL)}><Text style={[styles.webPortalLink,{color:colors.text2}]}>Vendors and administrators use the secure web portal.</Text></Pressable>
   </ScrollView></KeyboardAvoidingView>;

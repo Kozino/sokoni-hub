@@ -34,7 +34,7 @@ export function Welcome({ onDone }: { onDone: (screen?: Screen) => void }) {
       <View style={{ flex: 1, width: '100%', maxWidth: COLUMN_MAX }}>
         <ImageBackground source={require('../../assets/hero.jpg')} resizeMode="cover" style={[s.photo, { height: photoHeight }]} />
         <LinearGradient colors={['rgba(0,76,45,0.35)', 'rgba(0,76,45,0.30)', colors.deep]} locations={[0, 0.45, 1]} style={[s.photo, { height: photoHeight }]} />
-        <View style={[s.content, { paddingTop: insets.top + 18, paddingBottom: 20 + insets.bottom }]}>
+        <View style={[s.content, { paddingTop: insets.top + 18, paddingBottom: 16 + insets.bottom }]}>
           <View style={s.brand}>
             <View style={s.logoTile}><Image source={require('../../assets/logo-mark.png')} style={s.logo} /></View>
             <View>
@@ -50,7 +50,7 @@ export function Welcome({ onDone }: { onDone: (screen?: Screen) => void }) {
               onMomentumScrollEnd={(e) => setPage(Math.round(e.nativeEvent.contentOffset.x / (slideWidth + 24)))}
               keyExtractor={(item) => item.title}
               renderItem={({ item }) => (
-                <View style={{ width: slideWidth + 24, paddingRight: 24, minHeight: 250, justifyContent: 'flex-end' }}>
+                <View style={{ width: slideWidth + 24, paddingRight: 19, minHeight: 250, justifyContent: 'flex-end' }}>
                   <View style={[s.icon, { backgroundColor: colors.orange }]}><Icon name={item.icon} solid={false} size={32} color={colors.onOrange} /></View>
                   <Text style={s.title}>{item.title}</Text>
                   <Text style={s.text}>{item.text}</Text>
@@ -58,7 +58,7 @@ export function Welcome({ onDone }: { onDone: (screen?: Screen) => void }) {
               )}
             />
             <View style={s.dots}>{SLIDES.map((slide, index) => <View key={slide.title} style={[s.dot, { backgroundColor: index === page ? colors.orange : 'rgba(255,255,255,0.4)', width: index === page ? 24 : 8 }]} />)}</View>
-            <View style={{ gap: 12 }}>
+            <View style={{ gap: 9 }}>
               {!last ? (
                 <Button variant="gold" icon="arrow-forward" onPress={() => ref.current?.scrollToIndex({ index: page + 1 })}>Continue</Button>
               ) : (
@@ -67,7 +67,7 @@ export function Welcome({ onDone }: { onDone: (screen?: Screen) => void }) {
                   <Button variant="tonal" onPress={() => onDone('login')}>Sign in</Button>
                 </>
               )}
-              <Pressable accessibilityRole="button" onPress={() => { tap(); onDone('home'); }} style={{ alignItems: 'center', paddingVertical: 10 }}><Text style={s.guest}>Browse as a guest</Text></Pressable>
+              <Pressable accessibilityRole="button" onPress={() => { tap(); onDone('home'); }} style={{ alignItems: 'center', paddingVertical: 8 }}><Text style={s.guest}>Browse as a guest</Text></Pressable>
             </View>
           </View>
         </View>
@@ -78,16 +78,16 @@ export function Welcome({ onDone }: { onDone: (screen?: Screen) => void }) {
 
 const s = StyleSheet.create({
   photo: { position: 'absolute', top: 0, left: 0, right: 0 },
-  content: { flex: 1, paddingHorizontal: 24, justifyContent: 'space-between' },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  logoTile: { width: 54, height: 54, borderRadius: 17, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-  logo: { width: 42, height: 42, resizeMode: 'contain' },
-  brandName: { color: '#FFFFFF', fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
-  tagline: { color: '#E4F7EC', fontSize: 13, fontWeight: '600', marginTop: 1 },
-  icon: { width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  title: { color: '#FFFFFF', fontSize: 33, fontWeight: '800', letterSpacing: -0.9, lineHeight: 39, marginTop: 20 },
-  text: { color: '#D3EEDF', fontSize: 16, lineHeight: 24, marginTop: 10 },
-  dots: { flexDirection: 'row', gap: 7, marginTop: 20, marginBottom: 22 },
+  content: { flex: 1, paddingHorizontal: 19, justifyContent: 'space-between' },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  logoTile: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  logo: { width: 34, height: 34, resizeMode: 'contain' },
+  brandName: { color: '#FFFFFF', fontSize: 19, fontWeight: '700', letterSpacing: -0.5 },
+  tagline: { color: '#E4F7EC', fontSize: 11.5, fontWeight: '600', marginTop: 1 },
+  icon: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  title: { color: '#FFFFFF', fontSize: 24.5, fontWeight: '700', letterSpacing: -0.9, lineHeight: 29, marginTop: 16 },
+  text: { color: '#D3EEDF', fontSize: 13.5, lineHeight: 20, marginTop: 8 },
+  dots: { flexDirection: 'row', gap: 7, marginTop: 16, marginBottom: 17 },
   dot: { height: 8, borderRadius: 4 },
-  guest: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
+  guest: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
 });

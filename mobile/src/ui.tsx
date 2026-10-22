@@ -6,6 +6,7 @@ import { connectivity } from './api';
 import { useTheme } from './providers';
 import type { ReactNode } from 'react';
 import { tap } from './haptics';
+import { scaleFont } from './type';
 
 // ---- Inter typography -------------------------------------------------------------------------------------------
 // Custom fonts have no automatic bold on Android, so every fontWeight in the app maps to a loaded Inter file here.
@@ -28,11 +29,11 @@ export function Text(props: TextProps) {
   const nested = useContext(InsideText);
   const style = useInter(props.style, nested);
   // Respect the phone's text-size setting, but cap it so fixed-height chips, tabs and buttons don't clip.
-  return <InsideText.Provider value><RNText maxFontSizeMultiplier={1.4} {...props} style={style} /></InsideText.Provider>;
+  return <InsideText.Provider value><RNText maxFontSizeMultiplier={1.25} {...props} style={style} /></InsideText.Provider>;
 }
 export const TextInput = forwardRef<RNTextInput, TextInputProps>(function TextInput(props, ref) {
   const style = useInter(props.style as StyleProp<TextStyle>, false);
-  return <RNTextInput ref={ref} maxFontSizeMultiplier={1.4} {...props} style={style} />;
+  return <RNTextInput ref={ref} maxFontSizeMultiplier={1.25} {...props} style={style} />;
 });
 export type TextInput = RNTextInput;
 
@@ -91,7 +92,7 @@ export function Chip({ children, selected, onPress, image }: { children: ReactNo
 
 export function Notice({ type = 'info', children }: { type?: 'info' | 'warning' | 'success' | 'danger'; children: ReactNode }) { const { colors } = useTheme(); const values = type === 'warning' ? [colors.warningSoft, colors.warning, 'warning-outline'] : type === 'success' ? [colors.successSoft, colors.success, 'checkmark-circle-outline'] : type === 'danger' ? [colors.dangerSoft, colors.danger, 'alert-circle-outline'] : [colors.primarySoft, colors.primary, 'information-circle-outline']; return <View style={[styles.notice, { backgroundColor: values[0] as string }]}><Icon name={values[2] as IconName} size={19} color={values[1] as string}/><Text style={[styles.noticeText, { color: colors.text }]}>{children}</Text></View>; }
 
-export function Sheet({ visible, title, onClose, children }: { visible: boolean; title: string; onClose: () => void; children: ReactNode }) { const { colors } = useTheme(); const insets = useSafeAreaInsets(); return <Modal transparent statusBarTranslucent navigationBarTranslucent visible={visible} animationType="slide" onRequestClose={onClose}><Pressable accessibilityRole="button" accessibilityLabel="Close" style={[styles.modalBackdrop, { backgroundColor: colors.overlay }]} onPress={onClose}/><View style={[styles.sheet, { backgroundColor: colors.surface }]}><View style={[styles.sheetHandle, { backgroundColor: colors.border }]} /><View style={styles.sheetTop}><Text style={[styles.sheetTitle, { color: colors.text }]}>{title}</Text><Pressable accessibilityRole="button" accessibilityLabel="Close" hitSlop={10} onPress={onClose}><Icon name="close" size={24} color={colors.text}/></Pressable></View><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.sheetContent, { paddingBottom: 28 + insets.bottom }]}>{children}</ScrollView></View></Modal>; }
+export function Sheet({ visible, title, onClose, children }: { visible: boolean; title: string; onClose: () => void; children: ReactNode }) { const { colors } = useTheme(); const insets = useSafeAreaInsets(); return <Modal transparent statusBarTranslucent navigationBarTranslucent visible={visible} animationType="slide" onRequestClose={onClose}><Pressable accessibilityRole="button" accessibilityLabel="Close" style={[styles.modalBackdrop, { backgroundColor: colors.overlay }]} onPress={onClose}/><View style={[styles.sheet, { backgroundColor: colors.surface }]}><View style={[styles.sheetHandle, { backgroundColor: colors.border }]} /><View style={styles.sheetTop}><Text style={[styles.sheetTitle, { color: colors.text }]}>{title}</Text><Pressable accessibilityRole="button" accessibilityLabel="Close" hitSlop={10} onPress={onClose}><Icon name="close" size={22} color={colors.text}/></Pressable></View><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.sheetContent, { paddingBottom: 22 + insets.bottom }]}>{children}</ScrollView></View></Modal>; }
 
 export type DropdownOption = { value: string; label: string; image?: ImageSourcePropType };
 /** A real dropdown: tapping the trigger opens a menu anchored right under it; choosing an option closes it. */
@@ -127,7 +128,7 @@ export function Dropdown({ value, options, onChange, renderTrigger, style, menuW
 /** Fixed action bar that always clears the Android gesture/navigation bar and iOS home indicator. */
 export function BottomBar({ children, style }: { children: ReactNode; style?: ViewStyle }) {
   const { colors } = useTheme(); const insets = useSafeAreaInsets();
-  return <View style={[{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 14, paddingTop: 10, paddingBottom: 10 + insets.bottom, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, backgroundColor: colors.surface }, style]}>{children}</View>;
+  return <View style={[{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 8 + insets.bottom, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, backgroundColor: colors.surface }, style]}>{children}</View>;
 }
 
 export function Money({ value, currency = 'QAR', strong = false, size }: { value: string | number; currency?: string; strong?: boolean; size?: number }) {
@@ -136,23 +137,23 @@ export function Money({ value, currency = 'QAR', strong = false, size }: { value
   const text = Number.isInteger(n) ? String(n) : n.toFixed(2);
   const whole = text.replace(/\B(?=(\d{3})+(?!\d)(?:\.|$))/g, ',');
   const color = strong ? colors.primary : colors.text;
-  const big = size ?? (strong ? 19 : 14);
-  return <Text style={{ color }}><Text style={{ fontSize: big, fontWeight: strong ? '800' : '700', color }}>{whole}</Text><Text style={{ fontSize: Math.max(11, Math.round(big * .6)), fontWeight: '700', color: strong ? colors.primary : colors.text2 }}> {currency}</Text></Text>;
+  const big = scaleFont(size ?? (strong ? 19 : 14));
+  return <Text style={{ color }}><Text style={{ fontSize: big, fontWeight: strong ? '800' : '700', color }}>{whole}</Text><Text style={{ fontSize: Math.max(10, Math.round(big * .62)), fontWeight: '600', color: strong ? colors.primary : colors.text2 }}> {currency}</Text></Text>;
 }
 
 const styles = StyleSheet.create({
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 10 }, brandSmall: { gap: 7 }, logo: { width: 52, height: 52, resizeMode: 'contain' }, logoSmall: { width: 34, height: 34 }, brandTitle: { fontSize: 22, fontWeight: '800', letterSpacing: -.4 }, brandTitleSmall: { fontSize: 17 }, tagline: { fontSize: 12, marginTop: 1 },
-  button: { minHeight: 52, borderRadius: 16, borderWidth: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 18 }, buttonText: { fontSize: 15, fontWeight: '800' },
-  iconButton: { width: 40, height: 40, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center', position: 'relative' }, badge: { position: 'absolute', minWidth: 16, height: 16, borderRadius: 8, right: -5, top: -5, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 }, badgeText: { color: '#171C36', fontSize: 10, fontWeight: '800' },
-  fieldWrap: { marginBottom: 15 }, fieldLabel: { fontSize: 13, fontWeight: '700', marginBottom: 7 }, field: { minHeight: 52, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, fontSize: 15 }, error: { fontSize: 12, marginTop: 5 },
-  card: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 20, padding: 16, shadowOpacity: .06, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 2 }, divider: { height: StyleSheet.hairlineWidth, marginVertical: 13 }, spinner: { minHeight: 260, justifyContent: 'center', alignItems: 'center', gap: 12 }, spinnerText: { fontSize: 14 },
-  empty: { alignItems: 'center', paddingHorizontal: 28, paddingVertical: 56, gap: 9 }, emptyIcon: { width: 72, height: 72, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 3 }, emptyTitle: { fontSize: 19, fontWeight: '800', textAlign: 'center' }, emptyText: { fontSize: 14, textAlign: 'center', lineHeight: 20, maxWidth: 290 },
-  header: { height: 60, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, gap: 10 }, back: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }, backCircle: { width: 40, height: 40, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' }, headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '800' }, headerRight: { minWidth: 40, alignItems: 'flex-end' },
-  chip: { paddingHorizontal: 16, height: 38, borderRadius: 19, borderWidth: 1, justifyContent: 'center', flexDirection: 'row', alignItems: 'center', gap: 6 }, chipWithImage: { paddingLeft: 5 }, chipImage: { width: 22, height: 22, borderRadius: 11 },
-  buttonInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  dropMenu: { position: 'absolute', borderWidth: 1, borderRadius: 14, paddingVertical: 6, elevation: 14, shadowColor: '#0B1F16', shadowOpacity: .18, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } }, dropItem: { minHeight: 44, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 10 }, dropText: { flex: 1, fontSize: 14, fontWeight: '700' }, dropImage: { width: 24, height: 24, borderRadius: 12 }, chipText: { fontSize: 14, fontWeight: '700' },
-  notice: { borderRadius: 14, padding: 13, flexDirection: 'row', gap: 9, alignItems: 'flex-start' }, noticeText: { flex: 1, fontSize: 13, lineHeight: 18 },
-  modalBackdrop: { flex: 1 }, sheet: { maxHeight: '86%', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 9 }, sheetHandle: { width: 40, height: 4, borderRadius: 3, alignSelf: 'center', marginBottom: 8 }, sheetTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 10 }, sheetTitle: { fontSize: 18, fontWeight: '800' }, sheetContent: { padding: 20, paddingTop: 4, paddingBottom: 38 },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: 10 }, brandSmall: { gap: 7 }, logo: { width: 52, height: 52, resizeMode: 'contain' }, logoSmall: { width: 34, height: 34 }, brandTitle: { fontSize: 18, fontWeight: '700', letterSpacing: -.4 }, brandTitleSmall: { fontSize: 14.5 }, tagline: { fontSize: 11, marginTop: 1 },
+  button: { minHeight: 42, borderRadius: 13, borderWidth: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 16 }, buttonText: { fontSize: 13, fontWeight: '700' },
+  iconButton: { width: 36, height: 36, borderRadius: 11, borderWidth: 1, alignItems: 'center', justifyContent: 'center', position: 'relative' }, badge: { position: 'absolute', minWidth: 16, height: 16, borderRadius: 8, right: -5, top: -5, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 }, badgeText: { color: '#171C36', fontSize: 10, fontWeight: '700' },
+  fieldWrap: { marginBottom: 12 }, fieldLabel: { fontSize: 11.5, fontWeight: '600', marginBottom: 7 }, field: { minHeight: 44, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, fontSize: 14 }, error: { fontSize: 11, marginTop: 5 },
+  card: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 16, padding: 12, shadowOpacity: .06, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 2 }, divider: { height: StyleSheet.hairlineWidth, marginVertical: 10 }, spinner: { minHeight: 260, justifyContent: 'center', alignItems: 'center', gap: 12 }, spinnerText: { fontSize: 12.5 },
+  empty: { alignItems: 'center', paddingHorizontal: 28, paddingVertical: 40, gap: 7 }, emptyIcon: { width: 56, height: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: 3 }, emptyTitle: { fontSize: 16, fontWeight: '700', textAlign: 'center' }, emptyText: { fontSize: 12.5, textAlign: 'center', lineHeight: 18, maxWidth: 290 },
+  header: { height: 50, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 8 }, back: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' }, backCircle: { width: 34, height: 34, borderRadius: 17, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' }, headerTitle: { flex: 1, textAlign: 'center', fontSize: 14.5, fontWeight: '700' }, headerRight: { minWidth: 40, alignItems: 'flex-end' },
+  chip: { paddingHorizontal: 13, height: 32, borderRadius: 16, borderWidth: 1, justifyContent: 'center', flexDirection: 'row', alignItems: 'center', gap: 6 }, chipWithImage: { paddingLeft: 4 }, chipImage: { width: 20, height: 20, borderRadius: 10 },
+  buttonInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  dropMenu: { position: 'absolute', borderWidth: 1, borderRadius: 14, paddingVertical: 6, elevation: 14, shadowColor: '#0B1F16', shadowOpacity: .18, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } }, dropItem: { minHeight: 40, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 10 }, dropText: { flex: 1, fontSize: 12.5, fontWeight: '600' }, dropImage: { width: 24, height: 24, borderRadius: 12 }, chipText: { fontSize: 12.5, fontWeight: '600' },
+  notice: { borderRadius: 12, padding: 10, flexDirection: 'row', gap: 9, alignItems: 'flex-start' }, noticeText: { flex: 1, fontSize: 11.5, lineHeight: 16 },
+  modalBackdrop: { flex: 1 }, sheet: { maxHeight: '86%', width: '100%', maxWidth: 600, alignSelf: 'center', borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingTop: 8 }, sheetHandle: { width: 40, height: 4, borderRadius: 3, alignSelf: 'center', marginBottom: 8 }, sheetTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 8 }, sheetTitle: { fontSize: 15, fontWeight: '700' }, sheetContent: { padding: 16, paddingTop: 4, paddingBottom: 30 },
 });
 
 
@@ -161,7 +162,7 @@ export function OfflineBar() {
   const { colors } = useTheme();
   const off = useSyncExternalStore(connectivity.subscribe, connectivity.isOffline);
   if (!off) return null;
-  return <View pointerEvents="none" accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ position: 'absolute', left: 12, right: 12, bottom: 92, zIndex: 50, borderRadius: 12, backgroundColor: colors.warning, paddingVertical: 10, paddingHorizontal: 14 }}>
-    <Text style={{ color: '#111827', fontWeight: '800', fontSize: 13, textAlign: 'center' }}>No connection. Check your signal and try again.</Text>
+  return <View pointerEvents="none" accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ position: 'absolute', left: 12, right: 12, bottom: 84, zIndex: 50, borderRadius: 12, backgroundColor: colors.warning, paddingVertical: 10, paddingHorizontal: 14 }}>
+    <Text style={{ color: '#111827', fontWeight: '700', fontSize: 11.5, textAlign: 'center' }}>No connection. Check your signal and try again.</Text>
   </View>;
 }

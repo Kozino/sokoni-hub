@@ -10,7 +10,7 @@ export function TrackMap({ driver, destination, live }: { driver: { lat: number;
   return (
     <View style={[styles.box, { backgroundColor: colors.surface2 }]}>
       <Icon name="map" solid={false} size={30} color={colors.primary} />
-      <Text style={{ color: colors.text2, fontSize: 13, fontWeight: '600', marginTop: 8 }}>{point ? `${point.lat.toFixed(4)}, ${point.lng.toFixed(4)}${live ? ' · live' : ''}` : 'Map available in the mobile app'}</Text>
+      <Text style={{ color: colors.text2, fontSize: 11.5, fontWeight: '600', marginTop: 8 }}>{point ? `${point.lat.toFixed(4)}, ${point.lng.toFixed(4)}${live ? ' · live' : ''}` : 'Map available in the mobile app'}</Text>
     </View>
   );
 }

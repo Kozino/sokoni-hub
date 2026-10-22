@@ -70,11 +70,7 @@ export function DeliveryPin({ value, error, onConfirm }: Props) {
   const center = draft ?? value ?? DOHA;
 
   return (
-    <View style={[styles.wrap, { backgroundColor: colors.surface, borderColor: error ? colors.danger : colors.border }]}>
-      <View style={styles.head}>
-        <Icon name="location" size={18} color={colors.primary} />
-        <Text style={[styles.title, { color: colors.text }]}>Confirm your delivery location</Text>
-      </View>
+    <View style={[styles.wrap, error ? { borderColor: colors.danger, borderWidth: 1, padding: 8 } : null]}>
       <Text style={[styles.hint, { color: colors.text2 }]}>
         Tap the map or drag the pin to your building entrance. The rider uses this exact point.
       </Text>
@@ -101,19 +97,19 @@ export function DeliveryPin({ value, error, onConfirm }: Props) {
 
       <View style={styles.row}>
         <Pressable accessibilityRole="button" onPress={() => void useCurrent()} disabled={locating} style={[styles.chip, { borderColor: colors.primary }]}>
-          <Icon name="location" size={15} color={colors.primary} />
+          <Icon name="location" size={13} color={colors.primary} />
           <Text style={[styles.chipText, { color: colors.primary }]}>{locating ? 'Finding you…' : 'Use my location'}</Text>
         </Pressable>
         {confirmed ? (
           <View style={[styles.chip, { backgroundColor: colors.primarySoft, borderColor: colors.primarySoft }]}>
-            <Icon name="checkmark-circle" size={15} color={colors.primary} />
+            <Icon name="checkmark-circle" size={13} color={colors.primary} />
             <Text style={[styles.chipText, { color: colors.primary }]}>Pin confirmed</Text>
           </View>
         ) : null}
       </View>
 
       {draft && !confirmed ? (
-        <Button onPress={() => void confirm()} loading={saving} style={{ marginTop: 12 }}>Confirm this location</Button>
+        <Button onPress={() => void confirm()} loading={saving} style={{ marginTop: 8, minHeight: 38 }}>Confirm this location</Button>
       ) : null}
       {error ? <View style={{ marginTop: 10 }}><Notice type="warning">{error}</Notice></View> : null}
     </View>
@@ -121,12 +117,10 @@ export function DeliveryPin({ value, error, onConfirm }: Props) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { borderWidth: 1, borderRadius: 16, padding: 14, marginTop: 8 },
-  head: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  title: { fontSize: 15, fontWeight: '800' },
-  hint: { fontSize: 13, marginTop: 4, lineHeight: 18 },
-  mapBox: { height: 210, borderRadius: 12, overflow: 'hidden', borderWidth: 1, marginTop: 12 },
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
-  chipText: { fontSize: 13, fontWeight: '700' },
+  wrap: { borderRadius: 12 },
+  hint: { fontSize: 10.5, lineHeight: 15 },
+  mapBox: { height: 150, borderRadius: 12, overflow: 'hidden', borderWidth: 1, marginTop: 8 },
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
+  chipText: { fontSize: 10.5, fontWeight: '600' },
 });

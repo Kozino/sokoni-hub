@@ -90,7 +90,7 @@ export function BookService({ listing, go, back, tab }: { listing?: Listing; go:
   }, [config]);
 
   if (!listing) return <Screen><Header title="Book a service" back={back} /><EmptyState title="Service unavailable" text="Return to the marketplace and choose a service." /></Screen>;
-  if (loadError) return <Screen><Header title="Book a service" back={back} /><EmptyState icon="cloud-offline-outline" title="Could not load availability" text={loadError} action={<Button style={{ marginTop: 10 }} onPress={() => void loadConfig()}>Try again</Button>} /></Screen>;
+  if (loadError) return <Screen><Header title="Book a service" back={back} /><EmptyState icon="cloud-offline-outline" title="Could not load availability" text={loadError} action={<Button style={{ marginTop: 8 }} onPress={() => void loadConfig()}>Try again</Button>} /></Screen>;
   if (!config) return <Screen><Header title="Book a service" back={back} /><Spinner label="Checking availability…" /></Screen>;
 
   const calendar = config.mode === 'calendar';
@@ -111,7 +111,7 @@ export function BookService({ listing, go, back, tab }: { listing?: Listing; go:
           </View>
           <Text style={[styles.doneTitle, { color: colors.text }]}>{done.auto_confirmed ? 'Booking confirmed' : 'Booking requested'}</Text>
           <Text style={[styles.doneCopy, { color: colors.text2 }]}>{done.auto_confirmed ? 'Your time is reserved with the provider.' : `${listing.business_name || 'The provider'} will confirm your appointment with you shortly.`}</Text>
-          <Panel style={{ width: '100%', marginTop: 20, gap: 4 }}>
+          <Panel style={{ width: '100%', marginTop: 16, gap: 4 }}>
             <Row label="Reference" value={done.booking.code} strong />
             <Row label="Service" value={listing.title} />
             <Row label="Provider" value={listing.business_name || 'Verified provider'} />
@@ -119,8 +119,8 @@ export function BookService({ listing, go, back, tab }: { listing?: Listing; go:
             <Row label="Where" value={location === 'home' ? 'At your address' : 'At the provider'} />
             <Row label="Price" value={<Price value={listing.price} currency={listing.currency} size={18} from={listing.price_type === 'from'} />} />
           </Panel>
-          <View style={{ width: '100%', marginTop: 14 }}><Notice>Nothing has been charged. Payment is arranged directly with the provider.</Notice></View>
-          <View style={{ width: '100%', gap: 10, marginTop: 18 }}>
+          <View style={{ width: '100%', marginTop: 11 }}><Notice>Nothing has been charged. Payment is arranged directly with the provider.</Notice></View>
+          <View style={{ width: '100%', gap: 8, marginTop: 14 }}>
             <Button variant="deep" onPress={() => go('track', { bookingCode: done.booking.code, phone: form.contact_phone })}>Track this booking</Button>
             {wa ? <Button variant="mint" iconLeft="logo-whatsapp" onPress={() => void Linking.openURL(wa)}>Message the provider</Button> : null}
             <Button variant="tonal" onPress={() => go('bookings')}>View my bookings</Button>
@@ -169,7 +169,7 @@ export function BookService({ listing, go, back, tab }: { listing?: Listing; go:
         <Header title="Book a service" back={back} />
         <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
           <Panel style={styles.profile}>
-            <Thumb uri={listing.images?.[0]} style={styles.avatar} icon="scissors" iconSize={28} />
+            <Thumb uri={listing.images?.[0]} style={styles.avatar} icon="service-bell" iconSize={28} />
             <View style={{ flex: 1, gap: 4 }}>
               <Text numberOfLines={2} style={[styles.name, { color: colors.text }]}>{listing.title}</Text>
               <Text numberOfLines={1} style={[styles.sub, { color: colors.text2 }]}>{listing.business_name || 'Verified provider'}{listing.vendor_city ? ` · ${listing.vendor_city.trim()}` : ''}</Text>
@@ -204,7 +204,7 @@ export function BookService({ listing, go, back, tab }: { listing?: Listing; go:
           ) : (
             <>
               <Notice>This provider confirms appointments by request. Choose the time you would like and they will confirm or suggest another.</Notice>
-              <View style={[styles.timeGrid, { marginTop: 12 }]}>{REQUEST_TIMES.map((value) => {
+              <View style={[styles.timeGrid, { marginTop: 9 }]}>{REQUEST_TIMES.map((value) => {
                 const active = value === time;
                 const past = +new Date(`${day}T${value}:00${QATAR}`) < Date.now() + config.options.min_notice_hours * 3600000;
                 return <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: active, disabled: past }} disabled={past} onPress={() => setTime(value)} style={[styles.timeChip, { opacity: past ? 0.35 : 1, backgroundColor: active ? colors.primary : colors.surface, borderColor: active ? colors.primary : colors.border }]}>
@@ -216,38 +216,38 @@ export function BookService({ listing, go, back, tab }: { listing?: Listing; go:
           <Text style={[styles.caption, { color: colors.muted }]}>All times are Qatar time (AST).</Text>
 
           <StepHead n={3} title="Where" />
-          <View style={{ flexDirection: 'row', gap: 12 }}>
+          <View style={{ flexDirection: 'row', gap: 9 }}>
             {([['vendor', 'At the provider', 'Go to their location', 'storefront', config.options.offers_at_vendor], ['home', 'At my address', 'Home visit', 'home', config.options.offers_home_service]] as [string, string, string, IconName, boolean][]).map(([value, label, sub, icon, enabled]) => {
               const active = location === value;
               return <Pressable key={value} accessibilityRole="radio" accessibilityState={{ checked: active, disabled: !enabled }} disabled={!enabled} onPress={() => setLocation(value as 'vendor' | 'home')} style={[styles.where, { opacity: enabled ? 1 : 0.4 }, active ? [{ backgroundColor: colors.surface, borderColor: colors.primary }, softShadow(colors.shadow)] : { backgroundColor: colors.surface2, borderColor: 'transparent' }]}>
                 <Icon name={icon} solid={false} size={23} color={active ? colors.primary : colors.text2} />
-                <Text style={{ fontSize: 15.5, fontWeight: '800', color: colors.text, marginTop: 10 }}>{label}</Text>
-                <Text style={{ fontSize: 12.5, fontWeight: '600', color: colors.text2, marginTop: 2 }}>{enabled ? sub : 'Not offered'}</Text>
+                <Text style={{ fontSize: 13.5, fontWeight: '700', color: colors.text, marginTop: 8 }}>{label}</Text>
+                <Text style={{ fontSize: 11.5, fontWeight: '600', color: colors.text2, marginTop: 2 }}>{enabled ? sub : 'Not offered'}</Text>
               </Pressable>;
             })}
           </View>
-          {location === 'vendor' && config.options.vendor_address ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 }}><Icon name="location" solid={false} size={15} color={colors.text2} /><Text style={[styles.caption, { color: colors.text2, marginTop: 0, flexShrink: 1 }]}>{config.options.vendor_address}</Text></View> : null}
-          {location === 'home' ? <View style={{ marginTop: 12 }}>
+          {location === 'vendor' && config.options.vendor_address ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}><Icon name="location" solid={false} size={15} color={colors.text2} /><Text style={[styles.caption, { color: colors.text2, marginTop: 0, flexShrink: 1 }]}>{config.options.vendor_address}</Text></View> : null}
+          {location === 'home' ? <View style={{ marginTop: 9 }}>
             {config.options.home_service_notes ? <Notice>{config.options.home_service_notes}</Notice> : null}
             <View style={{ height: config.options.home_service_notes ? 12 : 0 }} />
-            <Field label="Your address" value={form.address} onChangeText={set('address')} multiline placeholder="Building, street, zone, Doha" style={{ minHeight: 76, textAlignVertical: 'top', paddingTop: 12 }} />
+            <Field label="Your address" value={form.address} onChangeText={set('address')} multiline placeholder="Building, street, zone, Doha" style={{ minHeight: 76, textAlignVertical: 'top', paddingTop: 9 }} />
           </View> : null}
 
           <StepHead n={4} title="Your details" />
           <Field label="Full name" value={form.contact_name} onChangeText={set('contact_name')} autoComplete="name" />
           <Field label="Phone number" value={form.contact_phone} onChangeText={set('contact_phone')} keyboardType="phone-pad" placeholder="+974…" />
           <Field label="Email (optional)" value={form.contact_email} onChangeText={set('contact_email')} keyboardType="email-address" autoCapitalize="none" />
-          <Field label="Note for the provider (optional)" value={form.note} onChangeText={set('note')} multiline placeholder="Anything they should know" style={{ minHeight: 76, textAlignVertical: 'top', paddingTop: 12 }} />
+          <Field label="Note for the provider (optional)" value={form.note} onChangeText={set('note')} multiline placeholder="Anything they should know" style={{ minHeight: 76, textAlignVertical: 'top', paddingTop: 9 }} />
           {!user ? <Notice type="warning">Sign in to send your booking and track it from your account.</Notice> : null}
-          <Text style={[styles.caption, { color: colors.muted, textAlign: 'center', marginTop: 14 }]}>Nothing is charged in the app. You pay the provider directly.</Text>
+          <Text style={[styles.caption, { color: colors.muted, textAlign: 'center', marginTop: 11 }]}>Nothing is charged in the app. You pay the provider directly.</Text>
         </ScrollView>
 
-        <BottomBar style={{ paddingHorizontal: 16, gap: 14 }}>
+        <BottomBar style={{ paddingHorizontal: 12, gap: 11 }}>
           <View style={{ flex: 1 }}>
             <Text style={[styles.totalLabel, { color: colors.text2 }]}>{chosenLabel ? 'YOUR APPOINTMENT' : 'SELECT DATE & TIME'}</Text>
             <Text numberOfLines={2} style={[styles.totalValue, { color: colors.text }]}>{chosenLabel || '—'}</Text>
           </View>
-          <Button variant="gold" loading={busy} disabled={!ready && !!user} onPress={() => void submit()} style={styles.cta} textStyle={{ fontSize: 15 }}>{user ? (config.options.auto_accept && calendar ? 'Book now' : 'Request booking') : 'Sign in to book'}</Button>
+          <Button variant="gold" loading={busy} disabled={!ready && !!user} onPress={() => void submit()} style={styles.cta} textStyle={{ fontSize: 13 }}>{user ? (config.options.auto_accept && calendar ? 'Book now' : 'Request booking') : 'Sign in to book'}</Button>
         </BottomBar>
       </KeyboardAvoidingView>
     </Screen>
@@ -258,7 +258,7 @@ function StepHead({ n, title }: { n: number; title: string }) {
   const { colors } = useTheme();
   return (
     <View style={styles.stepHead}>
-      <View style={[styles.stepNo, { backgroundColor: n % 2 === 0 ? colors.brown : colors.primary }]}><Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '800' }}>{n}</Text></View>
+      <View style={[styles.stepNo, { backgroundColor: n % 2 === 0 ? colors.brown : colors.primary }]}><Text style={{ color: '#FFFFFF', fontSize: 11.5, fontWeight: '700' }}>{n}</Text></View>
       <Text style={[styles.section, { color: colors.text }]}>{title}</Text>
     </View>
   );
@@ -270,20 +270,20 @@ function Row({ label, value, strong }: { label: string; value: ReactNode; strong
 }
 
 const styles = StyleSheet.create({
-  scroll: { padding: 16, paddingBottom: 28 },
-  profile: { flexDirection: 'row', gap: 14, alignItems: 'center' }, avatar: { width: 84, height: 84, borderRadius: 18 },
-  name: { fontSize: 17, fontWeight: '800', lineHeight: 22, letterSpacing: -0.2 }, sub: { fontSize: 13, fontWeight: '600' }, tags: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4, flexWrap: 'wrap' },
-  tag: { height: 28, borderRadius: 14, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 5 }, tagText: { fontSize: 12.5, fontWeight: '800' },
-  stepHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 26, marginBottom: 12 }, stepNo: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  section: { fontSize: 18, fontWeight: '800', letterSpacing: -0.3 },
-  dayRail: { gap: 10, paddingRight: 16 }, dayChip: { width: 66, height: 88, borderRadius: 20, borderWidth: 1, alignItems: 'center', justifyContent: 'center', gap: 1 },
-  dayWeek: { fontSize: 12.5, fontWeight: '700' }, dayNum: { fontSize: 22, fontWeight: '800' }, dayMonth: { fontSize: 12.5, fontWeight: '700' },
-  timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 }, timeChip: { minWidth: 82, height: 46, borderRadius: 15, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 }, timeText: { fontSize: 14.5, fontWeight: '800' },
-  caption: { fontSize: 12.5, marginTop: 10, fontWeight: '500' },
-  where: { flex: 1, borderRadius: 20, borderWidth: 1.5, padding: 15 },
-  totalLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1.1 }, totalValue: { fontSize: 14, fontWeight: '800', marginTop: 2, lineHeight: 18 },
-  cta: { minHeight: 54, minWidth: 150, paddingHorizontal: 22 },
-  doneScroll: { padding: 20, alignItems: 'center', paddingBottom: 40 }, doneIcon: { width: 96, height: 96, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginTop: 14 },
-  doneTitle: { fontSize: 27, fontWeight: '800', marginTop: 18, letterSpacing: -0.5 }, doneCopy: { fontSize: 14.5, lineHeight: 21, textAlign: 'center', marginTop: 8, maxWidth: 320 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, gap: 12 }, rowLabel: { fontSize: 13.5, fontWeight: '500' }, rowValue: { fontSize: 14, flexShrink: 1, textAlign: 'right' },
+  scroll: { padding: 12, paddingBottom: 22 },
+  profile: { flexDirection: 'row', gap: 11, alignItems: 'center' }, avatar: { width: 69, height: 69, borderRadius: 14 },
+  name: { fontSize: 14.5, fontWeight: '700', lineHeight: 19, letterSpacing: -0.2 }, sub: { fontSize: 11.5, fontWeight: '600' }, tags: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' },
+  tag: { height: 28, borderRadius: 11, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', gap: 5 }, tagText: { fontSize: 11.5, fontWeight: '700' },
+  stepHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 20, marginBottom: 9 }, stepNo: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  section: { fontSize: 15, fontWeight: '700', letterSpacing: -0.3 },
+  dayRail: { gap: 8, paddingRight: 12 }, dayChip: { width: 54, height: 74, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center', gap: 1 },
+  dayWeek: { fontSize: 11.5, fontWeight: '600' }, dayNum: { fontSize: 18, fontWeight: '700' }, dayMonth: { fontSize: 11.5, fontWeight: '600' },
+  timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, timeChip: { minWidth: 82, height: 39, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 11 }, timeText: { fontSize: 13, fontWeight: '700' },
+  caption: { fontSize: 11.5, marginTop: 8, fontWeight: '500' },
+  where: { flex: 1, borderRadius: 16, borderWidth: 1.5, padding: 12 },
+  totalLabel: { fontSize: 10.5, fontWeight: '700', letterSpacing: 1.1 }, totalValue: { fontSize: 12.5, fontWeight: '700', marginTop: 2, lineHeight: 16 },
+  cta: { minHeight: 45, minWidth: 150, paddingHorizontal: 17 },
+  doneScroll: { padding: 16, alignItems: 'center', paddingBottom: 31 }, doneIcon: { width: 79, height: 79, borderRadius: 26, alignItems: 'center', justifyContent: 'center', marginTop: 11 },
+  doneTitle: { fontSize: 21, fontWeight: '700', marginTop: 14, letterSpacing: -0.5 }, doneCopy: { fontSize: 13, lineHeight: 19, textAlign: 'center', marginTop: 8, maxWidth: 320 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, gap: 9 }, rowLabel: { fontSize: 12, fontWeight: '500' }, rowValue: { fontSize: 12.5, flexShrink: 1, textAlign: 'right' },
 });

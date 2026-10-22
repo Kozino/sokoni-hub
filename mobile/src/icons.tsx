@@ -1,5 +1,5 @@
 import { View } from 'react-native';
-import Svg, { Circle, Path } from 'react-native-svg';
+import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import * as O from 'react-native-heroicons/outline';
 import * as S from 'react-native-heroicons/solid';
 import type { ComponentType } from 'react';
@@ -56,16 +56,45 @@ function Compass({ size, color, solid }: { size: number; color: string; solid: b
   );
 }
 
-export type IconName = keyof typeof MAP | `${keyof typeof MAP}-outline` | 'radio-button-on' | 'radio-button-off' | 'compass' | 'compass-outline';
+
+/** A concierge / service bell: the universal "services" symbol (hair, beauty, home and other bookable help). Heroicons has none. */
+function ServiceBell({ size, color, solid }: { size: number; color: string; solid: boolean }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      {solid ? (
+        <>
+          <Path d="M12 5.9V8.2M10 5.9h4" stroke={color} strokeWidth={1.7} strokeLinecap="round" />
+          <Path fill={color} d="M3.9 16.1a8.1 8.1 0 0 1 16.2 0z" />
+          <Rect x={2.4} y={17.1} width={19.2} height={3} rx={1.5} fill={color} />
+          <Path d="M7.7 13.3a4.6 4.6 0 0 1 3-2.9" stroke="#FFFFFF" strokeOpacity={0.6} strokeWidth={1.4} strokeLinecap="round" />
+        </>
+      ) : (
+        <>
+          <Path d="M12 6.2V8.1M10.2 6.2h3.6" stroke={color} strokeWidth={1.6} strokeLinecap="round" />
+          <Path d="M4.2 16.2a7.8 7.8 0 0 1 15.6 0" stroke={color} strokeWidth={1.6} strokeLinecap="round" />
+          <Path d="M2.8 16.2h18.4M3.9 19.8h16.2" stroke={color} strokeWidth={1.6} strokeLinecap="round" />
+          <Path d="M7.6 13.1a4.6 4.6 0 0 1 3-2.8" stroke={color} strokeWidth={1.6} strokeLinecap="round" />
+        </>
+      )}
+    </Svg>
+  );
+}
+
+export type IconName = keyof typeof MAP | `${keyof typeof MAP}-outline` | 'radio-button-on' | 'radio-button-off' | 'compass' | 'compass-outline' | 'service-bell' | 'service-bell-outline';
+
+/** Icons render ~10% smaller than the size asked for: the whole app uses the compact scale. */
+const ICON_SCALE = 0.9;
 
 export function Icon({ name, size = 20, color = '#111827', solid }: { name: IconName; size?: number; color?: string; solid?: boolean }) {
-  if (name === 'radio-button-off') return <View style={{ width: size * .86, height: size * .86, borderRadius: size, borderWidth: 2, borderColor: color }} />;
-  if (name === 'radio-button-on') { const Solid = S.CheckCircleIcon as HeroIcon; return <Solid size={size} color={color} />; }
-  if (name === 'compass' || name === 'compass-outline') return <Compass size={size} color={color} solid={solid ?? name === 'compass'} />;
+  const px = Math.max(11, Math.round(size * ICON_SCALE));
+  if (name === 'radio-button-off') return <View style={{ width: px * .86, height: px * .86, borderRadius: px, borderWidth: 2, borderColor: color }} />;
+  if (name === 'radio-button-on') { const Solid = S.CheckCircleIcon as HeroIcon; return <Solid size={px} color={color} />; }
+  if (name === 'compass' || name === 'compass-outline') return <Compass size={px} color={color} solid={solid ?? name === 'compass'} />;
+  if (name === 'service-bell' || name === 'service-bell-outline') return <ServiceBell size={px} color={color} solid={solid ?? name === 'service-bell'} />;
   const outline = name.endsWith('-outline');
   const base = (outline ? name.slice(0, -8) : name) as keyof typeof MAP;
   const key = MAP[base] ?? 'QuestionMarkCircleIcon';
   const useSolid = solid ?? !outline;
   const Cmp = ((useSolid ? S : O) as unknown as Record<string, HeroIcon>)[key];
-  return <Cmp size={size} color={color} />;
+  return <Cmp size={px} color={color} />;
 }

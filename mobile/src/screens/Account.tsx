@@ -94,12 +94,12 @@ export function Account({ go, tab }: NavProps) {
     return (
       <Screen>
         <AppBar go={go} tab={tab} />
-        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60 }}>
-          <LinearGradient colors={[colors.primary, colors.deep]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.guestHero}>
+        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 47 }}>
+          <LinearGradient colors={[colors.heroB, colors.heroA]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.guestHero}>
             <View style={s.guestIcon}><Icon name="person" solid={false} size={38} color="#FFFFFF" /></View>
-            <Text style={{ fontSize: 24, fontWeight: '800', color: '#FFFFFF', marginTop: 14, letterSpacing: -0.4 }}>Your Sokoni Hub profile</Text>
-            <Text style={{ fontSize: 14.5, color: '#D3EEDF', textAlign: 'center', lineHeight: 21, marginTop: 8 }}>Sign in to place orders, book providers, keep your address handy and follow every request.</Text>
-            <View style={{ alignSelf: 'stretch', gap: 10, marginTop: 20 }}>
+            <Text style={{ fontSize: 19, fontWeight: '700', color: '#FFFFFF', marginTop: 11, letterSpacing: -0.4 }}>Your Sokoni Hub profile</Text>
+            <Text style={{ fontSize: 13, color: '#D3EEDF', textAlign: 'center', lineHeight: 19, marginTop: 8 }}>Sign in to place orders, book providers, keep your address handy and follow every request.</Text>
+            <View style={{ alignSelf: 'stretch', gap: 8, marginTop: 16 }}>
               <Button variant="gold" onPress={() => go('login')}>Sign in securely</Button>
               <Button variant="tonal" onPress={() => go('register')}>Create a buyer account</Button>
             </View>
@@ -128,8 +128,8 @@ export function Account({ go, tab }: NavProps) {
   return (
     <Screen>
       <AppBar go={go} tab={tab} />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={colors.primary} />}>
-        <LinearGradient colors={[colors.primary, colors.deep]} start={{ x: 0, y: 0 }} end={{ x: 0.9, y: 1 }} style={s.hero}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 47 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={colors.primary} />}>
+        <LinearGradient colors={[colors.heroB, colors.heroA]} start={{ x: 0, y: 0 }} end={{ x: 0.9, y: 1 }} style={s.hero}>
           <View style={s.heroTop}>
             <View>
               <Avatar name={user.full_name} size={76} tone="orange" />
@@ -190,9 +190,9 @@ export function Account({ go, tab }: NavProps) {
           accessibilityRole="button" onPress={() => Alert.alert('Sign out?', 'You will need your password and PIN to sign in again.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Sign out', style: 'destructive', onPress: () => void logout() }])}
           style={({ pressed }) => [s.signOut, { backgroundColor: colors.dangerSoft, opacity: pressed ? 0.85 : 1 }]}
         >
-          <Icon name="log-out" solid={false} size={21} color={colors.dangerText} /><Text style={{ fontSize: 16, fontWeight: '800', color: colors.dangerText }}>Sign Out</Text>
+          <Icon name="log-out" solid={false} size={21} color={colors.dangerText} /><Text style={{ fontSize: 13.5, fontWeight: '700', color: colors.dangerText }}>Sign Out</Text>
         </Pressable>
-        <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.text2, textAlign: 'center', marginTop: 18, paddingHorizontal: 24 }}>Sokoni Hub v{APP_VERSION}{BUILD ? ` (Build ${BUILD})` : ''} • Seller and admin tools stay on the secure web portal</Text>
+        <Text style={{ fontSize: 11.5, fontWeight: '600', color: colors.text2, textAlign: 'center', marginTop: 14, paddingHorizontal: 19 }}>Sokoni Hub v{APP_VERSION}{BUILD ? ` (Build ${BUILD})` : ''} • Seller and admin tools stay on the secure web portal</Text>
       </ScrollView>
       <Tabs active="account" tab={tab} />
 
@@ -200,7 +200,7 @@ export function Account({ go, tab }: NavProps) {
         <Field label="Full name" value={editForm.name} onChangeText={(v) => setEditForm({ ...editForm, name: v })} autoComplete="name" />
         <Field label="Email (optional)" value={editForm.email} onChangeText={(v) => setEditForm({ ...editForm, email: v })} keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
         <Field label="Phone number" value={phone} editable={false} style={{ opacity: 0.6 }} />
-        <Text style={{ fontSize: 12.5, color: colors.text2, marginTop: -6, marginBottom: 14, lineHeight: 18 }}>Your phone number is your sign-in. To change it, contact Sokoni Hub support.</Text>
+        <Text style={{ fontSize: 11.5, color: colors.text2, marginTop: -6, marginBottom: 11, lineHeight: 17 }}>Your phone number is your sign-in. To change it, contact Sokoni Hub support.</Text>
         <Button onPress={submitEdit} loading={editBusy}>Save changes</Button>
       </Sheet>
 
@@ -210,12 +210,12 @@ export function Account({ go, tab }: NavProps) {
             <View style={[s.addressCard, { backgroundColor: colors.surface2 }]}>
               <Icon name="location" solid={false} size={22} color={colors.primary} />
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 15.5, fontWeight: '800', color: colors.text, lineHeight: 22 }}>{draft.address}</Text>
-                <Text style={{ fontSize: 13.5, color: colors.text2, marginTop: 3, fontWeight: '600' }}>{[draft.city, draft.country].filter(Boolean).join(', ')}{draft.lat !== null ? ' · map pin saved' : ''}</Text>
+                <Text style={{ fontSize: 13.5, fontWeight: '700', color: colors.text, lineHeight: 19 }}>{draft.address}</Text>
+                <Text style={{ fontSize: 12, color: colors.text2, marginTop: 3, fontWeight: '600' }}>{[draft.city, draft.country].filter(Boolean).join(', ')}{draft.lat !== null ? ' · map pin saved' : ''}</Text>
               </View>
             </View>
-            <Text style={{ fontSize: 13, color: colors.text2, marginTop: 12, lineHeight: 19 }}>This is the address from your last checkout. It is kept on this phone only and pre-fills your next order — you can change it there.</Text>
-            <Button variant="secondary" style={{ marginTop: 16 }} onPress={() => { setDraft({ address: '', city: '', lat: null, lng: null }); setAddressSheet(false); }}>Remove saved address</Button>
+            <Text style={{ fontSize: 11.5, color: colors.text2, marginTop: 9, lineHeight: 17 }}>This is the address from your last checkout. It is kept on this phone only and pre-fills your next order — you can change it there.</Text>
+            <Button variant="secondary" style={{ marginTop: 12 }} onPress={() => { setDraft({ address: '', city: '', lat: null, lng: null }); setAddressSheet(false); }}>Remove saved address</Button>
           </>
         ) : <Notice>No address is saved yet. It is remembered on this phone when you place your first order.</Notice>}
       </Sheet>
@@ -223,14 +223,14 @@ export function Account({ go, tab }: NavProps) {
       <Sheet visible={passSheet} title="Change Password" onClose={() => setPassSheet(false)}>
         <Field label="Current Password" value={passForm.current} onChangeText={(v) => setPassForm({ ...passForm, current: v })} secureTextEntry />
         <Field label="New Password (12+ chars)" value={passForm.newPass} onChangeText={(v) => setPassForm({ ...passForm, newPass: v })} secureTextEntry />
-        <Button onPress={submitPass} loading={passBusy} style={{ marginTop: 12 }}>Update Password</Button>
+        <Button onPress={submitPass} loading={passBusy} style={{ marginTop: 9 }}>Update Password</Button>
       </Sheet>
 
       <Sheet visible={pinSheet} title="Change PIN" onClose={() => setPinSheet(false)}>
         <Field label="Current PIN" value={pinForm.current} onChangeText={(v) => setPinForm({ ...pinForm, current: v })} secureTextEntry keyboardType="number-pad" maxLength={4} />
         <Field label="New PIN" value={pinForm.newPin} onChangeText={(v) => setPinForm({ ...pinForm, newPin: v })} secureTextEntry keyboardType="number-pad" maxLength={4} />
         <Field label="Confirm New PIN" value={pinForm.confirm} onChangeText={(v) => setPinForm({ ...pinForm, confirm: v })} secureTextEntry keyboardType="number-pad" maxLength={4} />
-        <Button onPress={submitPin} loading={pinBusy} style={{ marginTop: 12 }}>Update PIN</Button>
+        <Button onPress={submitPin} loading={pinBusy} style={{ marginTop: 9 }}>Update PIN</Button>
       </Sheet>
 
       <Sheet visible={deleteSheet} title="Delete account" onClose={() => setDeleteSheet(false)}>
@@ -238,11 +238,11 @@ export function Account({ go, tab }: NavProps) {
         <View style={{ height: 12 }} />
         <Field label="Current Password" value={deleteForm.password} onChangeText={(v) => setDeleteForm({ ...deleteForm, password: v })} secureTextEntry />
         <Field label="Reason (optional)" value={deleteForm.reason} onChangeText={(v) => setDeleteForm({ ...deleteForm, reason: v })} multiline maxLength={500} />
-        <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: deleteForm.agree }} onPress={() => setDeleteForm({ ...deleteForm, agree: !deleteForm.agree })} style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start', marginBottom: 12 }}>
+        <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: deleteForm.agree }} onPress={() => setDeleteForm({ ...deleteForm, agree: !deleteForm.agree })} style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start', marginBottom: 9 }}>
           <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: deleteForm.agree ? colors.primary : colors.border, backgroundColor: deleteForm.agree ? colors.primary : 'transparent', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
             {deleteForm.agree ? <Icon name="check" size={14} color={colors.onPrimary} /> : null}
           </View>
-          <Text style={{ flex: 1, fontSize: 13, color: colors.text, lineHeight: 19 }}>I understand my account will be deleted after review and cannot be undone.</Text>
+          <Text style={{ flex: 1, fontSize: 11.5, color: colors.text, lineHeight: 17 }}>I understand my account will be deleted after review and cannot be undone.</Text>
         </Pressable>
         <Button variant="danger" onPress={submitDelete} loading={deleteBusy}>Request deletion</Button>
       </Sheet>
@@ -260,10 +260,10 @@ function Row({ icon, tint, title, sub, value, right, onPress, dot, last }: { ico
     <View style={[s.row, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}>
       <View style={[s.rowIcon, { backgroundColor: bg }]}><Icon name={icon} solid={false} size={21} color={fg} /></View>
       <View style={{ flex: 1 }}>
-        <Text numberOfLines={2} style={{ fontSize: 15.5, fontWeight: '800', color: colors.text }}>{title}</Text>
-        {sub ? <Text numberOfLines={2} style={{ fontSize: 13.5, color: colors.text2, marginTop: 2, lineHeight: 19, fontWeight: '500' }}>{sub}</Text> : null}
+        <Text numberOfLines={2} style={{ fontSize: 13.5, fontWeight: '700', color: colors.text }}>{title}</Text>
+        {sub ? <Text numberOfLines={2} style={{ fontSize: 12, color: colors.text2, marginTop: 2, lineHeight: 17, fontWeight: '500' }}>{sub}</Text> : null}
       </View>
-      {value ? <Text numberOfLines={1} style={{ fontSize: 13.5, fontWeight: '800', color: colors.primary, maxWidth: 110 }}>{value}</Text> : null}
+      {value ? <Text numberOfLines={1} style={{ fontSize: 12, fontWeight: '700', color: colors.primary, maxWidth: 110 }}>{value}</Text> : null}
       {dot ? <View style={[s.dot, { backgroundColor: colors.orange }]} /> : null}
       {right ?? (onPress || value ? <Icon name="chevron-forward" size={18} color={colors.muted} /> : null)}
     </View>
@@ -280,35 +280,35 @@ function Tile({ icon, tint, label, pill, pillTone, onPress }: { icon: IconName; 
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={`${label}, ${pill}`} onPress={onPress} style={({ pressed }) => [s.tile, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.9 : 1 }, softShadow(colors.shadow, 2)]}>
       <View style={[s.tileIcon, { backgroundColor: bg }]}><Icon name={icon} solid={false} size={24} color={fg} /></View>
-      <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text, marginTop: 10 }}>{label}</Text>
-      <View style={[s.tilePill, { backgroundColor: pillBg }]}><Text style={{ fontSize: 11.5, fontWeight: '800', color: pillFg }}>{pill}</Text></View>
+      <Text style={{ fontSize: 14.5, fontWeight: '700', color: colors.text, marginTop: 8 }}>{label}</Text>
+      <View style={[s.tilePill, { backgroundColor: pillBg }]}><Text style={{ fontSize: 11, fontWeight: '700', color: pillFg }}>{pill}</Text></View>
     </Pressable>
   );
 }
 
 const s = StyleSheet.create({
-  hero: { paddingHorizontal: 18, paddingTop: 22, paddingBottom: 86, borderBottomLeftRadius: 40, borderBottomRightRadius: 40 },
-  heroTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  hero: { paddingHorizontal: 14, paddingTop: 17, paddingBottom: 67, borderBottomLeftRadius: 40, borderBottomRightRadius: 40 },
+  heroTop: { flexDirection: 'row', alignItems: 'center', gap: 11 },
   verified: { position: 'absolute', right: -2, bottom: -2, width: 26, height: 26, borderRadius: 13, borderWidth: 3, alignItems: 'center', justifyContent: 'center' },
-  name: { fontSize: 25, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.5 },
-  phone: { fontSize: 15, color: '#D3EEDF', fontWeight: '600', marginTop: 2 },
-  city: { fontSize: 14, color: '#E4F7EC', fontWeight: '800' },
-  edit: { width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' },
-  strip: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(0,0,0,0.22)', borderRadius: 16, paddingHorizontal: 14, height: 48, marginTop: 18 },
-  stripText: { flex: 1, color: '#FFFFFF', fontSize: 14.5, fontWeight: '800' },
-  stripPill: { backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 11, paddingHorizontal: 12, height: 26, justifyContent: 'center' },
-  stripPillText: { color: '#E4F7EC', fontSize: 12.5, fontWeight: '800' },
-  tiles: { flexDirection: 'row', gap: 12, paddingHorizontal: 16, marginTop: -58 },
-  tile: { flex: 1, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', paddingVertical: 16, paddingHorizontal: 6 },
-  tileIcon: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  tilePill: { borderRadius: 10, paddingHorizontal: 10, height: 22, justifyContent: 'center', marginTop: 8 },
-  group: { fontSize: 12, fontWeight: '800', letterSpacing: 1.2, marginTop: 26, marginBottom: 10, paddingHorizontal: 20 },
-  list: { marginHorizontal: 16, padding: 6 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 12, paddingHorizontal: 10 },
-  rowIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  name: { fontSize: 19.5, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.5 },
+  phone: { fontSize: 13, color: '#D3EEDF', fontWeight: '600', marginTop: 2 },
+  city: { fontSize: 12.5, color: '#E4F7EC', fontWeight: '700' },
+  edit: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' },
+  strip: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(0,0,0,0.22)', borderRadius: 13, paddingHorizontal: 11, height: 40, marginTop: 14 },
+  stripText: { flex: 1, color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
+  stripPill: { backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 11, paddingHorizontal: 9, height: 26, justifyContent: 'center' },
+  stripPillText: { color: '#E4F7EC', fontSize: 11.5, fontWeight: '700' },
+  tiles: { flexDirection: 'row', gap: 9, paddingHorizontal: 12, marginTop: -58 },
+  tile: { flex: 1, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', paddingVertical: 12, paddingHorizontal: 6 },
+  tileIcon: { width: 43, height: 43, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  tilePill: { borderRadius: 10, paddingHorizontal: 8, height: 22, justifyContent: 'center', marginTop: 8 },
+  group: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2, marginTop: 20, marginBottom: 8, paddingHorizontal: 16 },
+  list: { marginHorizontal: 12, padding: 6 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9, paddingHorizontal: 8 },
+  rowIcon: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   dot: { width: 10, height: 10, borderRadius: 5, marginRight: 4 },
-  signOut: { marginHorizontal: 16, marginTop: 28, height: 58, borderRadius: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
-  guestHero: { borderRadius: 28, padding: 22, alignItems: 'center' },
-  guestIcon: { width: 76, height: 76, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' },
-  addressCard: { flexDirection: 'row', gap: 12, borderRadius: 16, padding: 16 },
+  signOut: { marginHorizontal: 12, marginTop: 22, height: 49, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  guestHero: { borderRadius: 22, padding: 17, alignItems: 'center' },
+  guestIcon: { width: 62, height: 62, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' },
+  addressCard: { flexDirection: 'row', gap: 9, borderRadius: 13, padding: 12 },
 });

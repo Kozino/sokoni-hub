@@ -78,6 +78,13 @@ export function shortDate(value?: string | null) {
   const sameYear = d.getUTCFullYear() === wall(Date.now()).getUTCFullYear();
   return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}${sameYear ? '' : `, ${d.getUTCFullYear()}`}`;
 }
+const MONTHS_FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+/** "23 October 2026, 2:43 PM" in Qatar time (used on receipts). */
+export function fullDateTime(value?: string | null, abbr = false) {
+  if (!valid(value)) return '';
+  const d = wall(value);
+  return `${d.getUTCDate()} ${abbr ? MONTHS[d.getUTCMonth()] : MONTHS_FULL[d.getUTCMonth()]} ${d.getUTCFullYear()}, ${time12(value)}`;
+}
 /** "Saturday, Oct 28" */
 export function longDate(value?: string | null) {
   if (!valid(value)) return '';

@@ -7,11 +7,11 @@ export function GuestGate({ title, text, go, back, heading = 'Your activity' }: 
   return (
     <Screen>
       <Header title={heading} back={back} />
-      <View style={{ flex: 1, justifyContent: 'center', paddingBottom: 60 }}>
+      <View style={{ flex: 1, justifyContent: 'center', paddingBottom: 47 }}>
         <EmptyState
           title={title} text={text} icon="lock-closed-outline"
           action={(
-            <View style={{ gap: 10, marginTop: 12, alignSelf: 'stretch', paddingHorizontal: 28 }}>
+            <View style={{ gap: 8, marginTop: 9, alignSelf: 'stretch', paddingHorizontal: 22 }}>
               <Button onPress={() => go('login')}>Sign in</Button>
               <Button variant="tonal" onPress={() => go('register')}>Create a buyer account</Button>
             </View>

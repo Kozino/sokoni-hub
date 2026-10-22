@@ -4,7 +4,7 @@
  * Screens compose these; nothing in here knows about a specific screen.
  */
 import { Image as ExpoImage } from 'expo-image';
-import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode, type Ref } from 'react';
 import { Animated, Image, Pressable, ScrollView, StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCity } from './city';
@@ -14,6 +14,7 @@ import { tap } from './haptics';
 import { Icon, type IconName } from './icons';
 import type { Go, TabTo } from './nav';
 import { useAuth, useCart, useTheme, type Colors } from './providers';
+import { scaleFont } from './type';
 import { Chip, Dropdown, Text, TextInput } from './ui';
 
 /** Soft card shadow used across the app. */
@@ -46,9 +47,24 @@ export function Avatar({ name, uri, size = 40, square = false, tone = 'deep' }: 
   const radius = square ? Math.round(size * 0.3) : size / 2;
   return (
     <View style={{ width: size, height: size, borderRadius: radius, backgroundColor: bg, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-      {uri ? <ExpoImage source={{ uri }} contentFit="cover" style={StyleSheet.absoluteFill} /> : letters ? <Text style={{ color: fg, fontSize: Math.round(size * 0.38), fontWeight: '800' }}>{letters}</Text> : <Icon name="person" size={Math.round(size * 0.5)} color={fg} />}
+      {uri ? <ExpoImage source={{ uri }} contentFit="cover" style={StyleSheet.absoluteFill} /> : letters ? <Text style={{ color: fg, fontSize: Math.round(size * 0.38), fontWeight: '700' }}>{letters}</Text> : <Icon name="person" size={Math.round(size * 0.5)} color={fg} />}
     </View>
   );
+}
+
+
+/** Rotating accent colours (foreground + soft background) so lists of categories, steps and sections are colourful. */
+export function accentAt(colors: Colors, index: number): { fg: string; bg: string } {
+  const set = [
+    { fg: colors.primary, bg: colors.primarySoft },
+    { fg: colors.orange, bg: colors.orangeSoft },
+    { fg: colors.violet, bg: colors.violetSoft },
+    { fg: colors.sky, bg: colors.skySoft },
+    { fg: colors.rose, bg: colors.roseSoft },
+    { fg: colors.amber, bg: colors.amberSoft },
+    { fg: colors.teal, bg: colors.tealSoft },
+  ];
+  return set[((index % set.length) + set.length) % set.length];
 }
 
 /* --------------------------------------------------------------------------------- AppBar */
@@ -73,7 +89,7 @@ export function AppBar({ go, tab }: { go: Go; tab: TabTo }) {
         </Pressable>
         <Dropdown value={city} options={options} onChange={setCity} menuWidth={220} style={kit.cityTrigger} renderTrigger={() => (
           <View style={kit.cityRow}>
-            <Icon name="location" size={13} color={colors.orange} />
+            <Icon name="location" size={12} color={colors.orange} />
             <Text numberOfLines={1} style={[kit.cityText, { color: colors.text2 }]}>{city ? `${city}, Qatar` : 'All of Qatar'}</Text>
             <Icon name="chevron-down" size={12} color={colors.muted} />
           </View>
@@ -81,15 +97,15 @@ export function AppBar({ go, tab }: { go: Go; tab: TabTo }) {
       </View>
       <View style={kit.actions}>
         <Pressable accessibilityRole="button" accessibilityLabel={attention ? 'Notifications, new activity' : 'Notifications'} hitSlop={6} onPress={() => { tap(); go('notifications'); }} style={kit.action}>
-          <Icon name="notifications" solid={false} size={24} color={colors.text} />
+          <Icon name="notifications" solid={false} size={23} color={colors.text} />
           {attention ? <View style={[kit.dot, { backgroundColor: colors.orange, borderColor: colors.surface }]} /> : null}
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel={count ? `Cart, ${count} items` : 'Cart'} hitSlop={6} onPress={() => { tap(); tab('cart'); }} style={kit.action}>
-          <Icon name="bag-handle" solid={false} size={24} color={colors.text} />
+          <Icon name="bag-handle" solid={false} size={23} color={colors.text} />
           {count > 0 ? <View style={[kit.countBadge, { backgroundColor: colors.orange, borderColor: colors.surface }]}><Text style={[kit.countText, { color: colors.onOrange }]}>{count > 9 ? '9+' : count}</Text></View> : null}
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel={user ? 'Profile' : 'Sign in'} hitSlop={6} onPress={() => { tap(); if (user) tab('account'); else go('login'); }}>
-          <Avatar name={user?.full_name} size={40} />
+          <Avatar name={user?.full_name} size={32} />
         </Pressable>
       </View>
     </View>
@@ -97,9 +113,11 @@ export function AppBar({ go, tab }: { go: Go; tab: TabTo }) {
 }
 
 /* --------------------------------------------------------------------------------- Tabs */
-const BAR_H = 64;
-const LIFT = 24;
-const FAB = 58;
+const BAR_H = 54;
+const LIFT = 20;
+const FAB = 50;
+/** How far the tab bar's raised centre button rises above the bar; sticky bars above the tabs add this as bottom padding. */
+export const TAB_LIFT = LIFT;
 type TabKey = 'home' | 'browse' | 'services' | 'cart' | 'account';
 
 /**
@@ -114,7 +132,7 @@ export function Tabs({ active, tab, kind }: { active: string; tab: TabTo; kind?:
   const items: { key: TabKey; label: string; icon: IconName }[] = [
     { key: 'home', label: 'Explore', icon: 'compass' },
     { key: 'browse', label: 'Categories', icon: 'grid' },
-    { key: 'services', label: 'Services', icon: 'scissors' },
+    { key: 'services', label: 'Services', icon: 'service-bell' },
     { key: 'cart', label: 'Cart', icon: 'bag-handle' },
     { key: 'account', label: 'Profile', icon: 'person' },
   ];
@@ -127,8 +145,8 @@ export function Tabs({ active, tab, kind }: { active: string; tab: TabTo; kind?:
           if (item.key === 'services') {
             return (
               <Pressable key={item.key} accessibilityRole="button" accessibilityLabel="Services" accessibilityState={{ selected }} onPress={() => press('services')} style={kit.tabItem}>
-                <View style={{ height: 26 }} />
-                <Text style={[kit.tabLabel, { color: colors.brown, fontWeight: '800', marginTop: 6 }]}>Services</Text>
+                <View style={{ height: 22 }} />
+                <Text style={[kit.tabLabel, { color: colors.brown, fontWeight: '700', marginTop: 1 }]}>Services</Text>
               </Pressable>
             );
           }
@@ -136,23 +154,25 @@ export function Tabs({ active, tab, kind }: { active: string; tab: TabTo; kind?:
           return (
             <Pressable key={item.key} accessibilityRole="button" accessibilityLabel={item.label} accessibilityState={{ selected }} onPress={() => press(item.key)} style={kit.tabItem}>
               <View>
-                <Icon name={item.icon} solid={selected} size={24} color={color} />
+                <Icon name={item.icon} solid={selected} size={23} color={color} />
                 {item.key === 'cart' && count > 0 ? <View style={[kit.tabBadge, { backgroundColor: colors.orange, borderColor: colors.tab }]}><Text style={[kit.countText, { color: colors.onOrange }]}>{count > 9 ? '9+' : count}</Text></View> : null}
               </View>
-              <Text style={[kit.tabLabel, { color: selected ? colors.text : colors.muted, fontWeight: selected ? '800' : '600' }]}>{item.label}</Text>
+              <Text style={[kit.tabLabel, { color: selected ? colors.text : colors.muted, fontWeight: selected ? '700' : '600' }]}>{item.label}</Text>
             </Pressable>
           );
         })}
       </View>
       <View pointerEvents="box-none" style={kit.fabWrap}>
         <Pressable accessibilityRole="button" accessibilityLabel="Services" onPress={() => press('services')} style={({ pressed }) => [kit.fab, { backgroundColor: colors.orange, borderColor: colors.tab, shadowColor: colors.orange, opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] }]}>
-          <Icon name="scissors" solid={false} size={27} color={colors.onOrange} />
+          <Icon name="service-bell" solid={false} size={28} color={colors.onOrange} />
         </Pressable>
       </View>
     </View>
   );
 }
 function useSafeInsetBottom() { return Math.max(useSafeAreaInsets().bottom, 6); }
+/** Full height of the tab bar including the home-indicator inset. Floating bars above the tabs sit at this bottom offset. */
+export function useTabHeight() { return BAR_H + useSafeInsetBottom(); }
 /** Height the toast must clear: tab bar + home indicator + a little air. */
 export const TAB_CLEARANCE = BAR_H + 22;
 
@@ -162,7 +182,7 @@ export function PageTitle({ title, subtitle, back, right, badge }: { title: stri
   const { colors } = useTheme();
   return (
     <View style={kit.pageTitle}>
-      {back ? <Pressable accessibilityRole="button" accessibilityLabel="Go back" hitSlop={8} onPress={back} style={kit.pageBack}><Icon name="arrow-back" size={24} color={colors.text} /></Pressable> : null}
+      {back ? <Pressable accessibilityRole="button" accessibilityLabel="Go back" hitSlop={8} onPress={back} style={kit.pageBack}><Icon name="arrow-back" size={22} color={colors.text} /></Pressable> : null}
       <View style={{ flex: 1 }}>
         <View style={kit.pageTitleRow}>
           <Text style={[kit.pageTitleText, { color: colors.text }]} numberOfLines={1}>{title}</Text>
@@ -176,7 +196,7 @@ export function PageTitle({ title, subtitle, back, right, badge }: { title: stri
 }
 
 /** Round white icon button used in page headers (search, help, calendar...). */
-export function RoundButton({ icon, onPress, label, tone = 'white', size = 44 }: { icon: IconName; onPress: () => void; label: string; tone?: 'white' | 'lav'; size?: number }) {
+export function RoundButton({ icon, onPress, label, tone = 'white', size = 36 }: { icon: IconName; onPress: () => void; label: string; tone?: 'white' | 'lav'; size?: number }) {
   const { colors } = useTheme();
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={() => { tap(); onPress(); }} style={({ pressed }) => [{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: tone === 'white' ? colors.surface : colors.lav2, borderWidth: tone === 'white' ? StyleSheet.hairlineWidth : 0, borderColor: colors.border, opacity: pressed ? 0.8 : 1 }, tone === 'white' ? softShadow(colors.shadow) : null]}>
@@ -195,7 +215,7 @@ export function SubBar({ title, eyebrow, back, right }: { title: string; eyebrow
         {eyebrow ? <Text style={[kit.eyebrowBrown, { color: colors.brown }]}>{eyebrow}</Text> : null}
         <Text numberOfLines={1} style={[kit.subBarTitle, { color: colors.text }]}>{title}</Text>
       </View>
-      {right ?? <View style={{ width: 44 }} />}
+      {right ?? <View style={{ width: 36 }} />}
     </View>
   );
 }
@@ -209,13 +229,13 @@ export function SearchBar({ value, onChangeText, onSubmit, placeholder, onFilter
   return (
     <View style={[kit.searchRow, style]}>
       <View style={[kit.searchBox, { backgroundColor: colors.surface, borderColor: colors.border }, softShadow(colors.shadow)]}>
-        <Icon name="search" solid={false} size={21} color={colors.text2} />
+        <Icon name="search" solid={false} size={20} color={colors.text2} />
         <TextInput ref={inputRef} accessibilityLabel={placeholder} value={value} onChangeText={onChangeText} onFocus={onFocus} placeholder={placeholder} placeholderTextColor={colors.muted} returnKeyType="search" autoCorrect={false} onSubmitEditing={onSubmit} style={[kit.searchInput, { color: colors.text }]} />
-        {value ? <Pressable accessibilityRole="button" accessibilityLabel="Clear search" hitSlop={10} onPress={() => onChangeText('')}><Icon name="close-circle" size={20} color={colors.muted} /></Pressable> : null}
+        {value ? <Pressable accessibilityRole="button" accessibilityLabel="Clear search" hitSlop={10} onPress={() => onChangeText('')}><Icon name="close-circle" size={19} color={colors.muted} /></Pressable> : null}
       </View>
       {onFilter ? (
         <Pressable accessibilityRole="button" accessibilityLabel="Filters and sorting" onPress={() => { tap(); onFilter(); }} style={[kit.filterButton, { backgroundColor: colors.lav2 }]}>
-          <Icon name="tune" solid={false} size={23} color={colors.text} />
+          <Icon name="tune" solid={false} size={21} color={colors.text} />
           {filterCount > 0 ? <View style={[kit.filterBadge, { backgroundColor: colors.orange, borderColor: colors.lav2 }]}><Text style={[kit.countText, { color: colors.onOrange }]}>{filterCount}</Text></View> : null}
         </Pressable>
       ) : null}
@@ -273,7 +293,7 @@ export function Pill({ tone = 'mint', icon, children, upper = false, small = fal
   return (
     <View style={[kit.pill, small && kit.pillSmall, { backgroundColor: bg }, style]}>
       {icon ? <Icon name={icon} solid={false} size={small ? 11 : 14} color={fg} /> : null}
-      <Text numberOfLines={1} style={{ color: fg, fontSize: small ? 10 : 12.5, fontWeight: '800', letterSpacing: upper ? 0.5 : 0 }}>{upper && typeof children === 'string' ? children.toUpperCase() : children}</Text>
+      <Text numberOfLines={1} style={{ color: fg, fontSize: small ? 9.5 : 11, fontWeight: '700', letterSpacing: upper ? 0.5 : 0 }}>{upper && typeof children === 'string' ? children.toUpperCase() : children}</Text>
     </View>
   );
 }
@@ -326,12 +346,14 @@ export function RatingChip({ avg, count, flat = false }: { avg: number; count?: 
 export function Price({ value, currency = 'QAR', size = 22, from = false, color, suffix }: { value: number | string; currency?: string; size?: number; from?: boolean; color?: string; suffix?: string }) {
   const { colors } = useTheme();
   const c = color ?? colors.primary;
+  const big = scaleFont(size);
+  const small = Math.max(9.5, Math.round(big * 0.58));
   return (
     <Text style={{ color: c }}>
-      {from ? <Text style={{ fontSize: Math.max(11, Math.round(size * 0.55)), fontWeight: '600', color: colors.text2 }}>From </Text> : null}
-      <Text style={{ fontSize: size, fontWeight: '800', color: c }}>{num(value)}</Text>
-      <Text style={{ fontSize: Math.max(10, Math.round(size * 0.5)), fontWeight: '700', color: c }}> {currency}</Text>
-      {suffix ? <Text style={{ fontSize: Math.max(10, Math.round(size * 0.5)), fontWeight: '600', color: colors.text2 }}> {suffix}</Text> : null}
+      {from ? <Text style={{ fontSize: Math.max(10, Math.round(big * 0.62)), fontWeight: '600', color: colors.text2 }}>From </Text> : null}
+      <Text style={{ fontSize: big, fontWeight: '700', color: c }}>{num(value)}</Text>
+      <Text style={{ fontSize: small, fontWeight: '600', color: c }}> {currency}</Text>
+      {suffix ? <Text style={{ fontSize: small, fontWeight: '600', color: colors.text2 }}> {suffix}</Text> : null}
     </Text>
   );
 }
@@ -343,9 +365,9 @@ export function QtyStepper({ qty, onMinus, onPlus, max, label }: { qty: number; 
   const btn = (disabled: boolean) => [kit.stepBtn, { backgroundColor: colors.surface, opacity: disabled ? 0.45 : 1 }, softShadow(colors.shadow)];
   return (
     <View style={[kit.stepper, { backgroundColor: colors.lav2 }]}>
-      <Pressable accessibilityRole="button" accessibilityLabel={`Decrease quantity of ${label}`} hitSlop={6} disabled={qty <= 1} onPress={() => { tap(); onMinus(); }} style={btn(qty <= 1)}><Icon name="remove" size={16} color={colors.text} /></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Decrease quantity of ${label}`} hitSlop={6} disabled={qty <= 1} onPress={() => { tap(); onMinus(); }} style={btn(qty <= 1)}><Icon name="remove" size={15} color={colors.text} /></Pressable>
       <Text style={[kit.stepQty, { color: colors.text }]}>{qty}</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel={`Increase quantity of ${label}`} hitSlop={6} disabled={atMax} onPress={() => { tap(); onPlus(); }} style={btn(atMax)}><Icon name="add" size={16} color={colors.text} /></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Increase quantity of ${label}`} hitSlop={6} disabled={atMax} onPress={() => { tap(); onPlus(); }} style={btn(atMax)}><Icon name="add" size={15} color={colors.text} /></Pressable>
     </View>
   );
 }
@@ -357,11 +379,8 @@ export function SortPill<T extends string>({ value, options, onChange }: { value
   return (
     <Dropdown value={value} options={options} onChange={(v) => onChange(v as T)} menuWidth={220} renderTrigger={(label) => (
       <View style={[kit.sortPill, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <View>
-          <Text style={[kit.sortCaption, { color: colors.text2 }]}>Sort:</Text>
-          <Text numberOfLines={1} style={[kit.sortValue, { color: colors.text }]}>{label}</Text>
-        </View>
-        <Icon name="chevron-down" size={15} color={colors.text} />
+        <Text numberOfLines={1} style={[kit.sortValue, { color: colors.text }]}><Text style={[kit.sortCaption, { color: colors.text2 }]}>Sort: </Text>{label}</Text>
+        <Icon name="chevron-down" size={13} color={colors.text} />
       </View>
     )} />
   );
@@ -374,7 +393,7 @@ export function ViewToggle({ mode, onChange }: { mode: 'grid' | 'list'; onChange
     <View style={[kit.viewToggle, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       {(['grid', 'list'] as const).map((m) => (
         <Pressable key={m} accessibilityRole="button" accessibilityLabel={m === 'grid' ? 'Grid view' : 'List view'} accessibilityState={{ selected: mode === m }} onPress={() => { tap(); onChange(m); }} style={[kit.viewBtn, mode === m && { backgroundColor: colors.primarySoft }]}>
-          <Icon name={m === 'grid' ? 'grid' : 'list'} solid={false} size={19} color={mode === m ? colors.primary : colors.text2} />
+          <Icon name={m === 'grid' ? 'grid' : 'list'} solid={false} size={18} color={mode === m ? colors.primary : colors.text2} />
         </Pressable>
       ))}
     </View>
@@ -396,7 +415,7 @@ export function SectionLabel({ title, action, onAction, dot = false }: { title: 
         {dot ? <View style={[kit.labelDot, { backgroundColor: colors.orange }]} /> : null}
         <Text numberOfLines={1} style={[kit.eyebrow, { color: dot ? colors.brown : colors.text2 }]}>{title.toUpperCase()}</Text>
       </View>
-      {action ? <Pressable accessibilityRole="button" hitSlop={8} onPress={onAction} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><Text style={[kit.seeAll, { color: colors.brown }]}>{action}</Text><Icon name="arrow-forward" size={14} color={colors.brown} /></Pressable> : null}
+      {action ? <Pressable accessibilityRole="button" hitSlop={8} onPress={onAction} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><Text style={[kit.seeAll, { color: colors.brown }]}>{action}</Text><Icon name="arrow-forward" size={13} color={colors.brown} /></Pressable> : null}
     </View>
   );
 }
@@ -445,18 +464,22 @@ export function InfoLine({ icon, title, sub, tint }: { icon: IconName; title: st
   );
 }
 
-/** Delivery / Pick-up choice card used by the cart and checkout. */
+/** Delivery / Pick-up choice card used by the cart and checkout. Delivery is green, pick up is orange. */
 export function ModeCard({ selected, icon, title, sub, price, onPress }: { selected: boolean; icon: 'car' | 'storefront'; title: string; sub: string; price: string; onPress: () => void }) {
   const { colors } = useTheme();
+  const tint = icon === 'car' ? colors.primary : colors.orange;
+  const soft = icon === 'car' ? colors.primarySoft : colors.orangeSoft;
   return (
-    <Pressable accessibilityRole="radio" accessibilityState={{ checked: selected }} accessibilityLabel={`${title}, ${sub}, ${price}`} onPress={onPress} style={[kit.mode, selected ? [{ backgroundColor: colors.surface, borderColor: colors.primary }, softShadow(colors.shadow)] : { backgroundColor: colors.surface2, borderColor: 'transparent' }]}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Icon name={icon} solid={false} size={24} color={selected ? colors.primary : colors.text2} />
-        {selected ? <View style={[kit.check, { backgroundColor: colors.primary }]}><Icon name="check" size={13} color={colors.onPrimary} /></View> : <View style={[kit.radioDot, { borderColor: colors.border }]} />}
+    <Pressable accessibilityRole="radio" accessibilityState={{ checked: selected }} accessibilityLabel={`${title}, ${sub}, ${price}`} onPress={onPress} style={[kit.mode, selected ? { backgroundColor: soft, borderColor: tint } : { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={[kit.modeIcon, { backgroundColor: selected ? tint : soft }]}><Icon name={icon} solid={false} size={18} color={selected ? '#FFFFFF' : tint} /></View>
+        <View style={{ flex: 1 }}>
+          <Text numberOfLines={1} style={{ fontSize: 12.5, fontWeight: '700', color: colors.text }}>{title}</Text>
+          <Text numberOfLines={2} style={{ fontSize: 10.5, lineHeight: 14, fontWeight: '600', color: colors.text2, marginTop: 1 }}>{sub}</Text>
+        </View>
+        {selected ? <View style={[kit.check, { backgroundColor: tint }]}><Icon name="check" size={12} color="#FFFFFF" /></View> : <View style={[kit.radioDot, { borderColor: colors.border }]} />}
       </View>
-      <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text, marginTop: 12 }}>{title}</Text>
-      <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text2, marginTop: 2 }}>{sub}</Text>
-      <Text style={{ fontSize: 15.5, fontWeight: '800', color: price === 'Free' ? colors.primary : colors.brown, marginTop: 10 }}>{price}</Text>
+      <Text style={{ fontSize: 11.5, fontWeight: '700', color: price === 'Free' ? colors.primary : colors.brown, marginTop: 8 }}>{price}</Text>
     </Pressable>
   );
 }
@@ -474,99 +497,123 @@ export function Skeleton({ width = '100%', height = 16, radius = 10, style }: { 
   return <Animated.View style={[{ width, height, borderRadius: radius, backgroundColor: colors.lav2, opacity: pulse }, style]} />;
 }
 
-/** The standard white card shell. */
-export function Panel({ children, style, onPress, label }: { children: ReactNode; style?: StyleProp<ViewStyle>; onPress?: () => void; label?: string }) {
+/** The standard white card shell. `accent` adds a slim coloured strip on the left edge (status colour, category colour...). */
+export function Panel({ children, style, onPress, label, accent }: { children: ReactNode; style?: StyleProp<ViewStyle>; onPress?: () => void; label?: string; accent?: string }) {
   const { colors } = useTheme();
-  const base = [kit.panel, { backgroundColor: colors.surface, borderColor: colors.border }, softShadow(colors.shadow), style];
-  if (onPress) return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [base, { opacity: pressed ? 0.94 : 1 }]}>{children}</Pressable>;
-  return <View style={base}>{children}</View>;
+  const base = [kit.panel, { backgroundColor: colors.surface, borderColor: colors.border }, softShadow(colors.shadow), accent ? { overflow: 'hidden' as const } : null, style];
+  const strip = accent ? <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: accent }} /> : null;
+  if (onPress) return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [base, { opacity: pressed ? 0.94 : 1 }]}>{strip}{children}</Pressable>;
+  return <View style={base}>{strip}{children}</View>;
 }
 
-/** Widest the app column grows. Tablets and the web preview get a centred phone-width column. */
-export const COLUMN_MAX = 640;
-export function useColumnWidth() { return Math.min(useWindowDimensions().width, COLUMN_MAX); }
+/**
+ * Responsive column. Phones use the full width. On tablets the app is a centred column: 720 px for most screens and
+ * 960 px for browsing screens (`wide`), where grids simply gain more columns.
+ */
+export const COLUMN_MAX = 720;
+export const WIDE_MAX = 960;
+const ColumnContext = createContext<number | null>(null);
+/** Width of the column the current screen is laid out in. */
+export function useColumnWidth() {
+  const inner = useContext(ColumnContext);
+  const { width } = useWindowDimensions();
+  return inner ?? Math.min(width, COLUMN_MAX);
+}
+/** Number of grid columns and the card width for a given minimum card width (gutter 12, gap 8). */
+export function useGrid(minCard = 150, pad = 12, gap = 8) {
+  const width = useColumnWidth();
+  const inner = width - pad * 2;
+  const cols = Math.max(2, Math.floor((inner + gap) / (minCard + gap)));
+  return { width, cols, gap, pad, cardWidth: Math.floor((inner - gap * (cols - 1)) / cols) };
+}
 
 /** Shared page frame: lilac background, header on top, scroll body, tab bar underneath. */
-export function Screen({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
+export function Screen({ children, style, wide = false, background }: { children: ReactNode; style?: StyleProp<ViewStyle>; wide?: boolean; background?: ReactNode }) {
   const { colors } = useTheme();
+  const { width } = useWindowDimensions();
+  const max = wide ? WIDE_MAX : COLUMN_MAX;
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <View style={[{ flex: 1, width: '100%', maxWidth: COLUMN_MAX, alignSelf: 'center' }, style]}>{children}</View>
+      {background ? <View pointerEvents="none" style={StyleSheet.absoluteFill}>{background}</View> : null}
+      <ColumnContext.Provider value={Math.min(width, max)}>
+        <View style={[{ flex: 1, width: '100%', maxWidth: max, alignSelf: 'center' }, style]}>{children}</View>
+      </ColumnContext.Provider>
     </View>
   );
 }
 
 const kit = StyleSheet.create({
-  appBar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 3, zIndex: 5 },
-  logoTile: { width: 44, height: 44, borderRadius: 13, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
-  logoImage: { width: 34, height: 34, resizeMode: 'contain' },
+  appBar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth, shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3, zIndex: 5 },
+  logoTile: { width: 34, height: 34, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
+  logoImage: { width: 26, height: 26, resizeMode: 'contain' },
   brandCol: { flex: 1, minWidth: 0 },
-  brand: { fontSize: 20, fontWeight: '800', letterSpacing: -0.4, lineHeight: 24 },
+  brand: { fontSize: 15.5, fontWeight: '700', letterSpacing: -0.3, lineHeight: 18 },
   cityTrigger: { alignSelf: 'flex-start' },
-  cityRow: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 1 },
-  cityText: { fontSize: 13, fontWeight: '700', flexShrink: 1 },
-  actions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  action: { width: 30, height: 36, alignItems: 'center', justifyContent: 'center' },
-  dot: { position: 'absolute', top: 5, right: 3, width: 10, height: 10, borderRadius: 5, borderWidth: 2 },
-  countBadge: { position: 'absolute', top: 1, right: -5, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
-  countText: { fontSize: 10, fontWeight: '800', lineHeight: 12 },
-  tabBar: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: -4 }, elevation: 12 },
-  tabItem: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4, paddingTop: 8 },
-  tabLabel: { fontSize: 11.5, lineHeight: 14 },
-  tabBadge: { position: 'absolute', top: -5, right: -9, minWidth: 17, height: 17, borderRadius: 9, paddingHorizontal: 3, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  cityRow: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingVertical: 0 },
+  cityText: { fontSize: 10.5, fontWeight: '600', flexShrink: 1 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  action: { width: 32, height: 34, alignItems: 'center', justifyContent: 'center' },
+  dot: { position: 'absolute', top: 5, right: 5, width: 8, height: 8, borderRadius: 4, borderWidth: 1.5 },
+  countBadge: { position: 'absolute', top: 1, right: -2, minWidth: 15, height: 15, borderRadius: 8, paddingHorizontal: 3, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  countText: { fontSize: 9, fontWeight: '700', lineHeight: 11 },
+  tabBar: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, shadowOpacity: 0.07, shadowRadius: 12, shadowOffset: { width: 0, height: -3 }, elevation: 12 },
+  tabItem: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2, paddingTop: 6 },
+  tabLabel: { fontSize: 10, lineHeight: 12 },
+  tabBadge: { position: 'absolute', top: -4, right: -8, minWidth: 15, height: 15, borderRadius: 8, paddingHorizontal: 3, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   fabWrap: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center' },
-  fab: { width: FAB, height: FAB, borderRadius: FAB / 2, alignItems: 'center', justifyContent: 'center', borderWidth: 4, shadowOpacity: 0.35, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 16 },
-  pageTitle: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 4 },
-  pageBack: { width: 32, height: 40, justifyContent: 'center' },
-  pageTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  pageTitleText: { fontSize: 29, fontWeight: '800', letterSpacing: -0.6, flexShrink: 1 },
-  pageSubtitle: { fontSize: 14.5, lineHeight: 21, marginTop: 4 },
-  titleBadge: { borderRadius: 10, paddingHorizontal: 9, height: 22, alignItems: 'center', justifyContent: 'center' },
-  titleBadgeText: { fontSize: 12, fontWeight: '800' },
-  subBar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12 },
-  subBarTitle: { fontSize: 18, fontWeight: '800', letterSpacing: -0.3 },
-  eyebrowBrown: { fontSize: 11, fontWeight: '800', letterSpacing: 1.2 },
-  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16 },
-  searchBox: { flex: 1, height: 54, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16 },
-  searchInput: { flex: 1, fontSize: 15, height: 52, paddingVertical: 0 },
-  filterButton: { width: 54, height: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  filterBadge: { position: 'absolute', top: 6, right: 6, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
-  pillRow: { paddingHorizontal: 16, gap: 10, paddingVertical: 2 },
-  seg: { flexDirection: 'row', borderRadius: 24, padding: 5, gap: 2 },
-  segItem: { flex: 1, height: 46, borderRadius: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: 3 },
-  segText: { fontSize: 13, fontWeight: '800', flexShrink: 1 },
-  segCount: { minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
-  segCountText: { fontSize: 11.5, fontWeight: '800' },
-  pill: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingHorizontal: 12, height: 32, borderRadius: 16 },
-  pillSmall: { height: 22, borderRadius: 11, paddingHorizontal: 8, gap: 4 },
-  rating: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', paddingHorizontal: 9, height: 28, borderRadius: 14 },
-  ratingAvg: { fontSize: 13, fontWeight: '800' },
-  ratingCount: { fontSize: 12.5, fontWeight: '600' },
-  stepper: { flexDirection: 'row', alignItems: 'center', borderRadius: 16, padding: 4, gap: 6 },
-  stepBtn: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  stepQty: { minWidth: 28, textAlign: 'center', fontSize: 17, fontWeight: '800' },
-  sortPill: { flexDirection: 'row', alignItems: 'center', gap: 10, height: 46, borderRadius: 14, borderWidth: 1, paddingHorizontal: 13 },
-  sortCaption: { fontSize: 10.5, fontWeight: '600', lineHeight: 12 },
-  sortValue: { fontSize: 13.5, fontWeight: '800', lineHeight: 17, maxWidth: 108 },
-  viewToggle: { flexDirection: 'row', borderRadius: 14, borderWidth: 1, padding: 3, gap: 2 },
-  viewBtn: { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  eyebrow: { fontSize: 12, fontWeight: '800', letterSpacing: 1.1 },
-  sectionLabel: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginTop: 24, marginBottom: 12 },
-  labelDot: { width: 8, height: 8, borderRadius: 4 },
-  seeAll: { fontSize: 14, fontWeight: '800' },
-  sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingHorizontal: 16, marginTop: 24, marginBottom: 12 },
-  sectionTitle: { fontSize: 20, fontWeight: '800', letterSpacing: -0.4 },
-  sectionCaption: { fontSize: 13.5, lineHeight: 19, marginTop: 2 },
-  banner: { marginHorizontal: 16, marginTop: 24, borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14 },
-  bannerIcon: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  bannerTitle: { fontSize: 17, fontWeight: '800', letterSpacing: -0.2 },
-  bannerText: { fontSize: 13.5, lineHeight: 19, marginTop: 3 },
-  infoLine: { flexDirection: 'row', alignItems: 'center', gap: 13 },
-  infoIcon: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  infoTitle: { fontSize: 15.5, fontWeight: '800' },
-  infoSub: { fontSize: 13.5, lineHeight: 19, marginTop: 1, fontWeight: '600' },
-  panel: { borderRadius: 22, padding: 16, borderWidth: StyleSheet.hairlineWidth },
-  mode: { flex: 1, borderRadius: 22, borderWidth: 1.5, padding: 16 },
-  check: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  radioDot: { width: 22, height: 22, borderRadius: 11, borderWidth: 2 },
+  fab: { width: FAB, height: FAB, borderRadius: FAB / 2, alignItems: 'center', justifyContent: 'center', borderWidth: 3, shadowOpacity: 0.32, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 14 },
+  pageTitle: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingTop: 10, paddingBottom: 2 },
+  pageBack: { width: 28, height: 34, justifyContent: 'center' },
+  pageTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  pageTitleText: { fontSize: 19, fontWeight: '700', letterSpacing: -0.4, flexShrink: 1 },
+  pageSubtitle: { fontSize: 11.5, lineHeight: 16, marginTop: 1 },
+  titleBadge: { borderRadius: 9, paddingHorizontal: 7, height: 19, alignItems: 'center', justifyContent: 'center' },
+  titleBadgeText: { fontSize: 10.5, fontWeight: '700' },
+  subBar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8 },
+  subBarTitle: { fontSize: 14, fontWeight: '700', letterSpacing: -0.2 },
+  eyebrowBrown: { fontSize: 9.5, fontWeight: '700', letterSpacing: 1 },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12 },
+  searchBox: { flex: 1, height: 42, borderRadius: 13, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12 },
+  searchInput: { flex: 1, fontSize: 13.5, height: 40, paddingVertical: 0 },
+  filterButton: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  filterBadge: { position: 'absolute', top: 3, right: 3, minWidth: 16, height: 16, borderRadius: 8, paddingHorizontal: 3, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  pillRow: { paddingHorizontal: 12, gap: 8, paddingVertical: 2 },
+  seg: { flexDirection: 'row', borderRadius: 16, padding: 3, gap: 2 },
+  segItem: { flex: 1, height: 34, borderRadius: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: 3 },
+  segText: { fontSize: 11.5, fontWeight: '700', flexShrink: 1 },
+  segCount: { minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
+  segCountText: { fontSize: 10, fontWeight: '700' },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', paddingHorizontal: 9, height: 24, borderRadius: 12 },
+  pillSmall: { height: 18, borderRadius: 9, paddingHorizontal: 6, gap: 3 },
+  rating: { flexDirection: 'row', alignItems: 'center', gap: 3, alignSelf: 'flex-start', paddingHorizontal: 6, height: 20, borderRadius: 10 },
+  ratingAvg: { fontSize: 10.5, fontWeight: '700' },
+  ratingCount: { fontSize: 10, fontWeight: '600' },
+  stepper: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, padding: 3, gap: 3 },
+  stepBtn: { width: 26, height: 26, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  stepQty: { minWidth: 22, textAlign: 'center', fontSize: 12.5, fontWeight: '700' },
+  sortPill: { flexDirection: 'row', alignItems: 'center', gap: 5, height: 32, borderRadius: 10, borderWidth: 1, paddingHorizontal: 10 },
+  sortCaption: { fontSize: 10.5, fontWeight: '600' },
+  sortValue: { fontSize: 11.5, fontWeight: '700', maxWidth: 150 },
+  viewToggle: { flexDirection: 'row', borderRadius: 10, borderWidth: 1, padding: 2, gap: 2 },
+  viewBtn: { width: 26, height: 26, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  eyebrow: { fontSize: 10, fontWeight: '700', letterSpacing: 0.9 },
+  sectionLabel: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, marginTop: 16, marginBottom: 8 },
+  labelDot: { width: 6, height: 6, borderRadius: 3 },
+  seeAll: { fontSize: 11.5, fontWeight: '700' },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingHorizontal: 12, marginTop: 16, marginBottom: 8 },
+  sectionTitle: { fontSize: 15, fontWeight: '700', letterSpacing: -0.3 },
+  sectionCaption: { fontSize: 11, lineHeight: 15, marginTop: 1 },
+  banner: { marginHorizontal: 12, marginTop: 16, borderRadius: 14, padding: 11, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  bannerIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  bannerTitle: { fontSize: 13, fontWeight: '700', letterSpacing: -0.1 },
+  bannerText: { fontSize: 11, lineHeight: 15, marginTop: 2 },
+  infoLine: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  infoIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  infoTitle: { fontSize: 12.5, fontWeight: '700' },
+  infoSub: { fontSize: 11, lineHeight: 15, marginTop: 1, fontWeight: '600' },
+  panel: { borderRadius: 16, padding: 12, borderWidth: StyleSheet.hairlineWidth },
+  mode: { flex: 1, borderRadius: 14, borderWidth: 1.5, padding: 10 },
+  check: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  modeIcon: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  radioDot: { width: 18, height: 18, borderRadius: 9, borderWidth: 1.5 },
 });

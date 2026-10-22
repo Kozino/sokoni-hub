@@ -137,12 +137,12 @@ export function Track({ go, back, tab, params }: NavProps & { params?: Record<st
     <Screen>
       <AppBar go={go} tab={tab} />
       <SubBar eyebrow={result ? (live ? 'LIVE STATUS' : result.isBooking ? 'BOOKING STATUS' : 'ORDER STATUS') : 'TRACKING'} title={title} back={back} right={<RoundButton icon="help" label="Get help" onPress={() => go('support')} />} />
-      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 56, gap: 14 }}>
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 44, gap: 11 }}>
         {!result ? (
           <Panel>
             <Text style={[s.formTitle, { color: colors.text }]}>Track an order or booking</Text>
             <Text style={[s.formHint, { color: colors.text2 }]}>Enter the code from your confirmation and the phone number you used.</Text>
-            {error ? <View style={{ marginBottom: 12 }}><Notice type="warning">{error}</Notice></View> : null}
+            {error ? <View style={{ marginBottom: 9 }}><Notice type="warning">{error}</Notice></View> : null}
             <Field label="Order code" value={orderCode} onChangeText={(v) => { setOrderCode(v.toUpperCase()); if (v) setBookingCode(''); }} autoCapitalize="characters" placeholder="e.g. ORD-ABC123" />
             <Field label="Booking code (for services)" value={bookingCode} onChangeText={(v) => { setBookingCode(v.toUpperCase()); if (v) setOrderCode(''); }} autoCapitalize="characters" placeholder="e.g. BK-ABC123" />
             <Field label="Phone number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="+974…" />
@@ -153,7 +153,7 @@ export function Track({ go, back, tab, params }: NavProps & { params?: Record<st
         ) : order ? (
           <OrderView order={order} phone={tracked?.phone || ''} updatedAt={updatedAt} onChanged={refresh} go={go} />
         ) : null}
-        {result ? <Pressable accessibilityRole="button" onPress={() => { setResult(null); setTracked(null); setError(''); }} style={{ alignSelf: 'center', padding: 8 }}><Text style={{ color: colors.text2, fontSize: 13.5, fontWeight: '800' }}>Track another order or booking</Text></Pressable> : null}
+        {result ? <Pressable accessibilityRole="button" onPress={() => { setResult(null); setTracked(null); setError(''); }} style={{ alignSelf: 'center', padding: 8 }}><Text style={{ color: colors.text2, fontSize: 12, fontWeight: '700' }}>Track another order or booking</Text></Pressable> : null}
       </ScrollView>
       <Tabs active="none" tab={tab} />
     </Screen>
@@ -186,7 +186,7 @@ function OrderView({ order, phone, updatedAt, onChanged, go }: { order: Order; p
 
   return (
     <>
-      <LinearGradient colors={[colors.primary, colors.deep]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.codeCard}>
+      <LinearGradient colors={[colors.heroB, colors.heroA]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.codeCard}>
         <View style={s.codeTop}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Icon name="shield-checkmark" solid={false} size={19} color={colors.orange} /><Text style={s.codeEyebrow}>ORDER REFERENCE</Text></View>
           <View style={s.codePill}><Text style={s.codePillText}>{paid ? 'Paid' : 'Cash on delivery'}</Text></View>
@@ -202,7 +202,7 @@ function OrderView({ order, phone, updatedAt, onChanged, go }: { order: Order; p
       </LinearGradient>
 
       <Panel>
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 9 }}>
           <View style={{ flex: 1 }}>
             <Text style={[s.eyebrowOrange, { color: colors.orange }]}>{ON_THE_WAY.includes(order.status) ? 'ON ITS WAY' : cancelled ? 'CANCELLED' : complete ? 'COMPLETED' : 'CURRENT STATUS'}</Text>
             <Text style={[s.headline, { color: colors.primary }]}>{info.title}</Text>
@@ -213,10 +213,10 @@ function OrderView({ order, phone, updatedAt, onChanged, go }: { order: Order; p
         {isOpen && (away !== null || (!pickup && order.delivery_address)) ? (
           <View style={[s.dotRow, { borderTopColor: colors.border }]}>
             <View style={[s.pulse, { backgroundColor: colors.orange }]} />
-            <Text style={{ flex: 1, fontSize: 14.5, fontWeight: '800', color: colors.text, lineHeight: 20 }}>{away !== null ? `Your rider is about ${distanceLabel(away)} from your delivery point` : `Delivering to ${order.delivery_address}`}</Text>
+            <Text style={{ flex: 1, fontSize: 13, fontWeight: '700', color: colors.text, lineHeight: 18 }}>{away !== null ? `Your rider is about ${distanceLabel(away)} from your delivery point` : `Delivering to ${order.delivery_address}`}</Text>
           </View>
         ) : null}
-        {updatedAt ? <Text style={{ fontSize: 12, color: colors.muted, marginTop: 10, fontWeight: '600' }}>{isOpen ? 'Updates automatically · ' : ''}Last checked {time12(updatedAt.toISOString())}</Text> : null}
+        {updatedAt ? <Text style={{ fontSize: 11, color: colors.muted, marginTop: 8, fontWeight: '600' }}>{isOpen ? 'Updates automatically · ' : ''}Last checked {time12(updatedAt.toISOString())}</Text> : null}
       </Panel>
 
       {showMap ? (
@@ -224,9 +224,9 @@ function OrderView({ order, phone, updatedAt, onChanged, go }: { order: Order; p
           <TrackMap driver={hasDriver ? { lat: driverLat, lng: driverLng } : null} destination={hasDest ? { lat: destLat, lng: destLng } : null} live={hasDriver} />
           <View style={s.mapBar}>
             <Icon name="navigate" solid={false} size={18} color={colors.text2} />
-            <Text numberOfLines={2} style={{ flex: 1, fontSize: 13.5, fontWeight: '700', color: colors.text2 }}>{hasDriver ? (away !== null ? `${distanceLabel(away)} to your delivery point` : 'Following your rider live') : 'Your delivery point'}</Text>
+            <Text numberOfLines={2} style={{ flex: 1, fontSize: 12, fontWeight: '600', color: colors.text2 }}>{hasDriver ? (away !== null ? `${distanceLabel(away)} to your delivery point` : 'Following your rider live') : 'Your delivery point'}</Text>
             {hasDriver ? <Pill tone="mint" small>Live Route</Pill> : null}
-            {mapsUrl ? <Pressable accessibilityRole="button" accessibilityLabel="Open in maps" onPress={() => void Linking.openURL(mapsUrl as string)}><Text style={{ color: colors.primary, fontSize: 13.5, fontWeight: '800' }}>Open map</Text></Pressable> : null}
+            {mapsUrl ? <Pressable accessibilityRole="button" accessibilityLabel="Open in maps" onPress={() => void Linking.openURL(mapsUrl as string)}><Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>Open map</Text></Pressable> : null}
           </View>
         </View>
       ) : null}
@@ -236,12 +236,12 @@ function OrderView({ order, phone, updatedAt, onChanged, go }: { order: Order; p
       <Panel>
         <View style={s.progressHead}><Text style={[s.panelTitle, { color: colors.text }]}>Order Progress</Text><StatusPill look={look} small /></View>
         {cancelled ? (
-          <View style={{ gap: 14, marginTop: 14 }}>
+          <View style={{ gap: 11, marginTop: 11 }}>
             <Step done title={steps[0].title} sub={steps[0].sub} time={time12(order.created_at)} last={false} />
             <Step cancelled title="Order cancelled" sub="No payment is due for this order" time="" last />
           </View>
         ) : (
-          <View style={{ marginTop: 14 }}>
+          <View style={{ marginTop: 11 }}>
             {steps.map((step, index) => (
               <Step key={step.title} done={complete || index < at} active={!complete && index === at && isOpen} title={step.title} sub={step.sub} time={stamp(index)} last={index === steps.length - 1} />
             ))}
@@ -252,31 +252,31 @@ function OrderView({ order, phone, updatedAt, onChanged, go }: { order: Order; p
       <Panel>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Icon name="location" solid={false} size={18} color={colors.text2} /><Text style={[s.eyebrow, { color: colors.text2 }]}>{pickup ? 'PICK UP FROM' : 'DELIVERY DESTINATION'}</Text></View>
         <Text style={[s.addr, { color: colors.text }]}>{pickup ? order.business_name || 'The store' : order.delivery_address}</Text>
-        {!pickup ? <Text style={{ fontSize: 14, color: colors.text2, fontWeight: '600', marginTop: 4 }}>{[order.city, order.country].filter(Boolean).join(', ')}</Text> : null}
+        {!pickup ? <Text style={{ fontSize: 12.5, color: colors.text2, fontWeight: '600', marginTop: 4 }}>{[order.city, order.country].filter(Boolean).join(', ')}</Text> : null}
         {order.note ? (
           <View style={[s.noteBox, { backgroundColor: colors.orangeSoft }]}>
             <Icon name="document-text" solid={false} size={19} color={colors.orange} />
-            <View style={{ flex: 1 }}><Text style={{ fontSize: 13.5, fontWeight: '800', color: colors.text }}>Your note to the seller</Text><Text style={{ fontSize: 14, color: colors.text2, marginTop: 2, fontStyle: 'italic' }}>“{order.note}”</Text></View>
+            <View style={{ flex: 1 }}><Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>Your note to the seller</Text><Text style={{ fontSize: 12.5, color: colors.text2, marginTop: 2, fontStyle: 'italic' }}>“{order.note}”</Text></View>
           </View>
         ) : null}
       </Panel>
 
       <Panel>
         <Text style={[s.panelTitle, { color: colors.text }]}>{order.business_name || 'Sokoni Hub'}</Text>
-        <Text style={{ fontSize: 13.5, color: colors.text2, fontWeight: '600', marginTop: 3 }}>
+        <Text style={{ fontSize: 12, color: colors.text2, fontWeight: '600', marginTop: 3 }}>
           Cash on delivery · {paid ? 'Paid' : cancelled ? 'Not charged' : pickup ? 'Pay at the store' : 'Pay the rider in cash'}
         </Text>
         {order.items?.length ? (
-          <View style={{ marginTop: 14, gap: 10 }}>
+          <View style={{ marginTop: 11, gap: 8 }}>
             {order.items.map((item) => (
               <View key={item.id ?? item.title} style={s.itemRow}>
-                <Text numberOfLines={2} style={{ flex: 1, fontSize: 14.5, color: colors.text, fontWeight: '600' }}>{item.qty} × {item.title}</Text>
-                <Text style={{ fontSize: 14.5, fontWeight: '800', color: colors.text }}>{money(item.line_total, order.currency)}</Text>
+                <Text numberOfLines={2} style={{ flex: 1, fontSize: 13, color: colors.text, fontWeight: '600' }}>{item.qty} × {item.title}</Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>{money(item.line_total, order.currency)}</Text>
               </View>
             ))}
             <View style={[s.rule, { backgroundColor: colors.border }]} />
-            <View style={s.itemRow}><Text style={{ fontSize: 14, color: colors.text2 }}>Delivery</Text><Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>{Number(order.delivery_fee) > 0 ? money(order.delivery_fee, order.currency) : 'Free'}</Text></View>
-            <View style={s.itemRow}><Text style={{ fontSize: 16, fontWeight: '800', color: colors.text }}>{itemCount} item{itemCount === 1 ? '' : 's'} · Total</Text><Text style={{ fontSize: 18, fontWeight: '800', color: colors.primary }}>{money(order.total, order.currency)}</Text></View>
+            <View style={s.itemRow}><Text style={{ fontSize: 12.5, color: colors.text2 }}>Delivery</Text><Text style={{ fontSize: 12.5, fontWeight: '600', color: colors.text }}>{Number(order.delivery_fee) > 0 ? money(order.delivery_fee, order.currency) : 'Free'}</Text></View>
+            <View style={s.itemRow}><Text style={{ fontSize: 13.5, fontWeight: '700', color: colors.text }}>{itemCount} item{itemCount === 1 ? '' : 's'} · Total</Text><Text style={{ fontSize: 15, fontWeight: '700', color: colors.primary }}>{money(order.total, order.currency)}</Text></View>
           </View>
         ) : null}
       </Panel>
@@ -287,16 +287,16 @@ function OrderView({ order, phone, updatedAt, onChanged, go }: { order: Order; p
       {order.delivery_proof_url ? (
         <Panel>
           <Text style={[s.panelTitle, { color: colors.text }]}>Proof of delivery</Text>
-          <Image source={{ uri: order.delivery_proof_url }} style={{ width: '100%', height: 200, borderRadius: 16, marginTop: 12 }} contentFit="cover" />
+          <Image source={{ uri: order.delivery_proof_url }} style={{ width: '100%', height: 200, borderRadius: 16, marginTop: 9 }} contentFit="cover" />
         </Panel>
       ) : null}
 
       {isOpen && !order.delivery_lat && !pickup ? <Notice>This order was placed before delivery pins were added, so the map can only show your rider.</Notice> : null}
 
       <Pressable accessibilityRole="button" accessibilityLabel="Need help with this order" onPress={() => go('support')} style={({ pressed }) => [s.help, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.9 : 1 }, softShadow(colors.shadow)]}>
-        <Icon name="help-buoy" solid={false} size={21} color={colors.primary} /><Text style={{ fontSize: 16, fontWeight: '800', color: colors.primary }}>Need Help with this Order?</Text>
+        <Icon name="help-buoy" solid={false} size={21} color={colors.primary} /><Text style={{ fontSize: 13.5, fontWeight: '700', color: colors.primary }}>Need Help with this Order?</Text>
       </Pressable>
-      <Text style={{ textAlign: 'center', fontSize: 12.5, fontWeight: '700', color: colors.text2 }}>Sokoni Hub Support · we answer on WhatsApp and email</Text>
+      <Text style={{ textAlign: 'center', fontSize: 11.5, fontWeight: '600', color: colors.text2 }}>Sokoni Hub Support · we answer on WhatsApp and email</Text>
     </>
   );
 }
@@ -306,11 +306,11 @@ function RiderPanel({ order, active }: { order: Order; active: boolean }) {
   const driver = order.driver;
   if (!driver) {
     return (
-      <Panel style={{ flexDirection: 'row', alignItems: 'center', gap: 13 }}>
+      <Panel style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
         <View style={[s.riderAvatar, { backgroundColor: colors.surface2 }]}><Icon name="time" solid={false} size={22} color={colors.text2} /></View>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 16, fontWeight: '800', color: colors.text }}>{order.fulfilment_mode === 'pickup' ? 'No rider needed' : 'Rider not assigned yet'}</Text>
-          <Text style={{ fontSize: 13.5, color: colors.text2, marginTop: 2, lineHeight: 19 }}>{order.fulfilment_mode === 'pickup' ? 'You will collect this order from the store.' : active ? 'You will see your rider here once one accepts your order.' : 'No rider was needed for this order.'}</Text>
+          <Text style={{ fontSize: 13.5, fontWeight: '700', color: colors.text }}>{order.fulfilment_mode === 'pickup' ? 'No rider needed' : 'Rider not assigned yet'}</Text>
+          <Text style={{ fontSize: 12, color: colors.text2, marginTop: 2, lineHeight: 17 }}>{order.fulfilment_mode === 'pickup' ? 'You will collect this order from the store.' : active ? 'You will see your rider here once one accepts your order.' : 'No rider was needed for this order.'}</Text>
         </View>
       </Panel>
     );
@@ -321,15 +321,15 @@ function RiderPanel({ order, active }: { order: Order; active: boolean }) {
   const first = driver.name.split(' ')[0];
   return (
     <Panel>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 13 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
         <Avatar name={driver.name} size={56} tone="deep" />
         <View style={{ flex: 1 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Text numberOfLines={1} style={{ fontSize: 18, fontWeight: '800', color: colors.text, flexShrink: 1 }}>{driver.name}</Text><Pill tone="orange" small>Courier</Pill></View>
-          <Text numberOfLines={2} style={{ fontSize: 13.5, color: colors.text2, fontWeight: '600', marginTop: 3 }}>{vehicle || 'Sokoni Hub rider'}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Text numberOfLines={1} style={{ fontSize: 15, fontWeight: '700', color: colors.text, flexShrink: 1 }}>{driver.name}</Text><Pill tone="orange" small>Courier</Pill></View>
+          <Text numberOfLines={2} style={{ fontSize: 12, color: colors.text2, fontWeight: '600', marginTop: 3 }}>{vehicle || 'Sokoni Hub rider'}</Text>
         </View>
       </View>
       {call || chat ? (
-        <View style={{ flexDirection: 'row', gap: 12, marginTop: 14 }}>
+        <View style={{ flexDirection: 'row', gap: 9, marginTop: 11 }}>
           {call ? <Button variant="tonal" iconLeft="call" style={{ flex: 1 }} onPress={() => void Linking.openURL(call)}>{`Call ${first}`}</Button> : null}
           {chat ? <Button variant="mint" iconLeft="chat" style={{ flex: 1 }} onPress={() => void Linking.openURL(chat)}>WhatsApp</Button> : null}
         </View>
@@ -342,7 +342,7 @@ function Step({ title, sub, time, done, active, cancelled, last }: { title: stri
   const { colors } = useTheme();
   const color = cancelled ? colors.danger : done ? colors.primary : active ? colors.primary : colors.border;
   return (
-    <View style={{ flexDirection: 'row', gap: 14 }}>
+    <View style={{ flexDirection: 'row', gap: 11 }}>
       <View style={{ width: 30, alignItems: 'center' }}>
         <View style={[s.stepDot, done || cancelled ? { backgroundColor: color } : active ? { backgroundColor: colors.deep, borderWidth: 4, borderColor: colors.primarySoft } : { backgroundColor: colors.surface2, borderWidth: 1.5, borderColor: colors.border }]}>
           {cancelled ? <Icon name="close" size={14} color="#FFFFFF" /> : done ? <Icon name="check" size={14} color="#FFFFFF" /> : active ? <Icon name="car" solid={false} size={14} color="#FFFFFF" /> : <Icon name="lock-closed" solid={false} size={12} color={colors.muted} />}
@@ -351,10 +351,10 @@ function Step({ title, sub, time, done, active, cancelled, last }: { title: stri
       </View>
       <View style={{ flex: 1, paddingBottom: last ? 0 : 18 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-          <Text style={{ flex: 1, fontSize: 15.5, fontWeight: '800', color: done || active || cancelled ? colors.text : colors.muted }}>{title}</Text>
-          {active ? <Pill tone="mint" small>Active</Pill> : time ? <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text2 }}>{time}</Text> : !done && !cancelled ? <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.muted }}>Pending</Text> : null}
+          <Text style={{ flex: 1, fontSize: 13.5, fontWeight: '700', color: done || active || cancelled ? colors.text : colors.muted }}>{title}</Text>
+          {active ? <Pill tone="mint" small>Active</Pill> : time ? <Text style={{ fontSize: 11.5, fontWeight: '600', color: colors.text2 }}>{time}</Text> : !done && !cancelled ? <Text style={{ fontSize: 11.5, fontWeight: '600', color: colors.muted }}>Pending</Text> : null}
         </View>
-        <Text style={{ fontSize: 13.5, lineHeight: 19, color: done || active || cancelled ? colors.text2 : colors.muted, marginTop: 2 }}>{sub}</Text>
+        <Text style={{ fontSize: 12, lineHeight: 17, color: done || active || cancelled ? colors.text2 : colors.muted, marginTop: 2 }}>{sub}</Text>
       </View>
     </View>
   );
@@ -376,8 +376,8 @@ function CancelPanel({ order, phone, onChanged }: { order: Order; phone: string;
   return (
     <Panel>
       <Text style={[s.panelTitle, { color: colors.text }]}>Changed your mind?</Text>
-      <Text style={{ fontSize: 13.5, color: colors.text2, marginTop: 6, lineHeight: 19 }}>You can cancel until a rider accepts the order. After that, contact the store.</Text>
-      <Button variant="secondary" loading={busy} disabled={busy} onPress={cancel} style={{ marginTop: 14 }}>Cancel order</Button>
+      <Text style={{ fontSize: 12, color: colors.text2, marginTop: 6, lineHeight: 17 }}>You can cancel until a rider accepts the order. After that, contact the store.</Text>
+      <Button variant="secondary" loading={busy} disabled={busy} onPress={cancel} style={{ marginTop: 11 }}>Cancel order</Button>
     </Panel>
   );
 }
@@ -394,8 +394,8 @@ function VerifyPanel({ order, phone, onChanged }: { order: Order; phone: string;
     return (
       <Panel>
         <Text style={[s.panelTitle, { color: colors.text }]}>Problem reported</Text>
-        {order.dispute_reason ? <Text style={{ fontSize: 13.5, color: colors.text2, marginTop: 6, lineHeight: 19 }}>“{order.dispute_reason}”</Text> : null}
-        <View style={{ marginTop: 12 }}><Notice>Our team is reviewing this order. You will not be charged again for it.</Notice></View>
+        {order.dispute_reason ? <Text style={{ fontSize: 12, color: colors.text2, marginTop: 6, lineHeight: 17 }}>“{order.dispute_reason}”</Text> : null}
+        <View style={{ marginTop: 9 }}><Notice>Our team is reviewing this order. You will not be charged again for it.</Notice></View>
       </Panel>
     );
   }
@@ -415,17 +415,17 @@ function VerifyPanel({ order, phone, onChanged }: { order: Order; phone: string;
   return (
     <Panel style={{ borderColor: colors.primary, borderWidth: 1.5 }}>
       <Text style={[s.panelTitle, { color: colors.text }]}>Did your order arrive?</Text>
-      <Text style={{ fontSize: 13.5, color: colors.text2, marginTop: 6, lineHeight: 19 }}>{due ? `It will be marked complete automatically on ${due} unless you tell us there is a problem.` : 'It will be marked complete automatically unless you tell us there is a problem.'}</Text>
-      <Button variant="deep" loading={busy === 'confirm'} disabled={!!busy} onPress={() => void confirm()} style={{ marginTop: 14 }}>Yes, I received it</Button>
+      <Text style={{ fontSize: 12, color: colors.text2, marginTop: 6, lineHeight: 17 }}>{due ? `It will be marked complete automatically on ${due} unless you tell us there is a problem.` : 'It will be marked complete automatically unless you tell us there is a problem.'}</Text>
+      <Button variant="deep" loading={busy === 'confirm'} disabled={!!busy} onPress={() => void confirm()} style={{ marginTop: 11 }}>Yes, I received it</Button>
       {reporting ? (
         <View style={{ marginTop: 8 }}>
           <Field label="What went wrong?" value={reason} onChangeText={setReason} multiline placeholder="e.g. Missing items, wrong order, not delivered" />
-          <View style={{ flexDirection: 'row', gap: 10 }}>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
             <Button variant="secondary" style={{ flex: 1 }} disabled={!!busy} onPress={() => setReporting(false)}>Cancel</Button>
             <Button style={{ flex: 1 }} loading={busy === 'report'} disabled={!!busy} onPress={() => void report()}>Send report</Button>
           </View>
         </View>
-      ) : <Button variant="tonal" disabled={!!busy} onPress={() => setReporting(true)} style={{ marginTop: 10 }}>Report a problem</Button>}
+      ) : <Button variant="tonal" disabled={!!busy} onPress={() => setReporting(true)} style={{ marginTop: 8 }}>Report a problem</Button>}
     </Panel>
   );
 }
@@ -444,7 +444,7 @@ function BookingView({ booking, phone, updatedAt }: { booking: Booking; phone: s
   return (
     <>
       <Panel>
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 9 }}>
           <View style={{ flex: 1 }}>
             <Text style={[s.eyebrowOrange, { color: colors.orange }]}>{live ? 'BOOKING STATUS' : 'BOOKING'}</Text>
             <Text style={[s.headline, { color: colors.primary }]}>{booking.status === 'completed' ? 'Service completed' : booking.status === 'confirmed' ? 'Booking confirmed' : booking.status === 'cancelled' ? 'Booking cancelled' : 'Booking received'}</Text>
@@ -452,52 +452,52 @@ function BookingView({ booking, phone, updatedAt }: { booking: Booking; phone: s
           </View>
           <StatusPill look={look} small />
         </View>
-        {updatedAt ? <Text style={{ fontSize: 12, color: colors.muted, marginTop: 10, fontWeight: '600' }}>{live ? 'Updates automatically · ' : ''}Last checked {time12(updatedAt.toISOString())}</Text> : null}
+        {updatedAt ? <Text style={{ fontSize: 11, color: colors.muted, marginTop: 8, fontWeight: '600' }}>{live ? 'Updates automatically · ' : ''}Last checked {time12(updatedAt.toISOString())}</Text> : null}
       </Panel>
-      <Panel style={{ gap: 14 }}>
+      <Panel style={{ gap: 11 }}>
         <InfoLine icon="calendar" title={start ? `${agreed ? '' : 'Requested: '}${longDate(start)} • ${time24(start)}${booking.slot_ends_at ? ` - ${time24(booking.slot_ends_at)}` : ''}` : 'Time to be arranged'} sub={!agreed && start ? 'The provider will confirm the exact time' : duration ? `${duration} estimated service duration` : undefined} />
         <InfoLine icon="location" tint={colors.brown} title={home ? 'Home visit appointment' : 'At the provider’s location'} sub={home ? booking.address || undefined : booking.vendor_address || booking.vendor_city || undefined} />
         <InfoLine icon="shield-checkmark" title={price !== null ? `${booking.quoted_price_type === 'from' ? 'From ' : 'Total: '}${money(price, booking.currency || 'QAR')}` : 'Price agreed with the provider'} sub="Pay the provider directly" />
       </Panel>
-      <View style={{ flexDirection: 'row', gap: 12 }}>
+      <View style={{ flexDirection: 'row', gap: 9 }}>
         {wa ? <Button variant="deep" iconLeft="chat" style={{ flex: 1 }} onPress={() => void Linking.openURL(wa)}>Message Provider</Button> : null}
         {live && agreed ? <Button variant="tonal" iconLeft="calendar" style={{ flex: 1 }} onPress={() => void Linking.openURL(`${API_URL}/api/bookings/ics${query({ code: booking.code, phone })}`)}>Add to calendar</Button> : null}
       </View>
-      <Text style={{ textAlign: 'center', fontSize: 12.5, color: colors.muted, fontWeight: '600' }}>{placedLabel(booking.created_at, 'Requested')}</Text>
+      <Text style={{ textAlign: 'center', fontSize: 11.5, color: colors.muted, fontWeight: '600' }}>{placedLabel(booking.created_at, 'Requested')}</Text>
     </>
   );
 }
 
 const s = StyleSheet.create({
-  formTitle: { fontSize: 19, fontWeight: '800' },
-  formHint: { fontSize: 13.5, lineHeight: 19, marginTop: 4, marginBottom: 14 },
-  codeCard: { borderRadius: 24, padding: 16, gap: 14, overflow: 'hidden' },
+  formTitle: { fontSize: 16, fontWeight: '700' },
+  formHint: { fontSize: 12, lineHeight: 17, marginTop: 4, marginBottom: 11 },
+  codeCard: { borderRadius: 19, padding: 12, gap: 11, overflow: 'hidden' },
   codeTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  codeEyebrow: { color: '#CFEBDC', fontSize: 12, fontWeight: '800', letterSpacing: 1.1 },
-  codePill: { backgroundColor: 'rgba(0,0,0,0.25)', borderRadius: 11, paddingHorizontal: 11, height: 24, justifyContent: 'center' },
-  codePillText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
-  codeInner: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', borderRadius: 18, padding: 14 },
-  codeLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1.1, color: '#5B6674' },
-  codeValue: { fontSize: 25, fontWeight: '800', color: '#004C2D', letterSpacing: 1.2, marginTop: 3 },
-  codeShare: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
-  codeNote: { color: '#CFEBDC', fontSize: 12.5, fontWeight: '600', flex: 1 },
-  eyebrowOrange: { fontSize: 12, fontWeight: '800', letterSpacing: 1.1 },
-  headline: { fontSize: 27, fontWeight: '800', letterSpacing: -0.6, marginTop: 6, lineHeight: 32 },
-  sub: { fontSize: 14, lineHeight: 20, marginTop: 5, fontWeight: '500' },
-  bigIcon: { width: 58, height: 58, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  dotRow: { flexDirection: 'row', alignItems: 'center', gap: 11, marginTop: 16, paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth },
+  codeEyebrow: { color: '#CFEBDC', fontSize: 11, fontWeight: '700', letterSpacing: 1.1 },
+  codePill: { backgroundColor: 'rgba(0,0,0,0.25)', borderRadius: 11, paddingHorizontal: 9, height: 24, justifyContent: 'center' },
+  codePillText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
+  codeInner: { flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: '#FFFFFF', borderRadius: 14, padding: 11 },
+  codeLabel: { fontSize: 10.5, fontWeight: '700', letterSpacing: 1.1, color: '#5B6674' },
+  codeValue: { fontSize: 19.5, fontWeight: '700', color: '#004C2D', letterSpacing: 1.2, marginTop: 3 },
+  codeShare: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  codeNote: { color: '#CFEBDC', fontSize: 11.5, fontWeight: '600', flex: 1 },
+  eyebrowOrange: { fontSize: 11, fontWeight: '700', letterSpacing: 1.1 },
+  headline: { fontSize: 21, fontWeight: '700', letterSpacing: -0.6, marginTop: 6, lineHeight: 25 },
+  sub: { fontSize: 12.5, lineHeight: 18, marginTop: 5, fontWeight: '500' },
+  bigIcon: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  dotRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 12, paddingTop: 11, borderTopWidth: StyleSheet.hairlineWidth },
   pulse: { width: 12, height: 12, borderRadius: 6 },
-  mapCard: { borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
-  mapBar: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 },
-  panelTitle: { fontSize: 18, fontWeight: '800', letterSpacing: -0.3 },
+  mapCard: { borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  mapBar: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 11 },
+  panelTitle: { fontSize: 15, fontWeight: '700', letterSpacing: -0.3 },
   progressHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   stepDot: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   stepLine: { flex: 1, width: 2, marginVertical: 3, minHeight: 20 },
-  eyebrow: { fontSize: 12, fontWeight: '800', letterSpacing: 1.1 },
-  addr: { fontSize: 18, fontWeight: '800', letterSpacing: -0.3, marginTop: 10, lineHeight: 24 },
-  noteBox: { flexDirection: 'row', gap: 11, borderRadius: 16, padding: 14, marginTop: 14 },
-  itemRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  eyebrow: { fontSize: 11, fontWeight: '700', letterSpacing: 1.1 },
+  addr: { fontSize: 15, fontWeight: '700', letterSpacing: -0.3, marginTop: 8, lineHeight: 20 },
+  noteBox: { flexDirection: 'row', gap: 9, borderRadius: 13, padding: 11, marginTop: 11 },
+  itemRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 9 },
   rule: { height: StyleSheet.hairlineWidth },
-  riderAvatar: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
-  help: { height: 58, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 4 },
+  riderAvatar: { width: 43, height: 43, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  help: { height: 49, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4 },
 });

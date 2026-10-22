@@ -8,7 +8,7 @@ import { CategoryTile, ProductCard, ProductRow } from '../cards';
 import { SORT_LABELS, useActiveCategories, useDebounced, useMarket, type SortKey } from '../data';
 import { plural } from '../format';
 import { Icon } from '../icons';
-import { AppBar, PageTitle, PillRow, Screen, SearchBar, SectionHead, SectionLabel, SortPill, Tabs, TrustBanner, ViewToggle, useColumnWidth } from '../kit';
+import { AppBar, PageTitle, PillRow, Screen, SearchBar, SectionHead, SectionLabel, SortPill, Tabs, TrustBanner, ViewToggle, useGrid } from '../kit';
 import { useCity } from '../city';
 import type { NavProps } from '../nav';
 import { useTheme } from '../providers';
@@ -21,7 +21,7 @@ export function Browse({ go, back, tab, initial }: NavProps & { initial?: Record
   const params = initial ?? {};
   const { colors } = useTheme();
   const { city, setCity, cities } = useCity();
-  const width = useColumnWidth();
+  const grid = useGrid(150);
   const categories = useActiveCategories();
 
   const [q, setQ] = useState<string>(params.q ?? '');
@@ -50,7 +50,9 @@ export function Browse({ go, back, tab, initial }: NavProps & { initial?: Record
   const activeCategory = all.find((c) => c.slug === category);
   const filterCount = (sort !== 'popular' ? 1 : 0) + (min ? 1 : 0) + (max ? 1 : 0) + (city ? 1 : 0) + (kind === 'service' ? 1 : 0);
   const anyFilter = !!(search || category || filterCount);
-  const cardWidth = (width - 32 - 12) / 2;
+  const listCols = grid.cols >= 3 ? 2 : 1; // list rows sit two across on tablets
+  const cols = view === 'grid' ? grid.cols : listCols;
+  const listWidth = Math.floor((grid.width - grid.pad * 2 - grid.gap) / 2);
 
   const chooseKind = (value: Kind) => {
     setKind(value);
@@ -65,44 +67,44 @@ export function Browse({ go, back, tab, initial }: NavProps & { initial?: Record
   const header = (
     <View>
       {params.fromHome ? <PageTitle title={activeCategory?.name ?? (search ? 'Search' : 'Browse the market')} back={back} /> : null}
-      <SearchBar style={{ marginTop: 14 }} inputRef={inputRef} value={q} onChangeText={setQ} placeholder="Search products or services" onFilter={() => setSheet(true)} filterCount={filterCount} />
-      <PillRow style={{ marginTop: 14 }} items={chips} active={category} onSelect={setCategory} />
+      <SearchBar style={{ marginTop: 8 }} inputRef={inputRef} value={q} onChangeText={setQ} placeholder="Search products or services" onFilter={() => setSheet(true)} filterCount={filterCount} />
+      <PillRow style={{ marginTop: 8 }} items={chips} active={category} onSelect={setCategory} />
       {!category && !search && shown.length ? (
         <>
           <SectionLabel title="Shop by category" />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 12, paddingBottom: 4 }}>
-            {shown.map((c) => <CategoryTile key={c.id} category={c} onPress={() => setCategory(c.slug)} />)}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, gap: 6 }}>
+            {shown.map((c, index) => <CategoryTile key={c.id} index={index} category={c} onPress={() => setCategory(c.slug)} />)}
           </ScrollView>
         </>
       ) : null}
       <SectionHead
-        wrap title={title} caption={caption} style={{ marginBottom: 14 }}
+        wrap title={title} caption={caption} style={{ marginBottom: 8 }}
         right={<View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><SortPill value={sort} options={SORTS} onChange={setSort} /><ViewToggle mode={view} onChange={setView} /></View>}
       />
-      {market.error && market.items.length ? <View style={{ paddingHorizontal: 16, marginBottom: 10 }}><Notice type="warning">{market.error}</Notice></View> : null}
+      {market.error && market.items.length ? <View style={{ paddingHorizontal: 12, marginBottom: 8 }}><Notice type="warning">{market.error}</Notice></View> : null}
     </View>
   );
 
   return (
-    <Screen>
+    <Screen wide>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <AppBar go={go} tab={tab} />
         {market.loading && !market.items.length && !market.error ? (
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 56 }}>{header}<Spinner label="Loading the local market…" /></ScrollView>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 40 }}>{header}<Spinner label="Loading the local market…" /></ScrollView>
         ) : market.error && !market.items.length ? (
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 56 }}>{header}<EmptyState icon="cloud-offline-outline" title="Could not load listings" text={market.error} action={<Button style={{ marginTop: 8 }} onPress={() => void market.reload()}>Try again</Button>} /></ScrollView>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 40 }}>{header}<EmptyState icon="cloud-offline-outline" title="Could not load listings" text={market.error} action={<Button style={{ marginTop: 8 }} onPress={() => void market.reload()}>Try again</Button>} /></ScrollView>
         ) : (
           <FlatList
-            key={view} data={market.items} numColumns={view === 'grid' ? 2 : 1} keyExtractor={(item) => item.id}
+            key={`${view}-${cols}`} data={market.items} numColumns={cols} keyExtractor={(item) => item.id}
             keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 56 }} columnWrapperStyle={view === 'grid' ? { gap: 12, paddingHorizontal: 16 } : undefined}
-            ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+            contentContainerStyle={{ paddingBottom: 40 }} columnWrapperStyle={cols > 1 ? { gap: grid.gap, paddingHorizontal: grid.pad } : undefined}
+            ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
             ListHeaderComponent={header}
             refreshControl={<RefreshControl refreshing={market.refreshing} onRefresh={() => void market.reload(true)} tintColor={colors.primary} />}
             onEndReached={() => void market.loadMore()} onEndReachedThreshold={0.4}
             renderItem={({ item }) => view === 'grid'
-              ? <ProductCard listing={item} style={{ width: cardWidth }} onPress={() => go('listing', { id: item.id })} />
-              : <View style={{ paddingHorizontal: 16 }}><ProductRow listing={item} onPress={() => go('listing', { id: item.id })} /></View>}
+              ? <ProductCard listing={item} style={{ width: grid.cardWidth }} onPress={() => go('listing', { id: item.id })} />
+              : <View style={cols > 1 ? { width: listWidth } : { paddingHorizontal: 12 }}><ProductRow listing={item} onPress={() => go('listing', { id: item.id })} /></View>}
             ListEmptyComponent={<EmptyState title="No matching listings" icon="search-outline" text={anyFilter ? 'Try a different search or remove some filters.' : 'Nothing is listed yet. Please check back soon.'} action={anyFilter ? <Button style={{ marginTop: 8 }} onPress={clearAll}>Clear search & filters</Button> : undefined} />}
             ListFooterComponent={market.loadingMore ? <Spinner label="Loading more…" /> : market.items.length ? <TrustBanner icon="shield-checkmark" title="Sokoni Quality Guarantee" text="Every seller is verified by Sokoni Hub before they can list products or take bookings." /> : null}
           />
@@ -121,8 +123,8 @@ export function Browse({ go, back, tab, initial }: NavProps & { initial?: Record
         <Text style={[sheet_.label, { color: colors.text }]}>Sort by</Text>
         {SORTS.map(({ value, label }) => (
           <Pressable key={value} onPress={() => setSort(value)} accessibilityRole="radio" accessibilityState={{ checked: sort === value }} style={sheet_.radio}>
-            <Icon name={sort === value ? 'radio-button-on' : 'radio-button-off'} size={22} color={sort === value ? colors.primary : colors.muted} />
-            <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>{label}</Text>
+            <Icon name={sort === value ? 'radio-button-on' : 'radio-button-off'} size={21} color={sort === value ? colors.primary : colors.muted} />
+            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text }}>{label}</Text>
           </Pressable>
         ))}
         <Divider />
@@ -140,7 +142,7 @@ export function Browse({ go, back, tab, initial }: NavProps & { initial?: Record
             </View>
           </>
         ) : null}
-        <View style={{ flexDirection: 'row', gap: 10, marginTop: 22 }}>
+        <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
           <Button variant="secondary" style={{ flex: 1 }} onPress={resetFilters}>Reset</Button>
           <Button style={{ flex: 1 }} onPress={() => setSheet(false)}>{`Show ${plural(market.total, 'result')}`}</Button>
         </View>
@@ -150,7 +152,7 @@ export function Browse({ go, back, tab, initial }: NavProps & { initial?: Record
 }
 
 const sheet_ = StyleSheet.create({
-  label: { fontSize: 15.5, fontWeight: '800', marginTop: 8, marginBottom: 10 },
+  label: { fontSize: 13.5, fontWeight: '700', marginTop: 8, marginBottom: 10 },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 6 },
-  radio: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 },
+  radio: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 38 },
 });

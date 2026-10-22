@@ -64,7 +64,7 @@ import { Account } from './Account';
 import { AccountRow } from './AccountRow';
 import { Support } from './Support';
 import { GuestGate } from './GuestGate';
-export function WebOnlyAccount({ onSignOut }: { onSignOut: () => Promise<void> }) { const { colors } = useTheme(); return <View style={styles.page}><Header title="Web portal account"/><EmptyState icon="desktop-outline" title="This account uses the web portal" text="Sokoni Hub's mobile application is intentionally for consumers only. Vendor and administrator tools remain protected on the web." action={<View style={{ width: 260, gap: 10, marginTop: 10 }}><Button onPress={() => WebBrowser.openBrowserAsync(WEB_URL)}>Open secure web portal</Button><Button variant="secondary" onPress={() => void onSignOut()}>Sign out</Button></View>}/><Text style={[styles.webPortalText, { color: colors.muted }]}>This separation keeps store operations and administration out of the consumer app.</Text></View>; }
+export function WebOnlyAccount({ onSignOut }: { onSignOut: () => Promise<void> }) { const { colors } = useTheme(); return <View style={styles.page}><Header title="Web portal account"/><EmptyState icon="desktop-outline" title="This account uses the web portal" text="Sokoni Hub's mobile application is intentionally for consumers only. Vendor and administrator tools remain protected on the web." action={<View style={{ width: 260, gap: 8, marginTop: 8 }}><Button onPress={() => WebBrowser.openBrowserAsync(WEB_URL)}>Open secure web portal</Button><Button variant="secondary" onPress={() => void onSignOut()}>Sign out</Button></View>}/><Text style={[styles.webPortalText, { color: colors.muted }]}>This separation keeps store operations and administration out of the consumer app.</Text></View>; }
 
 
 

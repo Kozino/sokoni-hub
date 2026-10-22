@@ -12,7 +12,7 @@ import { cleanCity, durationLabel, ratingOf } from './format';
 import { useFavourites } from './favourites';
 import { success, tap } from './haptics';
 import { Icon } from './icons';
-import { Avatar, Panel, Pill, Price, RatingChip, Thumb, softShadow, useColumnWidth } from './kit';
+import { Avatar, Panel, Pill, Price, RatingChip, Thumb, accentAt, softShadow, useColumnWidth } from './kit';
 import { categoryImage } from './catImages';
 import { useCart, useTheme } from './providers';
 import { useToast } from './toast';
@@ -43,7 +43,7 @@ export function useQuickAdd() {
 }
 
 /** Round white heart on top of a photo. */
-export function HeartButton({ listing, size = 34 }: { listing: Listing; size?: number }) {
+export function HeartButton({ listing, size = 28 }: { listing: Listing; size?: number }) {
   const { colors } = useTheme();
   const fav = useFavourites();
   const toast = useToast();
@@ -62,6 +62,7 @@ export function HeartButton({ listing, size = 34 }: { listing: Listing; size?: n
 const placeOf = (l: Listing) => cleanCity(l.service_area) || cleanCity(l.vendor_city);
 
 /* ---------------------------------------------------------------------------- ProductCard */
+/** Dense market tile. Products show a small cart button; services show a calendar button. Every field comes from the API listing. */
 export function ProductCard({ listing, onPress, style }: { listing: Listing; onPress: () => void; style?: StyleProp<ViewStyle> }) {
   const { colors } = useTheme();
   const quickAdd = useQuickAdd();
@@ -75,32 +76,32 @@ export function ProductCard({ listing, onPress, style }: { listing: Listing; onP
   const [roomy, setRoomy] = useState(true);
   const tag = out ? { text: 'Out of stock', rose: true } : low ? { text: `Only ${listing.quantity} left`, rose: false } : listing.category_name ? { text: listing.category_name, rose: false } : null;
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={listing.title} onPress={onPress} onLayout={(e) => setRoomy(e.nativeEvent.layout.width >= 200)} style={({ pressed }) => [s.productCard, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.95 : 1 }, softShadow(colors.shadow), style]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={listing.title} onPress={onPress} onLayout={(e) => setRoomy(e.nativeEvent.layout.width >= 172)} style={({ pressed }) => [s.productCard, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.95 : 1 }, softShadow(colors.shadow, 1), style]}>
       <View style={s.productImage}>
-        <Thumb uri={listing.images?.[0]} style={StyleSheet.absoluteFill} icon={listing.kind === 'service' ? 'scissors' : 'basket-outline'} iconSize={34} />
+        <Thumb uri={listing.images?.[0]} style={StyleSheet.absoluteFill} icon={service ? 'service-bell' : 'basket-outline'} iconSize={26} />
         {rating ? <View style={s.topLeft}><RatingChip avg={rating.avg} count={rating.count} /></View> : null}
-        <View style={s.topRight}><HeartButton listing={listing} size={32} /></View>
+        <View style={s.topRight}><HeartButton listing={listing} size={26} /></View>
         {tag ? (
           <View style={[s.tag, tag.rose ? { backgroundColor: colors.dangerSoft, borderColor: colors.danger } : { backgroundColor: 'rgba(255,244,232,0.97)', borderColor: colors.orangeLine }]}>
-            <Text numberOfLines={1} style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 0.4, color: tag.rose ? colors.dangerText : '#9A4A00' }}>{tag.text.toUpperCase()}</Text>
+            <Text numberOfLines={1} style={{ fontSize: 8.5, fontWeight: '700', letterSpacing: 0.3, color: tag.rose ? colors.dangerText : '#9A4A00' }}>{tag.text.toUpperCase()}</Text>
           </View>
         ) : null}
       </View>
       <View style={s.productBody}>
         <Text numberOfLines={1} style={[s.productTitle, { color: colors.text }]}>{listing.title}</Text>
         <View style={s.vendorRow}>
-          <Icon name="storefront" solid={false} size={14} color={colors.orange} />
+          <Icon name="storefront" solid={false} size={11} color={colors.orange} />
           <Text numberOfLines={1} style={[s.vendorName, { color: colors.brown }]}>{listing.business_name || 'Verified seller'}</Text>
           {city && roomy ? <Text numberOfLines={1} style={[s.vendorCity, { color: colors.muted }]}>• {city}</Text> : null}
         </View>
         <View style={s.productFoot}>
-          <Price value={listing.price} currency={listing.currency} size={20} from={options || listing.price_type === 'from'} />
+          <Price value={listing.price} currency={listing.currency} size={18} from={options || listing.price_type === 'from'} />
           <Pressable
             accessibilityRole="button" accessibilityLabel={out ? 'Out of stock' : service ? `Book ${listing.title}` : options ? `Choose a size for ${listing.title}` : `Add ${listing.title} to cart`} disabled={out} hitSlop={6}
             onPress={() => { if (options || service) onPress(); else quickAdd(listing); }}
-            style={({ pressed }) => [s.addButton, { backgroundColor: out ? colors.border : colors.primary, opacity: pressed ? 0.85 : 1 }]}
+            style={({ pressed }) => [s.addButton, { backgroundColor: out ? colors.border : service ? colors.orange : colors.primary, opacity: pressed ? 0.85 : 1 }]}
           >
-            <Icon name={service ? 'calendar' : 'add'} solid={false} size={service ? 19 : 21} color={out ? colors.muted : colors.onPrimary} />
+            <Icon name={service ? 'calendar' : 'cart'} solid={false} size={17} color={out ? colors.muted : service ? colors.onOrange : colors.onPrimary} />
           </Pressable>
         </View>
       </View>
@@ -108,7 +109,6 @@ export function ProductCard({ listing, onPress, style }: { listing: Listing; onP
   );
 }
 
-/* ----------------------------------------------------------------------------- ProductRow */
 /** Compact list-view version of the product tile. */
 export function ProductRow({ listing, onPress }: { listing: Listing; onPress: () => void }) {
   const { colors } = useTheme();
@@ -120,22 +120,22 @@ export function ProductRow({ listing, onPress }: { listing: Listing; onPress: ()
   const city = cleanCity(listing.vendor_city);
   return (
     <Panel onPress={onPress} label={listing.title} style={s.serviceRow}>
-      <View style={[s.serviceImage, { minHeight: 104, width: 96 }]}>
-        <Thumb uri={listing.images?.[0]} style={StyleSheet.absoluteFill} icon={service ? 'scissors' : 'basket-outline'} iconSize={28} />
+      <View style={[s.serviceImage, { minHeight: 84, width: 80 }]}>
+        <Thumb uri={listing.images?.[0]} style={StyleSheet.absoluteFill} icon={service ? 'service-bell' : 'basket-outline'} iconSize={24} />
         {rating ? <View style={s.bottomLeft}><RatingChip avg={rating.avg} /></View> : null}
       </View>
       <View style={s.serviceBody}>
         <View style={s.vendorRow}>
-          <Icon name="storefront" solid={false} size={14} color={colors.orange} />
+          <Icon name="storefront" solid={false} size={11} color={colors.orange} />
           <Text numberOfLines={1} style={[s.vendorName, { color: colors.brown }]}>{listing.business_name || 'Verified seller'}</Text>
           {city ? <Text numberOfLines={1} style={[s.vendorCity, { color: colors.muted }]}>• {city}</Text> : null}
         </View>
         <Text numberOfLines={2} style={[s.serviceTitle, { color: colors.text }]}>{listing.title}</Text>
-        {out ? <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.dangerText }}>Out of stock</Text> : null}
+        {out ? <Text style={{ fontSize: 10.5, fontWeight: '700', color: colors.dangerText }}>Out of stock</Text> : null}
         <View style={s.serviceFoot}>
-          <Price value={listing.price} currency={listing.currency} size={19} from={options || listing.price_type === 'from'} />
-          <Pressable accessibilityRole="button" accessibilityLabel={service ? `Book ${listing.title}` : options ? `Choose a size for ${listing.title}` : `Add ${listing.title} to cart`} disabled={out} hitSlop={6} onPress={() => { if (options || service) onPress(); else quickAdd(listing); }} style={({ pressed }) => [s.addButton, { backgroundColor: out ? colors.border : colors.primary, opacity: pressed ? 0.85 : 1 }]}>
-            <Icon name={service ? 'calendar' : 'add'} solid={false} size={service ? 19 : 21} color={out ? colors.muted : colors.onPrimary} />
+          <Price value={listing.price} currency={listing.currency} size={18} from={options || listing.price_type === 'from'} />
+          <Pressable accessibilityRole="button" accessibilityLabel={service ? `Book ${listing.title}` : options ? `Choose a size for ${listing.title}` : `Add ${listing.title} to cart`} disabled={out} hitSlop={6} onPress={() => { if (options || service) onPress(); else quickAdd(listing); }} style={({ pressed }) => [s.addButton, { backgroundColor: out ? colors.border : service ? colors.orange : colors.primary, opacity: pressed ? 0.85 : 1 }]}>
+            <Icon name={service ? 'calendar' : 'cart'} solid={false} size={17} color={out ? colors.muted : service ? colors.onOrange : colors.onPrimary} />
           </Pressable>
         </View>
       </View>
@@ -155,28 +155,28 @@ export function ServiceRow({ listing, onPress, onBook }: { listing: Listing; onP
   return (
     <Panel onPress={onPress} label={listing.title} style={s.serviceRow}>
       <View style={s.serviceImage}>
-        <Thumb uri={listing.images?.[0]} style={StyleSheet.absoluteFill} icon="scissors" iconSize={30} />
+        <Thumb uri={listing.images?.[0]} style={StyleSheet.absoluteFill} icon="service-bell" iconSize={26} />
         {rating ? <View style={s.bottomLeft}><RatingChip avg={rating.avg} /></View> : null}
       </View>
       <View style={s.serviceBody}>
         <View style={s.vendorRow}>
           <Text numberOfLines={1} style={[s.serviceVendor, { color: colors.brown }]}>{listing.business_name || 'Verified provider'}</Text>
-          <Icon name="check-badge" size={15} color={colors.success} />
+          <Icon name="check-badge" size={12} color={colors.success} />
           {vip ? <Pill tone="orange" small icon="diamond">VIP</Pill> : null}
         </View>
         <Text numberOfLines={2} style={[s.serviceTitle, { color: colors.text }]}>{listing.title}</Text>
         {place || duration ? (
           <View style={s.vendorRow}>
-            {place ? <><Icon name="location" solid={false} size={14} color={colors.text2} /><Text numberOfLines={1} style={[s.serviceMeta, { color: colors.text2, flexShrink: 1 }]}>{place}</Text></> : null}
-            {place && duration ? <Text style={{ color: colors.muted }}>•</Text> : null}
-            {duration ? <Text numberOfLines={1} style={[s.serviceMeta, { color: colors.primary, fontWeight: '800' }]}>{duration}</Text> : null}
+            {place ? <><Icon name="location" solid={false} size={11} color={colors.text2} /><Text numberOfLines={1} style={[s.serviceMeta, { color: colors.text2, flexShrink: 1 }]}>{place}</Text></> : null}
+            {place && duration ? <Text style={{ color: colors.muted, fontSize: 10 }}>•</Text> : null}
+            {duration ? <Text numberOfLines={1} style={[s.serviceMeta, { color: colors.primary, fontWeight: '700' }]}>{duration}</Text> : null}
           </View>
         ) : null}
         <View style={s.serviceFoot}>
-          <Price value={listing.price} currency={listing.currency} size={20} from={listing.price_type === 'from'} />
+          <Price value={listing.price} currency={listing.currency} size={18} from={listing.price_type === 'from'} />
           <Pressable accessibilityRole="button" accessibilityLabel={`Book ${listing.title}`} onPress={() => { tap(); (onBook ?? onPress)(); }} style={({ pressed }) => [s.bookButton, { backgroundColor: colors.primary, opacity: pressed ? 0.88 : 1 }]}>
-            <Text style={[s.bookText, { color: colors.onPrimary }]}>{narrow ? 'Book' : 'Book Now'}</Text>
-            <Icon name="arrow-forward" size={15} color={colors.onPrimary} />
+            <Text style={[s.bookText, { color: colors.onPrimary }]}>{narrow ? 'Book' : 'Book now'}</Text>
+            <Icon name="arrow-forward" size={12} color={colors.onPrimary} />
           </Pressable>
         </View>
       </View>
@@ -195,7 +195,7 @@ export function ServiceSpotlight({ listing, onPress, onBook }: { listing: Listin
   return (
     <Panel onPress={onPress} label={listing.title} style={s.spotlight}>
       <View style={s.spotImage}>
-        <Thumb uri={listing.images?.[0]} style={StyleSheet.absoluteFill} icon="scissors" iconSize={44} />
+        <Thumb uri={listing.images?.[0]} style={StyleSheet.absoluteFill} icon="service-bell" iconSize={34} />
         <View style={s.spotPills}>
           {vip ? <Pill tone="orange" icon="diamond" upper small style={s.onPhoto}>VIP seller</Pill> : null}
           {place ? <Pill tone="mint" icon="location" small style={s.onPhoto}>Serves {place}</Pill> : null}
@@ -203,27 +203,28 @@ export function ServiceSpotlight({ listing, onPress, onBook }: { listing: Listin
         {rating ? <View style={s.spotRating}><RatingChip avg={rating.avg} count={rating.count} /></View> : null}
       </View>
       <View style={s.spotBody}>
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
-          <Text numberOfLines={2} style={[s.spotTitle, { color: colors.text }]}>{listing.title}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+          <View style={{ flex: 1 }}>
+            <Text numberOfLines={1} style={[s.spotTitle, { color: colors.text }]}>{listing.title}</Text>
+            <View style={[s.vendorRow, { marginTop: 2 }]}>
+              <Text numberOfLines={1} style={[s.spotVendor, { color: colors.primary }]}>{listing.business_name || 'Verified provider'}</Text>
+              {cleanCity(listing.vendor_city) ? <><Icon name="location" solid={false} size={11} color={colors.text2} /><Text numberOfLines={1} style={[s.serviceMeta, { color: colors.text2 }]}>{cleanCity(listing.vendor_city)}</Text></> : null}
+            </View>
+          </View>
           <HeartRound listing={listing} />
-        </View>
-        <View style={[s.vendorRow, { marginTop: 4 }]}>
-          <Text numberOfLines={1} style={[s.spotVendor, { color: colors.primary }]}>{listing.business_name || 'Verified provider'}</Text>
-          {cleanCity(listing.vendor_city) ? <><Icon name="location" solid={false} size={14} color={colors.text2} /><Text numberOfLines={1} style={[s.serviceMeta, { color: colors.text2 }]}>{cleanCity(listing.vendor_city)}</Text></> : null}
-        </View>
-        <View style={[s.spotInfo, { backgroundColor: colors.surface2 }]}>
-          {duration ? <View style={s.infoItem}><Icon name="time" solid={false} size={16} color={colors.text2} /><Text style={[s.infoText, { color: colors.text }]}>{duration}</Text></View> : null}
-          <View style={s.infoItem}><Icon name="check-badge" solid={false} size={17} color={colors.orange} /><Text style={[s.infoText, { color: colors.text }]}>Verified provider</Text></View>
         </View>
         <View style={s.spotFoot}>
           <View>
-            <Text style={{ fontSize: 12.5, fontWeight: '600', color: colors.text2 }}>{listing.price_type === 'from' ? 'Starting from' : 'Price'}</Text>
-            <Price value={listing.price} currency={listing.currency} size={27} />
+            <Text style={{ fontSize: 10, fontWeight: '600', color: colors.text2 }}>{listing.price_type === 'from' ? 'Starting from' : 'Price'}</Text>
+            <Price value={listing.price} currency={listing.currency} size={22} />
           </View>
-          <Pressable accessibilityRole="button" accessibilityLabel={`Book ${listing.title}`} onPress={() => { tap(); onBook(); }} style={({ pressed }) => [s.spotCta, { backgroundColor: colors.orange, opacity: pressed ? 0.9 : 1 }]}>
-            <Icon name="calendar" solid={false} size={19} color={colors.onOrange} />
-            <Text style={[s.spotCtaText, { color: colors.onOrange }]}>Book Appointment</Text>
-          </Pressable>
+          <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            {duration ? <Pill tone="lav" small icon="time">{duration}</Pill> : null}
+            <Pressable accessibilityRole="button" accessibilityLabel={`Book ${listing.title}`} onPress={() => { tap(); onBook(); }} style={({ pressed }) => [s.spotCta, { backgroundColor: colors.orange, opacity: pressed ? 0.9 : 1 }]}>
+              <Icon name="calendar" solid={false} size={15} color={colors.onOrange} />
+              <Text style={[s.spotCtaText, { color: colors.onOrange }]}>Book</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
     </Panel>
@@ -236,18 +237,22 @@ function HeartRound({ listing }: { listing: Listing }) {
   const toast = useToast();
   const saved = fav.has(listing.id);
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={saved ? 'Remove from saved' : 'Save for later'} hitSlop={6} onPress={() => { tap(); const now = fav.toggle(listing); rememberImages([listing]); toast.show(now ? 'Saved for later' : 'Removed from saved'); }} style={[s.heartRound, { backgroundColor: colors.lav2 }]}>
-      <Icon name="heart" solid={saved} size={22} color={saved ? colors.heart : colors.text} />
+    <Pressable accessibilityRole="button" accessibilityLabel={saved ? 'Remove from saved' : 'Save for later'} hitSlop={6} onPress={() => { tap(); const now = fav.toggle(listing); rememberImages([listing]); toast.show(now ? 'Saved for later' : 'Removed from saved'); }} style={[s.heartRound, { backgroundColor: saved ? colors.roseSoft : colors.lav2 }]}>
+      <Icon name="heart" solid={saved} size={17} color={saved ? colors.heart : colors.text} />
     </Pressable>
   );
 }
 
 /* ---------------------------------------------------------------------------- CategoryTile */
-export function CategoryTile({ category, onPress }: { category: Pick<Category, 'name' | 'slug'>; onPress: () => void }) {
+/** Small round category icon with a coloured ring and a two-line label. Meant for a horizontally scrolling row. */
+export function CategoryTile({ category, onPress, index = 0 }: { category: Pick<Category, 'name' | 'slug'>; onPress: () => void; index?: number }) {
   const { colors } = useTheme();
+  const accent = accentAt(colors, index);
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={category.name} onPress={() => { tap(); onPress(); }} style={({ pressed }) => [s.catTile, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.92 : 1 }, softShadow(colors.shadow)]}>
-      <Image source={categoryImage(category.slug)} contentFit="cover" style={s.catImage} transition={150} />
+    <Pressable accessibilityRole="button" accessibilityLabel={category.name} onPress={() => { tap(); onPress(); }} style={({ pressed }) => [s.catTile, { opacity: pressed ? 0.85 : 1 }]}>
+      <View style={[s.catRing, { backgroundColor: accent.bg, borderColor: accent.fg }]}>
+        <Image source={categoryImage(category.slug)} contentFit="cover" style={s.catImage} transition={150} />
+      </View>
       <Text numberOfLines={2} style={[s.catLabel, { color: colors.text }]}>{category.name}</Text>
     </Pressable>
   );
@@ -260,13 +265,13 @@ export function SellCard({ style }: { style?: StyleProp<ViewStyle> }) {
   const vendors = stats.data?.vendors ?? 0;
   return (
     <LinearGradient colors={[colors.orangeSoft, colors.surface]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[s.sellCard, { borderColor: colors.orangeLine }, style]}>
-      <View style={[s.sellIcon, { backgroundColor: colors.orange }]}><Icon name="storefront" solid={false} size={26} color={colors.onOrange} /></View>
+      <View style={[s.sellIcon, { backgroundColor: colors.orange }]}><Icon name="storefront" solid={false} size={20} color={colors.onOrange} /></View>
       <View style={{ flex: 1 }}>
         <Text style={[s.sellTitle, { color: colors.text }]}>Sell on Sokoni Hub</Text>
         <Text style={[s.sellText, { color: colors.brown }]}>{vendors > 0 ? `Join ${vendors} verified seller${vendors === 1 ? '' : 's'} reaching buyers across Qatar.` : 'Open your store and reach buyers across Qatar.'}</Text>
       </View>
       <Pressable accessibilityRole="button" accessibilityLabel="Apply to sell on Sokoni Hub" onPress={() => { tap(); void WebBrowser.openBrowserAsync(`${WEB_URL}/sell`).catch(() => {}); }} style={({ pressed }) => [s.sellButton, { backgroundColor: colors.orange, opacity: pressed ? 0.88 : 1 }]}>
-        <Text style={{ color: colors.onOrange, fontSize: 14.5, fontWeight: '800' }}>Apply</Text>
+        <Text style={{ color: colors.onOrange, fontSize: 12, fontWeight: '700' }}>Apply</Text>
       </Pressable>
     </LinearGradient>
   );
@@ -276,57 +281,55 @@ export function SellCard({ style }: { style?: StyleProp<ViewStyle> }) {
 export function VendorChip({ name, logo }: { name: string; logo?: string | null }) {
   const { colors } = useTheme();
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-      <Avatar name={name} uri={logo} size={26} square tone="mint" />
-      <Text numberOfLines={1} style={{ fontSize: 13.5, fontWeight: '800', color: colors.text, flexShrink: 1 }}>{name}</Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+      <Avatar name={name} uri={logo} size={22} square tone="mint" />
+      <Text numberOfLines={1} style={{ fontSize: 12, fontWeight: '700', color: colors.text, flexShrink: 1 }}>{name}</Text>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  productCard: { borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
-  productImage: { width: '100%', aspectRatio: 1 },
-  topLeft: { position: 'absolute', top: 10, left: 10 },
-  topRight: { position: 'absolute', top: 10, right: 10 },
-  bottomLeft: { position: 'absolute', bottom: 8, left: 8 },
-  tag: { position: 'absolute', left: 10, bottom: 10, maxWidth: '86%', borderRadius: 9, borderWidth: 1, paddingHorizontal: 9, height: 24, justifyContent: 'center' },
-  productBody: { padding: 13, gap: 7 },
-  productTitle: { fontSize: 16, fontWeight: '800', letterSpacing: -0.2 },
-  vendorRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  vendorName: { fontSize: 12.5, fontWeight: '800', flexShrink: 1 },
-  vendorCity: { fontSize: 12, fontWeight: '600', flexShrink: 3 },
-  productFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
-  addButton: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  serviceRow: { flexDirection: 'row', gap: 13, padding: 12 },
-  serviceImage: { width: 104, alignSelf: 'stretch', minHeight: 124, borderRadius: 16, overflow: 'hidden' },
-  serviceBody: { flex: 1, gap: 5, justifyContent: 'space-between' },
-  serviceVendor: { fontSize: 12.5, fontWeight: '800', flexShrink: 1 },
-  serviceTitle: { fontSize: 16.5, fontWeight: '800', letterSpacing: -0.2, lineHeight: 21 },
-  serviceMeta: { fontSize: 12.5, fontWeight: '600' },
-  serviceFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 4 },
-  bookButton: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 40, borderRadius: 12, paddingHorizontal: 14 },
-  bookText: { fontSize: 13.5, fontWeight: '800' },
-  spotlight: { padding: 0, overflow: 'hidden', borderRadius: 24 },
-  spotImage: { height: 176, width: '100%' },
-  spotPills: { position: 'absolute', top: 12, left: 12, right: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  onPhoto: { height: 28, borderRadius: 14 },
-  spotRating: { position: 'absolute', right: 12, bottom: 12 },
-  spotBody: { padding: 16, gap: 2 },
-  spotTitle: { flex: 1, fontSize: 19.5, fontWeight: '800', letterSpacing: -0.4, lineHeight: 25 },
-  spotVendor: { fontSize: 14.5, fontWeight: '800', flexShrink: 1 },
-  heartRound: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  spotInfo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 16, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 11, marginTop: 12 },
-  infoItem: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  infoText: { fontSize: 13.5, fontWeight: '700' },
-  spotFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 14 },
-  spotCta: { flex: 1, maxWidth: 220, height: 54, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, marginLeft: 12 },
-  spotCtaText: { fontSize: 15.5, fontWeight: '800' },
-  sellCard: { marginHorizontal: 16, marginTop: 24, borderRadius: 22, borderWidth: 1, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 13 },
-  sellIcon: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  sellTitle: { fontSize: 16.5, fontWeight: '800', letterSpacing: -0.2 },
-  sellText: { fontSize: 13, lineHeight: 18, marginTop: 2, fontWeight: '600' },
-  sellButton: { height: 44, borderRadius: 14, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center' },
-  catTile: { width: 118, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, paddingVertical: 12, paddingHorizontal: 10, alignItems: 'center', gap: 10 },
-  catImage: { width: 80, height: 80, borderRadius: 18 },
-  catLabel: { fontSize: 13.5, fontWeight: '800', textAlign: 'center', lineHeight: 17, minHeight: 34 },
+  productCard: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  productImage: { width: '100%', aspectRatio: 1.3 },
+  topLeft: { position: 'absolute', top: 6, left: 6 },
+  topRight: { position: 'absolute', top: 6, right: 6 },
+  bottomLeft: { position: 'absolute', bottom: 5, left: 5 },
+  tag: { position: 'absolute', left: 6, bottom: 6, maxWidth: '86%', borderRadius: 6, borderWidth: 1, paddingHorizontal: 6, height: 17, justifyContent: 'center' },
+  productBody: { paddingHorizontal: 8, paddingTop: 7, paddingBottom: 8, gap: 3 },
+  productTitle: { fontSize: 12, fontWeight: '600', letterSpacing: -0.1 },
+  vendorRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  vendorName: { fontSize: 10.5, fontWeight: '600', flexShrink: 1 },
+  vendorCity: { fontSize: 10, fontWeight: '500', flexShrink: 3 },
+  productFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
+  addButton: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  serviceRow: { flexDirection: 'row', gap: 10, padding: 8 },
+  serviceImage: { width: 84, alignSelf: 'stretch', minHeight: 92, borderRadius: 11, overflow: 'hidden' },
+  serviceBody: { flex: 1, gap: 3, justifyContent: 'space-between' },
+  serviceVendor: { fontSize: 10.5, fontWeight: '700', flexShrink: 1 },
+  serviceTitle: { fontSize: 13, fontWeight: '600', letterSpacing: -0.1, lineHeight: 17 },
+  serviceMeta: { fontSize: 10.5, fontWeight: '500' },
+  serviceFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginTop: 2 },
+  bookButton: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 30, borderRadius: 9, paddingHorizontal: 11 },
+  bookText: { fontSize: 11.5, fontWeight: '700' },
+  spotlight: { padding: 0, overflow: 'hidden', borderRadius: 16 },
+  spotImage: { height: 118, width: '100%' },
+  spotPills: { position: 'absolute', top: 8, left: 8, right: 8, flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
+  onPhoto: { height: 19, borderRadius: 10 },
+  spotRating: { position: 'absolute', right: 8, bottom: 8 },
+  spotBody: { padding: 10, gap: 8 },
+  spotTitle: { fontSize: 14, fontWeight: '700', letterSpacing: -0.2 },
+  spotVendor: { fontSize: 11.5, fontWeight: '700', flexShrink: 1 },
+  heartRound: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  spotFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  spotCta: { minWidth: 92, height: 36, borderRadius: 11, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  spotCtaText: { fontSize: 12.5, fontWeight: '700' },
+  sellCard: { marginHorizontal: 12, marginTop: 16, borderRadius: 14, borderWidth: 1, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  sellIcon: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  sellTitle: { fontSize: 13, fontWeight: '700' },
+  sellText: { fontSize: 11, lineHeight: 15, marginTop: 1, fontWeight: '500' },
+  sellButton: { height: 32, borderRadius: 10, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
+  catTile: { width: 68, alignItems: 'center', gap: 5 },
+  catRing: { width: 54, height: 54, borderRadius: 27, borderWidth: 1.5, padding: 2, alignItems: 'center', justifyContent: 'center' },
+  catImage: { width: 47, height: 47, borderRadius: 24 },
+  catLabel: { fontSize: 10.5, fontWeight: '600', textAlign: 'center', lineHeight: 13, minHeight: 26 },
 });

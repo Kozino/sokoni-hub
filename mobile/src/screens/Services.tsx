@@ -9,7 +9,7 @@ import { ServiceRow, ServiceSpotlight } from '../cards';
 import { SORT_LABELS, useActiveCategories, useDebounced, useMarket, usePromoSet, type SortKey } from '../data';
 import { plural } from '../format';
 import { Icon } from '../icons';
-import { AppBar, Panel, PillRow, Screen, SearchBar, SectionHead, SectionLabel, SortPill, Tabs, useColumnWidth } from '../kit';
+import { AppBar, Panel, PillRow, Screen, SearchBar, SectionHead, SectionLabel, SortPill, Tabs, accentAt, useColumnWidth, useGrid } from '../kit';
 import { useCity } from '../city';
 import type { NavProps } from '../nav';
 import { useTheme } from '../providers';
@@ -21,6 +21,7 @@ export function Services({ go, tab, initial }: NavProps & { initial?: Record<str
   const params = initial ?? {};
   const { colors } = useTheme();
   const narrow = useColumnWidth() < 380;
+  const grid = useGrid(300, 12, 8); // service rows: one across on phones, two on tablets
   const { city, setCity, cities } = useCity();
   const categories = useActiveCategories();
   const promo = usePromoSet();
@@ -50,20 +51,21 @@ export function Services({ go, tab, initial }: NavProps & { initial?: Record<str
 
   const header = (
     <View>
-      <LinearGradient colors={[colors.primary, colors.deep]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.hero}>
-        <View style={[s.circle, { right: -50, top: -60, width: 190, height: 190, backgroundColor: 'rgba(255,255,255,0.09)' }]} />
-        <View style={{ position: 'absolute', right: 14, bottom: 70, opacity: 0.1 }}><Icon name="shield-checkmark" solid={false} size={96} color="#FFFFFF" /></View>
-        <View style={s.heroTag}><Icon name="shield-checkmark" solid size={13} color={colors.orange} /><Text style={s.heroTagText}>QATAR COMMUNITY HUB</Text></View>
-        <Text style={s.heroTitle}>Book Trusted African Services in Qatar</Text>
-        <Text style={s.heroText}>{blurb ? `${blurb} and more, with upfront pricing from verified providers.` : 'Hair, beauty, catering and more, with upfront pricing from verified providers.'}</Text>
-        <SearchBar style={{ paddingHorizontal: 0, marginTop: 16 }} value={q} onChangeText={setQ} placeholder={narrow ? 'Search services' : 'Search services or providers'} onFilter={() => setSheet(true)} filterCount={filterCount} />
+      <LinearGradient colors={[colors.heroB, colors.heroA]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.hero}>
+        <View style={[s.circle, { right: -26, top: -34, width: 100, height: 100, backgroundColor: 'rgba(255,255,255,0.09)' }]} />
+        <View style={s.heroIcon}><Icon name="service-bell" solid={false} size={19} color={colors.orange} /></View>
+        <View style={{ flex: 1 }}>
+          <Text numberOfLines={1} style={s.heroTitle}>Book Trusted African Services in Qatar</Text>
+          <Text numberOfLines={1} style={s.heroText}>{blurb ? `${blurb} · upfront pricing` : 'Verified providers · upfront pricing'}</Text>
+        </View>
       </LinearGradient>
-      <PillRow style={{ marginTop: 16 }} items={chips} active={category} onSelect={setCategory} />
+      <SearchBar style={{ marginTop: 8 }} value={q} onChangeText={setQ} placeholder={narrow ? 'Search services' : 'Search services or providers'} onFilter={() => setSheet(true)} filterCount={filterCount} />
+      <PillRow style={{ marginTop: 8 }} items={chips} active={category} onSelect={setCategory} />
 
       {spotlight ? (
         <>
           <SectionLabel dot title="Featured spotlight" action={undefined} />
-          <View style={{ paddingHorizontal: 16 }}><ServiceSpotlight listing={spotlight} onPress={() => open(spotlight.id)} onBook={() => open(spotlight.id)} /></View>
+          <View style={{ paddingHorizontal: 12 }}><ServiceSpotlight listing={spotlight} onPress={() => open(spotlight.id)} onBook={() => open(spotlight.id)} /></View>
         </>
       ) : null}
 
@@ -71,56 +73,60 @@ export function Services({ go, tab, initial }: NavProps & { initial?: Record<str
         title={active ? active.name : city ? `Available services in ${city}` : 'Available services'}
         caption={market.loading && !market.items.length ? 'Searching…' : `${plural(market.total, 'service')} from verified providers`}
         right={<SortPill value={sort} options={SORTS} onChange={setSort} />}
-        style={{ marginBottom: 14 }}
+        style={{ marginBottom: 8 }}
       />
-      {market.error && market.items.length ? <View style={{ paddingHorizontal: 16, marginBottom: 10 }}><Notice type="warning">{market.error}</Notice></View> : null}
+      {market.error && market.items.length ? <View style={{ paddingHorizontal: 12, marginBottom: 8 }}><Notice type="warning">{market.error}</Notice></View> : null}
     </View>
   );
 
   const footer = (
     <View>
       {market.loadingMore ? <Spinner label="Loading more…" /> : null}
-      <Panel style={{ marginHorizontal: 16, marginTop: 24 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-          <View style={[s.howIcon, { backgroundColor: colors.primarySoft }]}><Icon name="shield-checkmark" solid={false} size={22} color={colors.primary} /></View>
-          <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text, flex: 1 }}>How Sokoni Hub Booking Works</Text>
+      <Panel style={{ marginHorizontal: 12, marginTop: 16 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+          <View style={[s.howIcon, { backgroundColor: colors.primarySoft }]}><Icon name="shield-checkmark" solid={false} size={18} color={colors.primary} /></View>
+          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, flex: 1 }}>How Sokoni Hub booking works</Text>
         </View>
         {[
-          ['Choose a service & time', 'Pick a provider and a slot that suits you. The price is shown up front.', colors.primary],
-          ['Confirm the details', 'Choose the provider\u2019s location or a home visit. The provider confirms your booking.', colors.brown],
-          ['Pay the provider directly', 'Nothing is charged in the app. You pay the provider once the service is done.', colors.primary],
-        ].map(([title, text, tone], index) => (
-          <View key={title} style={s.step}>
-            <View style={[s.stepNo, { backgroundColor: tone }]}><Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '800' }}>{index + 1}</Text></View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 15.5, fontWeight: '800', color: colors.text }}>{title}</Text>
-              <Text style={{ fontSize: 13.5, lineHeight: 19, color: colors.text2, marginTop: 2 }}>{text}</Text>
+          ['Choose a service & time', 'Pick a provider and a slot that suits you. The price is shown up front.'],
+          ['Confirm the details', 'Choose the provider\u2019s location or a home visit. The provider confirms your booking.'],
+          ['Pay the provider directly', 'Nothing is charged in the app. You pay the provider once the service is done.'],
+        ].map(([title, text], index) => {
+          const accent = accentAt(colors, [0, 1, 2][index]);
+          return (
+            <View key={title} style={s.step}>
+              <View style={[s.stepNo, { backgroundColor: accent.bg }]}><Text style={{ color: accent.fg, fontSize: 10.5, fontWeight: '700' }}>{index + 1}</Text></View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>{title}</Text>
+                <Text style={{ fontSize: 11, lineHeight: 15, color: colors.text2, marginTop: 1 }}>{text}</Text>
+              </View>
             </View>
-          </View>
-        ))}
-        <View style={[s.assure, { backgroundColor: colors.surface2 }]}>
-          <Icon name="shield-checkmark" size={20} color={colors.primary} />
-          <Text style={{ flex: 1, fontSize: 13.5, fontWeight: '700', color: colors.text }}>Every provider is verified before they can take bookings.</Text>
-          <Pressable accessibilityRole="button" hitSlop={8} onPress={() => go('support')}><Text style={{ color: colors.primary, fontSize: 13.5, fontWeight: '800' }}>Learn More</Text></Pressable>
+          );
+        })}
+        <View style={[s.assure, { backgroundColor: colors.primarySoft }]}>
+          <Icon name="shield-checkmark" size={16} color={colors.primary} />
+          <Text style={{ flex: 1, fontSize: 11, fontWeight: '600', color: colors.text }}>Every provider is verified before they can take bookings.</Text>
+          <Pressable accessibilityRole="button" hitSlop={8} onPress={() => go('support')}><Text style={{ color: colors.primary, fontSize: 11, fontWeight: '700' }}>Learn more</Text></Pressable>
         </View>
       </Panel>
-      <View style={{ height: 56 }} />
+      <View style={{ height: 40 }} />
     </View>
   );
 
   return (
-    <Screen>
+    <Screen wide>
       <AppBar go={go} tab={tab} />
       {market.loading && !market.items.length && !market.error ? (
         <FlatList data={[]} renderItem={null} ListHeaderComponent={header} ListFooterComponent={<Spinner label="Finding providers…" />} />
       ) : (
         <FlatList
+          key={grid.cols >= 3 ? 'two' : 'one'} numColumns={grid.cols >= 3 ? 2 : 1} columnWrapperStyle={grid.cols >= 3 ? { gap: 8, paddingHorizontal: 12 } : undefined}
           data={rest} keyExtractor={(item) => item.id} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
-          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+          ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
           ListHeaderComponent={header} ListFooterComponent={footer}
           refreshControl={<RefreshControl refreshing={market.refreshing} onRefresh={() => void market.reload(true)} tintColor={colors.primary} />}
           onEndReached={() => void market.loadMore()} onEndReachedThreshold={0.4}
-          renderItem={({ item }) => <View style={{ paddingHorizontal: 16 }}><ServiceRow listing={item} onPress={() => open(item.id)} onBook={() => open(item.id)} /></View>}
+          renderItem={({ item }) => <View style={grid.cols >= 3 ? { flex: 1 } : { paddingHorizontal: 12 }}><ServiceRow listing={item} onPress={() => open(item.id)} onBook={() => open(item.id)} /></View>}
           ListEmptyComponent={market.error ? (
             <EmptyState icon="cloud-offline-outline" title="Could not load services" text={market.error} action={<Button style={{ marginTop: 8 }} onPress={() => void market.reload()}>Try again</Button>} />
           ) : spotlight ? null : (
@@ -146,7 +152,7 @@ export function Services({ go, tab, initial }: NavProps & { initial?: Record<str
             </View>
           </>
         ) : null}
-        <View style={{ flexDirection: 'row', gap: 10, marginTop: 22 }}>
+        <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
           <Button variant="secondary" style={{ flex: 1 }} onPress={() => { setMin(''); setMax(''); setCity(''); }}>Reset</Button>
           <Button style={{ flex: 1 }} onPress={() => setSheet(false)}>{`Show ${plural(market.total, 'service')}`}</Button>
         </View>
@@ -156,15 +162,14 @@ export function Services({ go, tab, initial }: NavProps & { initial?: Record<str
 }
 
 const s = StyleSheet.create({
-  hero: { marginHorizontal: 16, marginTop: 16, borderRadius: 26, padding: 18, overflow: 'hidden' },
+  hero: { marginHorizontal: 12, marginTop: 8, borderRadius: 14, paddingVertical: 9, paddingHorizontal: 10, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 9 },
   circle: { position: 'absolute', borderRadius: 999 },
-  heroTag: { flexDirection: 'row', alignItems: 'center', gap: 7, alignSelf: 'flex-start', backgroundColor: 'rgba(0,0,0,0.22)', paddingHorizontal: 12, height: 28, borderRadius: 14 },
-  heroTagText: { color: '#D8F3E5', fontSize: 11, fontWeight: '800', letterSpacing: 1 },
-  heroTitle: { color: '#FFFFFF', fontSize: 27, fontWeight: '800', letterSpacing: -0.7, lineHeight: 33, marginTop: 14 },
-  heroText: { color: '#D3EEDF', fontSize: 14.5, lineHeight: 21, marginTop: 8 },
-  howIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  step: { flexDirection: 'row', gap: 13, marginBottom: 14 },
-  stepNo: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
-  assure: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, padding: 13, marginTop: 4 },
-  label: { fontSize: 15.5, fontWeight: '800', marginTop: 8, marginBottom: 10 },
+  heroIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' },
+  heroTitle: { color: '#FFFFFF', fontSize: 12.5, fontWeight: '700', letterSpacing: -0.2 },
+  heroText: { color: '#CFEBDC', fontSize: 10.5, fontWeight: '500', marginTop: 1 },
+  howIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  step: { flexDirection: 'row', gap: 9, marginBottom: 9 },
+  stepNo: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  assure: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 11, padding: 9, marginTop: 2 },
+  label: { fontSize: 12.5, fontWeight: '700', marginTop: 8, marginBottom: 8 },
 });

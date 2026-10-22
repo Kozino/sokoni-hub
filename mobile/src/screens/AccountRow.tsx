@@ -74,10 +74,10 @@ import { WebOnlyAccount } from './WebOnlyAccount';export function AccountRow({ i
         { 
           flexDirection: 'row', 
           alignItems: 'center', 
-          paddingVertical: 14, 
-          paddingHorizontal: 16, 
+          paddingVertical: 11, 
+          paddingHorizontal: 12, 
           backgroundColor: pressed && onPress ? (theme === 'dark' ? '#1c1c1e' : '#f9f9f9') : 'transparent',
-          gap: 14
+          gap: 11
         }
       ]}
     >
@@ -85,8 +85,8 @@ import { WebOnlyAccount } from './WebOnlyAccount';export function AccountRow({ i
         <Icon name={icon} size={20} color={colors.text} />
       </View>
       <View style={{ flex: 1, justifyContent: 'center' }}>
-        <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: subtitle ? 2 : 0 }}>{title}</Text>
-        {subtitle ? <Text numberOfLines={1} style={{ fontSize: 13, color: colors.text2 }}>{subtitle}</Text> : null}
+        <Text style={{ fontSize: 13.5, fontWeight: '600', color: colors.text, marginBottom: subtitle ? 2 : 0 }}>{title}</Text>
+        {subtitle ? <Text numberOfLines={1} style={{ fontSize: 11.5, color: colors.text2 }}>{subtitle}</Text> : null}
       </View>
       {right ?? (onPress ? <Icon name="chevron-forward" size={18} color={colors.muted}/> : null)}
     </Pressable>

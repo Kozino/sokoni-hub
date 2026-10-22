@@ -11,7 +11,7 @@ import { API_URL } from '../config';
 import { bookingTime, errorMessage, LIVE_BOOKING_STATES, useBookingDetail, useMyBookings, usePromoSet, useRememberedImage, useStats, useVendorDirectory } from '../data';
 import { durationLabel, longDate, minutesBetween, money, plural, shortDate, time24, whatsappUrl } from '../format';
 import { Icon } from '../icons';
-import { AppBar, Avatar, InfoLine, PageTitle, Panel, Pill, RoundButton, Screen, SegTabs, SectionHead, StatusPill, Tabs, Thumb, bookingLook, useColumnWidth } from '../kit';
+import { AppBar, Avatar, InfoLine, PageTitle, Panel, Pill, RoundButton, Screen, SegTabs, SectionHead, StatusPill, Tabs, Thumb, bookingLook, toneColors, useColumnWidth } from '../kit';
 import type { NavProps } from '../nav';
 import { useAuth, useTheme } from '../providers';
 import { useToast } from '../toast';
@@ -48,7 +48,7 @@ export function Bookings({ go, back, tab }: NavProps) {
   const header = (
     <View>
       <PageTitle title="My Bookings" subtitle="Follow your appointments with local service providers, from request to completion." right={<RoundButton icon="calendar" tone="lav" label="Book a service" onPress={() => tab('services')} size={46} />} />
-      <View style={{ paddingHorizontal: 16, marginTop: 18 }}>
+      <View style={{ paddingHorizontal: 12, marginTop: 14 }}>
         <SegTabs active={active} onChange={(k) => setActive(k as TabKey)} items={[
           { key: 'upcoming', label: 'Upcoming', count: groups.upcoming.length },
           { key: 'completed', label: 'Completed', count: groups.completed.length },
@@ -62,20 +62,20 @@ export function Bookings({ go, back, tab }: NavProps) {
     <View>
       {active === 'upcoming' && groups.completed.length ? (
         <>
-          <SectionHead title="Past Services" right={<Text style={{ color: colors.text2, fontSize: 13, fontWeight: '800' }}>Showing {Math.min(3, groups.completed.length)} recent</Text>} />
-          <View style={{ gap: 12, paddingHorizontal: 16 }}>{groups.completed.slice(0, 3).map((b) => <PastRow key={b.id} booking={b} onAgain={openListing} />)}</View>
+          <SectionHead title="Past Services" right={<Text style={{ color: colors.text2, fontSize: 11.5, fontWeight: '700' }}>Showing {Math.min(3, groups.completed.length)} recent</Text>} />
+          <View style={{ gap: 9, paddingHorizontal: 12 }}>{groups.completed.slice(0, 3).map((b) => <PastRow key={b.id} booking={b} onAgain={openListing} />)}</View>
         </>
       ) : null}
       <Panel style={[s.promo, { backgroundColor: colors.surface2 }]}>
-        <View style={{ flexDirection: 'row', gap: 14 }}>
+        <View style={{ flexDirection: 'row', gap: 11 }}>
           <View style={[s.promoIcon, { backgroundColor: colors.orangeSoft }]}><Icon name="compass" solid={false} size={26} color={colors.orange} /></View>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>Looking for a specialist?</Text>
-            <Text style={{ fontSize: 14, lineHeight: 20, color: colors.text2, marginTop: 4 }}>{stats.data?.services ? `Browse ${plural(stats.data.services, 'service')} from verified providers across Qatar.` : 'Browse services from verified providers across Qatar.'}</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>Looking for a specialist?</Text>
+            <Text style={{ fontSize: 12.5, lineHeight: 18, color: colors.text2, marginTop: 4 }}>{stats.data?.services ? `Browse ${plural(stats.data.services, 'service')} from verified providers across Qatar.` : 'Browse services from verified providers across Qatar.'}</Text>
           </View>
         </View>
         <Pressable accessibilityRole="button" onPress={() => tab('services')} style={({ pressed }) => [s.promoBtn, { backgroundColor: colors.brown, opacity: pressed ? 0.9 : 1 }]}>
-          <Icon name="compass" solid={false} size={19} color="#FFFFFF" /><Text style={{ color: '#FFFFFF', fontSize: 15.5, fontWeight: '800' }}>Explore Services</Text>
+          <Icon name="compass" solid={false} size={19} color="#FFFFFF" /><Text style={{ color: '#FFFFFF', fontSize: 13.5, fontWeight: '700' }}>Explore Services</Text>
         </Pressable>
       </Panel>
     </View>
@@ -88,11 +88,11 @@ export function Bookings({ go, back, tab }: NavProps) {
         <FlatList data={[]} renderItem={null} ListHeaderComponent={header} ListFooterComponent={<Spinner label="Loading your bookings…" />} />
       ) : (
         <FlatList
-          data={list} keyExtractor={(b) => b.id} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 56 }}
+          data={list} keyExtractor={(b) => b.id} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 44 }}
           ListHeaderComponent={<>{header}<View style={{ height: 16 }} /></>} ItemSeparatorComponent={() => <View style={{ height: 14 }} />}
           refreshControl={<RefreshControl refreshing={bookings.isRefetching} onRefresh={() => void bookings.refetch()} tintColor={colors.primary} />}
           renderItem={({ item }) => (
-            <View style={{ paddingHorizontal: 16 }}>
+            <View style={{ paddingHorizontal: 12 }}>
               {active === 'upcoming'
                 ? <BookingCard booking={item} go={go} onReschedule={() => setReschedule(item)} />
                 : <PastRow booking={item} onAgain={openListing} />}
@@ -101,7 +101,7 @@ export function Bookings({ go, back, tab }: NavProps) {
           ListEmptyComponent={bookings.error ? (
             <EmptyState icon="cloud-offline-outline" title="Could not load your bookings" text={errorMessage(bookings.error)} action={<Button style={{ marginTop: 8 }} onPress={() => void bookings.refetch()}>Try again</Button>} />
           ) : (
-            <EmptyState icon="calendar-outline" title={active === 'upcoming' ? 'No upcoming bookings' : active === 'completed' ? 'No completed services yet' : 'Nothing cancelled'} text={active === 'upcoming' ? 'Book a verified provider and your appointment will be tracked here.' : 'Services you complete will be listed here so you can book them again.'} action={active === 'upcoming' ? <Button style={{ marginTop: 10 }} onPress={() => tab('services')}>Browse services</Button> : undefined} />
+            <EmptyState icon="calendar-outline" title={active === 'upcoming' ? 'No upcoming bookings' : active === 'completed' ? 'No completed services yet' : 'Nothing cancelled'} text={active === 'upcoming' ? 'Book a verified provider and your appointment will be tracked here.' : 'Services you complete will be listed here so you can book them again.'} action={active === 'upcoming' ? <Button style={{ marginTop: 8 }} onPress={() => tab('services')}>Browse services</Button> : undefined} />
           )}
           ListFooterComponent={footer}
         />
@@ -153,7 +153,7 @@ function BookingCard({ booking, go, onReschedule }: { booking: Booking; go: NavP
   ]);
 
   return (
-    <Panel style={{ padding: 16 }}>
+    <Panel accent={toneColors(colors, look.tone).fg} style={{ padding: 12, paddingLeft: 15 }}>
       <View style={s.cardTop}>
         <View style={{ flexGrow: 1, flexShrink: 1, minWidth: 136 }}>
           <Text numberOfLines={1} style={[s.ref, { color: colors.text2 }]}>REF: #{booking.code}</Text>
@@ -164,7 +164,7 @@ function BookingCard({ booking, go, onReschedule }: { booking: Booking; go: NavP
 
       <View style={s.who}>
         <View>
-          {vendor?.logo_url || remembered ? <Thumb uri={vendor?.logo_url || remembered} style={s.logo} icon="scissors" /> : <Avatar name={d.business_name} size={72} square tone="mint" />}
+          {vendor?.logo_url || remembered ? <Thumb uri={vendor?.logo_url || remembered} style={s.logo} icon="service-bell" /> : <Avatar name={d.business_name} size={72} square tone="mint" />}
           <View style={[s.statusDot, { backgroundColor: d.status === 'confirmed' ? colors.success : colors.orange, borderColor: colors.surface }]} />
         </View>
         <View style={{ flex: 1, gap: 3 }}>
@@ -173,7 +173,7 @@ function BookingCard({ booking, go, onReschedule }: { booking: Booking; go: NavP
             {vendor && promo.vip.has(vendor.id) ? <Pill tone="orange" small>VIP</Pill> : null}
           </View>
           <Text numberOfLines={2} style={[s.service, { color: colors.primary }]}>{d.listing_title || 'Service booking'}</Text>
-          {rating ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}><Icon name="star" size={14} color={colors.orange} /><Text style={{ fontSize: 13.5, fontWeight: '800', color: colors.text }}>{rating.avg.toFixed(1)}</Text><Text style={{ fontSize: 13.5, color: colors.text2, fontWeight: '600' }}>({plural(rating.count, 'review')})</Text></View> : null}
+          {rating ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}><Icon name="star" size={14} color={colors.orange} /><Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>{rating.avg.toFixed(1)}</Text><Text style={{ fontSize: 12, color: colors.text2, fontWeight: '600' }}>({plural(rating.count, 'review')})</Text></View> : null}
         </View>
       </View>
 
@@ -193,12 +193,12 @@ function BookingCard({ booking, go, onReschedule }: { booking: Booking; go: NavP
       <View style={[s.total, { backgroundColor: colors.surface2 }]}>
         <Icon name="shield-checkmark" solid={false} size={24} color={colors.primary} />
         <View style={{ flexGrow: 1, flexShrink: 1, flexBasis: 150 }}>
-          <Text style={{ fontSize: 16.5, fontWeight: '800', color: colors.text }}>{price !== null ? `${d.quoted_price_type === 'from' ? 'From ' : 'Total: '}${money(price, d.currency || 'QAR')}` : 'Price agreed with the provider'}</Text>
-          <Text style={{ fontSize: 13, lineHeight: 18, color: colors.text2, fontWeight: '600', marginTop: 1 }}>{d.quoted_price_type === 'from' ? 'Final price confirmed by the provider • ' : ''}Pay the provider directly</Text>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>{price !== null ? `${d.quoted_price_type === 'from' ? 'From ' : 'Total: '}${money(price, d.currency || 'QAR')}` : 'Price agreed with the provider'}</Text>
+          <Text style={{ fontSize: 11.5, lineHeight: 16, color: colors.text2, fontWeight: '600', marginTop: 1 }}>{d.quoted_price_type === 'from' ? 'Final price confirmed by the provider • ' : ''}Pay the provider directly</Text>
         </View>
         {live && agreed ? (
           <Pressable accessibilityRole="button" accessibilityLabel="Add to calendar" onPress={() => void Linking.openURL(`${API_URL}/api/bookings/ics${query({ code: booking.code, phone })}`)} style={[s.calBtn, { backgroundColor: colors.lav2, marginLeft: 'auto' }]}>
-            <Icon name="calendar" solid={false} size={16} color={colors.text2} /><Text style={{ fontSize: 13, fontWeight: '800', color: colors.text2 }}>Calendar</Text>
+            <Icon name="calendar" solid={false} size={16} color={colors.text2} /><Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.text2 }}>Calendar</Text>
           </Pressable>
         ) : null}
       </View>
@@ -208,8 +208,8 @@ function BookingCard({ booking, go, onReschedule }: { booking: Booking; go: NavP
         {live ? <Button variant="tonal" iconLeft="calendar" style={{ flex: 1 }} onPress={onReschedule}>Reschedule</Button> : null}
       </View>
       {live && detail.data?.can_cancel ? (
-        <Pressable accessibilityRole="button" disabled={cancelling} onPress={cancel} style={{ alignSelf: 'center', paddingVertical: 12 }}>
-          <Text style={{ color: colors.dangerText, fontSize: 14, fontWeight: '800' }}>{cancelling ? 'Cancelling…' : 'Cancel booking'}</Text>
+        <Pressable accessibilityRole="button" disabled={cancelling} onPress={cancel} style={{ alignSelf: 'center', paddingVertical: 9 }}>
+          <Text style={{ color: colors.dangerText, fontSize: 12.5, fontWeight: '700' }}>{cancelling ? 'Cancelling…' : 'Cancel booking'}</Text>
         </Pressable>
       ) : null}
     </Panel>
@@ -228,9 +228,9 @@ function PastRow({ booking, onAgain }: { booking: Booking; onAgain: (b: Booking,
   const when = shortDate(bookingTime(d) || d.created_at);
   const price = d.quoted_price !== undefined && d.quoted_price !== null && Number(d.quoted_price) > 0 ? ` • ${money(d.quoted_price, d.currency || 'QAR')}` : '';
   return (
-    <Panel style={{ padding: 14 }}>
-      <View style={{ flexDirection: 'row', gap: 13 }}>
-        <Thumb uri={remembered || vendor?.logo_url} style={s.pastThumb} icon="scissors" iconSize={22} />
+    <Panel style={{ padding: 11 }}>
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        <Thumb uri={remembered || vendor?.logo_url} style={s.pastThumb} icon="service-bell" iconSize={22} />
         <View style={{ flex: 1 }}>
           <Text numberOfLines={2} style={[s.pastTitle, { color: colors.text }]}>{d.listing_title || 'Service booking'}</Text>
           <Text numberOfLines={1} style={[s.pastMeta, { color: colors.text2 }]}>{d.business_name}</Text>
@@ -239,7 +239,7 @@ function PastRow({ booking, onAgain }: { booking: Booking; onAgain: (b: Booking,
       </View>
       <View style={s.pastFoot}>
         <StatusPill look={look} small />
-        <Button variant="mint" iconLeft="refresh" style={s.againBtn} textStyle={{ fontSize: 14.5 }} onPress={() => onAgain(booking, d.listing_id)}>Book Again</Button>
+        <Button variant="mint" iconLeft="refresh" style={s.againBtn} textStyle={{ fontSize: 13 }} onPress={() => onAgain(booking, d.listing_id)}>Book Again</Button>
       </View>
     </Panel>
   );
@@ -268,9 +268,9 @@ function RescheduleSheet({ booking, onClose, onRebook }: { booking: Booking | nu
   };
   return (
     <Sheet visible title="Need a different time?" onClose={onClose}>
-      <Text style={{ fontSize: 14.5, lineHeight: 21, color: colors.text2 }}>Your provider confirms every appointment, so changes are agreed with them directly. Message them with the new time you prefer{user ? '' : ''} — they will confirm it.</Text>
-      <View style={{ gap: 10, marginTop: 18 }}>
-        {wa ? <Button variant="deep" iconLeft="chat" onPress={() => { onClose(); void Linking.openURL(wa); }}>Message the provider</Button> : <Text style={{ fontSize: 13.5, color: colors.text2 }}>The provider’s WhatsApp number is not available for this booking yet.</Text>}
+      <Text style={{ fontSize: 13, lineHeight: 19, color: colors.text2 }}>Your provider confirms every appointment, so changes are agreed with them directly. Message them with the new time you prefer{user ? '' : ''} — they will confirm it.</Text>
+      <View style={{ gap: 8, marginTop: 14 }}>
+        {wa ? <Button variant="deep" iconLeft="chat" onPress={() => { onClose(); void Linking.openURL(wa); }}>Message the provider</Button> : <Text style={{ fontSize: 12, color: colors.text2 }}>The provider’s WhatsApp number is not available for this booking yet.</Text>}
         {detail.data?.can_cancel ? <Button variant="tonal" loading={busy} onPress={() => Alert.alert('Cancel and rebook?', 'This cancels your current booking so you can pick a new time.', [{ text: 'Keep booking', style: 'cancel' }, { text: 'Cancel and rebook', style: 'destructive', onPress: () => void cancelAndRebook() }])}>Cancel and book a new time</Button> : null}
         <Button variant="ghost" onPress={onClose}>Keep this booking</Button>
       </View>
@@ -279,24 +279,24 @@ function RescheduleSheet({ booking, onClose, onRebook }: { booking: Booking | nu
 }
 
 const s = StyleSheet.create({
-  cardTop: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', columnGap: 10, rowGap: 8 },
-  ref: { fontSize: 12.5, fontWeight: '800' },
-  booked: { fontSize: 12.5, fontWeight: '700', marginTop: 2 },
-  who: { flexDirection: 'row', gap: 14, marginTop: 16 },
-  logo: { width: 72, height: 72, borderRadius: 20 },
+  cardTop: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', columnGap: 8, rowGap: 8 },
+  ref: { fontSize: 11.5, fontWeight: '700' },
+  booked: { fontSize: 11.5, fontWeight: '600', marginTop: 2 },
+  who: { flexDirection: 'row', gap: 11, marginTop: 12 },
+  logo: { width: 59, height: 59, borderRadius: 16 },
   statusDot: { position: 'absolute', right: -3, bottom: -3, width: 18, height: 18, borderRadius: 9, borderWidth: 3 },
-  vendor: { fontSize: 19, fontWeight: '800', letterSpacing: -0.3, flexShrink: 1 },
-  service: { fontSize: 15.5, fontWeight: '800', lineHeight: 20 },
-  block: { borderRadius: 20, padding: 14, gap: 14, marginTop: 16 },
-  total: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 12, rowGap: 10, borderRadius: 18, padding: 14, marginTop: 12 },
-  calBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 36, borderRadius: 12, paddingHorizontal: 12 },
-  actions: { flexDirection: 'row', gap: 12, marginTop: 14 },
-  pastThumb: { width: 62, height: 62, borderRadius: 16 },
-  pastTitle: { fontSize: 17, fontWeight: '800', letterSpacing: -0.2, lineHeight: 22 },
-  pastMeta: { fontSize: 13.5, fontWeight: '700', marginTop: 2 },
-  pastFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 },
-  againBtn: { minHeight: 46, borderRadius: 16, paddingHorizontal: 18 },
-  promo: { marginHorizontal: 16, marginTop: 26, padding: 18 },
-  promoIcon: { width: 54, height: 54, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  promoBtn: { height: 54, borderRadius: 16, marginTop: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9 },
+  vendor: { fontSize: 16, fontWeight: '700', letterSpacing: -0.3, flexShrink: 1 },
+  service: { fontSize: 13.5, fontWeight: '700', lineHeight: 17 },
+  block: { borderRadius: 16, padding: 11, gap: 11, marginTop: 12 },
+  total: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 9, rowGap: 8, borderRadius: 14, padding: 11, marginTop: 9 },
+  calBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 36, borderRadius: 12, paddingHorizontal: 9 },
+  actions: { flexDirection: 'row', gap: 9, marginTop: 11 },
+  pastThumb: { width: 51, height: 51, borderRadius: 13 },
+  pastTitle: { fontSize: 14.5, fontWeight: '700', letterSpacing: -0.2, lineHeight: 19 },
+  pastMeta: { fontSize: 12, fontWeight: '600', marginTop: 2 },
+  pastFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 11 },
+  againBtn: { minHeight: 39, borderRadius: 13, paddingHorizontal: 14 },
+  promo: { marginHorizontal: 12, marginTop: 20, padding: 14 },
+  promoIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  promoBtn: { height: 45, borderRadius: 13, marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9 },
 });
