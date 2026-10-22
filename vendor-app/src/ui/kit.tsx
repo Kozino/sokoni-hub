@@ -1,6 +1,7 @@
 import React, { ReactNode } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, ViewStyle } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SvgXml } from 'react-native-svg';
 import { ICON_SVG, IconName } from './heroicons';
@@ -90,8 +91,9 @@ export function ScreenHeader({ title, subtitle, right }: { title: string; subtit
   const waiting = attention.orders + attention.bookings;
   return (
     <View style={styles.headerWrap}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       <SafeAreaView edges={['top']} style={styles.appBar}>
+        <LinearGradient pointerEvents="none" colors={['#00402F', '#00735C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
         <View style={styles.appRow}>
           <View style={styles.logoTile}>
             <Image source={require('../../assets/logo.png')} style={styles.logoImg} resizeMode="contain" />
@@ -107,7 +109,7 @@ export function ScreenHeader({ title, subtitle, right }: { title: string; subtit
             style={styles.bellBtn}
             hitSlop={8}
           >
-            <Icon name="bell" size={20} color={C.text2} />
+            <Icon name="bell" size={20} color="#FFFFFF" />
             {waiting > 0 ? <View style={styles.bellDot} /> : null}
           </Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel="Open account" onPress={() => go('account')} style={styles.avatarBtn} hitSlop={6}>
@@ -133,14 +135,13 @@ export function ScreenHeader({ title, subtitle, right }: { title: string; subtit
  * Row of stat tiles. Three across on phones 360dp and wider; two per row on narrower screens
  * so labels and figures are not cut off. Tiles wrap onto a new line rather than shrinking.
  */
+/** One non-wrapping row of equal tiles. Wrapping rows could report too little height and let tiles run under the chips. */
 export function StatRow({ children, style }: { children: ReactNode; style?: ViewStyle }) {
-  const { width } = useWindowDimensions();
-  const narrow = width < 360;
   const items = React.Children.toArray(children).filter(Boolean);
   return (
     <View style={[styles.statRow, style]}>
       {items.map((child, idx) => (
-        <View key={idx} style={narrow ? styles.statCellNarrow : styles.statCell}>
+        <View key={idx} style={styles.statCell}>
           {child}
         </View>
       ))}
@@ -152,7 +153,7 @@ export function StatRow({ children, style }: { children: ReactNode; style?: View
 export function StatTile({ label, value, sub, tone = 'brand', icon }: { label: string; value: string; sub?: string; tone?: Tone; icon?: IconName }) {
   const t = TONES[tone];
   return (
-    <View style={styles.stat} accessibilityLabel={`${label} ${value}${sub ? `, ${sub}` : ''}`}>
+    <View style={[styles.stat, { backgroundColor: t.bg, borderColor: 'transparent' }]} accessibilityLabel={`${label} ${value}${sub ? `, ${sub}` : ''}`}>
       <View style={styles.statTop}>
         <Text style={styles.statLabel}>{label}</Text>
         {icon ? (
@@ -161,7 +162,7 @@ export function StatTile({ label, value, sub, tone = 'brand', icon }: { label: s
           </View>
         ) : null}
       </View>
-      <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+      <Text style={styles.statValue} numberOfLines={1}>{value}</Text>
       {sub ? <Text style={[styles.statSub, { color: t.fg }]}>{sub}</Text> : null}
     </View>
   );
@@ -310,74 +311,88 @@ export function Btn({ label, onPress, variant = 'primary', icon, loading, disabl
   );
 }
 
+/** Compact sub-page bar with a back button. Used by the Account sub-pages. */
+export function SubBar({ title, onBack }: { title: string; onBack: () => void }) {
+  return (
+    <View style={styles.subBar}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={onBack} style={styles.subBack} hitSlop={8}>
+        <Icon name="chevron-left" size={18} color={C.text} />
+      </Pressable>
+      <Text style={styles.subTitle} numberOfLines={1}>{title}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  card: { backgroundColor: C.surface, borderRadius: 20, borderWidth: 1, borderColor: C.border, shadowColor: '#0F3B2E', shadowOpacity: 0.05, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
-  cardPad: { padding: 16 },
-  pill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, height: 26, borderRadius: 13, alignSelf: 'flex-start' },
-  pillText: { fontSize: 12, ...fw('700') },
-  chipsWrap: { height: 52, justifyContent: 'center', backgroundColor: C.bg },
+  subBar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.borderSoft },
+  subBack: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: C.surface2 },
+  subTitle: { flex: 1, fontSize: 15, ...fw('800'), color: C.text },
+  card: { backgroundColor: C.surface, borderRadius: 16, borderWidth: 1, borderColor: C.border, shadowColor: '#0F3B2E', shadowOpacity: 0.05, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
+  cardPad: { padding: 12 },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, height: 26, borderRadius: 10, alignSelf: 'flex-start' },
+  pillText: { fontSize: 11, ...fw('700') },
+  chipsWrap: { height: 44, flexShrink: 0, justifyContent: 'center', backgroundColor: C.bg },
   chipsScroll: { flexGrow: 0 },
-  chipsRow: { paddingHorizontal: 16, gap: 8, alignItems: 'center' },
-  chip: { height: 38, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, borderRadius: 19, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border },
+  chipsRow: { paddingHorizontal: 12, gap: 6, alignItems: 'center' },
+  chip: { height: 32, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, borderRadius: 15, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border },
   chipOn: { backgroundColor: C.primaryDeep, borderColor: C.primaryDeep },
-  chipText: { fontSize: 14, ...fw('700'), color: C.text2 },
+  chipText: { fontSize: 12, ...fw('700'), color: C.text2 },
   chipTextOn: { color: '#FFFFFF' },
-  chipCount: { minWidth: 22, height: 20, borderRadius: 10, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: C.goldSoft },
+  chipCount: { minWidth: 22, height: 20, borderRadius: 8, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', backgroundColor: C.goldSoft },
   chipCountOn: { backgroundColor: 'rgba(255,255,255,0.22)' },
-  chipCountText: { fontSize: 12, ...fw('800'), color: C.goldText },
+  chipCountText: { fontSize: 11, ...fw('800'), color: C.goldText },
   chipCountTextOn: { color: '#FFFFFF' },
-  segmented: { flexDirection: 'row', backgroundColor: C.surface2, borderRadius: 16, padding: 4, gap: 4 },
-  segItem: { flex: 1, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  segmented: { flexDirection: 'row', backgroundColor: C.surface2, borderRadius: 13, padding: 3, gap: 3 },
+  segItem: { flex: 1, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   segItemOn: { backgroundColor: C.surface, shadowColor: '#0F3B2E', shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
-  segText: { fontSize: 14, ...fw('700'), color: C.muted },
+  segText: { fontSize: 12, ...fw('700'), color: C.muted },
   segTextOn: { color: C.primaryDeep },
-  headerWrap: { backgroundColor: C.bg },
-  appBar: { backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.borderSoft },
-  appRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 10, minHeight: 66 },
-  logoTile: { width: 44, height: 44, borderRadius: 14, backgroundColor: C.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  headerWrap: { backgroundColor: C.bg, flexShrink: 0 },
+  appBar: { backgroundColor: '#005A48', overflow: 'hidden' },
+  appRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8, minHeight: 56 },
+  logoTile: { width: 37, height: 37, borderRadius: 11, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
   logoImg: { width: 30, height: 30 },
   appTextCol: { flex: 1, minWidth: 0 },
-  appName: { fontSize: 16, ...fw('800'), color: C.text },
-  appSub: { fontSize: 12, color: C.muted, ...fw('600'), marginTop: 1 },
-  bellBtn: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center' },
-  bellDot: { position: 'absolute', top: 9, right: 10, width: 8, height: 8, borderRadius: 4, backgroundColor: C.gold, borderWidth: 1.5, borderColor: C.surface },
-  avatarBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: '#FFFFFF', fontSize: 13, ...fw('800') },
-  pageTitleRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, paddingHorizontal: 18, paddingTop: 16, paddingBottom: 12 },
-  pageActionRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12 },
-  pageTitle: { fontSize: 28, ...fw('800'), color: C.text, letterSpacing: -0.6 },
-  pageSub: { fontSize: 14, color: C.muted, marginTop: 4, lineHeight: 20 },
-  stat: { flex: 1, minWidth: 0, backgroundColor: C.surface, borderRadius: 18, borderWidth: 1, borderColor: C.border, padding: 12, gap: 4, minHeight: 104 },
-  statRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  statCell: { flex: 1, minWidth: 0 },
-  statCellNarrow: { flexBasis: '48%', flexGrow: 1, minWidth: 0 },
-  statTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 4 },
-  statLabel: { flex: 1, minWidth: 0, fontSize: 12, lineHeight: 16, ...fw('700'), color: C.muted },
-  statIcon: { width: 26, height: 26, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  statValue: { fontSize: 22, ...fw('800'), color: C.text, letterSpacing: -0.4, marginTop: 4 },
-  statSub: { fontSize: 11, ...fw('700') },
-  groupLabel: { fontSize: 12, ...fw('800'), color: C.muted, letterSpacing: 0.6, textTransform: 'uppercase', marginLeft: 4 },
-  group: { backgroundColor: C.surface, borderRadius: 20, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
-  divider: { height: 1, backgroundColor: C.borderSoft, marginLeft: 68 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, minHeight: 66, paddingVertical: 10 },
-  iconTile: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  rowTitle: { fontSize: 16, ...fw('700'), color: C.text },
-  rowSub: { fontSize: 13, color: C.muted, marginTop: 2, lineHeight: 18 },
+  appName: { fontSize: 14, ...fw('800'), color: '#FFFFFF' },
+  appSub: { fontSize: 11, color: '#CDEEE3', ...fw('600'), marginTop: 2 },
+  bellBtn: { width: 34, height: 34, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' },
+  bellDot: { position: 'absolute', top: 9, right: 10, width: 8, height: 8, borderRadius: 6, backgroundColor: C.gold, borderWidth: 1.5, borderColor: '#005A48' },
+  avatarBtn: { width: 34, height: 34, borderRadius: 16, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: '#FFFFFF', fontSize: 11, ...fw('800') },
+  pageTitleRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 9, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 9 },
+  pageActionRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingBottom: 9 },
+  pageTitle: { fontSize: 25, ...fw('800'), color: C.text, letterSpacing: -0.6 },
+  pageSub: { fontSize: 12, color: C.muted, marginTop: 3, lineHeight: 20 },
+  stat: { flex: 1, minWidth: 0, backgroundColor: C.surface, borderRadius: 14, borderWidth: 1, borderColor: C.border, padding: 9, gap: 3, minHeight: 88 },
+  statRow: { flexDirection: 'row', alignItems: 'stretch', flexShrink: 0, gap: 6, paddingHorizontal: 12, paddingTop: 2 },
+  statCell: { flex: 1, flexBasis: 0, minWidth: 0, flexShrink: 0 },
+  statTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 3 },
+  statLabel: { flex: 1, minWidth: 0, fontSize: 11, lineHeight: 16, ...fw('700'), color: C.muted },
+  statIcon: { width: 26, height: 26, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
+  statValue: { fontSize: 19, ...fw('800'), color: C.text, letterSpacing: -0.4, marginTop: 3 },
+  statSub: { fontSize: 10, ...fw('700') },
+  groupLabel: { fontSize: 11, ...fw('800'), color: C.muted, letterSpacing: 0.6, textTransform: 'uppercase', marginLeft: 3 },
+  group: { backgroundColor: C.surface, borderRadius: 16, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
+  divider: { height: 1, backgroundColor: C.borderSoft, marginLeft: 51 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 10, minHeight: 56, paddingVertical: 8 },
+  iconTile: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  rowTitle: { fontSize: 14, ...fw('700'), color: C.text },
+  rowSub: { fontSize: 11, color: C.muted, marginTop: 2, lineHeight: 18 },
   avatar: { backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' },
   avatarBig: { color: '#FFFFFF', ...fw('800') },
-  empty: { alignItems: 'center', paddingVertical: 48, paddingHorizontal: 32, gap: 8 },
-  emptyIcon: { width: 60, height: 60, borderRadius: 30, backgroundColor: C.primarySoft, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
-  emptyTitle: { fontSize: 17, ...fw('700'), color: C.text, textAlign: 'center' },
-  emptyBody: { fontSize: 14, color: C.muted, textAlign: 'center', lineHeight: 20 },
-  banner: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 12, borderRadius: 14 },
-  bannerText: { flex: 1, fontSize: 14, ...fw('600'), lineHeight: 20 },
-  stepper: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  stepBtn: { width: 40, height: 40, borderRadius: 13, borderWidth: 1, borderColor: C.primaryLine, backgroundColor: C.primarySoft, alignItems: 'center', justifyContent: 'center' },
-  stepValue: { minWidth: 84, alignItems: 'center' },
-  stepNumber: { fontSize: 18, ...fw('800'), color: C.text },
-  stepUnit: { fontSize: 11, color: C.muted, ...fw('600') },
-  btn: { minHeight: 52, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
-  btnCompact: { minHeight: 46, borderRadius: 14 },
-  btnInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  btnText: { fontSize: 16, ...fw('700') },
+  empty: { alignItems: 'center', paddingVertical: 36, paddingHorizontal: 24, gap: 6 },
+  emptyIcon: { width: 51, height: 51, borderRadius: 24, backgroundColor: C.primarySoft, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  emptyTitle: { fontSize: 15, ...fw('700'), color: C.text, textAlign: 'center' },
+  emptyBody: { fontSize: 12, color: C.muted, textAlign: 'center', lineHeight: 20 },
+  banner: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 9, borderRadius: 11 },
+  bannerText: { flex: 1, fontSize: 12, ...fw('600'), lineHeight: 20 },
+  stepper: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  stepBtn: { width: 34, height: 34, borderRadius: 10, borderWidth: 1, borderColor: C.primaryLine, backgroundColor: C.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  stepValue: { minWidth: 71, alignItems: 'center' },
+  stepNumber: { fontSize: 16, ...fw('800'), color: C.text },
+  stepUnit: { fontSize: 10, color: C.muted, ...fw('600') },
+  btn: { minHeight: 44, borderRadius: 13, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
+  btnCompact: { minHeight: 39, borderRadius: 11 },
+  btnInner: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  btnText: { fontSize: 14, ...fw('700') },
 });

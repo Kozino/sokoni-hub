@@ -60,14 +60,16 @@ export async function ensureAlertChannel(): Promise<void> {
 async function fetchToken(): Promise<PushState> {
   const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
   if (!projectId) {
-    return state('unavailable', 'This build is not linked to an Expo project, so it cannot receive alerts. Rebuild after running "npx eas init" in the vendor app.');
+    return state('unavailable', 'Alerts are not set up in this app build yet. Ask the Sokoni Hub team to finish push setup.');
   }
   try {
     const res = await Notifications.getExpoPushTokenAsync({ projectId });
     await AsyncStorage.setItem(PUSH_TOKEN_KEY, res.data);
     return state('ready', 'Alerts are on for this phone.', false, res.data);
   } catch (e: any) {
-    return state('unavailable', `This phone could not register for alerts. ${e?.message ?? ''}`.trim());
+    // Keep the native detail in the log for developers. Vendors see a plain message.
+    console.warn('[push] token registration failed:', e?.message ?? e);
+    return state('unavailable', 'Could not turn on alerts on this phone. Tap to retry. If it keeps failing, this app build needs its push setup.');
   }
 }
 

@@ -1,19 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Linking, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import Constants from 'expo-constants';
 import { api, ApiError } from '../api';
 import { WEB_URL } from '../config';
 import { checkPush, enablePush, openNotificationSettings, PushState } from '../usePushToken';
 import { Banner, Btn, Card, Group, Icon, Pill, Row, ScreenHeader } from '../ui/kit';
-import { C, TONES, Tone } from '../theme';
+import { C, Tone } from '../theme';
 import { fw } from '../ui/type';
 import { useVendor, Vendor } from '../providers/VendorContext';
-import { qar, initialsOf } from '../format';
-import { AccountPages } from './AccountPages';
+import { initialsOf, qar } from '../format';
+import { AccountPages, Transaction, TxList, Wallet, WalletCard } from './AccountPages';
+import { Support } from './Support';
+import { LegalDoc } from './LegalDoc';
+import { PRIVACY, TERMS } from '../legal/content';
 
-type Page = 'home' | 'store' | 'services' | 'earnings';
-
-type Wallet = { wallet_available: number | string; wallet_pending: number | string; bank_iban?: string | null; bank_name?: string | null; bank_account_name?: string | null };
+type Page = 'home' | 'store' | 'services' | 'earnings' | 'support' | 'terms' | 'privacy';
 
 const VERIFY_LABEL: Record<Vendor['status'], { label: string; tone: Tone; icon: 'check-badge' | 'clock' | 'x-circle' | 'no-symbol' }> = {
   verified: { label: 'Verified', tone: 'green', icon: 'check-badge' },
@@ -27,6 +28,8 @@ export function Account({ onSignOut }: { onSignOut: () => void }) {
   const [page, setPage] = useState<Page>('home');
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [walletError, setWalletError] = useState('');
+  const [transactions, setTransactions] = useState<Transaction[] | null>(null);
+  const [transactionsError, setTransactionsError] = useState('');
   const [listings, setListings] = useState<{ kind: string; status: string }[] | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -40,6 +43,9 @@ export function Account({ onSignOut }: { onSignOut: () => void }) {
     api.get<{ wallet: Wallet }>('/wallet')
       .then((r) => setWallet(r.wallet))
       .catch((e: any) => setWalletError(e?.message || 'Could not load your balance.'));
+    api.get<{ transactions: Transaction[] }>('/wallet/transactions')
+      .then((r) => setTransactions(r.transactions))
+      .catch((e: any) => setTransactionsError(e?.message || 'Could not load transactions.'));
     api.get<{ listings: { kind: string; status: string }[] }>('/listings/mine/all')
       .then((r) => setListings(r.listings))
       .catch(() => setListings([]));
@@ -78,13 +84,30 @@ export function Account({ onSignOut }: { onSignOut: () => void }) {
   const status = vendor ? VERIFY_LABEL[vendor.status] : null;
   const services = (listings || []).filter((l) => l.kind === 'service' && l.status !== 'removed').length;
   const products = (listings || []).filter((l) => l.kind === 'product' && l.status !== 'removed').length;
-  const iban = wallet?.bank_iban ? `•••• ${wallet.bank_iban.replace(/\s/g, '').slice(-4)}` : null;
+
+  if (page === 'support') {
+    return (
+      <View style={styles.screen}>
+        <Support onBack={() => setPage('home')} onOpenLegal={(p) => setPage(p)} />
+      </View>
+    );
+  }
+  if (page === 'terms') return <View style={styles.screen}><LegalDoc doc={TERMS} onBack={() => setPage('support')} /></View>;
+  if (page === 'privacy') return <View style={styles.screen}><LegalDoc doc={PRIVACY} onBack={() => setPage('support')} /></View>;
 
   if (page !== 'home') {
     return (
       <View style={styles.screen}>
-        <ScreenHeader title="Account" subtitle={name} />
-        <AccountPages page={page} onBack={() => setPage('home')} vendor={vendor} wallet={wallet} walletError={walletError} />
+        <ScreenHeader title="Vendor Profile" subtitle={name} />
+        <AccountPages
+          page={page}
+          onBack={() => setPage('home')}
+          vendor={vendor}
+          wallet={wallet}
+          walletError={walletError}
+          transactions={transactions}
+          transactionsError={transactionsError}
+        />
       </View>
     );
   }
@@ -102,71 +125,52 @@ export function Account({ onSignOut }: { onSignOut: () => void }) {
     <View style={styles.screen}>
       <ScreenHeader title="Vendor Profile" subtitle="Business settings, catalog & payouts" />
 
-      <ScrollView style={styles.frame} contentContainerStyle={styles.body}>
+      <ScrollView contentContainerStyle={styles.body}>
         {error ? <Banner tone="error">{error}</Banner> : null}
 
         <Card style={styles.profile}>
-          <View style={styles.profileTop}>
-            {vendor.logo_url ? (
-              <Image source={{ uri: vendor.logo_url }} style={styles.logo} />
-            ) : (
-              <View style={styles.logoFallback}>
-                <Text style={styles.logoInitials}>{initialsOf(name)}</Text>
-              </View>
-            )}
-            <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-              <Text style={styles.name} numberOfLines={2}>{name}</Text>
-              <Text style={styles.idLine} numberOfLines={1}>
-                {vendor.city ? `${vendor.city}, ${vendor.country || 'Qatar'}` : vendor.country || 'Qatar'}
-              </Text>
-              {status ? <Pill label={status.label} tone={status.tone} icon={status.icon} /> : null}
-            </View>
-          </View>
-          <View style={styles.ratingBar}>
-            <Icon name="star" size={18} color={C.gold} solid />
-            {Number(vendor.rating_count || 0) > 0 ? (
-              <Text style={styles.ratingText}>
-                {Number(vendor.rating_avg || 0).toFixed(1)} <Text style={styles.ratingMuted}>({vendor.rating_count} {vendor.rating_count === 1 ? 'review' : 'reviews'})</Text>
-              </Text>
-            ) : (
-              <Text style={styles.ratingMuted}>No reviews yet</Text>
-            )}
-          </View>
-        </Card>
-
-        <Card>
-          <View style={styles.sectionHead}>
-            <View style={styles.sectionIcon}>
-              <Icon name="banknotes" size={18} color={TONES.green.fg} />
-            </View>
-            <Text style={styles.sectionTitle}>Earnings & payouts</Text>
-          </View>
-          {wallet ? (
-            <View style={styles.balanceRow}>
-              <View style={styles.balanceTile}>
-                <Text style={styles.balanceLabel}>Available balance</Text>
-                <Text style={styles.balanceValue}>{qar(wallet.wallet_available).replace('QAR ', '')}</Text>
-                <Text style={styles.balanceUnit}>QAR · ready to withdraw</Text>
-              </View>
-              <View style={[styles.balanceTile, styles.balanceTileAlt]}>
-                <Text style={styles.balanceLabel}>Pending</Text>
-                <Text style={styles.balanceValue}>{qar(wallet.wallet_pending).replace('QAR ', '')}</Text>
-                <Text style={styles.balanceUnit}>QAR · held until delivery</Text>
-              </View>
-            </View>
-          ) : walletError ? (
-            <Banner tone="error">{walletError}</Banner>
+          {vendor.logo_url ? (
+            <Image source={{ uri: vendor.logo_url }} style={styles.logo} />
           ) : (
-            <ActivityIndicator color={C.primary} />
+            <View style={styles.logoFallback}>
+              <Text style={styles.logoInitials}>{initialsOf(name)}</Text>
+            </View>
           )}
-          {iban ? <Text style={styles.ibanLine}>Payout account {iban}{wallet?.bank_name ? ` · ${wallet.bank_name}` : ''}</Text> : null}
-          <View style={styles.sectionButtons}>
-            <Btn label="Withdraw on the website" variant="primary" icon="banknotes" onPress={() => Linking.openURL(WEB_URL)} />
-            <Btn label="Transactions" variant="secondary" icon="document-text" onPress={() => setPage('earnings')} />
+          <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+            <Text style={styles.name} numberOfLines={2}>{name}</Text>
+            <Text style={styles.idLine} numberOfLines={1}>
+              {vendor.city ? `${vendor.city}, ${vendor.country || 'Qatar'}` : vendor.country || 'Qatar'}
+            </Text>
+            <View style={styles.badges}>
+              {status ? <Pill label={status.label} tone={status.tone} icon={status.icon} /> : null}
+              <View style={styles.ratingPill}>
+                <Icon name="star" size={12} color={C.gold} solid />
+                <Text style={styles.ratingText}>
+                  {Number(vendor.rating_count || 0) > 0
+                    ? `${Number(vendor.rating_avg || 0).toFixed(1)} (${vendor.rating_count})`
+                    : 'No reviews yet'}
+                </Text>
+              </View>
+            </View>
           </View>
         </Card>
 
-        <Group label="Store configuration">
+        <WalletCard wallet={wallet} error={walletError} onWithdraw={() => Linking.openURL(WEB_URL)} />
+
+        <View style={styles.sectionHead}>
+          <Text style={styles.sectionLabel}>Recent transactions</Text>
+          <Text style={styles.link} onPress={() => setPage('earnings')} accessibilityRole="button">See all</Text>
+        </View>
+        {transactionsError ? <Banner tone="error">{transactionsError}</Banner> : null}
+        {!transactions && !transactionsError ? <ActivityIndicator color={C.primary} /> : null}
+        {transactions && transactions.length === 0 ? (
+          <Card>
+            <Text style={styles.note}>No transactions yet.</Text>
+          </Card>
+        ) : null}
+        {transactions && transactions.length > 0 ? <TxList rows={transactions} limit={4} /> : null}
+
+        <Group label="Store">
           <Row icon="building-storefront" tone="amber" title="Store details" subtitle="Description, address and location" onPress={() => setPage('store')} />
           <Row
             icon="sparkles"
@@ -181,24 +185,25 @@ export function Account({ onSignOut }: { onSignOut: () => void }) {
         <Group label="Alerts">
           <Row
             icon="bell"
-            tone="brand"
+            tone="amber"
             title="Order and booking alerts"
-            subtitle={vendor.alerts_enabled ? 'Sound alerts for new orders, bookings and cancellations' : 'Off. You will not hear about new orders or bookings on this phone.'}
+            subtitle={vendor.alerts_enabled ? 'Sound alerts for new orders and bookings' : 'Off. You will not hear new orders or bookings.'}
             right={<Switch accessibilityLabel="Order and booking alerts" value={vendor.alerts_enabled} disabled={saving} onValueChange={toggleAlerts} trackColor={{ true: C.primary }} />}
           />
           <Row
             icon="bell-alert"
-            tone="slate"
+            tone={push && push.state === 'ready' ? 'green' : 'red'}
             title="Phone notifications"
             subtitle={push ? push.message : 'Checking this phone…'}
             onPress={push && push.state !== 'ready' ? fixPush : undefined}
-            right={push && push.state !== 'ready' ? <Text style={styles.fix}>{push.canOpenSettings ? 'Open settings' : 'Turn on'}</Text> : undefined}
+            right={push && push.state !== 'ready' ? <Text style={styles.fix}>{push.canOpenSettings ? 'Settings' : 'Retry'}</Text> : undefined}
           />
         </Group>
 
         <Group label="Help & legal">
-          <Row icon="information-circle" tone="slate" title="Help & support" subtitle="Contact Sokoni Hub through the website" onPress={() => Linking.openURL(`${WEB_URL}/support`)} />
-          <Row icon="document-text" tone="slate" title="Terms of vendor partnership" subtitle="Read the terms on the website" onPress={() => Linking.openURL(`${WEB_URL}/terms`)} />
+          <Row icon="information-circle" tone="blue" title="Help & support" subtitle="WhatsApp, email and phone" onPress={() => setPage('support')} />
+          <Row icon="document-text" tone="brand" title={TERMS.title} subtitle="Read the full terms in the app" onPress={() => setPage('terms')} />
+          <Row icon="lock-closed" tone="slate" title={PRIVACY.title} subtitle="How your information is used" onPress={() => setPage('privacy')} />
         </Group>
 
         <Group label="About">
@@ -214,30 +219,21 @@ export function Account({ onSignOut }: { onSignOut: () => void }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
-  frame: { width: '100%', maxWidth: 760, alignSelf: 'center', flex: 1 },
-  body: { padding: 16, gap: 22, paddingBottom: 40 },
-  profile: { gap: 14 },
-  profileTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  logo: { width: 64, height: 64, borderRadius: 20, backgroundColor: C.surface2 },
-  logoFallback: { width: 64, height: 64, borderRadius: 20, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' },
-  logoInitials: { color: '#FFFFFF', fontSize: 22, ...fw('800') },
-  name: { fontSize: 19, ...fw('800'), color: C.text },
-  idLine: { fontSize: 13, color: C.muted, ...fw('600') },
-  ratingBar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 14, backgroundColor: C.surface2 },
-  ratingText: { fontSize: 15, ...fw('800'), color: C.text },
-  ratingMuted: { fontSize: 13, color: C.muted, ...fw('600') },
-  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
-  sectionIcon: { width: 36, height: 36, borderRadius: 12, backgroundColor: TONES.green.bg, alignItems: 'center', justifyContent: 'center' },
-  sectionTitle: { fontSize: 16, ...fw('800'), color: C.text },
-  balanceRow: { flexDirection: 'row', gap: 10 },
-  balanceTile: { flex: 1, minWidth: 0, padding: 14, borderRadius: 16, backgroundColor: C.primarySoft, gap: 4 },
-  balanceTileAlt: { backgroundColor: C.surface2 },
-  balanceLabel: { fontSize: 12, ...fw('700'), color: C.text2 },
-  balanceValue: { fontSize: 24, ...fw('800'), color: C.primaryDeep, letterSpacing: -0.4 },
-  balanceUnit: { fontSize: 11, color: C.muted, ...fw('600') },
-  ibanLine: { fontSize: 13, color: C.muted, marginTop: 12, ...fw('600') },
-  sectionButtons: { gap: 10, marginTop: 14 },
-  fix: { fontSize: 14, color: C.primary, ...fw('800') },
-  version: { fontSize: 14, color: C.muted, ...fw('600') },
-  footer: { textAlign: 'center', fontSize: 12, color: C.muted, ...fw('600') },
+  body: { padding: 12, gap: 12, paddingBottom: 32 },
+  profile: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  logo: { width: 48, height: 48, borderRadius: 14, backgroundColor: C.surface2 },
+  logoFallback: { width: 48, height: 48, borderRadius: 14, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center' },
+  logoInitials: { color: '#FFFFFF', fontSize: 16, ...fw('800') },
+  name: { fontSize: 15, ...fw('800'), color: C.text },
+  idLine: { fontSize: 11, color: C.muted, ...fw('600') },
+  badges: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
+  ratingPill: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 22, paddingHorizontal: 8, borderRadius: 11, backgroundColor: C.goldSoft },
+  ratingText: { fontSize: 11, ...fw('800'), color: C.goldText },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
+  sectionLabel: { fontSize: 10, ...fw('800'), color: C.muted, textTransform: 'uppercase', letterSpacing: 0.6, marginLeft: 2 },
+  link: { fontSize: 12, ...fw('800'), color: C.primary, marginRight: 2 },
+  note: { fontSize: 11, color: C.muted, lineHeight: 16 },
+  fix: { fontSize: 12, color: C.primary, ...fw('800') },
+  version: { fontSize: 12, color: C.muted, ...fw('600') },
+  footer: { textAlign: 'center', fontSize: 10, color: C.muted, ...fw('600') },
 });

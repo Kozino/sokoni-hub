@@ -114,12 +114,12 @@ function HomeInner() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   content: { flex: 1, width: '100%', maxWidth: 760, alignSelf: 'center' },
-  tabBar: { flexDirection: 'row', backgroundColor: C.surface, borderTopWidth: 1, borderTopColor: C.borderSoft, paddingTop: 8, shadowColor: '#0F172A', shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: -2 }, elevation: 8 },
-  tab: { flex: 1, alignItems: 'center', gap: 4, minHeight: 56 },
-  iconWrap: { width: 56, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  tabBar: { flexDirection: 'row', backgroundColor: C.surface, borderTopWidth: 1, borderTopColor: C.borderSoft, paddingTop: 6, shadowColor: '#0F172A', shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: -2 }, elevation: 8 },
+  tab: { flex: 1, alignItems: 'center', gap: 3, minHeight: 48 },
+  iconWrap: { width: 48, height: 32, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   iconWrapOn: { backgroundColor: C.primarySoft },
-  badge: { position: 'absolute', top: -4, right: 2, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 2, borderColor: C.surface },
+  badge: { position: 'absolute', top: -4, right: 2, minWidth: 18, height: 18, borderRadius: 7, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3, borderWidth: 2, borderColor: C.surface },
   badgeText: { color: '#FFFFFF', fontSize: 10, ...fw('800') },
-  label: { fontSize: 12, ...fw('600'), color: C.muted },
+  label: { fontSize: 11, ...fw('600'), color: C.muted },
   labelOn: { color: C.primary, ...fw('700') },
 });
