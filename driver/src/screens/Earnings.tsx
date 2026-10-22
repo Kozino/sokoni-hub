@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { BanknotesIcon, CheckCircleIcon, ReceiptPercentIcon, WalletIcon } from 'react-native-heroicons/outline';
+import { BanknotesIcon, CheckCircleIcon, ReceiptPercentIcon, SparklesIcon, WalletIcon } from 'react-native-heroicons/outline';
 import { api } from '../api';
 import { useAuth } from '../providers/AuthContext';
 import { Badge, Card, DriverTopbar, EmptyState, Notice, PageHeading, SectionTitle, Stat } from '../components/UI';
@@ -63,6 +63,8 @@ export function Earnings({ online }: { online?: boolean }) {
 
         {summary ? (
           <View style={styles.hero}>
+            <View style={styles.heroOrbOne} />
+            <View style={styles.heroOrbTwo} />
             <View style={styles.heroTop}>
               <View style={styles.heroTitleRow}>
                 <View style={styles.heroIcon}><BanknotesIcon size={21} color="#fff" /></View>
@@ -71,7 +73,7 @@ export function Earnings({ online }: { online?: boolean }) {
                   <Text style={styles.heroSub}>Recorded from completed handoffs</Text>
                 </View>
               </View>
-              <View style={styles.heroBadge}><View style={styles.heroBadgeDot} /><Text style={styles.heroBadgeText}>Up to date</Text></View>
+              <View style={styles.heroBadge}><SparklesIcon size={12} color="#FFD092" /><Text style={styles.heroBadgeText}>Up to date</Text></View>
             </View>
             <Text style={styles.heroValue} numberOfLines={1} adjustsFontSizeToFit>{money(summary.total)}</Text>
             <View style={styles.statRow}>
@@ -85,22 +87,27 @@ export function Earnings({ online }: { online?: boolean }) {
         {ledger ? (
           <Card style={styles.ledgerCard}>
             <View style={styles.cardHeading}>
-              <View style={styles.cardHeadingIcon}><WalletIcon size={20} color={C.primary} /></View>
+              <View style={styles.cardHeadingIcon}><WalletIcon size={20} color={C.purple} /></View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.cardTitle}>Cash & settlement</Text>
                 <Text style={styles.cardSub}>Your current driver ledger</Text>
               </View>
             </View>
             <View style={styles.ledgerGrid}>
-              <View style={styles.ledgerMetric}>
-                <Text style={styles.ledgerLabel}>Cash to hand in</Text>
-                <Text style={styles.ledgerValue}>{money(ledger.cash_held)}</Text>
+              <View style={[styles.ledgerMetric, styles.cashMetric]}>
+                <View style={styles.ledgerMetricTop}>
+                  <View style={[styles.ledgerMetricIcon, { backgroundColor: '#FFE3BD' }]}><BanknotesIcon size={17} color={C.gold} /></View>
+                  <Text style={[styles.ledgerLabel, { color: '#9B5B13' }]}>Cash to hand in</Text>
+                </View>
+                <Text style={[styles.ledgerValue, { color: '#9B5B13' }]} numberOfLines={1} adjustsFontSizeToFit>{money(ledger.cash_held)}</Text>
                 <Text style={styles.ledgerNote}>Collected on delivery</Text>
               </View>
-              <View style={styles.ledgerDivider} />
-              <View style={styles.ledgerMetric}>
-                <Text style={styles.ledgerLabel}>Fees owed to you</Text>
-                <Text style={[styles.ledgerValue, { color: C.primary }]}>{money(ledger.fee_owed)}</Text>
+              <View style={[styles.ledgerMetric, styles.feesMetric]}>
+                <View style={styles.ledgerMetricTop}>
+                  <View style={[styles.ledgerMetricIcon, { backgroundColor: '#CDEBDD' }]}><WalletIcon size={17} color={C.primary} /></View>
+                  <Text style={[styles.ledgerLabel, { color: C.primary }]}>Fees owed to you</Text>
+                </View>
+                <Text style={[styles.ledgerValue, { color: C.primary }]} numberOfLines={1} adjustsFontSizeToFit>{money(ledger.fee_owed)}</Text>
                 <Text style={styles.ledgerNote}>Not yet paid out</Text>
               </View>
             </View>
@@ -112,9 +119,9 @@ export function Earnings({ online }: { online?: boolean }) {
           <>
             <SectionTitle meta="All completed trips">Trip & fee breakdown</SectionTitle>
             <Card style={styles.breakdownCard}>
-              <BreakdownRow icon={<ReceiptPercentIcon size={20} color={C.primary} />} label="Standard delivery fees" note={`${summary.trips} completed ${summary.trips === 1 ? 'trip' : 'trips'}`} value={money(summary.total)} />
+              <BreakdownRow tone="green" icon={<ReceiptPercentIcon size={20} color={C.primary} />} label="Standard delivery fees" note={`${summary.trips} completed ${summary.trips === 1 ? 'trip' : 'trips'}`} value={money(summary.total)} />
               <View style={styles.rowDivider} />
-              <BreakdownRow icon={<BanknotesIcon size={20} color={C.gold} />} label="Average fee per trip" note="Calculated from completed trips" value={money(summary.trips ? summary.total / summary.trips : 0)} />
+              <BreakdownRow tone="purple" icon={<BanknotesIcon size={20} color={C.purple} />} label="Average fee per trip" note="Calculated from completed trips" value={money(summary.trips ? summary.total / summary.trips : 0)} />
             </Card>
           </>
         ) : null}
@@ -146,10 +153,10 @@ export function Earnings({ online }: { online?: boolean }) {
   );
 }
 
-function BreakdownRow({ icon, label, note, value }: { icon: React.ReactNode; label: string; note: string; value: string }) {
+function BreakdownRow({ icon, label, note, value, tone }: { icon: React.ReactNode; label: string; note: string; value: string; tone: 'green' | 'purple' }) {
   return (
     <View style={styles.breakdownRow}>
-      <View style={styles.breakdownIcon}>{icon}</View>
+      <View style={[styles.breakdownIcon, { backgroundColor: tone === 'purple' ? C.purpleSoft : C.primarySoft }]}>{icon}</View>
       <View style={{ flex: 1 }}>
         <Text style={styles.breakdownLabel}>{label}</Text>
         <Text style={styles.breakdownNote}>{note}</Text>
@@ -165,27 +172,31 @@ const styles = StyleSheet.create({
   center: { paddingVertical: 34, alignItems: 'center', gap: 10 },
   loadingText: { color: C.text2, fontSize: 12 },
   hero: { backgroundColor: C.primary, borderRadius: 24, padding: 19, overflow: 'hidden' },
+  heroOrbOne: { position: 'absolute', width: 170, height: 170, borderRadius: 85, backgroundColor: 'rgba(245,124,0,0.15)', right: -65, bottom: -70 },
+  heroOrbTwo: { position: 'absolute', width: 120, height: 120, borderRadius: 60, backgroundColor: 'rgba(120,86,184,0.22)', left: -60, top: 70 },
   heroTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 },
   heroTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-  heroIcon: { width: 38, height: 38, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.13)', alignItems: 'center', justifyContent: 'center' },
+  heroIcon: { width: 38, height: 38, borderRadius: 13, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center' },
   heroEyebrow: { color: 'rgba(255,255,255,0.76)', fontWeight: '900', fontSize: 9, letterSpacing: 0.8 },
   heroSub: { color: 'rgba(255,255,255,0.65)', fontSize: 10, marginTop: 4 },
   heroBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 7 },
-  heroBadgeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#9EE8C3' },
   heroBadgeText: { color: '#fff', fontSize: 9, fontWeight: '800' },
   heroValue: { color: '#fff', fontSize: 34, lineHeight: 43, fontWeight: '900', letterSpacing: -0.9, marginTop: 20 },
   statRow: { flexDirection: 'row', gap: 12, marginTop: 17, paddingTop: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.16)' },
   ledgerCard: { marginTop: 12 },
   cardHeading: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  cardHeadingIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: C.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  cardHeadingIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center' },
   cardTitle: { color: C.text, fontSize: 15, fontWeight: '900' },
   cardSub: { color: C.text2, fontSize: 11, marginTop: 2 },
-  ledgerGrid: { flexDirection: 'row', alignItems: 'stretch', marginTop: 15, backgroundColor: C.infoSoft, borderRadius: 15, padding: 13 },
-  ledgerMetric: { flex: 1, minWidth: 0 },
-  ledgerDivider: { width: 1, backgroundColor: C.border, marginHorizontal: 12 },
-  ledgerLabel: { color: C.text2, fontSize: 10, fontWeight: '700' },
-  ledgerValue: { color: C.text, fontSize: 15, fontWeight: '900', marginTop: 5 },
-  ledgerNote: { color: C.text2, fontSize: 9, marginTop: 3 },
+  ledgerGrid: { flexDirection: 'row', alignItems: 'stretch', gap: 9, marginTop: 15 },
+  ledgerMetric: { flex: 1, minWidth: 0, borderRadius: 16, borderWidth: 1, padding: 12 },
+  cashMetric: { backgroundColor: C.goldSoft, borderColor: '#F6DFC0' },
+  feesMetric: { backgroundColor: C.primarySoft, borderColor: C.primaryLine },
+  ledgerMetricTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  ledgerMetricIcon: { width: 28, height: 28, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  ledgerLabel: { flex: 1, color: C.text2, fontSize: 9, lineHeight: 13, fontWeight: '800' },
+  ledgerValue: { color: C.text, fontSize: 15, fontWeight: '900', marginTop: 12 },
+  ledgerNote: { color: C.text2, fontSize: 9, marginTop: 4 },
   breakdownCard: { paddingVertical: 6 },
   breakdownRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11 },
   breakdownIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: C.infoSoft, alignItems: 'center', justifyContent: 'center' },

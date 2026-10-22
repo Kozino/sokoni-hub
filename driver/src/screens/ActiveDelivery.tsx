@@ -9,12 +9,14 @@ import {
   CameraIcon,
   ChatBubbleLeftRightIcon,
   CheckCircleIcon,
+  ClipboardDocumentCheckIcon,
   CubeIcon,
   ExclamationTriangleIcon,
   LockClosedIcon,
   MapPinIcon,
   PhoneIcon,
   ShieldCheckIcon,
+  ShoppingBagIcon,
 } from 'react-native-heroicons/outline';
 import { api } from '../api';
 import { pendingDelivery, sendDelivery, isOffline, type PendingDelivery } from '../pendingDelivery';
@@ -510,19 +512,50 @@ function ActionChip({ label, icon, onPress, tone = 'grey' }: { label: string; ic
 
 function Manifest({ items }: { items: Order['items'] }) {
   const count = (items ?? []).reduce((sum, item) => sum + Number(item.qty || 0), 0);
+  const tones = [
+    { bg: C.blueSoft, fg: C.blue, border: C.blueLine },
+    { bg: C.primarySoft, fg: C.primary, border: C.primaryLine },
+    { bg: C.goldSoft, fg: '#A86112', border: '#F6DFC0' },
+    { bg: C.purpleSoft, fg: C.purple, border: C.purpleLine },
+  ];
   return (
-    <Card style={styles.block}>
+    <Card style={[styles.block, styles.manifestCard]}>
       <View style={styles.manifestHead}>
-        <View style={styles.manifestTitleRow}><CubeIcon size={20} color={C.text} /><Text style={styles.manifestTitle}>Package Manifest</Text></View>
-        <Text style={styles.manifestCount}>{count} {count === 1 ? 'item' : 'items'}</Text>
-      </View>
-      {items?.length ? items.map((item, idx) => (
-        <View key={`${item.title}-${idx}`} style={styles.itemRow}>
-          <View style={styles.itemIcon}><CubeIcon size={19} color={C.primary} /></View>
-          <Text style={styles.itemText}>{item.title}</Text>
-          <View style={styles.qtyBadge}><Text style={styles.qtyText}>{item.qty}×</Text></View>
+        <View style={styles.manifestTitleRow}>
+          <View style={styles.manifestHeaderIcon}><ClipboardDocumentCheckIcon size={23} color="#fff" /></View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.manifestEyebrow}>ORDER CONTENTS</Text>
+            <Text style={styles.manifestTitle}>Package Manifest</Text>
+          </View>
         </View>
-      )) : <Text style={styles.emptyItems}>No package items were supplied for this order.</Text>}
+        <View style={styles.manifestCountBadge}>
+          <Text style={styles.manifestCountNumber}>{count}</Text>
+          <Text style={styles.manifestCountLabel}>{count === 1 ? 'UNIT' : 'UNITS'}</Text>
+        </View>
+      </View>
+      <View style={styles.manifestItems}>
+        {items?.length ? items.map((item, idx) => {
+          const tone = tones[idx % tones.length];
+          return (
+            <View key={`${item.title}-${idx}`} style={[styles.itemRow, { backgroundColor: tone.bg, borderColor: tone.border }]}>
+              <View style={[styles.itemQtyTile, { backgroundColor: tone.fg }]}>
+                <Text style={styles.itemQty}>{item.qty}×</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.itemIndex, { color: tone.fg }]}>ORDERED ITEM {idx + 1}</Text>
+                <Text style={styles.itemText}>{item.title}</Text>
+              </View>
+              <View style={styles.itemIcon}><ShoppingBagIcon size={19} color={tone.fg} /></View>
+            </View>
+          );
+        }) : <Text style={styles.emptyItems}>No package items were supplied for this order.</Text>}
+        {items?.length ? (
+          <View style={styles.manifestFooter}>
+            <CubeIcon size={14} color={C.purple} />
+            <Text style={styles.manifestFooterText}>{count} total {count === 1 ? 'unit' : 'units'} · Check every item before handoff</Text>
+          </View>
+        ) : null}
+      </View>
     </Card>
   );
 }
@@ -562,16 +595,25 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: 9, marginTop: 12 },
   chip: { minHeight: 46, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 11, paddingHorizontal: 9, borderRadius: 14, backgroundColor: C.surface2 },
   chipText: { flexShrink: 1, fontSize: 12, fontWeight: '800', color: C.text },
-  manifestHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12 },
-  manifestTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
-  manifestTitle: { color: C.text, fontSize: 16, fontWeight: '900', letterSpacing: -0.2 },
-  manifestCount: { color: C.text2, fontSize: 11, fontWeight: '700' },
-  itemRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 11, borderRadius: 14, backgroundColor: C.infoSoft, marginTop: 8 },
-  itemIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center' },
-  itemText: { flex: 1, color: C.text, fontSize: 13, lineHeight: 18, fontWeight: '700' },
-  qtyBadge: { backgroundColor: C.surface, borderRadius: 9, paddingHorizontal: 8, paddingVertical: 5 },
-  qtyText: { color: C.primary, fontSize: 12, fontWeight: '900' },
-  emptyItems: { color: C.text2, fontSize: 12, lineHeight: 18, backgroundColor: C.surface2, borderRadius: 12, padding: 12 },
+  manifestCard: { padding: 0, overflow: 'hidden', borderColor: C.purpleLine },
+  manifestHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, backgroundColor: C.purple, padding: 16 },
+  manifestTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+  manifestHeaderIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
+  manifestEyebrow: { color: 'rgba(255,255,255,0.72)', fontSize: 8, fontWeight: '900', letterSpacing: 0.9 },
+  manifestTitle: { color: '#fff', fontSize: 17, fontWeight: '900', letterSpacing: -0.2, marginTop: 3 },
+  manifestCountBadge: { minWidth: 52, borderRadius: 13, backgroundColor: C.gold, paddingHorizontal: 9, paddingVertical: 7, alignItems: 'center' },
+  manifestCountNumber: { color: '#fff', fontSize: 19, lineHeight: 22, fontWeight: '900' },
+  manifestCountLabel: { color: '#fff', fontSize: 7, fontWeight: '900', letterSpacing: 0.6 },
+  manifestItems: { padding: 12 },
+  itemRow: { flexDirection: 'row', alignItems: 'center', gap: 11, padding: 12, borderRadius: 16, borderWidth: 1, marginBottom: 9, minHeight: 78 },
+  itemQtyTile: { width: 50, height: 50, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  itemQty: { color: '#fff', fontSize: 19, fontWeight: '900', letterSpacing: -0.4 },
+  itemIndex: { fontSize: 8, fontWeight: '900', letterSpacing: 0.75, marginBottom: 4 },
+  itemIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.72)', alignItems: 'center', justifyContent: 'center' },
+  itemText: { color: C.text, fontSize: 14, lineHeight: 20, fontWeight: '800' },
+  manifestFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingTop: 3, paddingHorizontal: 4 },
+  manifestFooterText: { flexShrink: 1, color: C.text2, fontSize: 10, lineHeight: 15, fontWeight: '600', textAlign: 'center' },
+  emptyItems: { color: C.text2, fontSize: 12, lineHeight: 18, backgroundColor: C.goldSoft, borderRadius: 12, padding: 14 },
   issueButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 18, paddingHorizontal: 12 },
   issueText: { color: C.text2, fontSize: 12, fontWeight: '700', textAlign: 'center' },
   paymentRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },

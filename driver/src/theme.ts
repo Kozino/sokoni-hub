@@ -18,6 +18,16 @@ export const C = {
   danger: '#C83E3E',
   dangerSoft: '#FDECEC',
   infoSoft: '#F0F1F8',
+  blue: '#4267C9',
+  blueSoft: '#EDF2FF',
+  blueLine: '#D9E3FF',
+  purple: '#7856B8',
+  purpleSoft: '#F2EDFC',
+  purpleLine: '#E3D8F5',
+  teal: '#0D8F83',
+  tealSoft: '#E5F7F4',
+  pink: '#BC4F7E',
+  pinkSoft: '#FCEBF3',
   white: '#FFFFFF',
 };
 

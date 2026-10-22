@@ -8,10 +8,10 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import { ArrowLeftIcon, MapPinIcon, UserIcon } from 'react-native-heroicons/outline';
+import { ArrowLeftIcon, BellAlertIcon, MapPinIcon, UserIcon } from 'react-native-heroicons/outline';
 import { C, cardShadow } from '../theme';
 
-export function DriverTopbar({ online, name }: { online?: boolean; name?: string }) {
+export function DriverTopbar({ online, name, onAlertTest }: { online?: boolean; name?: string; onAlertTest?: () => void }) {
   const status = online == null ? 'Driver' : online ? 'Online' : 'Offline';
   return (
     <View style={s.topbar}>
@@ -26,6 +26,12 @@ export function DriverTopbar({ online, name }: { online?: boolean; name?: string
           <Text style={s.topbarLocationText}>Qatar · QAR</Text>
         </View>
       </View>
+      {onAlertTest ? (
+        <Pressable accessibilityRole="button" accessibilityLabel="Test delivery alert sound" onPress={onAlertTest} style={({ pressed }) => [s.alertButton, pressed && s.pressed]} hitSlop={6}>
+          <BellAlertIcon size={20} color={C.text} />
+          <View style={s.alertDot} />
+        </Pressable>
+      ) : null}
       <View style={s.topAvatar} accessibilityLabel={name ? `${name}, driver profile` : 'Driver profile'}>
         {name ? <Text style={s.topAvatarText}>{name.trim().charAt(0).toUpperCase()}</Text> : <UserIcon size={19} color="#fff" />}
       </View>
@@ -72,12 +78,14 @@ export function Card({ children, style }: { children: ReactNode; style?: StylePr
   return <View style={[s.card, style]}>{children}</View>;
 }
 
-export function Badge({ label, tone = 'green', icon }: { label: string; tone?: 'green' | 'gold' | 'red' | 'grey'; icon?: ReactNode }) {
+export function Badge({ label, tone = 'green', icon }: { label: string; tone?: 'green' | 'gold' | 'red' | 'grey' | 'blue' | 'purple'; icon?: ReactNode }) {
   const palette = {
     green: { bg: C.primarySoft, fg: C.primary },
     gold: { bg: C.goldSoft, fg: '#B85E00' },
     red: { bg: C.dangerSoft, fg: C.danger },
     grey: { bg: C.surface2, fg: C.text2 },
+    blue: { bg: C.blueSoft, fg: C.blue },
+    purple: { bg: C.purpleSoft, fg: C.purple },
   }[tone];
   return (
     <View style={[s.badge, { backgroundColor: palette.bg }]}>
@@ -189,6 +197,8 @@ const s = StyleSheet.create({
   topbarTitle: { fontSize: 13, fontWeight: '900', color: C.text },
   topbarLocation: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 3 },
   topbarLocationText: { fontSize: 10, fontWeight: '700', color: C.text2 },
+  alertButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.goldSoft, alignItems: 'center', justifyContent: 'center' },
+  alertDot: { position: 'absolute', width: 7, height: 7, borderRadius: 4, backgroundColor: C.gold, top: 7, right: 7, borderWidth: 1, borderColor: C.surface },
   topAvatar: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' },
   topAvatarText: { color: '#fff', fontSize: 16, fontWeight: '900' },
 

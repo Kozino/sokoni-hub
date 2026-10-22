@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Constants from 'expo-constants';
 import {
   ArrowRightOnRectangleIcon,
+  BellAlertIcon,
   BuildingLibraryIcon,
   CheckBadgeIcon,
   ChevronRightIcon,
@@ -18,6 +19,7 @@ import { api } from '../api';
 import { useAuth } from '../providers/AuthContext';
 import { Badge, Card, DriverTopbar, Notice, PageHeading } from '../components/UI';
 import { errorText } from '../format';
+import { scheduleDeliveryAlertTest } from '../usePushToken';
 import { C } from '../theme';
 import { SettingsRow } from './settings/SettingsRow';
 import { VehicleDetails } from './settings/VehicleDetails';
@@ -36,6 +38,7 @@ export function Settings({ online, onLogout }: { online?: boolean; onLogout: () 
   const [driver, setDriver] = useState<DriverProfile | null>(null);
   const [error, setError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [testingAlert, setTestingAlert] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -54,6 +57,19 @@ export function Settings({ online, onLogout }: { online?: boolean; onLogout: () 
   }, [load]);
 
   const back = () => setPage('home');
+
+  const testAlertSound = async () => {
+    if (testingAlert) return;
+    setTestingAlert(true);
+    try {
+      await scheduleDeliveryAlertTest();
+      Alert.alert('Alert test scheduled', 'A test delivery notification will arrive in 2 seconds with the new alert sound and vibration.');
+    } catch (e) {
+      Alert.alert('Could not test alert sound', errorText(e));
+    } finally {
+      setTestingAlert(false);
+    }
+  };
 
   if (page === 'vehicle' && driver) return <VehicleDetails driver={driver} onBack={back} onSaved={(d) => setDriver(d)} />;
   if (page === 'bank' && driver) return <BankDetails driver={driver} onBack={back} onSaved={(d) => setDriver(d)} />;
@@ -87,7 +103,7 @@ export function Settings({ online, onLogout }: { online?: boolean; onLogout: () 
             <View style={{ flex: 1 }}>
               <View style={styles.nameRow}>
                 <Text style={styles.name} numberOfLines={1}>{user?.full_name ?? 'Driver'}</Text>
-                {driver?.status === 'approved' ? <CheckBadgeIcon size={18} color={C.primary} /> : null}
+                {driver?.status === 'approved' ? <CheckBadgeIcon size={18} color={C.gold} /> : null}
               </View>
               <Text style={styles.phone}>{user?.phone ? (user.phone.startsWith('+') ? user.phone : `+${user.phone}`) : 'Sokoni Hub logistics partner'}</Text>
               <Text style={styles.driverId} numberOfLines={1}>{driver ? `Driver ID · ${driver.id.slice(0, 8).toUpperCase()}` : 'Loading driver ID…'}</Text>
@@ -95,15 +111,15 @@ export function Settings({ online, onLogout }: { online?: boolean; onLogout: () 
             {!driver ? <ActivityIndicator color={C.primary} /> : null}
           </View>
           <View style={styles.profileStatus}>
-            <ShieldCheckIcon size={17} color={C.primary} />
+            <ShieldCheckIcon size={17} color={C.teal} />
             <Text style={styles.profileStatusText}>{driver?.status === 'approved' ? 'Verified & approved logistics partner' : 'Checking driver verification…'}</Text>
           </View>
         </Card>
 
-        <SectionHeading icon={<TruckIcon size={20} color={C.primary} />} title="Vehicle & equipment" action="Edit" onPress={() => driver && setPage('vehicle')} />
-        <Card>
+        <SectionHeading tone="blue" icon={<TruckIcon size={20} color={C.blue} />} title="Vehicle & equipment" action="Edit" onPress={() => driver && setPage('vehicle')} />
+        <Card style={styles.vehicleCard}>
           <Pressable accessibilityRole="button" onPress={() => driver && setPage('vehicle')} style={({ pressed }) => [styles.vehicleBox, pressed && { opacity: 0.65 }]}>
-            <View style={styles.vehicleIcon}><TruckIcon size={25} color={C.primary} /></View>
+            <View style={styles.vehicleIcon}><TruckIcon size={25} color={C.blue} /></View>
             <View style={{ flex: 1 }}>
               <Text style={styles.fieldLabel}>Registered vehicle</Text>
               <Text style={styles.vehicleName}>{driver ? driver.vehicle_type : 'Loading…'}</Text>
@@ -116,13 +132,18 @@ export function Settings({ online, onLogout }: { online?: boolean; onLogout: () 
           </Pressable>
         </Card>
 
-        <SectionHeading icon={<ShieldCheckIcon size={20} color={C.primary} />} title="Legal & compliance" meta={`${docCount} of ${DOCUMENT_KEYS.length} received`} />
+        <SectionHeading tone="purple" icon={<ShieldCheckIcon size={20} color={C.purple} />} title="Legal & compliance" meta={`${docCount} of ${DOCUMENT_KEYS.length} received`} />
         <Card style={styles.group}>
           {DOCUMENT_KEYS.map((doc, index) => {
             const uploaded = !!driver?.documents?.[doc.key];
+            const accent = [
+              { bg: C.blueSoft, fg: C.blue },
+              { bg: C.purpleSoft, fg: C.purple },
+              { bg: C.goldSoft, fg: C.gold },
+            ][index];
             return (
               <Pressable key={doc.key} accessibilityRole="button" onPress={() => driver && setPage('documents')} style={({ pressed }) => [styles.docRow, index < DOCUMENT_KEYS.length - 1 && styles.rowBorder, pressed && { backgroundColor: C.surface2 }]}>
-                <View style={[styles.docIcon, uploaded && { backgroundColor: C.primarySoft }]}><DocumentTextIcon size={20} color={uploaded ? C.primary : C.text2} /></View>
+                <View style={[styles.docIcon, { backgroundColor: uploaded ? C.primarySoft : accent.bg }]}><DocumentTextIcon size={20} color={uploaded ? C.primary : accent.fg} /></View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.docTitle}>{doc.label}</Text>
                   <Text style={styles.docSub}>{!driver ? 'Checking document record…' : uploaded ? 'Document securely uploaded' : 'Upload required for your records'}</Text>
@@ -132,21 +153,34 @@ export function Settings({ online, onLogout }: { online?: boolean; onLogout: () 
             );
           })}
           <Pressable accessibilityRole="button" onPress={() => driver && setPage('documents')} style={({ pressed }) => [styles.manageDocs, pressed && { opacity: 0.65 }]}>
-            <DocumentArrowUpIcon size={17} color={C.primary} />
+            <DocumentArrowUpIcon size={17} color={C.purple} />
             <Text style={styles.manageDocsText}>Manage documents</Text>
-            <ChevronRightIcon size={16} color={C.primary} />
+            <ChevronRightIcon size={16} color={C.purple} />
           </Pressable>
         </Card>
 
-        <SectionHeading icon={<BuildingLibraryIcon size={20} color={C.primary} />} title="Payout & security" />
+        <SectionHeading tone="gold" icon={<BellAlertIcon size={20} color={C.gold} />} title="Delivery alerts" meta="Sound + vibration" />
         <Card style={styles.group}>
-          <SettingsRow icon={<BuildingLibraryIcon size={20} color={C.primary} />} title="Bank information" subtitle={bankSummary} onPress={() => driver && setPage('bank')} />
-          <SettingsRow icon={<KeyIcon size={20} color={C.primary} />} title="Change security PIN" subtitle="Update your 4-digit sign-in PIN" onPress={() => setPage('pin')} last />
+          <SettingsRow
+            tone="gold"
+            icon={<BellAlertIcon size={20} color={C.gold} />}
+            title="Test alert sound"
+            subtitle={testingAlert ? 'Scheduling your test notification…' : 'Plays a real delivery alert in 2 seconds'}
+            onPress={() => { void testAlertSound(); }}
+            disabled={testingAlert}
+            last
+          />
         </Card>
 
-        <SectionHeading icon={<QuestionMarkCircleIcon size={20} color={C.primary} />} title="Driver support" />
+        <SectionHeading tone="blue" icon={<BuildingLibraryIcon size={20} color={C.blue} />} title="Payout & security" />
         <Card style={styles.group}>
-          <SettingsRow icon={<QuestionMarkCircleIcon size={20} color={C.primary} />} title="Help & WhatsApp dispatch" subtitle="Contact the Sokoni Hub driver team" onPress={() => setPage('help')} last />
+          <SettingsRow tone="blue" icon={<BuildingLibraryIcon size={20} color={C.blue} />} title="Bank information" subtitle={bankSummary} onPress={() => driver && setPage('bank')} />
+          <SettingsRow tone="purple" icon={<KeyIcon size={20} color={C.purple} />} title="Change security PIN" subtitle="Update your 4-digit sign-in PIN" onPress={() => setPage('pin')} last />
+        </Card>
+
+        <SectionHeading tone="teal" icon={<QuestionMarkCircleIcon size={20} color={C.teal} />} title="Driver support" />
+        <Card style={styles.group}>
+          <SettingsRow tone="teal" icon={<QuestionMarkCircleIcon size={20} color={C.teal} />} title="Help & WhatsApp dispatch" subtitle="Contact the Sokoni Hub driver team" onPress={() => setPage('help')} last />
         </Card>
 
         <Card style={[styles.group, { marginTop: 18 }]}>
@@ -163,14 +197,21 @@ export function Settings({ online, onLogout }: { online?: boolean; onLogout: () 
   );
 }
 
-function SectionHeading({ icon, title, meta, action, onPress }: { icon: React.ReactNode; title: string; meta?: string; action?: string; onPress?: () => void }) {
+function SectionHeading({ icon, title, meta, action, onPress, tone = 'green' }: { icon: React.ReactNode; title: string; meta?: string; action?: string; onPress?: () => void; tone?: 'green' | 'blue' | 'purple' | 'gold' | 'teal' }) {
+  const palette = {
+    green: { bg: C.primarySoft, fg: C.primary },
+    blue: { bg: C.blueSoft, fg: C.blue },
+    purple: { bg: C.purpleSoft, fg: C.purple },
+    gold: { bg: C.goldSoft, fg: C.gold },
+    teal: { bg: C.tealSoft, fg: C.teal },
+  }[tone];
   return (
     <View style={styles.sectionHeading}>
-      <View style={styles.sectionIcon}>{icon}</View>
+      <View style={[styles.sectionIcon, { backgroundColor: palette.bg }]}>{icon}</View>
       <Text style={styles.sectionTitle}>{title}</Text>
       {action && onPress ? (
-        <Pressable accessibilityRole="button" onPress={onPress} hitSlop={8}><Text style={styles.sectionAction}>{action}</Text></Pressable>
-      ) : meta ? <Text style={styles.sectionMeta}>{meta}</Text> : null}
+        <Pressable accessibilityRole="button" onPress={onPress} hitSlop={8}><Text style={[styles.sectionAction, { color: palette.fg }]}>{action}</Text></Pressable>
+      ) : meta ? <Text style={[styles.sectionMeta, { color: palette.fg }]}>{meta}</Text> : null}
     </View>
   );
 }
@@ -186,29 +227,30 @@ const styles = StyleSheet.create({
   name: { flexShrink: 1, fontSize: 18, fontWeight: '900', color: C.text, letterSpacing: -0.25 },
   phone: { fontSize: 12, color: C.text2, marginTop: 3 },
   driverId: { fontSize: 10, color: C.text2, marginTop: 4, fontWeight: '600' },
-  profileStatus: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: C.primarySoft, borderRadius: 12, paddingHorizontal: 11, paddingVertical: 9, marginTop: 14 },
-  profileStatusText: { flex: 1, color: C.primary, fontSize: 11, fontWeight: '700' },
+  profileStatus: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: C.tealSoft, borderRadius: 12, paddingHorizontal: 11, paddingVertical: 9, marginTop: 14 },
+  profileStatusText: { flex: 1, color: C.teal, fontSize: 11, fontWeight: '700' },
   sectionHeading: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 22, marginBottom: 10, paddingHorizontal: 2 },
   sectionIcon: { width: 30, height: 30, borderRadius: 10, backgroundColor: C.primarySoft, alignItems: 'center', justifyContent: 'center' },
   sectionTitle: { flex: 1, fontSize: 15, fontWeight: '900', color: C.text, letterSpacing: -0.15 },
   sectionMeta: { color: C.text2, fontSize: 10, fontWeight: '700' },
   sectionAction: { color: C.primary, fontSize: 11, fontWeight: '900', padding: 4 },
+  vehicleCard: { backgroundColor: '#FCFDFF', borderColor: C.blueLine },
   vehicleBox: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  vehicleIcon: { width: 46, height: 46, borderRadius: 15, backgroundColor: C.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  vehicleIcon: { width: 46, height: 46, borderRadius: 15, backgroundColor: C.blueSoft, alignItems: 'center', justifyContent: 'center' },
   fieldLabel: { color: C.text2, fontSize: 10, fontWeight: '600' },
   vehicleName: { color: C.text, fontSize: 15, fontWeight: '900', marginTop: 3 },
   fieldSub: { color: C.text2, fontSize: 10, lineHeight: 14, marginTop: 3 },
-  plateBox: { backgroundColor: C.infoSoft, borderRadius: 11, paddingHorizontal: 10, paddingVertical: 8, alignItems: 'flex-end', maxWidth: 110 },
+  plateBox: { backgroundColor: C.blueSoft, borderRadius: 11, paddingHorizontal: 10, paddingVertical: 8, alignItems: 'flex-end', maxWidth: 110 },
   plateLabel: { color: C.text2, fontSize: 8, fontWeight: '700' },
-  plateValue: { color: C.text, fontSize: 13, fontWeight: '900', marginTop: 3 },
+  plateValue: { color: C.blue, fontSize: 13, fontWeight: '900', marginTop: 3 },
   group: { padding: 0, overflow: 'hidden' },
   docRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 13 },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: C.border },
   docIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: C.surface2, alignItems: 'center', justifyContent: 'center' },
   docTitle: { color: C.text, fontSize: 13, fontWeight: '800' },
   docSub: { color: C.text2, fontSize: 10, marginTop: 3 },
-  manageDocs: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 12, backgroundColor: C.primarySoft },
-  manageDocsText: { color: C.primary, fontSize: 11, fontWeight: '900' },
+  manageDocs: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 12, backgroundColor: C.purpleSoft },
+  manageDocsText: { color: C.purple, fontSize: 11, fontWeight: '900' },
   signOut: { minHeight: 52, borderRadius: 16, backgroundColor: C.dangerSoft, marginTop: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   signOutText: { color: C.danger, fontSize: 13, fontWeight: '900' },
   version: { color: C.text2, fontSize: 10, textAlign: 'center', marginTop: 18 },
