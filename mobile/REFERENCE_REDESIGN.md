@@ -66,3 +66,15 @@ Add any of these only after the matching backend fields, payment or communicatio
 - "Top rated" sorting runs on the phone over up to 60 results, because `GET /listings` cannot sort by rating.
 - Reschedule hands the request to the seller on WhatsApp, because the API has no buyer-side reschedule endpoint (buyers can create, track and cancel bookings).
 - Push notifications use the existing registration code and were not re-tested in this revision.
+
+## Compact revision
+
+A follow-up pass kept the same reference layouts but made the app denser and more colourful:
+
+- **Scale.** Smaller type, tighter spacing and shorter cards (see "Compact scale" in `README.md`). The reference proportions are kept; only sizes changed.
+- **Colour language.** Delivery and primary actions are green, pick-up, payment and call-to-action accents are orange, contact and account details are violet, location is rose, totals and receipts are sky. Status colours still come from the order or booking status.
+- **Services tab.** The raised centre button now shows a service bell. The scissors suited only hair services, while the tab covers every kind of provider.
+- **Explore category row.** The reference tiles became small round icons so ten or more categories fit in one scrolling row.
+- **Order placed.** The reference set had no confirmation screen. The new one reuses the Profile header language (gradient, tinted tiles) and shows only data the API returns for the new orders.
+- **Documents.** Terms, Privacy and the marketplace policy are read in the app. Share receipt produces a PDF.
+- **Still not shown** (no backend data): promo codes, escrow, Express delivery, delivery PIN, ETA minutes, driver rating, price-drop alerts, Currency and Language rows.

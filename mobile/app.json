@@ -67,7 +67,8 @@
         {
           "locationWhenInUsePermission": "Sokoni Hub uses your location to confirm where your order should be delivered and to show your rider on the map."
         }
-      ]
+      ],
+      "expo-sharing"
     ]
   }
 }

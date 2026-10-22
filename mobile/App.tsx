@@ -50,7 +50,7 @@ function AppRouter({ seenWelcome, finishWelcome }: any) {
         <Stack.Screen name="booking">{(props) => <BookService {...common} listing={(props.route.params as any)?.listing} />}</Stack.Screen>
         <Stack.Screen name="saved">{(props) => <Saved {...common} />}</Stack.Screen>
         <Stack.Screen name="notifications">{(props) => <Notifications {...common} />}</Stack.Screen>
-        <Stack.Screen name="legal">{(props) => <LegalScreen {...common} path={(props.route.params as any)?.path} title={(props.route.params as any)?.title} />}</Stack.Screen>
+        <Stack.Screen name="legal">{(props) => <LegalScreen back={common.back} go={common.go} doc={(props.route.params as any)?.doc} />}</Stack.Screen>
         <Stack.Screen name="support">{(props) => <Support {...common} />}</Stack.Screen>
         <Stack.Screen name="web">{(props) => <WebOnlyAccount onSignOut={(props.route.params as any)?.onSignOut} />}</Stack.Screen>
       </Stack.Navigator>
@@ -63,7 +63,7 @@ function AppRouter({ seenWelcome, finishWelcome }: any) {
 function ErrorFallback({ error }: any) {
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-      <Text style={{ fontSize: 18, fontWeight: 'bold', color: 'red', marginBottom: 10 }}>Something went wrong!</Text>
+      <Text style={{ fontSize: 15, fontWeight: 'bold', color: 'red', marginBottom: 10 }}>Something went wrong!</Text>
       <Text style={{ textAlign: 'center', marginBottom: 20 }}>{error.message}</Text>
     </View>
   );
@@ -122,6 +122,7 @@ import { Checkout } from './src/checkout';
 import { FavouritesProvider, useFavourites } from './src/favourites';
 import { FeaturedStores, usePromotions, VipStores } from './src/promotions';
 import { LegalScreen } from './src/legal';
+import { TAB_CLEARANCE } from './src/kit';
 
 const WELCOME_KEY = 'sokoni_mobile_welcome_complete';
 type Screen = 'welcome' | 'home' | 'browse' | 'services' | 'cart' | 'account' | 'login' | 'register' | 'pin' | 'pinsetup' | 'forgot' | 'listing' | 'store' | 'checkout' | 'orders' | 'bookings' | 'track' | 'booking' | 'support' | 'saved' | 'notifications' | 'legal';
@@ -175,11 +176,11 @@ export function Marketplace() {
     <NavigationContainer ref={navigationRef} theme={navTheme}>
       {auth.user && auth.user.role !== 'buyer' ? <WebOnlyAccount onSignOut={auth.logout} /> : <AppRouter seenWelcome={seenWelcome} finishWelcome={finishWelcome} />}
     </NavigationContainer>
-    {toast ? <View pointerEvents="box-none" style={{ position: 'absolute', left: 16, right: 16, bottom: 64 + Math.max(insets.bottom, 6) + 22, alignItems: 'center', zIndex: 60 }}>
+    {toast ? <View pointerEvents="box-none" style={{ position: 'absolute', left: 16, right: 16, bottom: TAB_CLEARANCE + Math.max(insets.bottom, 6), alignItems: 'center', zIndex: 60 }}>
       <View accessibilityLiveRegion="polite" style={{ flexDirection: 'row', alignItems: 'center', gap: 10, maxWidth: 560, paddingLeft: 16, paddingRight: toast.cart ? 8 : 18, minHeight: 50, borderRadius: 25, backgroundColor: colors.deep, shadowColor: '#000', shadowOpacity: 0.28, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 14 }}>
         <Icon name="checkmark-circle" size={20} color="#7CE0BB" />
-        <Text numberOfLines={2} style={{ flexShrink: 1, color: colors.onDeep, fontSize: 14, fontWeight: '700', paddingVertical: 12 }}>{toast.text}</Text>
-        {toast.cart ? <Pressable accessibilityRole="button" accessibilityLabel="View cart" onPress={() => { setToast(null); navigationRef.isReady() && navigationRef.reset({ index: 0, routes: [{ name: 'cart' }] }); }} style={{ backgroundColor: colors.orange, borderRadius: 18, paddingHorizontal: 14, height: 36, justifyContent: 'center' }}><Text style={{ color: colors.onOrange, fontSize: 13.5, fontWeight: '800' }}>View cart</Text></Pressable> : null}
+        <Text numberOfLines={2} style={{ flexShrink: 1, color: colors.onDeep, fontSize: 12.5, fontWeight: '600', paddingVertical: 12 }}>{toast.text}</Text>
+        {toast.cart ? <Pressable accessibilityRole="button" accessibilityLabel="View cart" onPress={() => { setToast(null); navigationRef.isReady() && navigationRef.reset({ index: 0, routes: [{ name: 'cart' }] }); }} style={{ backgroundColor: colors.orange, borderRadius: 18, paddingHorizontal: 14, height: 36, justifyContent: 'center' }}><Text style={{ color: colors.onOrange, fontSize: 12, fontWeight: '700' }}>View cart</Text></Pressable> : null}
       </View>
     </View> : null}
   </SafeAreaView></ToastContext.Provider>;
