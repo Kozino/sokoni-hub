@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { EnvelopeIcon } from 'react-native-heroicons/outline';
 import { api, ApiError } from '../api';
 import { BrandBlock, Button, Field, normalizeQatarPhone, PhoneField, Topbar, Notice } from '../components/AuthUI';
 import { C } from '../theme';
@@ -53,9 +54,9 @@ export function Register({ onBack, onDone }: { onBack: () => void; onDone: () =>
       <View style={{ flex: 1, backgroundColor: C.bg }}>
         <Topbar onBack={onBack} />
         <View style={styles.success}>
-          <View style={styles.successIcon}><Text style={{ fontSize: 34 }}>📧</Text></View>
+          <View style={styles.successIcon}><EnvelopeIcon size={36} color={C.primary} /></View>
           <Text style={styles.successTitle}>Check your email</Text>
-          <Text style={styles.successText}>We sent a verification link to {sentTo}. Verify your email, then sign in. Our team will review your rider application before you can go online.</Text>
+          <Text style={styles.successText}>We sent a verification link to {sentTo}. Verify your email, then sign in. Our team will review your driver application before you can go online.</Text>
           <Button variant="primary" onPress={onDone} style={{ alignSelf: 'stretch' }}>Back to sign in</Button>
         </View>
       </View>
@@ -66,7 +67,7 @@ export function Register({ onBack, onDone }: { onBack: () => void; onDone: () =>
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: C.bg }}>
       <Topbar onBack={onBack} />
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <BrandBlock title="Apply to Drive" subtitle="Join the Sokoni Hub fleet" intro="Tell us a little about you and your vehicle. Every rider is verified before going online." />
+        <BrandBlock title="Apply to drive" subtitle="Join the Sokoni Hub logistics fleet" intro="Tell us about you and your vehicle. Every driver is verified before going online." />
 
         <View style={styles.card}>
           <Field label="Full name" value={name} onChangeText={setName} placeholder="As on your ID" autoComplete="name" />
@@ -92,7 +93,7 @@ export function Register({ onBack, onDone }: { onBack: () => void; onDone: () =>
 
           <Notice>Your PIN and password are never stored on this device.</Notice>
 
-          <Button variant="gold" loading={busy} onPress={submit}>Submit application</Button>
+          <Button variant="primary" loading={busy} onPress={submit}>Submit application</Button>
           <View style={{ height: 10 }} />
           <Button variant="secondary" onPress={onBack}>I already have an account</Button>
         </View>
@@ -103,7 +104,7 @@ export function Register({ onBack, onDone }: { onBack: () => void; onDone: () =>
 
 const styles = StyleSheet.create({
   scroll: { paddingBottom: 32 },
-  card: { marginHorizontal: 17, marginTop: 24, borderRadius: 16, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface, padding: 16 },
+  card: { marginHorizontal: 16, marginTop: 24, borderRadius: 22, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface, padding: 16 },
   label: { fontSize: 12, fontWeight: '900', marginBottom: 7, color: C.text },
   chips: { flexDirection: 'row', gap: 10, marginBottom: 15 },
   chip: { flex: 1, height: 46, borderRadius: 12, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center', backgroundColor: C.field },

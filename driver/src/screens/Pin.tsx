@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { BackspaceIcon, CheckIcon } from 'react-native-heroicons/outline';
 import { api, ApiError } from '../api';
 import { BrandBlock, Button, Field, Notice, Topbar } from '../components/AuthUI';
 import { C } from '../theme';
@@ -51,7 +52,7 @@ export function Pin({ stage, onBack, onDone }: { stage: Stage; onBack: () => voi
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <BrandBlock
           title={setup ? 'Create Security PIN' : 'Enter Security PIN'}
-          intro={setup ? (firstPin === null ? 'Choose a unique 4-digit PIN for future sign-ins.' : 'Enter the same PIN again to confirm.') : 'Enter the four-digit PIN that protects your rider account.'}
+          intro={setup ? (firstPin === null ? 'Choose a unique 4-digit PIN for future sign-ins.' : 'Enter the same PIN again to confirm.') : 'Enter the four-digit PIN that protects your driver account.'}
         />
 
         <View style={styles.card}>
@@ -69,7 +70,7 @@ export function Pin({ stage, onBack, onDone }: { stage: Stage; onBack: () => voi
 
           <Notice>Your PIN is checked securely on Sokoni Hub. We never store the digits on this device.</Notice>
 
-          <Button variant="gold" loading={busy} onPress={submit}>{setup ? (firstPin === null ? 'Next' : 'Confirm PIN') : 'Verify and continue'}</Button>
+          <Button variant="primary" loading={busy} onPress={submit}>{setup ? (firstPin === null ? 'Next' : 'Confirm PIN') : 'Verify and continue'}</Button>
 
           <View style={styles.keypad}>
             {['1', '2', '3', '4', '5', '6', '7', '8', '9', 'back', '0', 'ok'].map((key) => (
@@ -80,9 +81,9 @@ export function Pin({ stage, onBack, onDone }: { stage: Stage; onBack: () => voi
                 onPress={() => (key === 'ok' ? submit() : press(key))}
                 style={[styles.key, { backgroundColor: key === 'ok' ? C.primarySoft : C.surface }]}
               >
-                <Text style={[styles.keyText, { color: key === 'ok' ? C.primary : C.text }]}>
-                  {key === 'back' ? '⌫' : key === 'ok' ? '✓' : key}
-                </Text>
+                {key === 'back' ? <BackspaceIcon size={23} color={C.text} /> : key === 'ok' ? <CheckIcon size={25} color={C.primary} /> : (
+                  <Text style={[styles.keyText, { color: C.text }]}>{key}</Text>
+                )}
               </Pressable>
             ))}
           </View>
@@ -94,7 +95,7 @@ export function Pin({ stage, onBack, onDone }: { stage: Stage; onBack: () => voi
 
 const styles = StyleSheet.create({
   scroll: { paddingBottom: 32 },
-  card: { marginHorizontal: 17, marginTop: 24, borderRadius: 16, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface, padding: 16 },
+  card: { marginHorizontal: 16, marginTop: 24, borderRadius: 22, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface, padding: 16 },
   boxes: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginVertical: 16 },
   box: { height: 55, width: 55, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.surface },
   dot: { fontSize: 26, color: C.primary, fontWeight: '900' },

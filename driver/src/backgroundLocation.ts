@@ -64,7 +64,7 @@ async function startTaskIfNeeded(): Promise<boolean> {
     pausesUpdatesAutomatically: false,
     showsBackgroundLocationIndicator: true,
     foregroundService: {
-      notificationTitle: 'Sokoni Hub rider',
+      notificationTitle: 'Sokoni Driver',
       notificationBody: 'Sharing your location while you are online.',
       notificationColor: '#0F7B5F',
     },

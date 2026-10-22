@@ -56,6 +56,7 @@ export function ChangePin({ onBack }: { onBack: () => void }) {
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <ScreenHeader title="Change PIN" subtitle="Your 4-digit security PIN" onBack={onBack} />
       <ScrollView contentContainerStyle={styles.pad} keyboardShouldPersistTaps="handled">
+        <View style={{ marginBottom: 12 }}><Notice>Choose a unique PIN and never share it with customers or merchants.</Notice></View>
         <Card>
           {field('Current PIN', current, setCurrent)}
           {field('New PIN', next, setNext)}
@@ -71,7 +72,7 @@ export function ChangePin({ onBack }: { onBack: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  pad: { padding: 18, paddingBottom: 32 },
-  label: { fontSize: 13, fontWeight: '800', color: C.text, marginBottom: 7 },
-  input: { minHeight: 50, borderRadius: 12, backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border, paddingHorizontal: 14, fontSize: 15, color: C.text, letterSpacing: 6 },
+  pad: { padding: 16, paddingBottom: 32 },
+  label: { fontSize: 11, fontWeight: '900', color: C.text, marginBottom: 7 },
+  input: { minHeight: 52, borderRadius: 14, backgroundColor: C.field, borderWidth: 1, borderColor: C.border, paddingHorizontal: 14, fontSize: 15, color: C.text, letterSpacing: 6 },
 });

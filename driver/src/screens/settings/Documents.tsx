@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { CheckCircleIcon, DocumentArrowUpIcon } from 'react-native-heroicons/outline';
+import { CheckCircleIcon, DocumentArrowUpIcon, ShieldCheckIcon } from 'react-native-heroicons/outline';
 import { api } from '../../api';
 import { Badge, Button, Card, Notice, ScreenHeader } from '../../components/UI';
 import { errorText } from '../../format';
@@ -12,6 +12,8 @@ export function Documents({ driver, onBack, onSaved }: { driver: DriverProfile; 
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const docs = driver.documents ?? {};
+  const uploadedCount = DOCUMENT_KEYS.filter((doc) => !!docs[doc.key]).length;
+  const progress = uploadedCount / DOCUMENT_KEYS.length;
 
   const upload = async (key: string) => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -42,31 +44,43 @@ export function Documents({ driver, onBack, onSaved }: { driver: DriverProfile; 
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.bg }}>
-      <ScreenHeader title="Documents" subtitle="Clear photos, all four corners visible" onBack={onBack} />
+    <View style={styles.page}>
+      <ScreenHeader title="Legal documents" subtitle="Clear photos with all four corners visible" onBack={onBack} />
       <ScrollView contentContainerStyle={styles.pad}>
-        <Notice>Documents are stored privately and used only to verify your rider account.</Notice>
-        {message ? <View style={{ marginTop: 12 }}><Notice>{message}</Notice></View> : null}
+        <Card style={styles.progressCard}>
+          <View style={styles.progressHead}>
+            <View style={styles.progressIcon}><ShieldCheckIcon size={23} color={C.primary} /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.progressTitle}>Driver compliance</Text>
+              <Text style={styles.progressSub}>{uploadedCount} of {DOCUMENT_KEYS.length} required documents received</Text>
+            </View>
+            <Text style={styles.progressValue}>{Math.round(progress * 100)}%</Text>
+          </View>
+          <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${progress * 100}%` }]} /></View>
+        </Card>
 
-        {DOCUMENT_KEYS.map((d) => {
-          const uploaded = !!docs[d.key];
+        <View style={{ marginVertical: 12 }}><Notice>Documents are stored privately and used only to verify your driver account.</Notice></View>
+        {message ? <View style={{ marginBottom: 12 }}><Notice>{message}</Notice></View> : null}
+
+        {DOCUMENT_KEYS.map((doc) => {
+          const uploaded = !!docs[doc.key];
           return (
-            <Card key={d.key} style={{ marginTop: 14 }}>
+            <Card key={doc.key} style={styles.docCard}>
               <View style={styles.row}>
                 <View style={[styles.iconWrap, { backgroundColor: uploaded ? C.primarySoft : C.surface2 }]}>
-                  {uploaded ? <CheckCircleIcon size={22} color={C.primary} /> : <DocumentArrowUpIcon size={22} color={C.text2} />}
+                  {uploaded ? <CheckCircleIcon size={23} color={C.primary} /> : <DocumentArrowUpIcon size={23} color={C.text2} />}
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.title}>{d.label}</Text>
-                  <Text style={styles.sub}>{uploaded ? 'Uploaded' : 'Not uploaded yet'}</Text>
+                  <Text style={styles.title}>{doc.label}</Text>
+                  <Text style={styles.sub}>{uploaded ? 'Securely uploaded to your profile' : 'A clear photo is required'}</Text>
                 </View>
                 <Badge label={uploaded ? 'Received' : 'Required'} tone={uploaded ? 'green' : 'gold'} />
               </View>
               <View style={{ marginTop: 14 }}>
-                {busyKey === d.key ? (
-                  <ActivityIndicator color={C.primary} />
+                {busyKey === doc.key ? (
+                  <View style={styles.uploading}><ActivityIndicator color={C.primary} /><Text style={styles.uploadingText}>Uploading securely…</Text></View>
                 ) : (
-                  <Button title={uploaded ? 'Replace file' : 'Choose photo'} tone={uploaded ? 'secondary' : 'primary'} onPress={() => upload(d.key)} disabled={!!busyKey} />
+                  <Button title={uploaded ? 'Replace document' : 'Choose document photo'} tone={uploaded ? 'secondary' : 'primary'} onPress={() => upload(doc.key)} disabled={!!busyKey} icon={<DocumentArrowUpIcon size={18} color={uploaded ? C.text : '#fff'} />} />
                 )}
               </View>
             </Card>
@@ -78,9 +92,21 @@ export function Documents({ driver, onBack, onSaved }: { driver: DriverProfile; 
 }
 
 const styles = StyleSheet.create({
-  pad: { padding: 18, paddingBottom: 32 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  page: { flex: 1, backgroundColor: C.bg },
+  pad: { padding: 16, paddingBottom: 32 },
+  progressCard: { padding: 16 },
+  progressHead: { flexDirection: 'row', alignItems: 'center', gap: 11 },
+  progressIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: C.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  progressTitle: { color: C.text, fontSize: 15, fontWeight: '900' },
+  progressSub: { color: C.text2, fontSize: 10, lineHeight: 15, marginTop: 3 },
+  progressValue: { color: C.primary, fontSize: 15, fontWeight: '900' },
+  progressTrack: { height: 7, borderRadius: 4, backgroundColor: C.surface2, marginTop: 15, overflow: 'hidden' },
+  progressFill: { height: 7, borderRadius: 4, backgroundColor: C.primary },
+  docCard: { marginBottom: 12 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 11 },
   iconWrap: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 15, fontWeight: '800', color: C.text },
-  sub: { fontSize: 13, color: C.text2, marginTop: 2 },
+  title: { fontSize: 14, fontWeight: '900', color: C.text },
+  sub: { fontSize: 10, lineHeight: 15, color: C.text2, marginTop: 3 },
+  uploading: { minHeight: 52, borderRadius: 14, backgroundColor: C.primarySoft, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  uploadingText: { color: C.primary, fontSize: 12, fontWeight: '800' },
 });

@@ -13,7 +13,7 @@ export function SettingsRow({ icon, title, subtitle, onPress, danger, last }: {
         <Text style={[styles.title, danger && { color: C.danger }]}>{title}</Text>
         {subtitle ? <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text> : null}
       </View>
-      {!danger ? <ChevronRightIcon size={18} color={C.muted} /> : null}
+      <ChevronRightIcon size={17} color={danger ? C.danger : C.muted} />
     </Pressable>
   );
 }
@@ -23,5 +23,5 @@ const styles = StyleSheet.create({
   border: { borderBottomWidth: 1, borderBottomColor: C.border },
   iconWrap: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 15, fontWeight: '800', color: C.text },
-  subtitle: { fontSize: 13, color: C.text2, marginTop: 2 },
+  subtitle: { fontSize: 11, lineHeight: 16, color: C.text2, marginTop: 3 },
 });

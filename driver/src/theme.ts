@@ -1,19 +1,30 @@
-// Mirrors the consumer app's light palette so the rider app looks like part of the same product.
+// Shared Sokoni Driver palette. Kept in one place so every screen and sub-page
+// uses the same clean, high-contrast visual language.
 export const C = {
-  bg: '#F8F8FD',
+  bg: '#F7F8FA',
   surface: '#FFFFFF',
-  surface2: '#F0F2FF',
-  field: '#F1F3FF',
-  text: '#111827',
-  text2: '#56606D',
-  muted: '#5B6674',
-  border: '#E8EAF3',
-  primary: '#05663F',
-  primaryPressed: '#034D30',
-  primarySoft: '#E1F7E9',
-  primaryLine: '#BDE9CE',
-  gold: '#C25E00',
-  goldSoft: '#FFF0E2',
-  danger: '#DC2626',
-  dangerSoft: '#FEE2E2',
+  surface2: '#F1F2F7',
+  field: '#F2F3F8',
+  text: '#121826',
+  text2: '#5F6875',
+  muted: '#8992A0',
+  border: '#E9EBF0',
+  primary: '#075E46',
+  primaryPressed: '#044634',
+  primarySoft: '#E8F7EF',
+  primaryLine: '#C8E8D8',
+  gold: '#F57C00',
+  goldSoft: '#FFF3E3',
+  danger: '#C83E3E',
+  dangerSoft: '#FDECEC',
+  infoSoft: '#F0F1F8',
+  white: '#FFFFFF',
+};
+
+export const cardShadow = {
+  shadowColor: '#172B22',
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.045,
+  shadowRadius: 14,
+  elevation: 1,
 };

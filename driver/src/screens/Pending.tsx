@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { ClockIcon, NoSymbolIcon } from 'react-native-heroicons/outline';
 import { Button, Topbar } from '../components/AuthUI';
 import { C } from '../theme';
 
@@ -10,11 +11,11 @@ export function Pending({ status, onRefresh, onSignOut }: { status: string; onRe
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <Topbar />
       <View style={styles.wrap}>
-        <View style={styles.icon}><Text style={{ fontSize: 34 }}>{suspended ? '⛔' : '⏳'}</Text></View>
+        <View style={[styles.icon, suspended && { backgroundColor: C.dangerSoft }]}>{suspended ? <NoSymbolIcon size={36} color={C.danger} /> : <ClockIcon size={36} color={C.gold} />}</View>
         <Text style={styles.title}>{suspended ? 'Account suspended' : 'Application under review'}</Text>
         <Text style={styles.text}>
           {suspended
-            ? 'Your rider account is currently suspended. Please contact Sokoni Hub support.'
+            ? 'Your driver account is currently suspended. Please contact Sokoni Hub support.'
             : 'Thanks for applying. Our team is reviewing your details. You will be able to go online once you are approved.'}
         </Text>
         <Button variant="primary" onPress={onRefresh} style={{ alignSelf: 'stretch' }}>Check again</Button>

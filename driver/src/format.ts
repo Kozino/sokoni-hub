@@ -4,7 +4,7 @@ export const dateTime = (v?: string | null) =>
   v ? new Date(v).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
 
 const LABELS: Record<string, string> = {
-  dispatched: 'Waiting for a rider',
+  dispatched: 'Waiting for a driver',
   dispatched_to_driver: 'Heading to pickup',
   driver_arrived: 'At pickup',
   out_for_delivery: 'On the way',

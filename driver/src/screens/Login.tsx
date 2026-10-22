@@ -33,7 +33,7 @@ export function Login({ onBack, onRegister, onStage }: { onBack: () => void; onR
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: C.bg }}>
       <Topbar onBack={onBack} />
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scroll}>
-        <BrandBlock title="Welcome Back!" subtitle="Karibu tena • Kaabo • Nno" intro="Sign in to your rider account and start delivering with Sokoni Hub." />
+        <BrandBlock title="Welcome back" subtitle="Secure courier access" intro="Sign in to your driver account and manage your deliveries with Sokoni Hub." />
 
         <View style={styles.card}>
           <View style={styles.modeToggle}>
@@ -60,14 +60,14 @@ export function Login({ onBack, onRegister, onStage }: { onBack: () => void; onR
             <Text style={styles.noteText}>After your password, we will ask for your four-digit PIN.</Text>
           </View>
 
-          <Button variant="gold" loading={busy} onPress={submit}>Sign In to Sokoni Driver</Button>
+          <Button variant="primary" loading={busy} onPress={submit}>Sign in to Sokoni Driver</Button>
 
           <Divider label="NEW RIDER?" />
 
           <Button variant="secondary" onPress={onRegister}>Apply to drive with us</Button>
         </View>
 
-        <Text style={styles.footer}>Vendors and administrators use the secure web portal.</Text>
+        <Text style={styles.footer}>Driver access only · Vendors and administrators use the secure web portal.</Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -75,7 +75,7 @@ export function Login({ onBack, onRegister, onStage }: { onBack: () => void; onR
 
 const styles = StyleSheet.create({
   scroll: { paddingBottom: 32 },
-  card: { marginHorizontal: 17, marginTop: 27, borderRadius: 16, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface, padding: 16, shadowColor: '#17291F', shadowOpacity: 0.05, shadowRadius: 12, elevation: 2 },
+  card: { marginHorizontal: 16, marginTop: 25, borderRadius: 22, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface, padding: 16, shadowColor: '#17291F', shadowOpacity: 0.05, shadowRadius: 12, elevation: 2 },
   modeToggle: { height: 47, borderRadius: 24, padding: 4, flexDirection: 'row', backgroundColor: C.surface2, marginBottom: 19 },
   mode: { flex: 1, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
   modeActive: { backgroundColor: C.primary },

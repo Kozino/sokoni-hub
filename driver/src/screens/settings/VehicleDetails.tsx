@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { CheckIcon } from 'react-native-heroicons/outline';
+import { CheckIcon, TruckIcon } from 'react-native-heroicons/outline';
 import { api } from '../../api';
-import { Button, Card, Notice, ScreenHeader } from '../../components/UI';
+import { Badge, Button, Card, Notice, ScreenHeader } from '../../components/UI';
 import { errorText } from '../../format';
 import { C } from '../../theme';
 import type { DriverProfile } from './types';
@@ -30,24 +30,36 @@ export function VehicleDetails({ driver, onBack, onSaved }: { driver: DriverProf
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.bg }}>
-      <ScreenHeader title="Vehicle details" subtitle="Used to match you with suitable orders" onBack={onBack} />
+    <View style={styles.page}>
+      <ScreenHeader title="Vehicle & equipment" subtitle="Used to match you with suitable orders" onBack={onBack} />
       <ScrollView contentContainerStyle={styles.pad} keyboardShouldPersistTaps="handled">
-        <Card>
-          <Text style={styles.label}>Vehicle type</Text>
+        <Card style={styles.summary}>
+          <View style={styles.summaryIcon}><TruckIcon size={28} color={C.primary} /></View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.summaryLabel}>REGISTERED VEHICLE</Text>
+            <Text style={styles.summaryTitle}>{vehicle}</Text>
+            <Text style={styles.summarySub}>Qatar plate · {plate.trim() || 'Not provided'}</Text>
+          </View>
+          <Badge label="Driver vehicle" />
+        </Card>
+
+        <Card style={{ marginTop: 12 }}>
+          <Text style={styles.formTitle}>Vehicle details</Text>
+          <Text style={styles.formSub}>Keep this information consistent with your vehicle registration.</Text>
+          <Text style={[styles.label, { marginTop: 20 }]}>Vehicle type</Text>
           <View style={styles.options}>
-            {VEHICLES.map((v) => {
-              const on = vehicle === v;
+            {VEHICLES.map((item) => {
+              const selected = vehicle === item;
               return (
-                <Pressable key={v} accessibilityRole="button" onPress={() => { setVehicle(v); setSaved(false); }} style={[styles.option, on && styles.optionOn]}>
-                  {on ? <CheckIcon size={16} color={C.primary} /> : null}
-                  <Text style={[styles.optionText, on && { color: C.primary }]}>{v}</Text>
+                <Pressable key={item} accessibilityRole="button" accessibilityState={{ selected }} onPress={() => { setVehicle(item); setSaved(false); }} style={[styles.option, selected && styles.optionOn]}>
+                  {selected ? <CheckIcon size={15} color={C.primary} /> : null}
+                  <Text style={[styles.optionText, selected && { color: C.primary }]} numberOfLines={1}>{item}</Text>
                 </Pressable>
               );
             })}
           </View>
 
-          <Text style={[styles.label, { marginTop: 18 }]}>Licence plate / vehicle ID</Text>
+          <Text style={[styles.label, { marginTop: 20 }]}>Licence plate / vehicle ID</Text>
           <Text style={styles.hint}>As printed on your vehicle registration.</Text>
           <TextInput
             accessibilityLabel="Licence plate"
@@ -59,22 +71,28 @@ export function VehicleDetails({ driver, onBack, onSaved }: { driver: DriverProf
             style={styles.input}
           />
         </Card>
-        {saved ? <View style={{ marginTop: 14 }}><Notice>Vehicle details saved.</Notice></View> : null}
-        <View style={{ marginTop: 18 }}>
-          <Button title="Save changes" onPress={save} loading={busy} />
-        </View>
+        {saved ? <View style={{ marginTop: 12 }}><Notice>Vehicle details saved to your driver profile.</Notice></View> : null}
+        <Button title="Save vehicle details" onPress={save} loading={busy} style={{ marginTop: 16 }} />
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  pad: { padding: 18, paddingBottom: 32 },
-  label: { fontSize: 13, fontWeight: '800', color: C.text },
-  hint: { fontSize: 12, color: C.text2, marginTop: 3, marginBottom: 8 },
-  options: { flexDirection: 'row', gap: 10, marginTop: 10 },
-  option: { flex: 1, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', height: 48, borderRadius: 14, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface2 },
+  page: { flex: 1, backgroundColor: C.bg },
+  pad: { padding: 16, paddingBottom: 32 },
+  summary: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  summaryIcon: { width: 54, height: 54, borderRadius: 17, backgroundColor: C.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  summaryLabel: { color: C.text2, fontSize: 8, fontWeight: '900', letterSpacing: 0.7 },
+  summaryTitle: { color: C.text, fontSize: 18, fontWeight: '900', marginTop: 3 },
+  summarySub: { color: C.text2, fontSize: 11, marginTop: 3 },
+  formTitle: { color: C.text, fontSize: 16, fontWeight: '900' },
+  formSub: { color: C.text2, fontSize: 11, lineHeight: 16, marginTop: 4 },
+  label: { fontSize: 11, fontWeight: '900', color: C.text },
+  hint: { fontSize: 11, color: C.text2, marginTop: 4, marginBottom: 8 },
+  options: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  option: { flex: 1, minWidth: 0, flexDirection: 'row', gap: 4, alignItems: 'center', justifyContent: 'center', height: 48, borderRadius: 14, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface2, paddingHorizontal: 4 },
   optionOn: { borderColor: C.primary, backgroundColor: C.primarySoft },
-  optionText: { fontSize: 14, fontWeight: '800', color: C.text2 },
-  input: { marginTop: 8, minHeight: 50, borderRadius: 12, backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border, paddingHorizontal: 14, fontSize: 15, color: C.text },
+  optionText: { flexShrink: 1, fontSize: 12, fontWeight: '800', color: C.text2 },
+  input: { marginTop: 8, minHeight: 52, borderRadius: 14, backgroundColor: C.field, borderWidth: 1, borderColor: C.border, paddingHorizontal: 14, fontSize: 14, color: C.text },
 });

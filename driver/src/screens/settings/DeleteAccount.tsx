@@ -63,7 +63,7 @@ export function DeleteAccount({ onBack }: { onBack: () => void }) {
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <ScreenHeader title="Delete account" subtitle="Request permanent deletion" onBack={onBack} />
       <ScrollView contentContainerStyle={styles.pad} keyboardShouldPersistTaps="handled">
-        <Notice>
+        <Notice tone="warning">
           Deleting your account signs you out and removes your profile, login details and uploaded documents. You must finish or hand back any open delivery and hand in any cash you hold first. Some delivery and payout records are kept as required by law.
         </Notice>
         <View style={{ height: 14 }} />
@@ -104,12 +104,12 @@ export function DeleteAccount({ onBack }: { onBack: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  pad: { padding: 18, paddingBottom: 32 },
+  pad: { padding: 16, paddingBottom: 32 },
   title: { fontSize: 18, fontWeight: '900', color: C.text, textAlign: 'center' },
   body: { fontSize: 14, color: C.text2, textAlign: 'center', lineHeight: 20 },
   ref: { fontSize: 16, fontWeight: '900', color: C.primary, marginTop: 6 },
   label: { fontSize: 13, fontWeight: '800', color: C.text, marginBottom: 7 },
-  input: { minHeight: 50, borderRadius: 12, backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border, paddingHorizontal: 14, fontSize: 15, color: C.text },
+  input: { minHeight: 52, borderRadius: 14, backgroundColor: C.field, borderWidth: 1, borderColor: C.border, paddingHorizontal: 14, fontSize: 14, color: C.text },
   agree: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 16 },
   box: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: C.border, marginTop: 1 },
   agreeText: { flex: 1, fontSize: 13, color: C.text, lineHeight: 19 },
