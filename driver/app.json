@@ -25,7 +25,9 @@
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
-        "CAMERA"
+        "CAMERA",
+        "POST_NOTIFICATIONS",
+        "VIBRATE"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#033B2A"
@@ -71,7 +73,15 @@
           "cameraPermission": "Sokoni Driver uses the camera to take proof-of-delivery photos."
         }
       ],
-      "expo-notifications"
+      [
+        "expo-notifications",
+        {
+          "color": "#F57C00",
+          "sounds": [
+            "./assets/sounds/delivery_alert.wav"
+          ]
+        }
+      ]
     ]
   }
 }
