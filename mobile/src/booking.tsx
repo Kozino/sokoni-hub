@@ -1,11 +1,12 @@
 import { Icon, type IconName } from './icons';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Image, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Alert, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { api, ApiError, query } from './api';
+import { durationLabel, whatsappUrl } from './format';
+import { Panel, Price, Screen, Thumb, softShadow } from './kit';
 import { useAuth, useTheme } from './providers';
 import type { Booking, Listing } from './types';
-import { BottomBar, Button, Card, EmptyState, Field, Header, Money, Notice, Spinner, Text } from './ui';
-import { RADIUS, useLayout } from './layout';
+import { BottomBar, Button, EmptyState, Field, Header, Notice, Spinner, Text } from './ui';
 
 /** Qatar has no daylight saving, so a fixed +03:00 offset is always correct. */
 const QATAR = '+03:00';
@@ -42,7 +43,6 @@ const errorText = (e: unknown) => (e instanceof ApiError || e instanceof Error) 
 export function BookService({ listing, go, back, tab }: { listing?: Listing; go: (screen: any, params?: any) => void; back: () => void; tab: (screen: any, params?: any) => void }) {
   const { colors } = useTheme();
   const { user } = useAuth();
-  const layout = useLayout();
   const [config, setConfig] = useState<SlotsResponse | null>(null);
   const [loadError, setLoadError] = useState('');
   const [day, setDay] = useState('');
@@ -89,9 +89,9 @@ export function BookService({ listing, go, back, tab }: { listing?: Listing; go:
     return Array.from({ length: count }, (_, i) => addDays(config.today, i));
   }, [config]);
 
-  if (!listing) return <View style={styles.page}><Header title="Book service" back={back} /><EmptyState title="Service unavailable" text="Return to the marketplace and choose a service." /></View>;
-  if (loadError) return <View style={styles.page}><Header title="Book service" back={back} /><EmptyState icon="cloud-offline-outline" title="Could not load availability" text={loadError} action={<Button style={{ marginTop: 10 }} onPress={() => void loadConfig()}>Try again</Button>} /></View>;
-  if (!config) return <View style={styles.page}><Header title="Book service" back={back} /><Spinner label="Checking availability…" /></View>;
+  if (!listing) return <Screen><Header title="Book a service" back={back} /><EmptyState title="Service unavailable" text="Return to the marketplace and choose a service." /></Screen>;
+  if (loadError) return <Screen><Header title="Book a service" back={back} /><EmptyState icon="cloud-offline-outline" title="Could not load availability" text={loadError} action={<Button style={{ marginTop: 10 }} onPress={() => void loadConfig()}>Try again</Button>} /></Screen>;
+  if (!config) return <Screen><Header title="Book a service" back={back} /><Spinner label="Checking availability…" /></Screen>;
 
   const calendar = config.mode === 'calendar';
   const requestStart = !calendar && day && time ? new Date(`${day}T${time}:00${QATAR}`) : null;
@@ -101,28 +101,34 @@ export function BookService({ listing, go, back, tab }: { listing?: Listing; go:
     : (requestStart ? `${dayParts(day).long}, ${time}` : '');
 
   if (done) {
-    return <View style={styles.page}>
-      <Header title="Booking" />
-      <ScrollView contentContainerStyle={styles.doneScroll}>
-        <View style={[styles.doneIcon, { backgroundColor: done.auto_confirmed ? colors.successSoft : colors.warningSoft }]}>
-          <Icon name={done.auto_confirmed ? 'checkmark-circle' : 'time'} size={44} color={done.auto_confirmed ? colors.success : colors.warning} />
-        </View>
-        <Text style={[styles.doneTitle, { color: colors.text }]}>{done.auto_confirmed ? 'Booking confirmed' : 'Booking requested'}</Text>
-        <Text style={[styles.doneCopy, { color: colors.text2 }]}>{done.auto_confirmed ? 'Your time is reserved.' : `${listing.business_name || 'The provider'} will confirm your appointment with you shortly.`}</Text>
-        <Card style={{ width: '100%', marginTop: 18 }}>
-          <Row label="Reference" value={done.booking.code} strong />
-          <Row label="Service" value={listing.title} />
-          <Row label="When" value={done.label} />
-          <Row label="Where" value={location === 'home' ? 'At your address' : 'At the provider'} />
-          <Row label="Price" value={<Money value={listing.price} currency={listing.currency} strong />} />
-        </Card>
-        <Notice>Nothing has been charged. Payment is arranged directly with the provider.</Notice>
-        <View style={{ width: '100%', gap: 10, marginTop: 16 }}>
-          <Button onPress={() => go('bookings')}>View my bookings</Button>
-          <Button variant="ghost" onPress={() => tab('home')}>Back to explore</Button>
-        </View>
-      </ScrollView>
-    </View>;
+    const wa = whatsappUrl(listing.whatsapp, `Hi ${listing.business_name || ''}, I just booked "${listing.title}" (ref ${done.booking.code}) for ${done.label}.`);
+    return (
+      <Screen>
+        <Header title="Booking" />
+        <ScrollView contentContainerStyle={styles.doneScroll} showsVerticalScrollIndicator={false}>
+          <View style={[styles.doneIcon, { backgroundColor: done.auto_confirmed ? colors.primarySoft : colors.warningSoft }]}>
+            <Icon name={done.auto_confirmed ? 'checkmark-circle' : 'time'} size={52} color={done.auto_confirmed ? colors.primary : colors.warning} />
+          </View>
+          <Text style={[styles.doneTitle, { color: colors.text }]}>{done.auto_confirmed ? 'Booking confirmed' : 'Booking requested'}</Text>
+          <Text style={[styles.doneCopy, { color: colors.text2 }]}>{done.auto_confirmed ? 'Your time is reserved with the provider.' : `${listing.business_name || 'The provider'} will confirm your appointment with you shortly.`}</Text>
+          <Panel style={{ width: '100%', marginTop: 20, gap: 4 }}>
+            <Row label="Reference" value={done.booking.code} strong />
+            <Row label="Service" value={listing.title} />
+            <Row label="Provider" value={listing.business_name || 'Verified provider'} />
+            <Row label="When" value={done.label} />
+            <Row label="Where" value={location === 'home' ? 'At your address' : 'At the provider'} />
+            <Row label="Price" value={<Price value={listing.price} currency={listing.currency} size={18} from={listing.price_type === 'from'} />} />
+          </Panel>
+          <View style={{ width: '100%', marginTop: 14 }}><Notice>Nothing has been charged. Payment is arranged directly with the provider.</Notice></View>
+          <View style={{ width: '100%', gap: 10, marginTop: 18 }}>
+            <Button variant="deep" onPress={() => go('track', { bookingCode: done.booking.code, phone: form.contact_phone })}>Track this booking</Button>
+            {wa ? <Button variant="mint" iconLeft="logo-whatsapp" onPress={() => void Linking.openURL(wa)}>Message the provider</Button> : null}
+            <Button variant="tonal" onPress={() => go('bookings')}>View my bookings</Button>
+            <Button variant="ghost" onPress={() => tab('home')}>Back to explore</Button>
+          </View>
+        </ScrollView>
+      </Screen>
+    );
   }
 
   const submit = async () => {
@@ -155,115 +161,129 @@ export function BookService({ listing, go, back, tab }: { listing?: Listing; go:
   };
 
   const ready = !!day && !!time && !(location === 'home' && form.address.trim().length < 5);
+  const duration = durationLabel(config.duration_mins);
 
-  return <KeyboardAvoidingView behavior="padding" style={styles.page}>
-    <Header title="Book a service" back={back} />
-    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.scroll, layout.contentMaxWidth ? { width: '100%', maxWidth: layout.contentMaxWidth, alignSelf: 'center' } : null]}>
-      <View style={styles.profile}>
-        {listing.images?.[0] ? <Image source={{ uri: listing.images[0] }} style={styles.avatar} /> : <View style={[styles.avatar, { backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }]}><Icon name="construct-outline" size={30} color={colors.primary} /></View>}
-        <View style={{ flex: 1 }}>
-          <Text numberOfLines={2} style={[styles.name, { color: colors.text }]}>{listing.title}</Text>
-          <Text numberOfLines={1} style={[styles.sub, { color: colors.text2 }]}>{listing.business_name || 'Verified local provider'} · {listing.vendor_city || 'Doha'}</Text>
-          <View style={styles.tags}>
-            <View style={[styles.tag, { backgroundColor: colors.surface2 }]}><Icon name="time-outline" size={13} color={colors.text2} /><Text style={[styles.tagText, { color: colors.text2 }]}>{config.duration_mins} min</Text></View>
-            <Money value={listing.price} currency={listing.currency} strong />
+  return (
+    <Screen>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <Header title="Book a service" back={back} />
+        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+          <Panel style={styles.profile}>
+            <Thumb uri={listing.images?.[0]} style={styles.avatar} icon="scissors" iconSize={28} />
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text numberOfLines={2} style={[styles.name, { color: colors.text }]}>{listing.title}</Text>
+              <Text numberOfLines={1} style={[styles.sub, { color: colors.text2 }]}>{listing.business_name || 'Verified provider'}{listing.vendor_city ? ` · ${listing.vendor_city.trim()}` : ''}</Text>
+              <View style={styles.tags}>
+                {duration ? <View style={[styles.tag, { backgroundColor: colors.surface2 }]}><Icon name="time" solid={false} size={14} color={colors.text2} /><Text style={[styles.tagText, { color: colors.text2 }]}>{duration}</Text></View> : null}
+                <Price value={listing.price} currency={listing.currency} size={19} from={listing.price_type === 'from'} />
+              </View>
+            </View>
+          </Panel>
+
+          <StepHead n={1} title="Choose a date" />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dayRail}>
+            {days.map((value, index) => {
+              const p = dayParts(value); const active = value === day;
+              return <Pressable key={value} onPress={() => pickDay(value)} accessibilityRole="button" accessibilityState={{ selected: active }} accessibilityLabel={p.long} style={[styles.dayChip, { backgroundColor: active ? colors.primary : colors.surface, borderColor: active ? colors.primary : colors.border }, active && softShadow(colors.shadow)]}>
+                <Text style={[styles.dayWeek, { color: active ? colors.onPrimary : colors.text2 }]}>{index === 0 ? 'Today' : p.week}</Text>
+                <Text style={[styles.dayNum, { color: active ? colors.onPrimary : colors.text }]}>{p.num}</Text>
+                <Text style={[styles.dayMonth, { color: active ? colors.onPrimary : colors.muted }]}>{p.month}</Text>
+              </Pressable>;
+            })}
+          </ScrollView>
+
+          <StepHead n={2} title="Choose a time" />
+          {calendar ? (
+            slotsLoading ? <Spinner label="Loading times…" /> :
+            slots.length ? <View style={styles.timeGrid}>{slots.map((slot) => {
+              const active = slot.start === time;
+              return <Pressable key={slot.start} accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => setTime(slot.start)} style={[styles.timeChip, { backgroundColor: active ? colors.primary : colors.surface, borderColor: active ? colors.primary : colors.border }]}>
+                <Text style={[styles.timeText, { color: active ? colors.onPrimary : colors.text }]}>{slot.label}</Text>
+              </Pressable>;
+            })}</View> : <Notice type="warning">No times are free on {dayParts(day).long}. Try another day.</Notice>
+          ) : (
+            <>
+              <Notice>This provider confirms appointments by request. Choose the time you would like and they will confirm or suggest another.</Notice>
+              <View style={[styles.timeGrid, { marginTop: 12 }]}>{REQUEST_TIMES.map((value) => {
+                const active = value === time;
+                const past = +new Date(`${day}T${value}:00${QATAR}`) < Date.now() + config.options.min_notice_hours * 3600000;
+                return <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: active, disabled: past }} disabled={past} onPress={() => setTime(value)} style={[styles.timeChip, { opacity: past ? 0.35 : 1, backgroundColor: active ? colors.primary : colors.surface, borderColor: active ? colors.primary : colors.border }]}>
+                  <Text style={[styles.timeText, { color: active ? colors.onPrimary : colors.text }]}>{value}</Text>
+                </Pressable>;
+              })}</View>
+            </>
+          )}
+          <Text style={[styles.caption, { color: colors.muted }]}>All times are Qatar time (AST).</Text>
+
+          <StepHead n={3} title="Where" />
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            {([['vendor', 'At the provider', 'Go to their location', 'storefront', config.options.offers_at_vendor], ['home', 'At my address', 'Home visit', 'home', config.options.offers_home_service]] as [string, string, string, IconName, boolean][]).map(([value, label, sub, icon, enabled]) => {
+              const active = location === value;
+              return <Pressable key={value} accessibilityRole="radio" accessibilityState={{ checked: active, disabled: !enabled }} disabled={!enabled} onPress={() => setLocation(value as 'vendor' | 'home')} style={[styles.where, { opacity: enabled ? 1 : 0.4 }, active ? [{ backgroundColor: colors.surface, borderColor: colors.primary }, softShadow(colors.shadow)] : { backgroundColor: colors.surface2, borderColor: 'transparent' }]}>
+                <Icon name={icon} solid={false} size={23} color={active ? colors.primary : colors.text2} />
+                <Text style={{ fontSize: 15.5, fontWeight: '800', color: colors.text, marginTop: 10 }}>{label}</Text>
+                <Text style={{ fontSize: 12.5, fontWeight: '600', color: colors.text2, marginTop: 2 }}>{enabled ? sub : 'Not offered'}</Text>
+              </Pressable>;
+            })}
           </View>
-        </View>
-      </View>
+          {location === 'vendor' && config.options.vendor_address ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 }}><Icon name="location" solid={false} size={15} color={colors.text2} /><Text style={[styles.caption, { color: colors.text2, marginTop: 0, flexShrink: 1 }]}>{config.options.vendor_address}</Text></View> : null}
+          {location === 'home' ? <View style={{ marginTop: 12 }}>
+            {config.options.home_service_notes ? <Notice>{config.options.home_service_notes}</Notice> : null}
+            <View style={{ height: config.options.home_service_notes ? 12 : 0 }} />
+            <Field label="Your address" value={form.address} onChangeText={set('address')} multiline placeholder="Building, street, zone, Doha" style={{ minHeight: 76, textAlignVertical: 'top', paddingTop: 12 }} />
+          </View> : null}
 
-      <Text style={[styles.section, { color: colors.text }]}>1 · Choose a date</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dayRail}>
-        {days.map((value) => {
-          const p = dayParts(value); const active = value === day;
-          return <Pressable key={value} onPress={() => pickDay(value)} accessibilityRole="button" accessibilityLabel={p.long} style={[styles.dayChip, { backgroundColor: active ? colors.primary : colors.surface, borderColor: active ? colors.primary : colors.border }]}>
-            <Text style={[styles.dayWeek, { color: active ? '#fff' : colors.text2 }]}>{p.week}</Text>
-            <Text style={[styles.dayNum, { color: active ? '#fff' : colors.text }]}>{p.num}</Text>
-            <Text style={[styles.dayMonth, { color: active ? '#fff' : colors.muted }]}>{p.month}</Text>
-          </Pressable>;
-        })}
-      </ScrollView>
+          <StepHead n={4} title="Your details" />
+          <Field label="Full name" value={form.contact_name} onChangeText={set('contact_name')} autoComplete="name" />
+          <Field label="Phone number" value={form.contact_phone} onChangeText={set('contact_phone')} keyboardType="phone-pad" placeholder="+974…" />
+          <Field label="Email (optional)" value={form.contact_email} onChangeText={set('contact_email')} keyboardType="email-address" autoCapitalize="none" />
+          <Field label="Note for the provider (optional)" value={form.note} onChangeText={set('note')} multiline placeholder="Anything they should know" style={{ minHeight: 76, textAlignVertical: 'top', paddingTop: 12 }} />
+          {!user ? <Notice type="warning">Sign in to send your booking and track it from your account.</Notice> : null}
+          <Text style={[styles.caption, { color: colors.muted, textAlign: 'center', marginTop: 14 }]}>Nothing is charged in the app. You pay the provider directly.</Text>
+        </ScrollView>
 
-      <Text style={[styles.section, { color: colors.text }]}>2 · Choose a time</Text>
-      {calendar ? (
-        slotsLoading ? <Spinner label="Loading times…" /> :
-        slots.length ? <View style={styles.timeGrid}>{slots.map((slot) => {
-          const active = slot.start === time;
-          return <Pressable key={slot.start} accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => setTime(slot.start)} style={[styles.timeChip, { backgroundColor: active ? colors.primary : colors.surface, borderColor: active ? colors.primary : colors.border }]}>
-            <Text style={[styles.timeText, { color: active ? '#fff' : colors.text }]}>{slot.label}</Text>
-          </Pressable>;
-        })}</View> : <Notice type="warning">No times are free on {dayParts(day).long}. Try another day.</Notice>
-      ) : (
-        <>
-          <Notice>This provider confirms appointments by request. Choose the time you would like and they will confirm or suggest another.</Notice>
-          <View style={[styles.timeGrid, { marginTop: 10 }]}>{REQUEST_TIMES.map((value) => {
-            const active = value === time;
-            const past = +new Date(`${day}T${value}:00${QATAR}`) < Date.now() + config.options.min_notice_hours * 3600000;
-            return <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: active, disabled: past }} disabled={past} onPress={() => setTime(value)} style={[styles.timeChip, { opacity: past ? .35 : 1, backgroundColor: active ? colors.primary : colors.surface, borderColor: active ? colors.primary : colors.border }]}>
-              <Text style={[styles.timeText, { color: active ? '#fff' : colors.text }]}>{value}</Text>
-            </Pressable>;
-          })}</View>
-        </>
-      )}
-      <Text style={[styles.caption, { color: colors.muted }]}>All times are Qatar time (AST).</Text>
-
-      <Text style={[styles.section, { color: colors.text }]}>3 · Where</Text>
-      <View style={[styles.toggle, { backgroundColor: colors.surface2 }]}>
-        {([['vendor', 'At the provider', 'storefront-outline', config.options.offers_at_vendor], ['home', 'At my address', 'home-outline', config.options.offers_home_service]] as const).map(([value, label, icon, enabled]) => {
-          const active = location === value;
-          return <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: active, disabled: !enabled }} disabled={!enabled} onPress={() => setLocation(value)} style={[styles.toggleOption, { opacity: enabled ? 1 : .4, backgroundColor: active ? colors.primary : 'transparent' }]}>
-            <Icon name={icon} size={16} color={active ? '#fff' : colors.text2} /><Text style={[styles.toggleText, { color: active ? '#fff' : colors.text2 }]}>{label}</Text>
-          </Pressable>;
-        })}
-      </View>
-      {location === 'vendor' && config.options.vendor_address ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}><Icon name="location-outline" size={13} color={colors.text2} /><Text style={[styles.caption, { color: colors.text2, marginTop: 0, flexShrink: 1 }]}>{config.options.vendor_address}</Text></View> : null}
-      {location === 'home' ? <View style={{ marginTop: 10 }}>
-        {config.options.home_service_notes ? <Notice>{config.options.home_service_notes}</Notice> : null}
-        <Field label="Your address" value={form.address} onChangeText={set('address')} multiline placeholder="Building, street, zone, Doha" style={{ minHeight: 70, textAlignVertical: 'top', paddingTop: 12 }} />
-      </View> : null}
-
-      <Text style={[styles.section, { color: colors.text }]}>4 · Your details</Text>
-      <Field label="Full name" value={form.contact_name} onChangeText={set('contact_name')} autoComplete="name" />
-      <Field label="Phone number" value={form.contact_phone} onChangeText={set('contact_phone')} keyboardType="phone-pad" placeholder="+974…" />
-      <Field label="Email (optional)" value={form.contact_email} onChangeText={set('contact_email')} keyboardType="email-address" autoCapitalize="none" />
-      <Field label="Note for the provider (optional)" value={form.note} onChangeText={set('note')} multiline placeholder="Anything they should know" style={{ minHeight: 70, textAlignVertical: 'top', paddingTop: 12 }} />
-      {!user ? <Notice type="warning">Sign in to send your booking and track it from your account.</Notice> : null}
-    </ScrollView>
-
-    <BottomBar style={layout.contentMaxWidth ? { justifyContent: 'center' } : undefined}>
-      <View style={[styles.barInner, layout.contentMaxWidth ? { width: '100%', maxWidth: layout.contentMaxWidth } : null]}>
-      <View style={{ flex: 1 }}>
-        <Text style={[styles.totalLabel, { color: colors.text2 }]}>{chosenLabel ? 'YOUR APPOINTMENT' : 'SELECT DATE & TIME'}</Text>
-        <Text numberOfLines={1} style={[styles.totalValue, { color: colors.text }]}>{chosenLabel || '—'}</Text>
-      </View>
-      <Button variant="gold" loading={busy} disabled={!ready && !!user} onPress={() => void submit()} style={layout.isPhone ? styles.ctaPhone : styles.ctaTablet} textStyle={styles.ctaText}>{user ? (config.options.auto_accept && calendar ? 'Book now' : 'Request booking') : 'Sign in to book'}</Button>
-      </View>
-    </BottomBar>
-  </KeyboardAvoidingView>;
+        <BottomBar style={{ paddingHorizontal: 16, gap: 14 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.totalLabel, { color: colors.text2 }]}>{chosenLabel ? 'YOUR APPOINTMENT' : 'SELECT DATE & TIME'}</Text>
+            <Text numberOfLines={2} style={[styles.totalValue, { color: colors.text }]}>{chosenLabel || '—'}</Text>
+          </View>
+          <Button variant="gold" loading={busy} disabled={!ready && !!user} onPress={() => void submit()} style={styles.cta} textStyle={{ fontSize: 15 }}>{user ? (config.options.auto_accept && calendar ? 'Book now' : 'Request booking') : 'Sign in to book'}</Button>
+        </BottomBar>
+      </KeyboardAvoidingView>
+    </Screen>
+  );
 }
 
-function Row({ label, value, strong }: { label: string; value: React.ReactNode; strong?: boolean }) {
+function StepHead({ n, title }: { n: number; title: string }) {
   const { colors } = useTheme();
-  return <View style={styles.row}><Text style={[styles.rowLabel, { color: colors.text2 }]}>{label}</Text>{typeof value === 'string' ? <Text style={[styles.rowValue, { color: colors.text, fontWeight: strong ? '900' : '700' }]}>{value}</Text> : value}</View>;
+  return (
+    <View style={styles.stepHead}>
+      <View style={[styles.stepNo, { backgroundColor: n % 2 === 0 ? colors.brown : colors.primary }]}><Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '800' }}>{n}</Text></View>
+      <Text style={[styles.section, { color: colors.text }]}>{title}</Text>
+    </View>
+  );
+}
+
+function Row({ label, value, strong }: { label: string; value: ReactNode; strong?: boolean }) {
+  const { colors } = useTheme();
+  return <View style={styles.row}><Text style={[styles.rowLabel, { color: colors.text2 }]}>{label}</Text>{typeof value === 'string' ? <Text style={[styles.rowValue, { color: colors.text, fontWeight: strong ? '800' : '700' }]}>{value}</Text> : value}</View>;
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1 }, scroll: { padding: 16, paddingBottom: 24 },
-  profile: { flexDirection: 'row', gap: 12, alignItems: 'center' }, avatar: { width: 72, height: 72, borderRadius: 12, resizeMode: 'cover' },
-  name: { fontSize: 16, fontWeight: '900', lineHeight: 20 }, sub: { fontSize: 12, marginTop: 3 }, tags: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 7 },
-  tag: { height: 26, borderRadius: 13, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 4 }, tagText: { fontSize: 12, fontWeight: '800' },
-  section: { fontSize: 16, fontWeight: '900', marginTop: 24, marginBottom: 10 },
-  dayRail: { gap: 8, paddingRight: 16 }, dayChip: { width: 60, height: 78, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center', gap: 1 },
-  dayWeek: { fontSize: 12, fontWeight: '700' }, dayNum: { fontSize: 20, fontWeight: '900' }, dayMonth: { fontSize: 12, fontWeight: '700' },
-  timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, timeChip: { minWidth: 76, height: 42, borderRadius: 11, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 }, timeText: { fontSize: 14, fontWeight: '800' },
-  caption: { fontSize: 12, marginTop: 9 },
-  toggle: { height: 50, borderRadius: 12, padding: 4, flexDirection: 'row', gap: 4 }, toggleOption: { flex: 1, borderRadius: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }, toggleText: { fontSize: 12, fontWeight: '900' },
-  totalLabel: { fontSize: 12, fontWeight: '800', letterSpacing: .3 }, totalValue: { fontSize: 13, fontWeight: '900', marginTop: 2 },
-  /* Compact CTA: 44px tall (touch minimum), sized to its label, never stretched. */
-  ctaPhone: { minHeight: 44, minWidth: 118, maxWidth: 160, borderRadius: RADIUS.pill, paddingHorizontal: 14, alignSelf: 'center', flexShrink: 0 },
-  ctaTablet: { minHeight: 44, minWidth: 148, maxWidth: 200, borderRadius: RADIUS.pill, paddingHorizontal: 20, alignSelf: 'center', flexShrink: 0 },
-  ctaText: { fontSize: 13 },
-  barInner: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, alignSelf: 'center' },
-  doneScroll: { padding: 20, alignItems: 'center' }, doneIcon: { width: 84, height: 84, borderRadius: 42, alignItems: 'center', justifyContent: 'center', marginTop: 14 },
-  doneTitle: { fontSize: 24, fontWeight: '900', marginTop: 16 }, doneCopy: { fontSize: 14, lineHeight: 20, textAlign: 'center', marginTop: 6, maxWidth: 300 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 7, gap: 12 }, rowLabel: { fontSize: 12 }, rowValue: { fontSize: 13, flexShrink: 1, textAlign: 'right' },
+  scroll: { padding: 16, paddingBottom: 28 },
+  profile: { flexDirection: 'row', gap: 14, alignItems: 'center' }, avatar: { width: 84, height: 84, borderRadius: 18 },
+  name: { fontSize: 17, fontWeight: '800', lineHeight: 22, letterSpacing: -0.2 }, sub: { fontSize: 13, fontWeight: '600' }, tags: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4, flexWrap: 'wrap' },
+  tag: { height: 28, borderRadius: 14, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 5 }, tagText: { fontSize: 12.5, fontWeight: '800' },
+  stepHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 26, marginBottom: 12 }, stepNo: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  section: { fontSize: 18, fontWeight: '800', letterSpacing: -0.3 },
+  dayRail: { gap: 10, paddingRight: 16 }, dayChip: { width: 66, height: 88, borderRadius: 20, borderWidth: 1, alignItems: 'center', justifyContent: 'center', gap: 1 },
+  dayWeek: { fontSize: 12.5, fontWeight: '700' }, dayNum: { fontSize: 22, fontWeight: '800' }, dayMonth: { fontSize: 12.5, fontWeight: '700' },
+  timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 }, timeChip: { minWidth: 82, height: 46, borderRadius: 15, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 }, timeText: { fontSize: 14.5, fontWeight: '800' },
+  caption: { fontSize: 12.5, marginTop: 10, fontWeight: '500' },
+  where: { flex: 1, borderRadius: 20, borderWidth: 1.5, padding: 15 },
+  totalLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1.1 }, totalValue: { fontSize: 14, fontWeight: '800', marginTop: 2, lineHeight: 18 },
+  cta: { minHeight: 54, minWidth: 150, paddingHorizontal: 22 },
+  doneScroll: { padding: 20, alignItems: 'center', paddingBottom: 40 }, doneIcon: { width: 96, height: 96, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginTop: 14 },
+  doneTitle: { fontSize: 27, fontWeight: '800', marginTop: 18, letterSpacing: -0.5 }, doneCopy: { fontSize: 14.5, lineHeight: 21, textAlign: 'center', marginTop: 8, maxWidth: 320 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, gap: 12 }, rowLabel: { fontSize: 13.5, fontWeight: '500' }, rowValue: { fontSize: 14, flexShrink: 1, textAlign: 'right' },
 });

@@ -1,120 +1,112 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, BackHandler, FlatList, ImageBackground, KeyboardAvoidingView, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, useWindowDimensions, View, Platform } from 'react-native';
-import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { api, ApiError, query } from '../api';
-import { SUPPORT_EMAIL, SUPPORT_WHATSAPP, WEB_URL } from '../config';
-import { AuthProvider, CartProvider, ThemeProvider, useAuth, useCart, useTheme } from '../providers';
-import type { Booking, CartItem, Category, Listing, Order, Review, Vendor } from '../types';
-import { BrandMark, Button, Card, Chip, Divider, Dropdown, EmptyState, Field, FontContext, Header, IconButton, Money, Notice, Sheet, Spinner, Text, TextInput, type DropdownOption, type FontStatus } from '../ui';
-import { CityProvider, useCity } from '../city';
-import { categoryImage } from '../catImages';
-import { BottomBar } from '../ui';
-import { BookService } from '../booking';
-import { Checkout } from '../checkout';
-import { FavouritesProvider, useFavourites } from '../favourites';
+/**
+ * Explore — the landing screen. Search, category chips, "shop by category", sponsored stores, market items,
+ * popular services and trust messaging. Every list is live API data; a section with nothing to show is hidden.
+ */
+import { useMemo, useState } from 'react';
+import { RefreshControl, ScrollView, View } from 'react-native';
+import { CategoryTile, ProductCard, ProductRow, SellCard, ServiceRow } from '../cards';
+import { useActiveCategories, useMarket, SORT_LABELS, type SortKey } from '../data';
+import { AppBar, PillRow, Screen, SearchBar, SectionHead, SectionLabel, SortPill, Tabs, TrustBanner, ViewToggle, useColumnWidth } from '../kit';
+import { useCity } from '../city';
+import { plural } from '../format';
+import type { NavProps } from '../nav';
 import { FeaturedStores, usePromotions, VipStores } from '../promotions';
-import { LegalScreen } from '../legal';
-import { Icon, type IconName } from '../icons';
-import { styles, nx, ex } from '../styles';
-import * as WebBrowser from 'expo-web-browser';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Image } from 'expo-image';
-import * as LocalAuthentication from 'expo-local-authentication';
-import * as SecureStore from 'expo-secure-store';
-import { tap, success } from '../haptics';
+import { useTheme } from '../providers';
+import { Button, EmptyState, Notice, Spinner, Text } from '../ui';
 
-export type Screen = 'welcome' | 'home' | 'browse' | 'cart' | 'account' | 'login' | 'register' | 'pin' | 'pinsetup' | 'forgot' | 'listing' | 'store' | 'checkout' | 'orders' | 'bookings' | 'track' | 'booking' | 'support' | 'saved' | 'notifications' | 'legal';
-export type Nav = { screen: Screen; params?: Record<string, any>; id?: number };
+export type { Screen } from '../nav';
 
-const message = (error: any) => error instanceof ApiError ? error.message : error instanceof Error ? error.message : 'Something went wrong. Please try again.';
-const date = (value?: string | null) => value ? new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : 'To be arranged';
-const dateTime = (value?: string | null) => value ? new Date(value).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'To be arranged';
-const statusLabel = (value: string) => value.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+const SORTS: { value: SortKey; label: string }[] = (['popular', 'newest', 'price_asc', 'price_desc', 'rating'] as SortKey[]).map((value) => ({ value, label: SORT_LABELS[value] }));
 
-export const ToastContext = createContext<{ show: (text: string, cartLink?: boolean) => void }>({ show: () => {} });
-export const useToast = () => useContext(ToastContext);
-
-import { Welcome } from './Welcome';
-import { Tabs } from './Tabs';
-import { TrustTile } from './TrustTile';
-import { SectionTitle } from './SectionTitle';
-import { ListingRail } from './ListingRail';
-import { ListingImage } from './ListingImage';
-import { ListingCard } from './ListingCard';
-import { Browse } from './Browse';
-import { Saved } from './Saved';
-import { Notifications } from './Notifications';
-import { AuthScaffold } from './AuthScaffold';
-import { Login } from './Login';
-import { Register } from './Register';
-import { Pin } from './Pin';
-import { Recovery } from './Recovery';
-import { ListingDetail } from './ListingDetail';
-import { DetailFact } from './DetailFact';
-import { StoreDetail } from './StoreDetail';
-import { Cart } from './Cart';
-import { Orders } from './Orders';
-import { Bookings } from './Bookings';
-import { Status } from './Status';
-import { Track } from './Track';
-import { Account } from './Account';
-import { AccountRow } from './AccountRow';
-import { Support } from './Support';
-import { GuestGate } from './GuestGate';
-import { WebOnlyAccount } from './WebOnlyAccount';
-
-export function Home({ go, tab }: any) {
-  const { colors } = useTheme(); const { user } = useAuth(); const { count } = useCart(); const { city, setCity, cities } = useCity();
-  const [categories, setCategories] = useState<Category[]>([]); const [products, setProducts] = useState<Listing[]>([]); const [services, setServices] = useState<Listing[]>([]); const [refreshing, setRefreshing] = useState(false); const [error, setError] = useState('');
-  const [text, setText] = useState(''); const [goods, setGoods] = useState('all');
+export function Home({ go, tab }: NavProps) {
+  const { colors } = useTheme();
+  const { city } = useCity();
+  const width = useColumnWidth();
+  const categories = useActiveCategories();
   const promos = usePromotions();
-  const load = useCallback(async () => { setError(''); try {
-    const [c, p, s] = await Promise.all([
-      api.get<{categories: Category[]}>('/meta/categories'),
-      api.get<{listings: Listing[]}>(`/listings${query({ kind: 'product', limit: 8, city })}`),
-      api.get<{listings: Listing[]}>(`/listings${query({ kind: 'service', limit: 8, city })}`),
-    ]); setCategories(c.categories); setProducts(p.listings); setServices(s.listings);
-  } catch (e) { setError(message(e)); } }, [city]);
-  useEffect(() => { void load(); }, [load]);
-  const cityOptions: DropdownOption[] = [{ value: '', label: 'All cities' }, ...cities.map((name) => ({ value: name, label: name }))];
-  const goodsOptions: DropdownOption[] = [{ value: 'all', label: 'All goods' }, { value: 'kind:product', label: 'Products only' }, { value: 'kind:service', label: 'Services only' }, ...categories.map((c) => ({ value: `cat:${c.slug}`, label: c.name, image: categoryImage(c.slug) }))];
-  const runSearch = () => {
-    const params: Record<string, any> = { q: text.trim(), fromHome: true };
-    if (goods === 'kind:product') params.kind = 'product';
-    else if (goods === 'kind:service') params.kind = 'service';
-    else if (goods.startsWith('cat:')) { const cat = categories.find((c) => c.slug === goods.slice(4)); if (cat) { params.category = cat.slug; params.kind = cat.kind; } }
-    go('browse', params);
+  const [text, setText] = useState('');
+  const [chip, setChip] = useState('');
+  const [sort, setSort] = useState<SortKey>('popular');
+  const [view, setView] = useState<'grid' | 'list'>('grid');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const market = useMarket({ q: '', kind: 'product', category: chip, sort, min: '', max: '', city }, 8);
+  const services = useMarket({ q: '', kind: 'service', category: '', sort: 'popular', min: '', max: '', city }, 3);
+
+  const productCategories = useMemo(() => (categories.data ?? []).filter((c) => c.kind === 'product'), [categories.data]);
+  const chips = useMemo(() => [{ key: '', label: 'All' }, ...productCategories.map((c) => ({ key: c.slug, label: c.name }))], [productCategories]);
+  const activeCategory = productCategories.find((c) => c.slug === chip);
+  const cardWidth = (width - 32 - 12) / 2;
+
+  const search = () => go('browse', { q: text.trim(), fromHome: true });
+  const refresh = async () => {
+    setRefreshing(true);
+    await Promise.all([market.reload(true), services.reload(true), promos.reload(), categories.refetch()]);
+    setRefreshing(false);
   };
-  return <View style={styles.page}>
-    <View style={[nx.fixedTop, { backgroundColor: colors.bg, borderBottomColor: colors.border }]}>
-      <BrandMark small/>
-      <Dropdown value={city} options={cityOptions} onChange={setCity} style={nx.cityTrigger} menuWidth={220} renderTrigger={(label) => <><Icon name="location-outline" size={16} color={colors.primary}/><Text numberOfLines={1} style={[styles.marketLocationText, { color: colors.text }]}>{label}</Text><Icon name="chevron-down-outline" size={14} color={colors.muted}/></>}/>
-      <View style={styles.marketTopIcons}><IconButton icon="notifications-outline" label="Notifications" onPress={() => go('notifications')}/><IconButton icon="bag-outline" label="Cart" badge={count} onPress={() => tab('cart')}/></View>
-    </View>
-    <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await Promise.all([load(), promos.reload()]); setRefreshing(false); }} tintColor={colors.primary} />} contentContainerStyle={styles.marketScroll} keyboardShouldPersistTaps="handled">
-      <LinearGradient colors={[colors.primary, '#033B2A']} start={{x:0,y:0}} end={{x:1,y:1}} style={[styles.marketHero, { marginTop: 12 }]}>
-        <Text style={styles.marketHeroTitle}>Shop your market,{`\n`}all in one place.</Text>
-        <Text style={styles.marketHeroCopy}>Discover local products and book trusted services near you, with clear prices and direct seller contact.</Text>
-        <View style={styles.marketSearchBox}><Icon name="search-outline" size={20} color={colors.muted}/><TextInput accessibilityLabel="Search products, stores or services" value={text} onChangeText={setText} onSubmitEditing={runSearch} returnKeyType="search" autoCorrect={false} placeholder="Search products, stores or services" placeholderTextColor={colors.muted} style={[nx.heroInput, { color: '#111827' }]}/>{text ? <Pressable accessibilityRole="button" onPress={() => setText('')} hitSlop={8} accessibilityLabel="Clear"><Icon name="close-circle" size={18} color={colors.muted}/></Pressable> : null}</View>
-        <View style={styles.marketHeroFilters}>
-          <Dropdown value={city} options={cityOptions} onChange={setCity} style={styles.marketFilter} menuWidth={220} renderTrigger={(label) => <><Icon name="location-outline" color={colors.primary} size={15}/><Text numberOfLines={1} style={[styles.marketFilterText,{color:colors.text, flexShrink:1}]}>{label}</Text><Icon name="chevron-down-outline" color={colors.muted} size={13}/></>}/>
-          <Dropdown value={goods} options={goodsOptions} onChange={setGoods} style={styles.marketFilter} menuWidth={250} renderTrigger={(label) => <><Icon name="apps-outline" color={colors.primary} size={15}/><Text numberOfLines={1} style={[styles.marketFilterText,{color:colors.text, flexShrink:1}]}>{label}</Text><Icon name="chevron-down-outline" color={colors.muted} size={13}/></>}/>
-        </View>
-        <Pressable accessibilityRole="button" onPress={runSearch} accessibilityLabel="Search market" style={[styles.marketSearchButton,{backgroundColor:colors.gold}]}><Icon name="search-outline" size={17} color="#fff"/><Text style={styles.marketSearchButtonText}>Search market</Text></Pressable>
-      </LinearGradient>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickRail}>{['Rice & grains','Food','Beauty','Fashion','Home services'].map((label) => <Pressable accessibilityRole="button" key={label} onPress={() => go('browse',{q:label})} style={[styles.quickChip,{backgroundColor:colors.surface2}]}><Text style={[styles.quickChipText,{color:colors.text2}]}>{label}</Text></Pressable>)}</ScrollView>
-      {error ? <View style={{marginHorizontal:14}}><Notice type="warning">{error}</Notice></View> : null}
-      <VipStores stores={promos.vip} onOpen={(slug) => go('store',{slug})}/>
-      <SectionTitle title="Explore market stalls" action="View all" onPress={() => go('browse')}/>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.stallRail}>{categories.map((category) => <Pressable key={category.id} onPress={() => go('browse',{category:category.slug,kind:category.kind})} style={[nx.stall,{backgroundColor:colors.surface,borderColor:colors.border}]} accessibilityRole="button" accessibilityLabel={category.name}><Image contentFit="cover" source={categoryImage(category.slug)} style={nx.stallImage}/><Text numberOfLines={2} style={[nx.stallTitle,{color:colors.text}]}>{category.name}</Text></Pressable>)}</ScrollView>
-      <FeaturedStores stores={promos.featured} onOpen={(slug) => go('store',{slug})}/>
-      <SectionTitle title="Trending near you" action="See all" onPress={() => go('browse')} tight/>
-      <Text style={[styles.sectionCaption,{color:colors.text2}]}>{city ? `Order products or book trusted services in ${city}.` : 'Order products or book trusted services across Qatar.'}</Text>
-      <View style={styles.marketGrid}>{products.slice(0,4).map((listing) => <ListingCard key={listing.id} listing={listing} onPress={() => go('listing',{id:listing.id})} compact fluid/>)}</View>
-      {services.length ? <><SectionTitle title="Popular services" action="View all" onPress={() => go('browse',{kind:'service'})}/><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.listingRail,{paddingLeft:14}]}>{services.map((listing) => <ListingCard key={listing.id} listing={listing} onPress={() => go('listing',{id:listing.id})} compact/>)}</ScrollView></> : null}
-      <LinearGradient colors={[colors.primary,'#126D4B',colors.gold]} start={{x:0,y:0}} end={{x:1,y:1}} style={styles.sellBanner}><View style={{flex:1}}><Text style={styles.sellBannerEyebrow}>LOCAL SERVICES & PRODUCTS</Text><Text style={styles.sellBannerTitle}>Find your neighbourhood favourites.</Text><Text style={styles.sellBannerCopy}>Browse freely, then create a buyer account to order and track.</Text></View><Pressable accessibilityRole="button" onPress={() => user ? go('account') : go('register')} style={styles.sellBannerAction}><Text style={[styles.sellBannerActionText,{color:colors.primary}]}>{user ? 'My account' : 'Join now'}</Text><Icon name="arrow-forward" size={15} color={colors.primary}/></Pressable></LinearGradient>
-      <View style={{height:24}}/>
-    </ScrollView><Tabs active="home" tab={tab}/>
-  </View>;
+
+  return (
+    <Screen>
+      <AppBar go={go} tab={tab} />
+      <ScrollView
+        keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 56 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={colors.primary} />}
+      >
+        <SearchBar style={{ marginTop: 16 }} value={text} onChangeText={setText} onSubmit={search} placeholder="Search products or services" onFilter={() => go('browse', { q: text.trim(), fromHome: true, openFilters: true })} />
+        <PillRow style={{ marginTop: 14 }} items={chips} active={chip} onSelect={setChip} />
+
+        {productCategories.length ? (
+          <>
+            <SectionLabel title="Shop by category" action="See All" onAction={() => go('browse', { fromHome: true })} />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 12, paddingBottom: 4 }}>
+              {productCategories.map((category) => <CategoryTile key={category.id} category={category} onPress={() => go('browse', { category: category.slug, kind: 'product', fromHome: true })} />)}
+            </ScrollView>
+          </>
+        ) : null}
+
+        <VipStores stores={promos.vip} onOpen={(slug) => go('store', { slug })} />
+        <FeaturedStores stores={promos.featured} onOpen={(slug) => go('store', { slug })} />
+
+        <SectionHead
+          wrap
+          title={activeCategory ? activeCategory.name : 'Market Items'}
+          caption={market.loading ? 'Loading…' : `${plural(market.total, 'result')}${city ? ` in ${city}` : ''}`}
+          right={<View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><SortPill value={sort} options={SORTS} onChange={setSort} /><ViewToggle mode={view} onChange={setView} /></View>}
+        />
+        {market.error && !market.items.length ? (
+          <View style={{ paddingHorizontal: 16, gap: 10 }}><Notice type="warning">{market.error}</Notice><Button variant="secondary" onPress={() => void market.reload()}>Try again</Button></View>
+        ) : market.loading && !market.items.length ? (
+          <Spinner label="Loading the local market…" />
+        ) : !market.items.length ? (
+          <EmptyState icon="basket-outline" title={chip || city ? 'Nothing here yet' : 'No products yet'} text={chip || city ? 'No products match this category right now. Try another category or city.' : 'Sellers are setting up their stalls. Please check back soon.'} action={chip ? <Button variant="secondary" style={{ marginTop: 8 }} onPress={() => setChip('')}>Show all products</Button> : undefined} />
+        ) : view === 'grid' ? (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 16 }}>
+            {market.items.map((listing) => <ProductCard key={listing.id} listing={listing} style={{ width: cardWidth }} onPress={() => go('listing', { id: listing.id })} />)}
+          </View>
+        ) : (
+          <View style={{ gap: 12, paddingHorizontal: 16 }}>
+            {market.items.map((listing) => <ProductRow key={listing.id} listing={listing} onPress={() => go('listing', { id: listing.id })} />)}
+          </View>
+        )}
+        {market.total > market.items.length ? (
+          <View style={{ paddingHorizontal: 16, marginTop: 16 }}>
+            <Button variant="mint" icon="arrow-forward" onPress={() => go('browse', { category: chip, kind: 'product', sort, fromHome: true })}>{`View all ${market.total} items`}</Button>
+          </View>
+        ) : null}
+
+        {services.items.length ? (
+          <>
+            <SectionHead title="Popular services" caption="Book vetted providers with clear prices" right={<Text onPress={() => tab('services')} style={{ color: colors.brown, fontSize: 14, fontWeight: '800' }}>See All →</Text>} />
+            <View style={{ gap: 12, paddingHorizontal: 16 }}>
+              {services.items.map((listing) => <ServiceRow key={listing.id} listing={listing} onPress={() => go('listing', { id: listing.id })} onBook={() => go('listing', { id: listing.id })} />)}
+            </View>
+          </>
+        ) : null}
+
+        <TrustBanner icon="shield-checkmark" title="Sokoni Quality Guarantee" text="Every seller is verified by Sokoni Hub before they can list products or take bookings." />
+        <SellCard />
+      </ScrollView>
+      <Tabs active="home" tab={tab} />
+    </Screen>
+  );
 }

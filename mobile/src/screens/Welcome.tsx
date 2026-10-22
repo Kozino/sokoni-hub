@@ -1,75 +1,93 @@
-
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, BackHandler, FlatList, ImageBackground, KeyboardAvoidingView, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, useWindowDimensions, View, Platform } from 'react-native';
-import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { api, ApiError, query } from '../api';
-import { SUPPORT_EMAIL, SUPPORT_WHATSAPP, WEB_URL } from '../config';
-import { AuthProvider, CartProvider, ThemeProvider, useAuth, useCart, useTheme } from '../providers';
-import type { Booking, CartItem, Category, Listing, Order, Review, Vendor } from '../types';
-import { BrandMark, Button, Card, Chip, Divider, Dropdown, EmptyState, Field, FontContext, Header, IconButton, Money, Notice, Sheet, Spinner, Text, TextInput, type DropdownOption, type FontStatus } from '../ui';
-import { CityProvider, useCity } from '../city';
-import { categoryImage } from '../catImages';
-import { BottomBar } from '../ui';
-import { BookService } from '../booking';
-import { Checkout } from '../checkout';
-import { FavouritesProvider, useFavourites } from '../favourites';
-import { FeaturedStores, usePromotions, VipStores } from '../promotions';
-import { LegalScreen } from '../legal';
-import { Icon, type IconName } from '../icons';
-import { styles, nx, ex } from '../styles';
-import * as WebBrowser from 'expo-web-browser';
+/**
+ * First-launch welcome: three short slides over the market photo, then create an account, sign in or browse as a guest.
+ */
 import { LinearGradient } from 'expo-linear-gradient';
-import { Image } from 'expo-image';
-import * as LocalAuthentication from 'expo-local-authentication';
-import * as SecureStore from 'expo-secure-store';
-import { tap, success } from '../haptics';
+import { useRef, useState } from 'react';
+import { FlatList, Image, ImageBackground, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { tap } from '../haptics';
+import { Icon, type IconName } from '../icons';
+import { COLUMN_MAX } from '../kit';
+import type { Screen } from '../nav';
+import { useTheme } from '../providers';
+import { Button, Text } from '../ui';
 
-export type Screen = 'welcome' | 'home' | 'browse' | 'cart' | 'account' | 'login' | 'register' | 'pin' | 'pinsetup' | 'forgot' | 'listing' | 'store' | 'checkout' | 'orders' | 'bookings' | 'track' | 'booking' | 'support' | 'saved' | 'notifications' | 'legal';
-export type Nav = { screen: Screen; params?: Record<string, any>; id?: number };
+const SLIDES: { title: string; text: string; icon: IconName }[] = [
+  { title: 'A market made for your neighbourhood', text: 'Find trusted local products and services, all in one simple place.', icon: 'storefront' },
+  { title: 'Shop with confidence', text: 'Clear prices, direct sellers, secure sign-in and status updates from checkout to delivery.', icon: 'shield-checkmark' },
+  { title: 'Your next find is nearby', text: 'Browse as a guest or create your free buyer account to order, book and track with ease.', icon: 'heart' },
+];
 
-const message = (error: any) => error instanceof ApiError ? error.message : error instanceof Error ? error.message : 'Something went wrong. Please try again.';
-const date = (value?: string | null) => value ? new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : 'To be arranged';
-const dateTime = (value?: string | null) => value ? new Date(value).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'To be arranged';
-const statusLabel = (value: string) => value.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+export function Welcome({ onDone }: { onDone: (screen?: Screen) => void }) {
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const { width: screenWidth, height } = useWindowDimensions();
+  const width = Math.min(screenWidth, COLUMN_MAX);
+  const slideWidth = width - 48;
+  const photoHeight = Math.round(height * 0.62);
+  const [page, setPage] = useState(0);
+  const ref = useRef<FlatList>(null);
+  const last = page === SLIDES.length - 1;
 
-export const ToastContext = createContext<{ show: (text: string, cartLink?: boolean) => void }>({ show: () => {} });
-export const useToast = () => useContext(ToastContext);
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.deep, alignItems: 'center' }}>
+      <View style={{ flex: 1, width: '100%', maxWidth: COLUMN_MAX }}>
+        <ImageBackground source={require('../../assets/hero.jpg')} resizeMode="cover" style={[s.photo, { height: photoHeight }]} />
+        <LinearGradient colors={['rgba(0,76,45,0.35)', 'rgba(0,76,45,0.30)', colors.deep]} locations={[0, 0.45, 1]} style={[s.photo, { height: photoHeight }]} />
+        <View style={[s.content, { paddingTop: insets.top + 18, paddingBottom: 20 + insets.bottom }]}>
+          <View style={s.brand}>
+            <View style={s.logoTile}><Image source={require('../../assets/logo-mark.png')} style={s.logo} /></View>
+            <View>
+              <Text style={s.brandName}>Sokoni <Text style={{ color: colors.orange }}>Hub</Text></Text>
+              <Text style={s.tagline}>Local commerce, made simple</Text>
+            </View>
+          </View>
 
-import { Tabs } from './Tabs';
-import { Home } from './Home';
-import { TrustTile } from './TrustTile';
-import { SectionTitle } from './SectionTitle';
-import { ListingRail } from './ListingRail';
-import { ListingImage } from './ListingImage';
-import { ListingCard } from './ListingCard';
-import { Browse } from './Browse';
-import { Saved } from './Saved';
-import { Notifications } from './Notifications';
-import { AuthScaffold } from './AuthScaffold';
-import { Login } from './Login';
-import { Register } from './Register';
-import { Pin } from './Pin';
-import { Recovery } from './Recovery';
-import { ListingDetail } from './ListingDetail';
-import { DetailFact } from './DetailFact';
-import { StoreDetail } from './StoreDetail';
-import { Cart } from './Cart';
-import { Orders } from './Orders';
-import { Bookings } from './Bookings';
-import { Status } from './Status';
-import { Track } from './Track';
-import { Account } from './Account';
-import { AccountRow } from './AccountRow';
-import { Support } from './Support';
-import { GuestGate } from './GuestGate';
-import { WebOnlyAccount } from './WebOnlyAccount';export function Welcome({ onDone }: { onDone: (screen?: Screen) => void }) {
-  const { colors } = useTheme(); const insets = useSafeAreaInsets(); const { width } = useWindowDimensions(); const slideWidth = width - 48; const [page, setPage] = useState(0); const ref = useRef<FlatList>(null);
-  const slides = [
-    ['A market made for your neighbourhood', 'Find trusted local products and services, all in one simple place.', 'storefront-outline'],
-    ['Shop with confidence', 'Clear prices, direct vendors, secure sign-in and status updates from checkout to delivery.', 'shield-checkmark-outline'],
-    ['Your next find is nearby', 'Browse as a guest or create your free buyer account to order, book and track with ease.', 'heart-outline'],
-  ] as const;
-  return <ImageBackground source={require('../../assets/hero.jpg')} resizeMode="cover" style={styles.welcomeBg}><View style={[styles.welcomeOverlay, { backgroundColor: colors.overlay }]}><View style={[styles.welcomeTop, { paddingTop: insets.top + 16 }]}><BrandMark /></View><FlatList ref={ref} data={slides} horizontal pagingEnabled showsHorizontalScrollIndicator={false} getItemLayout={(_, index) => ({ length: slideWidth, offset: slideWidth * index, index })} onMomentumScrollEnd={(e) => setPage(Math.round(e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width))} renderItem={({ item }) => <View style={[styles.welcomeSlide, { width: slideWidth }]}><View style={[styles.welcomeIcon, { backgroundColor: colors.goldSoft }]}><Icon name={item[2]} size={40} color={colors.gold}/></View><Text style={styles.welcomeTitle}>{item[0]}</Text><Text style={styles.welcomeText}>{item[1]}</Text></View>} keyExtractor={(_, index) => String(index)}/><View style={styles.dots}>{slides.map((_, index) => <View key={index} style={[styles.dot, { backgroundColor: index === page ? colors.gold : 'rgba(255,255,255,.45)' }]} />)}</View><View style={[styles.welcomeActions, { paddingBottom: 22 + insets.bottom }]}>{page < 2 ? <Button onPress={() => ref.current?.scrollToIndex({ index: page + 1 })} variant="gold">Continue</Button> : <><Button onPress={() => onDone('register')} variant="gold">Create a buyer account</Button><Button onPress={() => onDone('login')} variant="secondary">Sign in</Button></>}<Pressable accessibilityRole="button" onPress={() => onDone('home')}><Text style={styles.browseGuest}>Browse as a guest</Text></Pressable></View></View></ImageBackground>;
+          <View>
+            <FlatList
+              ref={ref} data={SLIDES} horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }}
+              getItemLayout={(_, index) => ({ length: slideWidth + 24, offset: (slideWidth + 24) * index, index })}
+              onMomentumScrollEnd={(e) => setPage(Math.round(e.nativeEvent.contentOffset.x / (slideWidth + 24)))}
+              keyExtractor={(item) => item.title}
+              renderItem={({ item }) => (
+                <View style={{ width: slideWidth + 24, paddingRight: 24, minHeight: 250, justifyContent: 'flex-end' }}>
+                  <View style={[s.icon, { backgroundColor: colors.orange }]}><Icon name={item.icon} solid={false} size={32} color={colors.onOrange} /></View>
+                  <Text style={s.title}>{item.title}</Text>
+                  <Text style={s.text}>{item.text}</Text>
+                </View>
+              )}
+            />
+            <View style={s.dots}>{SLIDES.map((slide, index) => <View key={slide.title} style={[s.dot, { backgroundColor: index === page ? colors.orange : 'rgba(255,255,255,0.4)', width: index === page ? 24 : 8 }]} />)}</View>
+            <View style={{ gap: 12 }}>
+              {!last ? (
+                <Button variant="gold" icon="arrow-forward" onPress={() => ref.current?.scrollToIndex({ index: page + 1 })}>Continue</Button>
+              ) : (
+                <>
+                  <Button variant="gold" onPress={() => onDone('register')}>Create a buyer account</Button>
+                  <Button variant="tonal" onPress={() => onDone('login')}>Sign in</Button>
+                </>
+              )}
+              <Pressable accessibilityRole="button" onPress={() => { tap(); onDone('home'); }} style={{ alignItems: 'center', paddingVertical: 10 }}><Text style={s.guest}>Browse as a guest</Text></Pressable>
+            </View>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
 }
 
+const s = StyleSheet.create({
+  photo: { position: 'absolute', top: 0, left: 0, right: 0 },
+  content: { flex: 1, paddingHorizontal: 24, justifyContent: 'space-between' },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  logoTile: { width: 54, height: 54, borderRadius: 17, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  logo: { width: 42, height: 42, resizeMode: 'contain' },
+  brandName: { color: '#FFFFFF', fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
+  tagline: { color: '#E4F7EC', fontSize: 13, fontWeight: '600', marginTop: 1 },
+  icon: { width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  title: { color: '#FFFFFF', fontSize: 33, fontWeight: '800', letterSpacing: -0.9, lineHeight: 39, marginTop: 20 },
+  text: { color: '#D3EEDF', fontSize: 16, lineHeight: 24, marginTop: 10 },
+  dots: { flexDirection: 'row', gap: 7, marginTop: 20, marginBottom: 22 },
+  dot: { height: 8, borderRadius: 4 },
+  guest: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
+});

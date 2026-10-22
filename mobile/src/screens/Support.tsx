@@ -1,67 +1,77 @@
-
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, BackHandler, FlatList, ImageBackground, KeyboardAvoidingView, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, useWindowDimensions, View, Platform } from 'react-native';
-import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { api, ApiError, query } from '../api';
-import { SUPPORT_EMAIL, SUPPORT_WHATSAPP, WEB_URL } from '../config';
-import { AuthProvider, CartProvider, ThemeProvider, useAuth, useCart, useTheme } from '../providers';
-import type { Booking, CartItem, Category, Listing, Order, Review, Vendor } from '../types';
-import { BrandMark, Button, Card, Chip, Divider, Dropdown, EmptyState, Field, FontContext, Header, IconButton, Money, Notice, Sheet, Spinner, Text, TextInput, type DropdownOption, type FontStatus } from '../ui';
-import { CityProvider, useCity } from '../city';
-import { categoryImage } from '../catImages';
-import { BottomBar } from '../ui';
-import { BookService } from '../booking';
-import { Checkout } from '../checkout';
-import { FavouritesProvider, useFavourites } from '../favourites';
-import { FeaturedStores, usePromotions, VipStores } from '../promotions';
-import { LegalScreen } from '../legal';
-import { Icon, type IconName } from '../icons';
-import { styles, nx, ex } from '../styles';
-import * as WebBrowser from 'expo-web-browser';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Image } from 'expo-image';
-import * as LocalAuthentication from 'expo-local-authentication';
-import * as SecureStore from 'expo-secure-store';
-import { tap, success } from '../haptics';
+import { useState } from 'react';
+import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { SUPPORT_EMAIL, SUPPORT_WHATSAPP, WEB_URL } from '../config';
+import { Icon, type IconName } from '../icons';
+import { Panel, Screen } from '../kit';
+import type { NavProps } from '../nav';
+import { useTheme } from '../providers';
+import { Header, Notice, Text } from '../ui';
 
-export type Screen = 'welcome' | 'home' | 'browse' | 'cart' | 'account' | 'login' | 'register' | 'pin' | 'pinsetup' | 'forgot' | 'listing' | 'store' | 'checkout' | 'orders' | 'bookings' | 'track' | 'booking' | 'support' | 'saved' | 'notifications' | 'legal';
-export type Nav = { screen: Screen; params?: Record<string, any>; id?: number };
+/** How the app really behaves, in plain words. Kept next to the code that implements each rule. */
+const FAQ: [string, string][] = [
+  ['Where is my order?', 'Open Profile → Orders and tap Track Order. You will see the store, your rider and a live map once the order is on its way.'],
+  ['How do I pay?', 'Orders are cash on delivery: you pay the seller or rider when you receive or collect your order. Nothing is charged in the app.'],
+  ['Can I cancel an order?', 'Yes, until a rider accepts it: open the order and tap Cancel order. After that, please contact the store.'],
+  ['Something arrived wrong', 'Open the order and tap Report a problem before the confirmation window closes. Our team reviews every report.'],
+  ['How do bookings work?', 'Choose a provider, a date and a time. The provider confirms, and you pay them directly when the service is done.'],
+  ['Change or cancel a booking', 'Open Profile → Bookings. Reschedule lets you message the provider, or cancel and book a new time.'],
+];
 
-const message = (error: any) => error instanceof ApiError ? error.message : error instanceof Error ? error.message : 'Something went wrong. Please try again.';
-const date = (value?: string | null) => value ? new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : 'To be arranged';
-const dateTime = (value?: string | null) => value ? new Date(value).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'To be arranged';
-const statusLabel = (value: string) => value.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+export function Support({ go, back }: NavProps) {
+  const { colors } = useTheme();
+  const [open, setOpen] = useState<number | null>(null);
+  const open_ = (url: string) => void Linking.openURL(url);
+  return (
+    <Screen>
+      <Header title="Help & support" back={back} />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingBottom: 50, gap: 14 }}>
+        <LinearGradient colors={[colors.primary, colors.deep]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.hero}>
+          <View style={s.heroIcon}><Icon name="help-buoy" solid={false} size={30} color="#FFFFFF" /></View>
+          <Text style={{ fontSize: 23, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.4, marginTop: 12 }}>We&apos;re here to help</Text>
+          <Text style={{ fontSize: 14.5, lineHeight: 21, color: '#D3EEDF', textAlign: 'center', marginTop: 6 }}>For help with an order, booking, account or marketplace issue, contact Sokoni Hub directly.</Text>
+        </LinearGradient>
 
-export const ToastContext = createContext<{ show: (text: string, cartLink?: boolean) => void }>({ show: () => {} });
-export const useToast = () => useContext(ToastContext);
+        <Panel style={{ padding: 6 }}>
+          <Contact icon="logo-whatsapp" title="WhatsApp support" sub="Message our support team" tint="mint" onPress={() => open_(`https://wa.me/${SUPPORT_WHATSAPP}`)} />
+          <Contact icon="mail" title="Email support" sub={SUPPORT_EMAIL} tint="lav" onPress={() => open_(`mailto:${SUPPORT_EMAIL}`)} />
+          <Contact icon="globe" title="Customer website" sub="More help and information" tint="lav" onPress={() => open_(WEB_URL)} />
+          <Contact icon="document-text" title="Terms & privacy" sub="Customer policies and marketplace rules" tint="lav" onPress={() => go('legal', { path: '', title: 'Terms & privacy' })} last />
+        </Panel>
 
-import { Welcome } from './Welcome';
-import { Tabs } from './Tabs';
-import { Home } from './Home';
-import { TrustTile } from './TrustTile';
-import { SectionTitle } from './SectionTitle';
-import { ListingRail } from './ListingRail';
-import { ListingImage } from './ListingImage';
-import { ListingCard } from './ListingCard';
-import { Browse } from './Browse';
-import { Saved } from './Saved';
-import { Notifications } from './Notifications';
-import { AuthScaffold } from './AuthScaffold';
-import { Login } from './Login';
-import { Register } from './Register';
-import { Pin } from './Pin';
-import { Recovery } from './Recovery';
-import { ListingDetail } from './ListingDetail';
-import { DetailFact } from './DetailFact';
-import { StoreDetail } from './StoreDetail';
-import { Cart } from './Cart';
-import { Orders } from './Orders';
-import { Bookings } from './Bookings';
-import { Status } from './Status';
-import { Track } from './Track';
-import { Account } from './Account';
-import { AccountRow } from './AccountRow';
-import { GuestGate } from './GuestGate';
-import { WebOnlyAccount } from './WebOnlyAccount';export function Support({ go, back }: any) { const { colors } = useTheme(); return <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.page}><Header title="Help & support" back={back}/><ScrollView contentContainerStyle={styles.supportScroll}><View style={[styles.supportHero, { backgroundColor: colors.tealSoft }]}><Icon name="help-buoy" size={38} color={colors.teal}/><Text style={[styles.supportTitle, { color: colors.text }]}>We're here to help</Text><Text style={[styles.supportCopy, { color: colors.text2 }]}>For help with an order, booking, account or marketplace issue, contact Sokoni Hub directly.</Text></View><AccountRow icon="logo-whatsapp" title="WhatsApp support" subtitle="Message our support team" onPress={() => Linking.openURL(`https://wa.me/${SUPPORT_WHATSAPP}`)}/><AccountRow icon="mail-outline" title="Email support" subtitle={SUPPORT_EMAIL} onPress={() => Linking.openURL(`mailto:${SUPPORT_EMAIL}`)}/><AccountRow icon="globe-outline" title="Open customer website" subtitle="More help and legal information" onPress={() => go('legal', { path: '', title: 'Sokoni Hub website' })}/><Notice type="warning">Never share your password, PIN, one-time recovery code or payment details in a message.</Notice></ScrollView></KeyboardAvoidingView>;
+        <Text style={{ fontSize: 20, fontWeight: '800', letterSpacing: -0.4, color: colors.text, marginTop: 10 }}>Common questions</Text>
+        <Panel style={{ padding: 6 }}>
+          {FAQ.map(([q, a], index) => (
+            <View key={q} style={[index < FAQ.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}>
+              <Pressable accessibilityRole="button" accessibilityState={{ expanded: open === index }} onPress={() => setOpen(open === index ? null : index)} style={s.q}>
+                <Text style={{ flex: 1, fontSize: 15.5, fontWeight: '800', color: colors.text }}>{q}</Text>
+                <Icon name={open === index ? 'chevron-up' : 'chevron-down'} size={18} color={colors.muted} />
+              </Pressable>
+              {open === index ? <Text style={{ fontSize: 14, lineHeight: 21, color: colors.text2, paddingHorizontal: 12, paddingBottom: 14 }}>{a}</Text> : null}
+            </View>
+          ))}
+        </Panel>
+        <Notice type="warning">Never share your password, PIN, one-time recovery code or payment details in a message.</Notice>
+      </ScrollView>
+    </Screen>
+  );
 }
+
+function Contact({ icon, title, sub, tint, onPress, last }: { icon: IconName; title: string; sub: string; tint: 'mint' | 'lav'; onPress: () => void; last?: boolean }) {
+  const { colors } = useTheme();
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={title} onPress={onPress} style={({ pressed }) => [s.row, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }, { opacity: pressed ? 0.85 : 1 }]}>
+      <View style={[s.icon, { backgroundColor: tint === 'mint' ? colors.primarySoft : colors.lav2 }]}><Icon name={icon} solid={false} size={21} color={tint === 'mint' ? colors.primary : colors.text2} /></View>
+      <View style={{ flex: 1 }}><Text style={{ fontSize: 15.5, fontWeight: '800', color: colors.text }}>{title}</Text><Text numberOfLines={1} style={{ fontSize: 13.5, color: colors.text2, marginTop: 2 }}>{sub}</Text></View>
+      <Icon name="chevron-forward" size={18} color={colors.muted} />
+    </Pressable>
+  );
+}
+
+const s = StyleSheet.create({
+  hero: { borderRadius: 26, padding: 22, alignItems: 'center' },
+  heroIcon: { width: 64, height: 64, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 12, paddingHorizontal: 10 },
+  icon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  q: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 16, paddingHorizontal: 12 },
+});

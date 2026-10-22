@@ -1,711 +1,333 @@
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import {
-  Alert,
-  BackHandler,
-  FlatList,
-  ImageBackground,
-  KeyboardAvoidingView,
-  Linking,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  useWindowDimensions,
-  View,
-  Platform,
-} from "react-native";
-import {
-  SafeAreaProvider,
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { api, ApiError, query } from "../api";
-import { SUPPORT_EMAIL, SUPPORT_WHATSAPP, WEB_URL } from "../config";
-import {
-  AuthProvider,
-  CartProvider,
-  ThemeProvider,
-  useAuth,
-  useCart,
-  useTheme,
-} from "../providers";
-import type {
-  Booking,
-  CartItem,
-  Category,
-  Listing,
-  Order,
-  Review,
-  Vendor,
-} from "../types";
-import {
-  BrandMark,
-  Button,
-  Card,
-  Chip,
-  Divider,
-  Dropdown,
-  EmptyState,
-  Field,
-  FontContext,
-  Header,
-  IconButton,
-  Money,
-  Notice,
-  Sheet,
-  Spinner,
-  Text,
-  TextInput,
-  type DropdownOption,
-  type FontStatus,
-} from "../ui";
-import { CityProvider, useCity } from "../city";
-import { categoryImage } from "../catImages";
-import { BottomBar } from "../ui";
-import { BookService } from "../booking";
-import { Checkout } from "../checkout";
-import { FavouritesProvider, useFavourites } from "../favourites";
-import { FeaturedStores, usePromotions, VipStores } from "../promotions";
-import { LegalScreen } from "../legal";
-import { Icon, type IconName } from "../icons";
-import { styles, nx, ex } from "../styles";
-import * as WebBrowser from "expo-web-browser";
-import { LinearGradient } from "expo-linear-gradient";
-import { Image } from "expo-image";
-import * as LocalAuthentication from "expo-local-authentication";
-import * as SecureStore from "expo-secure-store";
-import { tap, success } from "../haptics";
+/**
+ * Product / service detail. Gallery, price and options, seller card, description, trust points, reviews
+ * (with real eligibility from the API) and more from the same seller. Products are added to the cart with
+ * the chosen size and quantity; services go to the booking form.
+ */
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Linking, NativeScrollEvent, NativeSyntheticEvent, Pressable, RefreshControl, ScrollView, Share, StyleSheet, View } from 'react-native';
+import { api, query } from '../api';
+import { ProductCard, isOutOfStock } from '../cards';
+import { WEB_URL } from '../config';
+import { errorMessage, rememberImages, usePromoSet } from '../data';
+import { useFavourites } from '../favourites';
+import { cleanCity, durationLabel, num, plural, ratingOf, shortDate, whatsappUrl } from '../format';
+import { success, tap } from '../haptics';
+import { Icon, type IconName } from '../icons';
+import { Avatar, Panel, Pill, Price, QtyStepper, Screen, SectionHead, Skeleton, Thumb, softShadow, useColumnWidth } from '../kit';
+import type { NavProps } from '../nav';
+import { useAuth, useCart, useTheme } from '../providers';
+import { useToast } from '../toast';
+import type { Listing, Review } from '../types';
+import { BottomBar, Button, Chip, EmptyState, Field, Header, Sheet, Text } from '../ui';
 
-export type Screen =
-  | "welcome"
-  | "home"
-  | "browse"
-  | "cart"
-  | "account"
-  | "login"
-  | "register"
-  | "pin"
-  | "pinsetup"
-  | "forgot"
-  | "listing"
-  | "store"
-  | "checkout"
-  | "orders"
-  | "bookings"
-  | "track"
-  | "booking"
-  | "support"
-  | "saved"
-  | "notifications"
-  | "legal";
-export type Nav = { screen: Screen; params?: Record<string, any>; id?: number };
+type Detail = { listing: Listing; related: Listing[]; vendorItems: Listing[] };
+type Reviews = { reviews: Review[]; summary?: { count: number; average: number | string; verified_count?: number; distribution?: Record<string, number> } };
+type Eligibility = { can_review: boolean; reason?: string; verified?: boolean };
 
-const message = (error: any) =>
-  error instanceof ApiError
-    ? error.message
-    : error instanceof Error
-      ? error.message
-      : "Something went wrong. Please try again.";
-const date = (value?: string | null) =>
-  value
-    ? new Date(value).toLocaleDateString(undefined, {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      })
-    : "To be arranged";
-const dateTime = (value?: string | null) =>
-  value
-    ? new Date(value).toLocaleString(undefined, {
-        day: "numeric",
-        month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : "To be arranged";
-const statusLabel = (value: string) =>
-  value.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
-
-export const ToastContext = createContext<{
-  show: (text: string, cartLink?: boolean) => void;
-}>({ show: () => {} });
-export const useToast = () => useContext(ToastContext);
-
-import { Welcome } from "./Welcome";
-import { Tabs } from "./Tabs";
-import { Home } from "./Home";
-import { TrustTile } from "./TrustTile";
-import { SectionTitle } from "./SectionTitle";
-import { ListingRail } from "./ListingRail";
-import { ListingImage } from "./ListingImage";
-import { ListingCard } from "./ListingCard";
-import { Browse } from "./Browse";
-import { Saved } from "./Saved";
-import { Notifications } from "./Notifications";
-import { AuthScaffold } from "./AuthScaffold";
-import { Login } from "./Login";
-import { Register } from "./Register";
-import { Pin } from "./Pin";
-import { Recovery } from "./Recovery";
-import { DetailFact } from "./DetailFact";
-import { StoreDetail } from "./StoreDetail";
-import { Cart } from "./Cart";
-import { Orders } from "./Orders";
-import { Bookings } from "./Bookings";
-import { Status } from "./Status";
-import { Track } from "./Track";
-import { Account } from "./Account";
-import { AccountRow } from "./AccountRow";
-import { Support } from "./Support";
-import { GuestGate } from "./GuestGate";
-import { WebOnlyAccount } from "./WebOnlyAccount";
-export function ListingDetail({ id, go, back }: any) {
+export function ListingDetail({ id, go, back, writeReview }: NavProps & { id?: string; writeReview?: boolean }) {
   const { colors } = useTheme();
   const { user } = useAuth();
-  const { add } = useCart();
+  const { add, count } = useCart();
   const fav = useFavourites();
-  const [data, setData] = useState<{
-    listing: Listing;
-    related: Listing[];
-    vendorItems: Listing[];
-  } | null>(null);
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState("");
-  const [reviewOpen, setReviewOpen] = useState(false);
-  const [review, setReview] = useState({ rating: "5", title: "", comment: "" });
+  const toast = useToast();
+  const promo = usePromoSet();
+  const queryClient = useQueryClient();
+  const width = useColumnWidth();
   const [opt, setOpt] = useState<string | undefined>(undefined);
-  const [descExpanded, setDescExpanded] = useState(false);
-  const load = useCallback(
-    async (pull = false) => {
-      if (pull) setRefreshing(true);
-      else setLoading(true);
-      setError("");
-      try {
-        const detail = await api.get<{
-          listing: Listing;
-          related: Listing[];
-          vendorItems: Listing[];
-        }>(`/listings/${id}`);
-        setData(detail);
-        const result = await api.get<{ reviews: Review[] }>(
-          `/reviews${query({ listing_id: id, limit: 5 })}`,
-        );
-        setReviews(result.reviews);
-      } catch (e) {
-        if (pull) Alert.alert("Could not refresh", message(e));
-        else setError(message(e));
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [id],
-  );
+  const [qty, setQty] = useState(1);
+  const [expanded, setExpanded] = useState(false);
+  const [page, setPage] = useState(0);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [review, setReview] = useState({ rating: 5, title: '', comment: '' });
+  const [posting, setPosting] = useState(false);
+  const autoReview = useRef(!!writeReview);
+
+  const detail = useQuery({ queryKey: ['listing-detail', id], enabled: !!id, staleTime: 5 * 60_000, queryFn: () => api.get<Detail>(`/listings/${id}`) });
+  const reviews = useQuery({ queryKey: ['listing-reviews', id], enabled: !!id, staleTime: 60_000, queryFn: () => api.get<Reviews>(`/reviews${query({ listing_id: id, limit: 5 })}`) });
+  const eligibility = useQuery({ queryKey: ['review-eligibility', id, user?.id], enabled: !!id && !!user, staleTime: 60_000, queryFn: () => api.get<Eligibility>(`/reviews/eligibility${query({ listing_id: id })}`) });
+  const listing = detail.data?.listing;
+
+  useEffect(() => { if (detail.data) rememberImages([detail.data.listing, ...detail.data.related, ...detail.data.vendorItems]); }, [detail.data]);
+  // Arriving from "Review" on a delivered order opens the review sheet as soon as the API confirms the buyer may review.
   useEffect(() => {
-    void load();
-  }, [load]);
-  if (error && !data)
+    if (autoReview.current && eligibility.data?.can_review) { autoReview.current = false; setReviewOpen(true); }
+  }, [eligibility.data]);
+
+  const options = listing?.options ?? [];
+  const chosen = options.find((o) => o.name === opt);
+  const unitPrice = chosen ? Number(chosen.price || listing?.price) : Number(listing?.price ?? 0);
+  const out = listing ? isOutOfStock(listing) : false;
+  const stock = listing?.quantity ?? undefined;
+  const service = listing?.kind === 'service';
+  const more = useMemo(() => (detail.data?.vendorItems ?? []).filter((l) => l.id !== listing?.id), [detail.data, listing?.id]);
+  const similar = useMemo(() => (detail.data?.related ?? []).filter((l) => l.id !== listing?.id && !more.some((m) => m.id === l.id)), [detail.data, listing?.id, more]);
+
+  if (detail.error && !listing) {
     return (
-      <View style={styles.page}>
-        <Header title="Product details" back={back} />
-        <EmptyState
-          icon="cloud-offline-outline"
-          title="Listing unavailable"
-          text={error}
-          action={
-            <Button style={{ marginTop: 8 }} onPress={() => void load()}>
-              Try again
-            </Button>
-          }
-        />
-      </View>
+      <Screen><Header title="Details" back={back} />
+        <EmptyState icon="cloud-offline-outline" title="Listing unavailable" text={errorMessage(detail.error)} action={<Button style={{ marginTop: 8 }} onPress={() => void detail.refetch()}>Try again</Button>} />
+      </Screen>
     );
-  if (loading || !data)
+  }
+  if (!listing) {
     return (
-      <View style={styles.page}>
-        <Header title="Product details" back={back} />
-        <Spinner label="Loading listing…" />
-      </View>
+      <Screen><Header title="Details" back={back} />
+        <View style={{ padding: 16, gap: 14 }}><Skeleton height={width * 0.8} radius={24} /><Skeleton height={28} width="70%" /><Skeleton height={22} width="40%" /><Skeleton height={90} radius={20} /></View>
+      </Screen>
     );
-  const listing = data.listing;
+  }
+
+  const images = listing.images?.length ? listing.images : [];
+  const own = ratingOf({ rating_avg: listing.rating_avg, rating_count: listing.rating_count });
+  const saved = fav.has(listing.id);
+  const vip = promo.vip.has(listing.vendor_id);
+  const city = cleanCity(listing.vendor_city);
+  const vendorRating = Number(listing.vendor_rating_count || 0) > 0 ? { avg: Number(listing.vendor_rating_avg || 0), count: Number(listing.vendor_rating_count) } : null;
+  const place = cleanCity(listing.service_area);
+  const duration = durationLabel(listing.duration_mins);
+  const chat = whatsappUrl(listing.whatsapp, `Hi ${listing.business_name || ''}, I'm interested in "${listing.title}" on Sokoni Hub.`);
+  const summary = reviews.data?.summary;
+  const reviewCount = Number(summary?.count || 0);
+  const maxQty = stock !== undefined ? Math.max(1, stock) : 99;
+
   const addItem = () => {
-    if (listing.options && listing.options.length > 0 && !opt)
-      return Alert.alert(
-        "Select an option",
-        "Please select a size or variation.",
-      );
-    if (listing.quantity !== null && listing.quantity <= 0)
-      return Alert.alert("Out of stock", "This item is currently unavailable.");
-    const unitPrice =
-      opt && listing.options
-        ? Number(
-            listing.options.find((o: any) => o.name === opt)?.price ||
-              listing.price,
-          )
-        : Number(listing.price);
+    if (out) return toast.show('This item is out of stock');
+    if (options.length && !chosen) return toast.show('Choose a size first');
     add({
-      listing_id: listing.id,
-      vendor_id: listing.vendor_id,
-      vendor_name: listing.business_name || "Local seller",
-      title: listing.title,
-      price: unitPrice,
-      currency: listing.currency,
-      image: listing.images?.[0],
-      qty: 1,
-      max: listing.quantity ?? undefined,
-      kind: listing.kind,
-      option: opt,
+      listing_id: listing.id, vendor_id: listing.vendor_id, vendor_name: listing.business_name || 'Local seller', title: listing.title, price: unitPrice, currency: listing.currency,
+      image: listing.images?.[0], qty, max: listing.quantity ?? undefined, kind: listing.kind, option: opt, unit: listing.unit,
     });
     success();
-    Alert.alert("Added to cart", `${listing.title} is ready for checkout.`, [
-      { text: "Keep shopping" },
-      { text: "View cart", onPress: () => go("cart") },
-    ]);
+    toast.show(`${qty > 1 ? `${qty} × ` : ''}${listing.title} added to cart`, true);
+    setQty(1);
   };
   const submitReview = async () => {
+    setPosting(true);
     try {
-      await api.post("/reviews", {
-        listing_id: id,
-        rating: Number(review.rating),
-        title: review.title || undefined,
-        comment: review.comment || undefined,
-      });
-      setReviewOpen(false);
-      setReview({ rating: "5", title: "", comment: "" });
-      await load();
-      Alert.alert("Thank you", "Your review is now published.");
-    } catch (e) {
-      Alert.alert("Cannot post review", message(e));
-    }
+      await api.post('/reviews', { listing_id: id, rating: review.rating, title: review.title.trim() || undefined, comment: review.comment.trim() || undefined });
+      setReviewOpen(false); setReview({ rating: 5, title: '', comment: '' });
+      await Promise.all([reviews.refetch(), eligibility.refetch(), queryClient.invalidateQueries({ queryKey: ['listing-detail', id] })]);
+      toast.show('Thank you — your review is published');
+    } catch (e) { Alert.alert('Cannot post review', errorMessage(e)); }
+    finally { setPosting(false); }
   };
+  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => setPage(Math.round(e.nativeEvent.contentOffset.x / width));
+  const share = () => void Share.share({ message: `${listing.title} on Sokoni Hub — ${WEB_URL}/listing/${listing.id}` }).catch(() => {});
+  const galleryHeight = Math.round(width * 0.92);
+
   return (
-    <View style={styles.page}>
-      <View style={styles.detailTopbar}>
-        <Pressable
-          accessibilityRole="button"
-          onPress={back}
-          accessibilityLabel="Go back"
-          style={[styles.detailCircle, { backgroundColor: colors.surface }]}
-        >
-          <Icon name="arrow-back" size={22} color={colors.text} />
-        </Pressable>
-        <View style={{ flex: 1 }} />
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => go("cart")}
-          accessibilityLabel="Open cart"
-          style={[styles.detailCircle, { backgroundColor: colors.surface }]}
-        >
-          <Icon name="bag-handle-outline" size={20} color={colors.primary} />
-        </Pressable>
-        <Pressable
-          onPress={() => {
-            tap();
-            fav.toggle(listing);
-          }}
-          accessibilityRole="button"
-          accessibilityLabel={
-            fav.has(listing.id) ? "Remove from saved" : "Save for later"
-          }
-          style={[styles.detailCircle, { backgroundColor: colors.surface }]}
-        >
-          <Icon
-            name={fav.has(listing.id) ? "heart" : "heart-outline"}
-            size={20}
-            color={fav.has(listing.id) ? "#D9304F" : colors.primary}
-          />
-        </Pressable>
-      </View>
+    <Screen>
       <ScrollView
-        contentContainerStyle={styles.referenceDetailScroll}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => void load(true)}
-            tintColor={colors.primary}
-          />
-        }
+        showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}
+        refreshControl={<RefreshControl refreshing={detail.isRefetching} onRefresh={() => { void detail.refetch(); void reviews.refetch(); }} tintColor={colors.primary} />}
       >
-        {listing.images?.length ? (
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-          >
-            {listing.images.map((url) => (
-              <ListingImage
-                key={url}
-                uri={url}
-                style={styles.referenceDetailImage}
-                icon={
-                  listing.kind === "service"
-                    ? "construct-outline"
-                    : "basket-outline"
-                }
-                size={68}
-                contentFit="contain"
-              />
-            ))}
-          </ScrollView>
-        ) : (
-          <View
-            style={[
-              styles.referenceDetailImage,
-              { backgroundColor: colors.primarySoft },
-            ]}
-          >
-            <Icon
-              name={
-                listing.kind === "service"
-                  ? "construct-outline"
-                  : "basket-outline"
-              }
-              size={68}
-              color={colors.primary}
-            />
+        <View style={{ height: galleryHeight, backgroundColor: service ? colors.primarySoft : '#FFFFFF' }}>
+          {images.length ? (
+            <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} onMomentumScrollEnd={onScroll} scrollEventThrottle={64}>
+              {images.map((url) => <Thumb key={url} uri={url} fit={service ? 'cover' : 'contain'} style={{ width, height: galleryHeight, backgroundColor: service ? colors.primarySoft : '#FFFFFF' }} icon={service ? 'scissors' : 'basket-outline'} iconSize={70} />)}
+            </ScrollView>
+          ) : <Thumb style={{ width, height: galleryHeight }} icon={service ? 'scissors' : 'basket-outline'} iconSize={70} />}
+          {images.length > 1 ? (
+            <>
+              <View style={s.dots}>{images.map((u, i) => <View key={u} style={[s.dotPage, { backgroundColor: i === page ? '#FFFFFF' : 'rgba(255,255,255,0.55)', width: i === page ? 18 : 7 }]} />)}</View>
+              <View style={s.counter}><Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '800' }}>{page + 1}/{images.length}</Text></View>
+            </>
+          ) : null}
+          <View style={s.topBar} pointerEvents="box-none">
+            <RoundIcon icon="arrow-back" label="Go back" onPress={back} />
+            <View style={{ flex: 1 }} />
+            <RoundIcon icon="share" label="Share" onPress={share} />
+            <RoundIcon icon="heart" solid={saved} tint={saved ? colors.heart : undefined} label={saved ? 'Remove from saved' : 'Save for later'} onPress={() => { tap(); const now = fav.toggle(listing); toast.show(now ? 'Saved for later' : 'Removed from saved'); }} />
+            <RoundIcon icon="bag-handle" label="Open cart" badge={count} onPress={() => go('cart')} />
           </View>
-        )}
-        <View style={styles.detailReferenceBody}>
-          <View style={styles.detailTagRow}>
-            <Text
-              style={[
-                styles.detailReferenceTag,
-                {
-                  backgroundColor:
-                    listing.kind === "service"
-                      ? colors.tealSoft
-                      : colors.primarySoft,
-                  color:
-                    listing.kind === "service" ? colors.teal : colors.primary,
-                },
-              ]}
-            >
-              {listing.kind === "service"
-                ? "LOCAL SERVICE"
-                : "FRESH LOCAL PICK"}
-            </Text>
-            {listing.quantity !== null && (
-              <View style={nx.inline}>
-                <Icon
-                  name={
-                    listing.quantity > 0 ? "checkmark-circle" : "close-circle"
-                  }
-                  size={14}
-                  color={listing.quantity > 0 ? colors.primary : colors.danger}
-                />
-                <Text
-                  style={[
-                    styles.detailStock,
-                    {
-                      color:
-                        listing.quantity > 0 ? colors.primary : colors.danger,
-                    },
-                  ]}
-                >
-                  {listing.quantity > 0 ? "In stock" : "Out of stock"}
-                </Text>
-              </View>
-            )}
+        </View>
+
+        <View style={[s.sheet, { backgroundColor: colors.bg }]}>
+          <View style={s.tags}>
+            {service ? <Pill tone="solidOrange" upper small>Service</Pill> : listing.category_name ? <Pill tone="mint" small>{listing.category_name}</Pill> : null}
+            {service && listing.category_name ? <Pill tone="mint" small>{listing.category_name}</Pill> : null}
+            {!service && stock !== undefined ? (out ? <Pill tone="rose" icon="close-circle" small>Out of stock</Pill> : stock <= 5 ? <Pill tone="orange" icon="flash" small>{`Only ${stock} left`}</Pill> : <Pill tone="mint" icon="checkmark-circle" small>In stock</Pill>) : null}
           </View>
-          <Text style={[styles.referenceDetailTitle, { color: colors.text }]}>
-            {listing.title}
-          </Text>
-          <View style={styles.detailPriceLine}>
-            <Money
-              value={
-                opt && listing.options
-                  ? Number(
-                      listing.options.find((o: any) => o.name === opt)?.price ||
-                        listing.price,
-                    )
-                  : listing.price
-              }
-              currency={listing.currency}
-              strong
-            />
-            {listing.unit && (
-              <Text style={[styles.detailUnit, { color: colors.text2 }]}>
-                per {listing.unit}
-              </Text>
-            )}
+          <Text style={[s.title, { color: colors.text }]}>{listing.title}</Text>
+          {own ? <View style={s.ratingRow}><Icon name="star" size={16} color={colors.orange} /><Text style={{ fontSize: 14.5, fontWeight: '800', color: colors.text }}>{own.avg.toFixed(1)}</Text><Text style={{ fontSize: 14, color: colors.text2, fontWeight: '600' }}>({plural(own.count, 'review')})</Text></View> : null}
+
+          <View style={s.priceRow}>
+            <Price value={unitPrice} currency={listing.currency} size={32} from={(service && listing.price_type === 'from') || (options.length > 0 && !chosen)} />
+            {listing.unit && !service ? <Text style={{ fontSize: 14.5, color: colors.text2, fontWeight: '600' }}>per {listing.unit}</Text> : null}
           </View>
 
-          {listing.options && listing.options.length > 0 && (
-            <View style={{ marginBottom: 20 }}>
-              <Text style={{ fontSize: 13, fontWeight: 'bold', marginBottom: 8, color: colors.text2 }}>
-                SELECT OPTION / SIZE
-              </Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                {listing.options.map((o: any) => (
-                  <Chip
-                    key={o.name}
-                    selected={opt === o.name}
-                    onPress={() => setOpt(o.name)}
-                  >
-                    {o.name}
-                  </Chip>
-                ))}
-              </View>
+          {options.length ? (
+            <View style={{ marginTop: 18 }}>
+              <Text style={[s.label, { color: colors.text2 }]}>CHOOSE A SIZE OR OPTION</Text>
+              <View style={s.options}>{options.map((o) => <Chip key={o.name} selected={opt === o.name} onPress={() => setOpt(o.name)}>{`${o.name} · ${num(o.price || listing.price)} ${listing.currency}`}</Chip>)}</View>
             </View>
-          )}
+          ) : null}
 
-          <View
-            style={[
-              styles.sellerDetailCard,
+          {service && (duration || place) ? (
+            <View style={[s.facts, { backgroundColor: colors.surface2 }]}>
+              {duration ? <View style={s.fact}><Icon name="time" solid={false} size={18} color={colors.text2} /><Text style={[s.factText, { color: colors.text2 }]}>{duration}</Text></View> : null}
+              {place ? <View style={s.fact}><Icon name="location" solid={false} size={18} color={colors.text2} /><Text style={[s.factText, { color: colors.text2 }]}>Serves {place}</Text></View> : null}
+              <View style={s.fact}><Icon name="cash" solid={false} size={18} color={colors.text2} /><Text style={[s.factText, { color: colors.text2 }]}>Pay the provider directly</Text></View>
+            </View>
+          ) : null}
 
-              { backgroundColor: colors.surface2 },
-            ]}
-          >
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => go("store", { slug: listing.vendor_slug })}
-              accessibilityLabel={`Visit ${listing.business_name} store`}
-              style={styles.sellerDetailRow}
-            >
-              <View
-                style={[
-                  styles.sellerAvatar,
-                  { backgroundColor: colors.surface },
-                ]}
-              >
-                {listing.vendor_logo ? (
-                  <Image
-                    contentFit="cover"
-                    transition={200}
-                    source={{ uri: listing.vendor_logo }}
-                    style={styles.vendorLogo}
-                  />
-                ) : (
-                  <Icon
-                    name="storefront-outline"
-                    size={24}
-                    color={colors.primary}
-                  />
-                )}
+          <Panel onPress={() => go('store', { slug: listing.vendor_slug })} label={`Visit ${listing.business_name} store`} style={{ marginTop: 20, flexDirection: 'row', alignItems: 'center', gap: 13 }}>
+            <Avatar name={listing.business_name} uri={listing.vendor_logo} size={54} square tone="mint" />
+            <View style={{ flex: 1, gap: 3 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                <Text numberOfLines={1} style={{ fontSize: 16.5, fontWeight: '800', color: colors.text, flexShrink: 1 }}>{listing.business_name}</Text>
+                <Icon name="check-badge" size={16} color={colors.success} />
+                {vip ? <Pill tone="orange" small>VIP</Pill> : null}
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.sellerDetailName, { color: colors.text }]}>
-                  {listing.business_name}
-                </Text>
-                <View style={[nx.inline, { marginTop: 3 }]}>
-                  <Icon
-                    name="location-outline"
-                    size={12}
-                    color={colors.text2}
-                  />
-                  <Text
-                    style={[
-                      styles.sellerDetailMeta,
-                      { color: colors.text2, marginTop: 0 },
-                    ]}
-                  >
-                    {listing.vendor_city || "Doha"} · Verified community vendor
-                  </Text>
-                </View>
-                <View style={styles.ratingLine}>
-                  <Icon name="star" size={13} color={colors.gold} />
-                  <Text style={[styles.ratingText, { color: colors.text2 }]}>
-                    {Number(
-                      listing.vendor_rating_avg || listing.rating_avg || 0,
-                    ).toFixed(1)}{" "}
-                    ({listing.vendor_rating_count || listing.rating_count || 0}{" "}
-                    reviews)
-                  </Text>
-                </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                <Icon name="location" solid={false} size={13} color={colors.text2} /><Text numberOfLines={1} style={{ fontSize: 13, color: colors.text2, fontWeight: '600', flexShrink: 1 }}>{city || 'Qatar'} · Verified seller</Text>
               </View>
-              <Icon name="chevron-forward" size={19} color={colors.muted} />
-            </Pressable>
-          </View>
-          <Text style={[styles.detailSectionTitle, { color: colors.text }]}>
-            About this {listing.kind}
-          </Text>
-          
-          <Text
-            style={[styles.referenceDetailDescription, { color: colors.text2 }]}
-            numberOfLines={descExpanded ? undefined : 4}
-          >
-            {listing.description ||
-              "Ask this verified local seller for more detail about this listing."}
-          </Text>
-          {listing.description && listing.description.length > 150 && (
-            <Pressable onPress={() => setDescExpanded(!descExpanded)} style={{ marginTop: 4, paddingVertical: 4 }}>
-              <Text style={{ color: colors.primary, fontWeight: 'bold' }}>{descExpanded ? 'Show less' : 'Read more'}</Text>
-            </Pressable>
-          )}
+              {vendorRating ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}><Icon name="star" size={13} color={colors.orange} /><Text style={{ fontSize: 13, fontWeight: '800', color: colors.text }}>{vendorRating.avg.toFixed(1)}</Text><Text style={{ fontSize: 13, color: colors.text2, fontWeight: '600' }}>({plural(vendorRating.count, 'review')})</Text></View> : <Text style={{ fontSize: 13, color: colors.text2, fontWeight: '600' }}>New seller</Text>}
+            </View>
+            <Icon name="chevron-forward" size={19} color={colors.muted} />
+          </Panel>
+          {chat ? <Button variant="mint" iconLeft="logo-whatsapp" style={{ marginTop: 12 }} onPress={() => void Linking.openURL(chat)}>Chat with seller on WhatsApp</Button> : null}
 
-          <View style={styles.detailFacts}>
-            <DetailFact
-              icon="shield-checkmark-outline"
-              label="Verified seller"
-            />
-            <DetailFact
-              icon="chatbubble-ellipses-outline"
-              label="Direct contact"
-            />
-            <DetailFact
-              icon={
-                listing.kind === "service"
-                  ? "calendar-outline"
-                  : "bag-check-outline"
-              }
-              label={
-                listing.kind === "service"
-                  ? "Book a time"
-                  : "Server-priced checkout"
-              }
-            />
-          </View>
-          <View style={styles.reviewHeader}>
-            <Text
-              style={[
-                styles.detailSectionTitle,
-                { color: colors.text, marginBottom: 0 },
-              ]}
-            >
-              Buyer reviews
-            </Text>
-            {user && (
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => setReviewOpen(true)}
-              >
-                <Text style={[styles.writeReview, { color: colors.gold }]}>
-                  Write review
-                </Text>
-              </Pressable>
-            )}
-          </View>
-          {reviews.length ? (
-            reviews.slice(0, 3).map((item) => (
-              <View
-                key={item.id}
-                style={[
-                  styles.referenceReview,
-                  { backgroundColor: colors.surface },
-                ]}
-              >
-                <View style={styles.ratingLine}>
-                  <View style={nx.inline}>
-                    {[1, 2, 3, 4, 5].map((n) => (
-                      <Icon
-                        key={n}
-                        name="star"
-                        size={14}
-                        color={n <= item.rating ? colors.gold : colors.border}
-                      />
-                    ))}
-                  </View>
-                  <Text style={[styles.reviewDate, { color: colors.muted }]}>
-                    {date(item.created_at)}
-                  </Text>
-                </View>
-                <Text style={[styles.reviewTitle, { color: colors.text }]}>
-                  {item.title || "Buyer review"}
-                </Text>
-                {item.comment ? (
-                  <Text style={[styles.reviewCopy, { color: colors.text2 }]}>
-                    {item.comment}
-                  </Text>
-                ) : null}
+          <Text style={[s.section, { color: colors.text }]}>About this {listing.kind}</Text>
+          <Text style={[s.about, { color: colors.text2 }]} numberOfLines={expanded ? undefined : 5}>{listing.description || 'Ask this verified seller for more detail about this listing.'}</Text>
+          {listing.description && listing.description.length > 180 ? <Pressable accessibilityRole="button" onPress={() => setExpanded((v) => !v)} style={{ paddingVertical: 6 }}><Text style={{ color: colors.primary, fontWeight: '800', fontSize: 14.5 }}>{expanded ? 'Show less' : 'Read more'}</Text></Pressable> : null}
+
+          <View style={s.trust}>
+            {([
+              ['shield-checkmark', 'Verified seller'],
+              ['chat', 'Direct contact'],
+              service ? ['calendar', 'Book a time'] : ['cash', 'Pay on delivery'],
+            ] as [IconName, string][]).map(([icon, label]) => (
+              <View key={label} style={[s.trustItem, { backgroundColor: colors.surface, borderColor: colors.border }, softShadow(colors.shadow)]}>
+                <View style={[s.trustIcon, { backgroundColor: colors.primarySoft }]}><Icon name={icon} solid={false} size={20} color={colors.primary} /></View>
+                <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.text, textAlign: 'center' }}>{label}</Text>
               </View>
-            ))
-          ) : (
-            <Text style={[styles.noReview, { color: colors.text2 }]}>
-              Be the first buyer to leave a review after your completed order or
-              booking.
-            </Text>
-          )}
-          <SectionTitle
-            title="More to explore"
-            action="View all"
-            onPress={() => go("browse")}
-          />
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.listingRail}
-          >
-            {data.related.map((row) => (
-              <ListingCard
-                key={row.id}
-                listing={row}
-                compact
-                onPress={() => go("listing", { id: row.id })}
-              />
             ))}
-          </ScrollView>
+          </View>
+
+          <View style={s.reviewHead}>
+            <Text style={[s.section, { color: colors.text, marginTop: 0 }]}>Buyer reviews</Text>
+            {user && eligibility.data?.can_review ? <Pressable accessibilityRole="button" onPress={() => setReviewOpen(true)} style={[s.writeBtn, { backgroundColor: colors.orange }]}><Icon name="pencil" solid={false} size={15} color={colors.onOrange} /><Text style={{ color: colors.onOrange, fontSize: 13.5, fontWeight: '800' }}>Write a review</Text></Pressable> : null}
+          </View>
+          {reviewCount > 0 ? (
+            <Panel style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ fontSize: 36, fontWeight: '800', color: colors.text, letterSpacing: -1 }}>{Number(summary?.average || 0).toFixed(1)}</Text>
+                <View style={{ flexDirection: 'row', gap: 2 }}>{[1, 2, 3, 4, 5].map((n) => <Icon key={n} name="star" size={14} color={n <= Math.round(Number(summary?.average || 0)) ? colors.orange : colors.border} />)}</View>
+                <Text style={{ fontSize: 12.5, color: colors.text2, fontWeight: '600', marginTop: 3 }}>{plural(reviewCount, 'review')}</Text>
+              </View>
+              <View style={{ flex: 1, gap: 5 }}>
+                {[5, 4, 3, 2, 1].map((n) => {
+                  const total = Number(summary?.distribution?.[String(n)] || 0);
+                  return <View key={n} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Text style={{ fontSize: 12, fontWeight: '700', color: colors.text2, width: 10 }}>{n}</Text><View style={[s.bar, { backgroundColor: colors.lav2 }]}><View style={[s.barFill, { width: `${reviewCount ? (total / reviewCount) * 100 : 0}%`, backgroundColor: colors.orange }]} /></View></View>;
+                })}
+              </View>
+            </Panel>
+          ) : null}
+          {reviews.data?.reviews?.length ? (
+            <View style={{ gap: 12, marginTop: 12 }}>
+              {reviews.data.reviews.slice(0, 3).map((item) => (
+                <Panel key={item.id} style={{ gap: 6 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <View style={{ flexDirection: 'row', gap: 2 }}>{[1, 2, 3, 4, 5].map((n) => <Icon key={n} name="star" size={15} color={n <= item.rating ? colors.orange : colors.border} />)}</View>
+                    <Text style={{ fontSize: 12.5, color: colors.muted, fontWeight: '600' }}>{shortDate(item.created_at)}</Text>
+                  </View>
+                  <Text style={{ fontSize: 15.5, fontWeight: '800', color: colors.text }}>{item.title || 'Buyer review'}</Text>
+                  {item.comment ? <Text style={{ fontSize: 14, lineHeight: 20, color: colors.text2 }}>{item.comment}</Text> : null}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                    <Text style={{ fontSize: 12.5, color: colors.text2, fontWeight: '700' }}>{item.buyer_name || 'Sokoni Hub buyer'}</Text>
+                    {item.verified ? <Pill tone="mint" icon="check-badge" small>Verified purchase</Pill> : null}
+                  </View>
+                  {item.vendor_reply ? <View style={[s.reply, { backgroundColor: colors.surface2 }]}><Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.primary }}>Reply from {listing.business_name}</Text><Text style={{ fontSize: 13.5, color: colors.text2, marginTop: 2, lineHeight: 19 }}>{item.vendor_reply}</Text></View> : null}
+                </Panel>
+              ))}
+            </View>
+          ) : (
+            <Text style={{ fontSize: 14, color: colors.text2, lineHeight: 20, marginTop: 10 }}>{user ? (eligibility.data?.reason === 'no_purchase' ? 'No reviews yet. Reviews open once you have bought this item or completed this booking.' : 'No reviews yet.') : 'No reviews yet. Sign in after your order or booking to leave the first one.'}</Text>
+          )}
         </View>
+
+        {more.length ? (
+          <>
+            <SectionHead title={`More from ${listing.business_name || 'this seller'}`} right={<Text onPress={() => go('store', { slug: listing.vendor_slug })} style={{ color: colors.brown, fontSize: 14, fontWeight: '800' }}>View store →</Text>} />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.rail}>{more.map((row) => <ProductCard key={row.id} listing={row} style={{ width: 176 }} onPress={() => go('listing', { id: row.id })} />)}</ScrollView>
+          </>
+        ) : null}
+        {similar.length ? (
+          <>
+            <SectionHead title="You may also like" />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.rail}>{similar.map((row) => <ProductCard key={row.id} listing={row} style={{ width: 176 }} onPress={() => go('listing', { id: row.id })} />)}</ScrollView>
+          </>
+        ) : null}
       </ScrollView>
-      <BottomBar>
-        <View>
-          <Text style={[styles.totalLabel, { color: colors.text2 }]}>
-            {listing.kind === "service" ? "STARTING FROM" : "PRICE"}
-          </Text>
-          <Money
-            value={
-              opt && listing.options
-                ? Number(
-                    listing.options.find((o: any) => o.name === opt)?.price ||
-                      listing.price,
-                  )
-                : listing.price
-            }
-            currency={listing.currency}
-            strong
-          />
-        </View>
-        <Button
-          variant={listing.kind === "service" ? "primary" : "gold"}
-          icon={listing.kind === "service" ? "arrow-forward" : "cart-outline"}
-          onPress={
-            listing.kind === "service"
-              ? () => go("booking", { listing })
-              : addItem
-          }
-          style={styles.detailBuyButton}
-        >
-          {listing.kind === "service" ? "Book service" : "Add to cart"}
-        </Button>
+
+      <BottomBar style={{ gap: 14, paddingHorizontal: 16 }}>
+        {service ? (
+          <>
+            <View>
+              <Text style={{ fontSize: 11, fontWeight: '800', letterSpacing: 1.1, color: colors.text2 }}>{listing.price_type === 'from' ? 'STARTING FROM' : 'PRICE'}</Text>
+              <Price value={unitPrice} currency={listing.currency} size={24} />
+            </View>
+            <Button variant="gold" iconLeft="calendar" style={{ flex: 1, minHeight: 56 }} onPress={() => go('booking', { listing })}>Book Appointment</Button>
+          </>
+        ) : (
+          <>
+            {!out ? <QtyStepper qty={qty} max={maxQty} label={listing.title} onMinus={() => setQty((q) => Math.max(1, q - 1))} onPlus={() => setQty((q) => Math.min(maxQty, q + 1))} /> : null}
+            <Button variant="deep" iconLeft={out ? undefined : 'cart'} disabled={out} style={{ flex: 1, minHeight: 56 }} onPress={addItem}>{out ? 'Out of stock' : options.length && !chosen ? 'Choose a size' : `Add · ${num(unitPrice * qty)} ${listing.currency}`}</Button>
+          </>
+        )}
       </BottomBar>
-      <Sheet
-        visible={reviewOpen}
-        title="Write a review"
-        onClose={() => setReviewOpen(false)}
-      >
-        <Field
-          label="Rating (1–5)"
-          value={review.rating}
-          onChangeText={(rating) => setReview((r) => ({ ...r, rating }))}
-          keyboardType="number-pad"
-          maxLength={1}
-        />
-        <Field
-          label="Review title (optional)"
-          value={review.title}
-          onChangeText={(title) => setReview((r) => ({ ...r, title }))}
-          placeholder="Summarise your experience"
-        />
-        <Field
-          label="Comment (optional)"
-          value={review.comment}
-          onChangeText={(comment) => setReview((r) => ({ ...r, comment }))}
-          multiline
-          style={{ minHeight: 96, textAlignVertical: "top", paddingTop: 12 }}
-        />
-        <Button onPress={submitReview}>Post review</Button>
+
+      <Sheet visible={reviewOpen} title="Write a review" onClose={() => setReviewOpen(false)}>
+        <Text style={{ fontSize: 14, color: colors.text2, marginBottom: 12, lineHeight: 20 }}>{eligibility.data?.verified ? 'Your review will show as a verified purchase.' : 'Tell other buyers what you thought.'}</Text>
+        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 18 }}>
+          {[1, 2, 3, 4, 5].map((n) => <Pressable key={n} accessibilityRole="button" accessibilityLabel={`${n} star${n > 1 ? 's' : ''}`} onPress={() => setReview((r) => ({ ...r, rating: n }))} hitSlop={4}><Icon name="star" size={38} color={n <= review.rating ? colors.orange : colors.border} /></Pressable>)}
+        </View>
+        <Field label="Review title (optional)" value={review.title} onChangeText={(title) => setReview((r) => ({ ...r, title }))} placeholder="Summarise your experience" maxLength={100} />
+        <Field label="Comment (optional)" value={review.comment} onChangeText={(comment) => setReview((r) => ({ ...r, comment }))} multiline maxLength={1000} style={{ minHeight: 100, textAlignVertical: 'top', paddingTop: 12 }} />
+        <Button loading={posting} onPress={submitReview}>Post review</Button>
       </Sheet>
-    </View>
+    </Screen>
   );
 }
+
+function RoundIcon({ icon, label, onPress, badge, solid, tint }: { icon: 'arrow-back' | 'share' | 'heart' | 'bag-handle'; label: string; onPress: () => void; badge?: number; solid?: boolean; tint?: string }) {
+  const { colors } = useTheme();
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={() => { tap(); onPress(); }} style={[s.round, { backgroundColor: 'rgba(255,255,255,0.94)' }, softShadow('#000000')]}>
+      <Icon name={icon} solid={solid ?? false} size={21} color={tint ?? '#111827'} />
+      {badge ? <View style={[s.badge, { backgroundColor: colors.orange, borderColor: '#FFFFFF' }]}><Text style={{ color: colors.onOrange, fontSize: 10, fontWeight: '800' }}>{badge > 9 ? '9+' : badge}</Text></View> : null}
+    </Pressable>
+  );
+}
+
+const s = StyleSheet.create({
+  topBar: { position: 'absolute', top: 12, left: 14, right: 14, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  round: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  badge: { position: 'absolute', top: -2, right: -2, minWidth: 18, height: 18, borderRadius: 9, borderWidth: 2, paddingHorizontal: 3, alignItems: 'center', justifyContent: 'center' },
+  dots: { position: 'absolute', bottom: 40, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 5 },
+  dotPage: { height: 7, borderRadius: 4 },
+  counter: { position: 'absolute', right: 14, bottom: 40, backgroundColor: 'rgba(17,24,39,0.7)', borderRadius: 11, paddingHorizontal: 10, height: 24, justifyContent: 'center' },
+  sheet: { marginTop: -26, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 16, paddingTop: 22 },
+  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  title: { fontSize: 27, fontWeight: '800', letterSpacing: -0.7, lineHeight: 33, marginTop: 12 },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+  priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 10, marginTop: 12 },
+  label: { fontSize: 12, fontWeight: '800', letterSpacing: 1.1, marginBottom: 10 },
+  options: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  facts: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 12, marginTop: 18 },
+  fact: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  factText: { fontSize: 13.5, fontWeight: '700' },
+  section: { fontSize: 20, fontWeight: '800', letterSpacing: -0.4, marginTop: 26, marginBottom: 8 },
+  about: { fontSize: 15, lineHeight: 23 },
+  trust: { flexDirection: 'row', gap: 10, marginTop: 20 },
+  trustItem: { flex: 1, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', gap: 8, paddingVertical: 14, paddingHorizontal: 6 },
+  trustIcon: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  reviewHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 26 },
+  writeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 36, borderRadius: 18, paddingHorizontal: 14 },
+  bar: { flex: 1, height: 7, borderRadius: 4, overflow: 'hidden' },
+  barFill: { height: 7, borderRadius: 4 },
+  reply: { borderRadius: 12, padding: 12, marginTop: 4 },
+  rail: { gap: 12, paddingHorizontal: 16, paddingBottom: 6 },
+});

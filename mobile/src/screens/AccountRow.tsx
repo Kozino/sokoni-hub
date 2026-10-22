@@ -33,8 +33,8 @@ const date = (value?: string | null) => value ? new Date(value).toLocaleDateStri
 const dateTime = (value?: string | null) => value ? new Date(value).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'To be arranged';
 const statusLabel = (value: string) => value.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 
-export const ToastContext = createContext<{ show: (text: string, cartLink?: boolean) => void }>({ show: () => {} });
-export const useToast = () => useContext(ToastContext);
+import { ToastContext, useToast } from '../toast';
+export { ToastContext, useToast };
 
 import { Welcome } from './Welcome';
 import { Tabs } from './Tabs';

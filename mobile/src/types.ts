@@ -91,6 +91,7 @@ export interface CartItem {
   max?: number;
   kind: ListingKind;
   option?: string;
+  unit?: string | null;
 }
 
 export interface CartQuoteVendor {
@@ -116,6 +117,23 @@ export interface CartQuote {
   currency: string;
 }
 
+export interface OrderLine {
+  id?: string;
+  listing_id?: string | null;
+  title: string;
+  qty: number;
+  unit: string | null;
+  unit_price?: number | string;
+  line_total: number | string;
+}
+
+export interface OrderDriver {
+  name: string;
+  vehicle_type?: string | null;
+  license_plate?: string | null;
+  phone?: string | null;
+}
+
 export interface Order {
   id: string;
   code: string;
@@ -123,6 +141,7 @@ export interface Order {
   status: string;
   options?: {name: string, price: number}[];
   payment_method: PaymentMethod;
+  payment_status?: 'unpaid' | 'paid' | string;
   subtotal: number | string;
   delivery_fee: number | string;
   total: number | string;
@@ -135,10 +154,24 @@ export interface Order {
   note: string | null;
   fulfilment_mode?: FulfilmentMode;
   created_at: string;
+  updated_at?: string;
+  delivered_at?: string | null;
+  verify_by?: string | null;
+  buyer_confirmed_at?: string | null;
+  disputed_at?: string | null;
+  dispute_reason?: string | null;
+  receipt_number?: string | null;
+  delivery_lat?: number | string | null;
+  delivery_lng?: number | string | null;
+  driver_lat?: number | string | null;
+  driver_lng?: number | string | null;
+  delivery_proof_url?: string | null;
+  driver?: OrderDriver | null;
   business_name?: string;
+  vendor_slug?: string;
   whatsapp?: string;
   vendor?: { business_name: string; whatsapp: string };
-  items?: { id?: string; title: string; qty: number; unit: string | null; line_total: number | string }[];
+  items?: OrderLine[];
 }
 
 export interface Booking {
@@ -146,13 +179,30 @@ export interface Booking {
   code: string;
   status: string;
   options?: {name: string, price: number}[];
+  listing_id?: string;
   listing_title?: string;
+  listing_slug?: string;
   business_name?: string;
+  vendor_id?: string;
+  vendor_whatsapp?: string | null;
+  vendor_city?: string | null;
+  vendor_address?: string | null;
   created_at: string;
   preferred_at?: string | null;
   scheduled_at?: string | null;
   slot_starts_at?: string | null;
+  slot_ends_at?: string | null;
   location_type?: 'vendor' | 'home';
+  address?: string | null;
+  preferred_note?: string | null;
+  duration_mins?: number | null;
+  quoted_price?: number | string | null;
+  quoted_price_type?: string | null;
+  currency?: string | null;
+  contact_name?: string;
+  contact_phone?: string;
+  can_cancel?: boolean;
+  cancel_deadline?: string | null;
 }
 
 export interface Review {

@@ -8,19 +8,23 @@ const THEME_KEY = 'sokoni_mobile_theme';
 const CART_KEY = 'sokoni_mobile_cart';
 
 export const palette = {
-  // Consumer app design system: emerald marketplace, citrus action colour,
-  // generous white surfaces and soft lilac utility panels.
+  // Consumer app design system ("Sokoni Hub 2"): deep-green marketplace, orange action colour,
+  // white cards on a soft lavender page, tonal lilac panels and pale-green status pills.
   light: {
-    bg: '#F8F8FD', surface: '#FFFFFF', surface2: '#F0F2FF', text: '#111827', text2: '#56606D', muted: '#5B6674',
+    bg: '#F9F9FF', surface: '#FFFFFF', surface2: '#F1F3FF', lav2: '#E9EDFF', text: '#111827', text2: '#4B5563', muted: '#5B6674',
     border: '#E8EAF3', primary: '#05663F', primaryPressed: '#034D30', primarySoft: '#E1F7E9', primaryLine: '#BDE9CE',
-    gold: '#C25E00', goldSoft: '#FFF0E2', teal: '#08715B', tealSoft: '#E2F7F0', success: '#078B57', successSoft: '#E5F8EE',
-    warning: '#D26A00', warningSoft: '#FFF2DF', danger: '#C43B3B', dangerSoft: '#FDEBEC', tab: '#FFFFFF', overlay: 'rgba(4,35,23,.56)',
+    onPrimary: '#FFFFFF', deep: '#004C2D', onDeep: '#FFFFFF', orange: '#FC7800', orangeSoft: '#FFF0E2', orangeLine: '#FFD9B8', onOrange: '#FFFFFF', brown: '#974800',
+    gold: '#C25E00', goldSoft: '#FFF0E2', teal: '#08715B', tealSoft: '#E2F7F0', success: '#078B57', successSoft: '#E1F7E9',
+    warning: '#D26A00', warningSoft: '#FFF2DF', danger: '#C43B3B', dangerSoft: '#FDEBEC', dangerText: '#BA1A1A', heart: '#D9304F',
+    tab: '#FFFFFF', overlay: 'rgba(4,35,23,.56)', shadow: '#1B2A4A',
   },
   dark: {
-    bg: '#101815', surface: '#18221D', surface2: '#202E27', text: '#F2F8F4', text2: '#B6C5BD', muted: '#9AA9A1',
+    bg: '#101815', surface: '#18221D', surface2: '#202E27', lav2: '#27382F', text: '#F2F8F4', text2: '#B6C5BD', muted: '#9AA9A1',
     border: '#304238', primary: '#65D89C', primaryPressed: '#93E8B8', primarySoft: '#173B29', primaryLine: '#2A6846',
+    onPrimary: '#06251A', deep: '#0E3A27', onDeep: '#F2F8F4', orange: '#FFA050', orangeSoft: '#402A17', orangeLine: '#6B4521', onOrange: '#2A1500', brown: '#FFB27A',
     gold: '#FFAA58', goldSoft: '#402A17', teal: '#7CE0BB', tealSoft: '#163E32', success: '#73DCA1', successSoft: '#153525',
-    warning: '#FFC178', warningSoft: '#432E17', danger: '#F2AAA7', dangerSoft: '#432021', tab: '#18221D', overlay: 'rgba(0,0,0,.68)',
+    warning: '#FFC178', warningSoft: '#432E17', danger: '#F2AAA7', dangerSoft: '#432021', dangerText: '#F2AAA7', heart: '#FF7A93',
+    tab: '#18221D', overlay: 'rgba(0,0,0,.68)', shadow: '#000000',
   },
 };
 export type Colors = typeof palette.light;

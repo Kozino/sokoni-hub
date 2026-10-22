@@ -1,76 +1,235 @@
+/**
+ * Saved Items. Saved listings live on the phone; on opening, they are refreshed against the live catalogue so
+ * prices, stock and photos are current, and anything that has been removed is flagged instead of silently lingering.
+ */
+import { useEffect, useMemo, useState } from 'react';
+import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { useQuery } from '@tanstack/react-query';
+import { api, query } from '../api';
+import { isOutOfStock, needsOption, useQuickAdd } from '../cards';
+import { rememberImages } from '../data';
+import { useFavourites } from '../favourites';
+import { cleanCity, plural, ratingOf } from '../format';
+import { Icon } from '../icons';
+import { AppBar, Panel, PageTitle, Pill, PillRow, Price, RatingChip, Screen, SearchBar, SortPill, Tabs, Thumb, softShadow, useColumnWidth } from '../kit';
+import type { NavProps } from '../nav';
+import { useCart, useTheme } from '../providers';
+import { useToast } from '../toast';
+import type { Listing } from '../types';
+import { Button, EmptyState, Notice, Text } from '../ui';
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, BackHandler, FlatList, ImageBackground, KeyboardAvoidingView, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, useWindowDimensions, View, Platform } from 'react-native';
-import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { api, ApiError, query } from '../api';
-import { SUPPORT_EMAIL, SUPPORT_WHATSAPP, WEB_URL } from '../config';
-import { AuthProvider, CartProvider, ThemeProvider, useAuth, useCart, useTheme } from '../providers';
-import type { Booking, CartItem, Category, Listing, Order, Review, Vendor } from '../types';
-import { BrandMark, Button, Card, Chip, Divider, Dropdown, EmptyState, Field, FontContext, Header, IconButton, Money, Notice, Sheet, Spinner, Text, TextInput, type DropdownOption, type FontStatus } from '../ui';
-import { CityProvider, useCity } from '../city';
-import { categoryImage } from '../catImages';
-import { BottomBar } from '../ui';
-import { BookService } from '../booking';
-import { Checkout } from '../checkout';
-import { FavouritesProvider, useFavourites } from '../favourites';
-import { FeaturedStores, usePromotions, VipStores } from '../promotions';
-import { LegalScreen } from '../legal';
-import { Icon, type IconName } from '../icons';
-import { styles, nx, ex } from '../styles';
-import * as WebBrowser from 'expo-web-browser';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Image } from 'expo-image';
-import * as LocalAuthentication from 'expo-local-authentication';
-import * as SecureStore from 'expo-secure-store';
-import { tap, success } from '../haptics';
+type SortKey = 'recent' | 'price_asc' | 'price_desc' | 'name';
+const SORTS: { value: SortKey; label: string }[] = [
+  { value: 'recent', label: 'Recently Added' }, { value: 'price_asc', label: 'Price: low to high' }, { value: 'price_desc', label: 'Price: high to low' }, { value: 'name', label: 'Name A–Z' },
+];
 
-export type Screen = 'welcome' | 'home' | 'browse' | 'cart' | 'account' | 'login' | 'register' | 'pin' | 'pinsetup' | 'forgot' | 'listing' | 'store' | 'checkout' | 'orders' | 'bookings' | 'track' | 'booking' | 'support' | 'saved' | 'notifications' | 'legal';
-export type Nav = { screen: Screen; params?: Record<string, any>; id?: number };
+export function Saved({ go, tab }: NavProps) {
+  const { colors } = useTheme();
+  const fav = useFavourites();
+  const cart = useCart();
+  const toast = useToast();
+  const quickAdd = useQuickAdd();
+  const width = useColumnWidth();
+  const cardWidth = (width - 32 - 12) / 2;
+  const [filter, setFilter] = useState('all');
+  const [text, setText] = useState('');
+  const [sort, setSort] = useState<SortKey>('recent');
+  const [selecting, setSelecting] = useState(false);
+  const [picked, setPicked] = useState<string[]>([]);
 
-const message = (error: any) => error instanceof ApiError ? error.message : error instanceof Error ? error.message : 'Something went wrong. Please try again.';
-const date = (value?: string | null) => value ? new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : 'To be arranged';
-const dateTime = (value?: string | null) => value ? new Date(value).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'To be arranged';
-const statusLabel = (value: string) => value.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+  // Refresh saved snapshots from the public catalogue (read-only; does not count as a listing view).
+  const fresh = useQuery({
+    queryKey: ['saved-refresh', fav.items.length],
+    enabled: fav.items.length > 0,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const found: Listing[] = [];
+      let total = 0;
+      for (let page = 0; page < 3; page += 1) {
+        const r = await api.get<{ listings: Listing[]; total: number }>(`/listings${query({ limit: 60, offset: page * 60, sort: 'newest' })}`);
+        found.push(...r.listings); total = r.total;
+        if (found.length >= total || r.listings.length < 60) break;
+      }
+      return { found, complete: found.length >= total };
+    },
+  });
+  useEffect(() => {
+    if (fresh.data) { fav.refresh(fresh.data.found); rememberImages(fresh.data.found); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fresh.data]);
+  const gone = useMemo(() => {
+    if (!fresh.data?.complete) return new Set<string>();
+    const live = new Set(fresh.data.found.map((l) => l.id));
+    return new Set(fav.items.filter((l) => !live.has(l.id)).map((l) => l.id));
+  }, [fresh.data, fav.items]);
 
-export const ToastContext = createContext<{ show: (text: string, cartLink?: boolean) => void }>({ show: () => {} });
-export const useToast = () => useContext(ToastContext);
+  const items = fav.items;
+  const products = items.filter((l) => l.kind === 'product');
+  const services = items.filter((l) => l.kind === 'service');
+  const categoryNames = useMemo(() => [...new Set(items.map((l) => l.category_name).filter(Boolean) as string[])], [items]);
+  const chips = [
+    { key: 'all', label: `All (${items.length})` },
+    ...(products.length && services.length ? [{ key: 'product', label: `Products (${products.length})` }, { key: 'service', label: `Services (${services.length})` }] : []),
+    ...(categoryNames.length > 1 ? categoryNames.map((name) => ({ key: `cat:${name}`, label: `${name} (${items.filter((l) => l.category_name === name).length})` })) : []),
+  ];
+  const shown = useMemo(() => {
+    const q = text.trim().toLowerCase();
+    const list = items.filter((l) => {
+      if (filter === 'product' && l.kind !== 'product') return false;
+      if (filter === 'service' && l.kind !== 'service') return false;
+      if (filter.startsWith('cat:') && l.category_name !== filter.slice(4)) return false;
+      return !q || l.title.toLowerCase().includes(q) || (l.business_name || '').toLowerCase().includes(q) || (l.category_name || '').toLowerCase().includes(q);
+    });
+    if (sort === 'price_asc') return [...list].sort((a, b) => Number(a.price) - Number(b.price));
+    if (sort === 'price_desc') return [...list].sort((a, b) => Number(b.price) - Number(a.price));
+    if (sort === 'name') return [...list].sort((a, b) => a.title.localeCompare(b.title));
+    return list;
+  }, [items, filter, text, sort]);
 
-import { Welcome } from './Welcome';
-import { Tabs } from './Tabs';
-import { Home } from './Home';
-import { TrustTile } from './TrustTile';
-import { SectionTitle } from './SectionTitle';
-import { ListingRail } from './ListingRail';
-import { ListingImage } from './ListingImage';
-import { ListingCard } from './ListingCard';
-import { Browse } from './Browse';
-import { Notifications } from './Notifications';
-import { AuthScaffold } from './AuthScaffold';
-import { Login } from './Login';
-import { Register } from './Register';
-import { Pin } from './Pin';
-import { Recovery } from './Recovery';
-import { ListingDetail } from './ListingDetail';
-import { DetailFact } from './DetailFact';
-import { StoreDetail } from './StoreDetail';
-import { Cart } from './Cart';
-import { Orders } from './Orders';
-import { Bookings } from './Bookings';
-import { Status } from './Status';
-import { Track } from './Track';
-import { Account } from './Account';
-import { AccountRow } from './AccountRow';
-import { Support } from './Support';
-import { GuestGate } from './GuestGate';
-import { WebOnlyAccount } from './WebOnlyAccount';export function Saved({ go, back, tab }: any) {
-  const { colors } = useTheme(); const fav = useFavourites();
-  return <View style={styles.page}>
-    <Header title="Saved items" back={back} />
-    <FlatList data={fav.items} numColumns={2} key="saved-grid" keyExtractor={(item) => item.id} contentContainerStyle={ex.gridContent} columnWrapperStyle={ex.gridRow}
-      renderItem={({ item }) => <ListingCard listing={item} compact fluid onPress={() => go('listing', { id: item.id })} />}
-      ListEmptyComponent={<EmptyState icon="heart-outline" title="Nothing saved yet" text="Tap the heart on any product or service to keep it here for later." action={<Button style={{ marginTop: 10 }} onPress={() => tab('browse')}>Explore the market</Button>} />} />
-    <Tabs active="account" tab={tab} />
-  </View>;
+  const movable = (l: Listing) => l.kind === 'product' && !isOutOfStock(l) && !needsOption(l) && !gone.has(l.id);
+  const readyProducts = items.filter(movable);
+  const readyServices = services.filter((l) => !gone.has(l.id));
+  const allSelected = shown.length > 0 && shown.every((l) => picked.includes(l.id));
+  const toggle = (id: string) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+
+  const moveToCart = (list: Listing[]) => {
+    const ok = list.filter(movable);
+    ok.forEach((l) => quickAddSilently(l));
+    fav.remove(ok.map((l) => l.id));
+    setPicked((p) => p.filter((id) => !ok.some((l) => l.id === id)));
+    const skipped = list.length - ok.length;
+    toast.show(ok.length ? `${plural(ok.length, 'item')} moved to your cart${skipped ? ` · ${skipped} need a size or are unavailable` : ''}` : 'Nothing could be moved: open the item to choose a size.', ok.length > 0);
+  };
+  /** Same as the card "+" button but without one toast per item. */
+  const quickAddSilently = (l: Listing) => {
+    cart.add({ listing_id: l.id, vendor_id: l.vendor_id, vendor_name: l.business_name || 'Local seller', title: l.title, price: Number(l.price), currency: l.currency, image: l.images?.[0], qty: 1, max: l.quantity ?? undefined, kind: l.kind, unit: l.unit });
+  };
+
+  const header = (
+    <View>
+      <PageTitle
+        title="Saved Items" badge={items.length} subtitle={items.length ? 'Kept on this phone for quick access.' : undefined}
+        right={items.length ? (
+          <Pressable accessibilityRole="button" accessibilityState={{ selected: selecting }} onPress={() => { setSelecting((v) => !v); setPicked([]); }} style={[s.selectBtn, { backgroundColor: selecting ? colors.primary : colors.lav2 }]}>
+            <Icon name="clipboard-check" solid={false} size={17} color={selecting ? colors.onPrimary : colors.text} />
+            <Text style={{ fontSize: 13.5, fontWeight: '800', color: selecting ? colors.onPrimary : colors.text }}>{selecting ? 'Done' : 'Select'}</Text>
+          </Pressable>
+        ) : null}
+      />
+      {gone.size ? (
+        <View style={{ paddingHorizontal: 16, marginTop: 14 }}>
+          <Notice type="warning">{plural(gone.size, 'saved item')} {gone.size === 1 ? 'is' : 'are'} no longer available. <Text onPress={() => fav.remove([...gone])} style={{ fontWeight: '800', color: colors.primary }}>Remove {gone.size === 1 ? 'it' : 'them'}</Text></Notice>
+        </View>
+      ) : null}
+      {items.length ? (
+        <>
+          <SearchBar style={{ marginTop: 16 }} value={text} onChangeText={setText} placeholder="Search your saved items" />
+          {chips.length > 1 ? <PillRow style={{ marginTop: 14 }} items={chips} active={filter} onSelect={setFilter} /> : null}
+          <View style={[s.toolbar, { backgroundColor: colors.surface2 }]}>
+            {selecting ? (
+              <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: allSelected }} onPress={() => setPicked(allSelected ? [] : shown.map((l) => l.id))} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={[s.box, { borderColor: allSelected ? colors.primary : colors.muted, backgroundColor: allSelected ? colors.primary : 'transparent' }]}>{allSelected ? <Icon name="check" size={14} color={colors.onPrimary} /> : null}</View>
+                <Text style={{ fontSize: 14.5, fontWeight: '800', color: colors.text }}>Select All ({shown.length} listed)</Text>
+              </Pressable>
+            ) : <Text style={{ fontSize: 14, fontWeight: '800', color: colors.text2 }}>{plural(shown.length, 'item')}{text || filter !== 'all' ? ' found' : ' saved'}</Text>}
+            <SortPill value={sort} options={SORTS} onChange={setSort} />
+          </View>
+        </>
+      ) : null}
+    </View>
+  );
+
+  const footer = items.length && !selecting && (readyProducts.length || readyServices.length) ? (
+    <Panel style={s.summary}>
+      <View style={{ flex: 1 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><View style={[s.live, { backgroundColor: colors.success }]} /><Text style={{ fontSize: 16, fontWeight: '800', color: colors.text }}>All In-Stock Items</Text></View>
+        <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text2, marginTop: 3 }}>{plural(readyProducts.length, 'product')} • {plural(readyServices.length, 'service')} ready</Text>
+      </View>
+      {readyProducts.length ? <Button variant="deep" iconLeft="bag-handle" style={{ minHeight: 52, paddingHorizontal: 16 }} onPress={() => moveToCart(readyProducts)}>Add All to Cart</Button> : null}
+    </Panel>
+  ) : null;
+
+  return (
+    <Screen>
+      <AppBar go={go} tab={tab} />
+      <FlatList
+        key="saved" data={shown} numColumns={2} keyExtractor={(l) => l.id} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: selecting ? 150 : 60 }} columnWrapperStyle={{ gap: 12, paddingHorizontal: 16 }} ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+        ListHeaderComponent={<>{header}<View style={{ height: 14 }} /></>}
+        renderItem={({ item }) => (
+          <SavedCard
+            listing={item} width={cardWidth} selecting={selecting} picked={picked.includes(item.id)} gone={gone.has(item.id)}
+            onOpen={() => (selecting ? toggle(item.id) : go('listing', { id: item.id }))} onPick={() => toggle(item.id)}
+            onRemove={() => { fav.remove([item.id]); toast.show('Removed from saved'); }}
+            onAction={() => { if (item.kind === 'service' || needsOption(item)) go('listing', { id: item.id }); else { if (quickAdd(item)) fav.remove([item.id]); } }}
+          />
+        )}
+        ListEmptyComponent={items.length ? (
+          <EmptyState icon="search-outline" title="Nothing matches" text="Try another search or filter." action={<Button variant="secondary" style={{ marginTop: 8 }} onPress={() => { setText(''); setFilter('all'); }}>Clear filters</Button>} />
+        ) : (
+          <EmptyState icon="heart-outline" title="Nothing saved yet" text="Tap the heart on any product or service to keep it here for later." action={<Button style={{ marginTop: 10 }} onPress={() => tab('browse')}>Explore the market</Button>} />
+        )}
+        ListFooterComponent={footer}
+      />
+      {selecting ? (
+        <View style={[s.actionBar, { backgroundColor: colors.surface, borderColor: colors.border }, softShadow(colors.shadow, 2)]}>
+          <Text style={{ fontSize: 14, fontWeight: '800', color: colors.text, flex: 1 }}>{picked.length ? `${picked.length} selected` : 'Select items'}</Text>
+          <Button variant="tonal" iconLeft="trash" disabled={!picked.length} style={s.barBtn} onPress={() => { fav.remove(picked); toast.show(`${plural(picked.length, 'item')} removed`); setPicked([]); }}>Remove</Button>
+          <Button variant="deep" iconLeft="bag-handle" disabled={!picked.length} style={s.barBtn} onPress={() => moveToCart(items.filter((l) => picked.includes(l.id)))}>Move to cart</Button>
+        </View>
+      ) : null}
+      <Tabs active="account" tab={tab} />
+    </Screen>
+  );
 }
 
+function SavedCard({ listing, width, selecting, picked, gone, onOpen, onPick, onRemove, onAction }: { listing: Listing; width: number; selecting: boolean; picked: boolean; gone: boolean; onOpen: () => void; onPick: () => void; onRemove: () => void; onAction: () => void }) {
+  const { colors } = useTheme();
+  const rating = ratingOf(listing);
+  const service = listing.kind === 'service';
+  const out = isOutOfStock(listing);
+  const options = needsOption(listing);
+  const label = gone ? 'Unavailable' : service ? 'Book Slot' : out ? 'Out of stock' : options ? 'Choose size' : 'Move to Cart';
+  const disabled = gone || out;
+  const tight = width < 172; // two columns on a small phone
+  return (
+    <Panel onPress={onOpen} label={listing.title} style={[{ width, padding: 10 }, picked && { borderColor: colors.primary, borderWidth: 2 }]}>
+      <View style={s.image}>
+        <Thumb uri={listing.images?.[0]} style={StyleSheet.absoluteFill} icon={service ? 'scissors' : 'basket-outline'} iconSize={30} />
+        {gone ? <View style={s.goneVeil}><Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '800' }}>NO LONGER AVAILABLE</Text></View> : null}
+        {service ? <View style={s.topLeft}><Pill tone="solidOrange" small upper>Service</Pill></View> : null}
+        {selecting ? (
+          <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: picked }} onPress={onPick} style={[s.check, { backgroundColor: picked ? colors.primary : 'rgba(255,255,255,0.95)', borderColor: picked ? colors.primary : colors.muted }]}>{picked ? <Icon name="check" size={15} color={colors.onPrimary} /> : null}</Pressable>
+        ) : (
+          <Pressable accessibilityRole="button" accessibilityLabel="Remove from saved" hitSlop={6} onPress={onRemove} style={s.heart}><Icon name="heart" solid size={18} color={colors.heart} /></Pressable>
+        )}
+        {rating && !gone ? <View style={s.bottomLeft}><RatingChip avg={rating.avg} /></View> : null}
+      </View>
+      <Text numberOfLines={1} style={[s.vendor, { color: colors.text2 }]}>{listing.business_name || cleanCity(listing.vendor_city) || 'Verified seller'}</Text>
+      <Text numberOfLines={2} style={[s.title, { color: colors.text }]}>{listing.title}</Text>
+      <View style={{ marginTop: 6, marginBottom: 10 }}>
+        <Price value={listing.price} currency={listing.currency} size={20} from={listing.price_type === 'from' || options} color={service && listing.price_type === 'from' ? colors.brown : colors.primary} />
+      </View>
+      <Button variant={service ? 'gold' : 'primary'} iconLeft={service ? 'calendar' : out || gone ? undefined : 'cart'} disabled={disabled || selecting} style={[s.action, tight && { paddingHorizontal: 8 }]} textStyle={{ fontSize: tight ? 13.5 : 14.5 }} onPress={onAction}>{label}</Button>
+    </Panel>
+  );
+}
+
+const s = StyleSheet.create({
+  selectBtn: { flexDirection: 'row', alignItems: 'center', gap: 7, height: 38, borderRadius: 14, paddingHorizontal: 14 },
+  toolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginHorizontal: 16, marginTop: 14, borderRadius: 18, paddingVertical: 8, paddingLeft: 14, paddingRight: 8 },
+  box: { width: 24, height: 24, borderRadius: 7, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  image: { width: '100%', aspectRatio: 1.04, borderRadius: 18, overflow: 'hidden' },
+  topLeft: { position: 'absolute', top: 9, left: 9 },
+  bottomLeft: { position: 'absolute', left: 8, bottom: 8 },
+  heart: { position: 'absolute', top: 8, right: 8, width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.96)', alignItems: 'center', justifyContent: 'center' },
+  check: { position: 'absolute', top: 8, right: 8, width: 30, height: 30, borderRadius: 10, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  goneVeil: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(17,24,39,0.62)', alignItems: 'center', justifyContent: 'center', padding: 8 },
+  vendor: { fontSize: 12.5, fontWeight: '600', marginTop: 11 },
+  title: { fontSize: 15.5, fontWeight: '800', lineHeight: 20, marginTop: 3, minHeight: 40 },
+  action: { minHeight: 48, borderRadius: 14, paddingHorizontal: 8 },
+  summary: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, marginTop: 22 },
+  live: { width: 9, height: 9, borderRadius: 5 },
+  actionBar: { position: 'absolute', left: 16, right: 16, bottom: 104, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, padding: 12, zIndex: 30 },
+  barBtn: { minHeight: 48, paddingHorizontal: 14 },
+});

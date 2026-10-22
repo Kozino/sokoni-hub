@@ -1,9 +1,12 @@
 import { Icon } from './icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from './ui';
 import { api } from './api';
+import { cleanCity } from './format';
+import { tap } from './haptics';
+import { Avatar, softShadow } from './kit';
 import { useTheme } from './providers';
 
 export interface Promo {
@@ -37,71 +40,93 @@ export function usePromotions() {
 
 const click = (promo: Promo) => { void api.post('/promotions/track', { event: 'click', ids: [promo.id] }).catch(() => {}); };
 
-function Logo({ promo, size }: { promo: Promo; size: number }) {
+const place = (promo: Promo) => cleanCity(promo.city) || 'Qatar';
+const ratingLine = (promo: Promo) => (Number(promo.rating_count || 0) > 0 ? { avg: Number(promo.rating_avg || 0), count: Number(promo.rating_count) } : null);
+
+function Head({ icon, title }: { icon: 'diamond' | 'ribbon'; title: string }) {
   const { colors } = useTheme();
-  return <View style={[styles.logo, { width: size, height: size, borderRadius: size * .28, backgroundColor: colors.primarySoft }]}>
-    {promo.logo_url ? <Image source={{ uri: promo.logo_url }} style={{ width: '100%', height: '100%' }} /> : <Icon name="storefront" size={size * .48} color={colors.primary} />}
-  </View>;
+  return (
+    <View style={styles.head}>
+      <View style={styles.headTitle}>
+        <Icon name={icon} size={16} color={icon === 'diamond' ? colors.orange : colors.primary} />
+        <Text style={[styles.eyebrow, { color: colors.text2 }]}>{title.toUpperCase()}</Text>
+      </View>
+      <Text style={[styles.sponsored, { color: colors.muted }]}>Sponsored</Text>
+    </View>
+  );
 }
 
-const place = (promo: Promo) => [promo.city, promo.country].filter(Boolean).join(', ') || 'Qatar';
-
+/** Paid VIP placement: a deep-green card with the seller's real logo and rating. */
 export function VipStores({ stores, onOpen }: { stores: Promo[]; onOpen: (slug: string) => void }) {
   const { colors } = useTheme();
   if (!stores.length) return null;
-  return <View>
-    <View style={styles.head}>
-      <View style={styles.headTitle}><Icon name="diamond" size={17} color={colors.gold} /><Text style={[styles.heading, { color: colors.text }]}>VIP stores</Text></View>
-      <Text style={[styles.sponsored, { color: colors.muted }]}>Sponsored</Text>
+  return (
+    <View>
+      <Head icon="diamond" title="VIP stores" />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
+        {stores.map((promo) => {
+          const rating = ratingLine(promo);
+          return (
+            <Pressable key={promo.id} accessibilityRole="button" accessibilityLabel={`VIP store ${promo.business_name}`} onPress={() => { tap(); click(promo); onOpen(promo.slug); }}>
+              <LinearGradient colors={[colors.deep, colors.primary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.vipCard, softShadow(colors.shadow, 2)]}>
+                <View style={styles.vipTop}>
+                  <Avatar name={promo.business_name} uri={promo.logo_url} size={56} square tone="mint" />
+                  <View style={[styles.vipBadge, { backgroundColor: colors.orange }]}><Icon name="diamond" size={11} color={colors.onOrange} /><Text style={[styles.vipBadgeText, { color: colors.onOrange }]}>VIP</Text></View>
+                </View>
+                <Text numberOfLines={1} style={styles.vipName}>{promo.business_name}</Text>
+                <View style={styles.row}><Icon name="location" solid={false} size={13} color="#BFE9D2" /><Text numberOfLines={1} style={[styles.vipMeta, { flexShrink: 1 }]}>{place(promo)}</Text></View>
+                <View style={styles.vipFoot}>
+                  {rating ? <View style={styles.row}><Icon name="star" size={13} color="#FFB36B" /><Text style={styles.vipRating}>{rating.avg.toFixed(1)}</Text><Text style={styles.vipMeta}>({rating.count})</Text></View> : <Text style={styles.vipMeta}>{promo.listing_count} listing{promo.listing_count === 1 ? '' : 's'}</Text>}
+                  <View style={styles.visit}><Text style={styles.visitText}>Visit</Text><Icon name="arrow-forward" size={13} color="#004C2D" /></View>
+                </View>
+              </LinearGradient>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
     </View>
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
-      {stores.map((promo) => (
-        <Pressable key={promo.id} accessibilityRole="button" accessibilityLabel={`VIP store ${promo.business_name}`} onPress={() => { click(promo); onOpen(promo.slug); }}>
-          <LinearGradient colors={['#1C1B17', '#3A2B10']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.vipCard}>
-            <View style={styles.vipBadge}><Icon name="diamond" size={10} color="#1C1B17" /><Text style={styles.vipBadgeText}>VIP</Text></View>
-            <Logo promo={promo} size={54} />
-            <Text numberOfLines={1} style={styles.vipName}>{promo.business_name}</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}><Icon name="location-outline" size={12} color="#D9F5E5" /><Text numberOfLines={1} style={[styles.vipMeta, { flexShrink: 1 }]}>{place(promo)}</Text></View>
-            <View style={styles.vipFoot}>
-              <View style={styles.rating}><Icon name="star" size={12} color="#FFC178" /><Text style={styles.vipRating}>{Number(promo.rating_avg || 0).toFixed(1)}</Text><Text style={styles.vipMeta}>({promo.rating_count || 0})</Text></View>
-              <View style={styles.visit}><Text style={styles.visitText}>Visit</Text><Icon name="arrow-forward" size={12} color="#1C1B17" /></View>
-            </View>
-          </LinearGradient>
-        </Pressable>
-      ))}
-    </ScrollView>
-  </View>;
+  );
 }
 
 export function FeaturedStores({ stores, onOpen }: { stores: Promo[]; onOpen: (slug: string) => void }) {
   const { colors } = useTheme();
   if (!stores.length) return null;
-  return <View>
-    <View style={styles.head}>
-      <View style={styles.headTitle}><Icon name="ribbon" size={17} color={colors.primary} /><Text style={[styles.heading, { color: colors.text }]}>Featured stores</Text></View>
-      <Text style={[styles.sponsored, { color: colors.muted }]}>Sponsored</Text>
+  return (
+    <View>
+      <Head icon="ribbon" title="Featured stores" />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
+        {stores.map((promo) => {
+          const rating = ratingLine(promo);
+          return (
+            <Pressable key={promo.id} accessibilityRole="button" accessibilityLabel={`Featured store ${promo.business_name}`} onPress={() => { tap(); click(promo); onOpen(promo.slug); }} style={[styles.featCard, { backgroundColor: colors.surface, borderColor: colors.border }, softShadow(colors.shadow)]}>
+              <View style={styles.vipTop}>
+                <Avatar name={promo.business_name} uri={promo.logo_url} size={48} square tone="mint" />
+                <View style={[styles.featTag, { backgroundColor: colors.orangeSoft }]}><Text style={[styles.featTagText, { color: colors.gold }]}>SPONSORED</Text></View>
+              </View>
+              <Text numberOfLines={1} style={[styles.featName, { color: colors.text }]}>{promo.business_name}</Text>
+              <View style={styles.row}><Icon name="location" solid={false} size={13} color={colors.text2} /><Text numberOfLines={1} style={[styles.featMeta, { color: colors.text2 }]}>{place(promo)}</Text></View>
+              <View style={styles.row}>
+                {rating ? <><Icon name="star" size={13} color={colors.orange} /><Text style={[styles.featMeta, { color: colors.text, fontWeight: '800' }]}>{rating.avg.toFixed(1)}</Text><Text style={[styles.featMeta, { color: colors.muted }]}>({rating.count})</Text><Text style={{ color: colors.muted }}>·</Text></> : null}
+                <Text style={[styles.featMeta, { color: colors.text2 }]}>{promo.listing_count} listing{promo.listing_count === 1 ? '' : 's'}</Text>
+              </View>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
     </View>
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
-      {stores.map((promo) => (
-        <Pressable key={promo.id} accessibilityRole="button" accessibilityLabel={`Featured store ${promo.business_name}`} onPress={() => { click(promo); onOpen(promo.slug); }} style={[styles.featCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Logo promo={promo} size={46} />
-          <View style={[styles.featTag, { backgroundColor: colors.goldSoft }]}><Text style={[styles.featTagText, { color: colors.gold }]}>SPONSORED</Text></View>
-          <Text numberOfLines={1} style={[styles.featName, { color: colors.text }]}>{promo.business_name}</Text>
-          <Text numberOfLines={1} style={[styles.featMeta, { color: colors.text2 }]}>{place(promo)}</Text>
-          <View style={styles.rating}><Icon name="star" size={11} color={colors.gold} /><Text style={[styles.featMeta, { color: colors.text2, marginTop: 0 }]}>{Number(promo.rating_avg || 0).toFixed(1)} · {promo.listing_count} listings</Text></View>
-        </Pressable>
-      ))}
-    </ScrollView>
-  </View>;
+  );
 }
 
 const styles = StyleSheet.create({
-  head: { marginTop: 22, marginBottom: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headTitle: { flexDirection: 'row', alignItems: 'center', gap: 7 }, heading: { fontSize: 18, fontWeight: '900', letterSpacing: -.3 }, sponsored: { fontSize: 12, fontWeight: '800', letterSpacing: .3 },
-  rail: { gap: 10, paddingHorizontal: 14 }, logo: { overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  vipCard: { width: 196, borderRadius: 16, padding: 14, gap: 4 }, vipBadge: { position: 'absolute', right: 10, top: 10, flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#FFC178', borderRadius: 9, paddingHorizontal: 7, paddingVertical: 3 }, vipBadgeText: { fontSize: 10, fontWeight: '900', color: '#1C1B17' },
-  vipName: { color: '#fff', fontSize: 15, fontWeight: '900', marginTop: 8 }, vipMeta: { color: 'rgba(255,255,255,.72)', fontSize: 12 }, vipRating: { color: '#fff', fontSize: 12, fontWeight: '800' },
-  vipFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }, rating: { flexDirection: 'row', alignItems: 'center', gap: 4 }, visit: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FFC178', borderRadius: 14, paddingHorizontal: 11, height: 27 }, visitText: { fontSize: 12, fontWeight: '900', color: '#1C1B17' },
-  featCard: { width: 158, borderRadius: 14, borderWidth: 1, padding: 12, gap: 3 }, featTag: { position: 'absolute', right: 9, top: 9, borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2 }, featTagText: { fontSize: 12, fontWeight: '900' },
-  featName: { fontSize: 13, fontWeight: '900', marginTop: 8 }, featMeta: { fontSize: 12, marginTop: 1 },
+  head: { marginTop: 26, marginBottom: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headTitle: { flexDirection: 'row', alignItems: 'center', gap: 7 }, eyebrow: { fontSize: 12, fontWeight: '800', letterSpacing: 1.1 }, sponsored: { fontSize: 12, fontWeight: '700' },
+  rail: { gap: 12, paddingHorizontal: 16, paddingBottom: 8 }, row: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  vipCard: { width: 208, borderRadius: 24, padding: 15, gap: 5 }, vipTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  vipBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 11, paddingHorizontal: 9, height: 24 }, vipBadgeText: { fontSize: 11, fontWeight: '800', letterSpacing: 0.4 },
+  vipName: { color: '#FFFFFF', fontSize: 17, fontWeight: '800', letterSpacing: -0.3, marginTop: 9 }, vipMeta: { color: '#BFE9D2', fontSize: 12.5, fontWeight: '600' }, vipRating: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+  vipFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 9 },
+  visit: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#FFFFFF', borderRadius: 15, paddingHorizontal: 13, height: 30 }, visitText: { fontSize: 13, fontWeight: '800', color: '#004C2D' },
+  featCard: { width: 178, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, padding: 14, gap: 5 },
+  featTag: { borderRadius: 8, paddingHorizontal: 7, height: 20, justifyContent: 'center' }, featTagText: { fontSize: 9.5, fontWeight: '800', letterSpacing: 0.5 },
+  featName: { fontSize: 15, fontWeight: '800', marginTop: 8, letterSpacing: -0.2 }, featMeta: { fontSize: 12.5, fontWeight: '600' },
 });

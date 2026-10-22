@@ -1,70 +1,147 @@
-
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, BackHandler, FlatList, ImageBackground, KeyboardAvoidingView, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, useWindowDimensions, View, Platform } from 'react-native';
-import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { api, ApiError, query } from '../api';
-import { SUPPORT_EMAIL, SUPPORT_WHATSAPP, WEB_URL } from '../config';
-import { AuthProvider, CartProvider, ThemeProvider, useAuth, useCart, useTheme } from '../providers';
-import type { Booking, CartItem, Category, Listing, Order, Review, Vendor } from '../types';
-import { BrandMark, Button, Card, Chip, Divider, Dropdown, EmptyState, Field, FontContext, Header, IconButton, Money, Notice, Sheet, Spinner, Text, TextInput, type DropdownOption, type FontStatus } from '../ui';
-import { CityProvider, useCity } from '../city';
-import { categoryImage } from '../catImages';
-import { BottomBar } from '../ui';
-import { BookService } from '../booking';
-import { Checkout } from '../checkout';
-import { FavouritesProvider, useFavourites } from '../favourites';
-import { FeaturedStores, usePromotions, VipStores } from '../promotions';
-import { LegalScreen } from '../legal';
-import { Icon, type IconName } from '../icons';
-import { styles, nx, ex } from '../styles';
-import * as WebBrowser from 'expo-web-browser';
+/**
+ * Store page. Seller identity, rating, delivery and pick-up terms, WhatsApp contact, their products and
+ * services, and buyer reviews, all from `GET /vendors/:slug`.
+ */
 import { LinearGradient } from 'expo-linear-gradient';
-import { Image } from 'expo-image';
-import * as LocalAuthentication from 'expo-local-authentication';
-import * as SecureStore from 'expo-secure-store';
-import { tap, success } from '../haptics';
+import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
+import { Linking, Pressable, RefreshControl, ScrollView, Share, StyleSheet, View } from 'react-native';
+import { api } from '../api';
+import { ProductCard, ServiceRow } from '../cards';
+import { WEB_URL } from '../config';
+import { errorMessage, rememberImages, usePromoSet } from '../data';
+import { cleanCity, money, plural, shortDate, whatsappUrl } from '../format';
+import { Icon, type IconName } from '../icons';
+import { Avatar, Panel, Pill, Screen, SegTabs, SectionHead, Skeleton, softShadow, useColumnWidth } from '../kit';
+import type { NavProps } from '../nav';
+import { useTheme } from '../providers';
+import type { Listing, Review, Vendor } from '../types';
+import { Button, EmptyState, Header, Text } from '../ui';
 
-export type Screen = 'welcome' | 'home' | 'browse' | 'cart' | 'account' | 'login' | 'register' | 'pin' | 'pinsetup' | 'forgot' | 'listing' | 'store' | 'checkout' | 'orders' | 'bookings' | 'track' | 'booking' | 'support' | 'saved' | 'notifications' | 'legal';
-export type Nav = { screen: Screen; params?: Record<string, any>; id?: number };
+type StoreData = { vendor: Vendor; listings: Listing[]; reviews?: (Review & { listing_title?: string })[] };
 
-const message = (error: any) => error instanceof ApiError ? error.message : error instanceof Error ? error.message : 'Something went wrong. Please try again.';
-const date = (value?: string | null) => value ? new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : 'To be arranged';
-const dateTime = (value?: string | null) => value ? new Date(value).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'To be arranged';
-const statusLabel = (value: string) => value.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+export function StoreDetail({ slug, go, back }: NavProps & { slug?: string }) {
+  const { colors } = useTheme();
+  const promo = usePromoSet();
+  const width = useColumnWidth();
+  const [tabKey, setTabKey] = useState<'product' | 'service'>('product');
+  const store = useQuery({
+    queryKey: ['store', slug], enabled: !!slug, staleTime: 60_000,
+    queryFn: async () => { const data = await api.get<StoreData>(`/vendors/${encodeURIComponent(String(slug))}`); rememberImages(data.listings); return data; },
+  });
+  const vendor = store.data?.vendor;
+  const listings = useMemo(() => store.data?.listings ?? [], [store.data]);
+  const products = listings.filter((l) => l.kind === 'product');
+  const services = listings.filter((l) => l.kind === 'service');
+  const active = tabKey === 'product' && !products.length && services.length ? 'service' : tabKey === 'service' && !services.length ? 'product' : tabKey;
+  const cardWidth = (width - 32 - 12) / 2;
 
-export const ToastContext = createContext<{ show: (text: string, cartLink?: boolean) => void }>({ show: () => {} });
-export const useToast = () => useContext(ToastContext);
+  if (store.error && !vendor) {
+    return <Screen><Header title="Store" back={back} /><EmptyState icon="cloud-offline-outline" title="Store unavailable" text={errorMessage(store.error)} action={<Button style={{ marginTop: 8 }} onPress={() => void store.refetch()}>Try again</Button>} /></Screen>;
+  }
+  if (!vendor) {
+    return <Screen><Header title="Store" back={back} /><View style={{ padding: 16, gap: 14 }}><Skeleton height={140} radius={26} /><Skeleton height={28} width="60%" /><Skeleton height={60} radius={18} /></View></Screen>;
+  }
 
-import { Welcome } from './Welcome';
-import { Tabs } from './Tabs';
-import { Home } from './Home';
-import { TrustTile } from './TrustTile';
-import { SectionTitle } from './SectionTitle';
-import { ListingRail } from './ListingRail';
-import { ListingImage } from './ListingImage';
-import { ListingCard } from './ListingCard';
-import { Browse } from './Browse';
-import { Saved } from './Saved';
-import { Notifications } from './Notifications';
-import { AuthScaffold } from './AuthScaffold';
-import { Login } from './Login';
-import { Register } from './Register';
-import { Pin } from './Pin';
-import { Recovery } from './Recovery';
-import { ListingDetail } from './ListingDetail';
-import { DetailFact } from './DetailFact';
-import { Cart } from './Cart';
-import { Orders } from './Orders';
-import { Bookings } from './Bookings';
-import { Status } from './Status';
-import { Track } from './Track';
-import { Account } from './Account';
-import { AccountRow } from './AccountRow';
-import { Support } from './Support';
-import { GuestGate } from './GuestGate';
-import { WebOnlyAccount } from './WebOnlyAccount';export function StoreDetail({ slug, go, back }: any) { const { colors } = useTheme(); const [vendor, setVendor] = useState<Vendor | null>(null); const [listings, setListings] = useState<Listing[]>([]); const [loading, setLoading] = useState(true); const [refreshing, setRefreshing] = useState(false); const [error, setError] = useState('');
-  const load = useCallback(async (pull = false) => { if (pull) setRefreshing(true); else setLoading(true); setError(''); try { const data = await api.get<{vendor: Vendor; listings: Listing[]}>(`/vendors/${encodeURIComponent(slug)}`); setVendor(data.vendor); setListings(data.listings); } catch (e) { if (pull) Alert.alert('Could not refresh', message(e)); else setError(message(e)); } finally { setLoading(false); setRefreshing(false); } }, [slug]);
-  useEffect(() => { void load(); }, [load]);
-  if (error && !vendor) return <View style={styles.page}><Header title="Store" back={back}/><EmptyState icon="cloud-offline-outline" title="Store unavailable" text={error} action={<Button style={{ marginTop: 8 }} onPress={() => void load()}>Try again</Button>}/></View>; if (loading || !vendor) return <View style={styles.page}><Header title="Store" back={back}/><Spinner label="Loading store…"/></View>; return <View style={styles.page}><Header title="Store" back={back}/><ScrollView contentContainerStyle={styles.detailScroll} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.primary}/>}><View style={{ height: 110, backgroundColor: colors.primary, overflow: 'hidden' }}>{vendor.logo_url && <Image contentFit="cover" transition={200} source={{ uri: vendor.logo_url }} style={{ width: '100%', height: '100%', opacity: 0.4 }} blurRadius={10} />}</View><View style={styles.storeInfo}><View style={{ flexDirection: 'row', alignItems: 'center', marginTop: -35, marginBottom: 10 }}><View style={{ width: 70, height: 70, borderRadius: 12, backgroundColor: '#fff', padding: 3, elevation: 4 }}>{vendor.logo_url ? <Image contentFit="cover" transition={200} source={{ uri: vendor.logo_url}} style={{width: '100%', height: '100%', borderRadius: 9}} /> : <Icon name="storefront" size={48} color={colors.primary}/>}</View></View><Text style={[styles.detailTitle, { color: colors.text }]}>{vendor.business_name}</Text><Text style={[styles.detailDescription, { color: colors.text2 }]}>{vendor.description || 'A verified local Sokoni Hub seller.'}</Text><View style={styles.storeMeta}><Icon name="location-outline" size={17} color={colors.muted}/><Text style={[styles.vendorMeta, { color: colors.text2 }]}>{vendor.city}, {vendor.country}</Text></View><SectionTitle title="Available listings"/>{listings.length ? listings.map((listing) => <ListingCard key={listing.id} listing={listing} onPress={() => go('listing', { id: listing.id })}/>) : <EmptyState title="No current listings" text="Check back soon for this seller's latest products and services."/>}</View></ScrollView></View>; }
+  const rating = Number(vendor.rating_count || 0) > 0 ? { avg: Number(vendor.rating_avg || 0), count: Number(vendor.rating_count) } : null;
+  const vip = promo.vip.has(vendor.id);
+  const chat = whatsappUrl(vendor.whatsapp, `Hi ${vendor.business_name}, I found your store on Sokoni Hub.`);
+  const city = [cleanCity(vendor.city), vendor.country].filter(Boolean).join(', ');
+  const terms: { icon: IconName; title: string; sub: string }[] = [];
+  if (vendor.offers_delivery !== false) {
+    const fee = Number(vendor.delivery_fee || 0);
+    const free = Number(vendor.free_delivery_over || 0);
+    terms.push({ icon: 'car', title: 'Delivery', sub: `${fee > 0 ? `${money(fee)} per order` : 'No delivery fee'}${free > 0 ? ` · free over ${money(free)}` : ''}` });
+  }
+  if (vendor.offers_pickup) terms.push({ icon: 'storefront', title: 'Pick up', sub: vendor.pickup_address || 'Collect from the seller' });
+  const reviews = store.data?.reviews ?? [];
 
+  return (
+    <Screen>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 56 }} refreshControl={<RefreshControl refreshing={store.isRefetching} onRefresh={() => void store.refetch()} tintColor={colors.primary} />}>
+        <LinearGradient colors={[colors.primary, colors.deep]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.cover}>
+          <View style={[s.circle, { right: -40, top: -50, width: 180, height: 180, backgroundColor: 'rgba(255,255,255,0.08)' }]} />
+          <View style={[s.circle, { left: -30, bottom: -60, width: 150, height: 150, backgroundColor: 'rgba(255,255,255,0.06)' }]} />
+          <View style={s.coverBar}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={back} style={s.round}><Icon name="arrow-back" size={21} color="#111827" /></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Share store" onPress={() => void Share.share({ message: `${vendor.business_name} on Sokoni Hub — ${WEB_URL}/store/${vendor.slug}` }).catch(() => {})} style={s.round}><Icon name="share" solid={false} size={20} color="#111827" /></Pressable>
+          </View>
+        </LinearGradient>
+
+        <View style={{ paddingHorizontal: 16 }}>
+          <View style={[s.logoWrap, { backgroundColor: colors.surface, borderColor: colors.bg }, softShadow(colors.shadow, 2)]}>
+            <Avatar name={vendor.business_name} uri={vendor.logo_url} size={80} square tone="mint" />
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
+            <Text style={{ fontSize: 27, fontWeight: '800', letterSpacing: -0.7, color: colors.text, flexShrink: 1 }}>{vendor.business_name}</Text>
+            <Icon name="check-badge" size={22} color={colors.success} />
+            {vip ? <Pill tone="orange" icon="diamond" small>VIP</Pill> : null}
+          </View>
+          <View style={s.metaRow}>
+            {rating ? <View style={s.meta}><Icon name="star" size={15} color={colors.orange} /><Text style={{ fontSize: 14.5, fontWeight: '800', color: colors.text }}>{rating.avg.toFixed(1)}</Text><Text style={{ fontSize: 14, color: colors.text2, fontWeight: '600' }}>({plural(rating.count, 'review')})</Text></View> : <Pill tone="mint" small>New seller</Pill>}
+            {city ? <View style={s.meta}><Icon name="location" solid={false} size={15} color={colors.text2} /><Text style={{ fontSize: 14, color: colors.text2, fontWeight: '600' }}>{city}</Text></View> : null}
+            <View style={s.meta}><Icon name="cube" solid={false} size={15} color={colors.text2} /><Text style={{ fontSize: 14, color: colors.text2, fontWeight: '600' }}>{plural(listings.length, 'listing')}</Text></View>
+          </View>
+          <Text style={{ fontSize: 15, lineHeight: 22, color: colors.text2, marginTop: 12 }}>{vendor.description || 'A verified local Sokoni Hub seller.'}</Text>
+
+          {chat ? <Button variant="mint" iconLeft="logo-whatsapp" style={{ marginTop: 16 }} onPress={() => void Linking.openURL(chat)}>Chat on WhatsApp</Button> : null}
+
+          {terms.length ? (
+            <Panel style={{ marginTop: 16, gap: 14 }}>
+              {terms.map((t) => (
+                <View key={t.title} style={{ flexDirection: 'row', alignItems: 'center', gap: 13 }}>
+                  <View style={[s.termIcon, { backgroundColor: colors.primarySoft }]}><Icon name={t.icon} solid={false} size={21} color={colors.primary} /></View>
+                  <View style={{ flex: 1 }}><Text style={{ fontSize: 15.5, fontWeight: '800', color: colors.text }}>{t.title}</Text><Text style={{ fontSize: 13.5, color: colors.text2, fontWeight: '500', marginTop: 1, lineHeight: 19 }}>{t.sub}</Text></View>
+                </View>
+              ))}
+              {vendor.delivery_notes ? <Text style={{ fontSize: 13, color: colors.text2, lineHeight: 19 }}>{vendor.delivery_notes}</Text> : null}
+            </Panel>
+          ) : null}
+        </View>
+
+        {products.length && services.length ? (
+          <View style={{ paddingHorizontal: 16, marginTop: 24 }}><SegTabs active={active} onChange={(k) => setTabKey(k as 'product' | 'service')} items={[{ key: 'product', label: 'Products', count: products.length }, { key: 'service', label: 'Services', count: services.length }]} /></View>
+        ) : <SectionHead title={services.length && !products.length ? 'Services' : 'Products'} />}
+
+        <View style={{ marginTop: 16 }}>
+          {!listings.length ? <EmptyState icon="basket-outline" title="Nothing listed yet" text="This seller has not added anything to their store yet." />
+            : active === 'product' ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 16 }}>{products.map((l) => <ProductCard key={l.id} listing={l} style={{ width: cardWidth }} onPress={() => go('listing', { id: l.id })} />)}</View>
+            ) : (
+              <View style={{ gap: 12, paddingHorizontal: 16 }}>{services.map((l) => <ServiceRow key={l.id} listing={{ ...l, business_name: l.business_name || vendor.business_name }} onPress={() => go('listing', { id: l.id })} />)}</View>
+            )}
+        </View>
+
+        {reviews.length ? (
+          <>
+            <SectionHead title="What buyers say" caption={rating ? `${rating.avg.toFixed(1)} average from ${plural(rating.count, 'review')}` : undefined} />
+            <View style={{ gap: 12, paddingHorizontal: 16 }}>
+              {reviews.slice(0, 4).map((r) => (
+                <Panel key={r.id} style={{ gap: 6 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <View style={{ flexDirection: 'row', gap: 2 }}>{[1, 2, 3, 4, 5].map((n) => <Icon key={n} name="star" size={15} color={n <= r.rating ? colors.orange : colors.border} />)}</View>
+                    <Text style={{ fontSize: 12.5, color: colors.muted, fontWeight: '600' }}>{shortDate(r.created_at)}</Text>
+                  </View>
+                  {r.title ? <Text style={{ fontSize: 15.5, fontWeight: '800', color: colors.text }}>{r.title}</Text> : null}
+                  {r.comment ? <Text style={{ fontSize: 14, lineHeight: 20, color: colors.text2 }}>{r.comment}</Text> : null}
+                  <Text style={{ fontSize: 12.5, color: colors.text2, fontWeight: '700' }}>{r.buyer_name || 'Sokoni Hub buyer'}{r.verified ? ' · Verified purchase' : ''}</Text>
+                </Panel>
+              ))}
+            </View>
+          </>
+        ) : null}
+      </ScrollView>
+    </Screen>
+  );
+}
+
+const s = StyleSheet.create({
+  cover: { height: 140, overflow: 'hidden', borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
+  circle: { position: 'absolute', borderRadius: 999 },
+  coverBar: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 14, paddingTop: 14 },
+  round: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.95)', alignItems: 'center', justifyContent: 'center' },
+  logoWrap: { width: 92, height: 92, borderRadius: 28, borderWidth: 4, alignItems: 'center', justifyContent: 'center', marginTop: -46 },
+  metaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 14, marginTop: 10 },
+  meta: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  termIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+});

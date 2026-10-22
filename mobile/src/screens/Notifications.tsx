@@ -1,112 +1,87 @@
-import { orderStatusLabel } from '../orderStatus';
-
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, BackHandler, FlatList, ImageBackground, KeyboardAvoidingView, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, useWindowDimensions, View, Platform } from 'react-native';
-import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { api, ApiError, query } from '../api';
-import { SUPPORT_EMAIL, SUPPORT_WHATSAPP, WEB_URL } from '../config';
-import { AuthProvider, CartProvider, ThemeProvider, useAuth, useCart, useTheme } from '../providers';
-import type { Booking, CartItem, Category, Listing, Order, Review, Vendor } from '../types';
-import { BrandMark, Button, Card, Chip, Divider, Dropdown, EmptyState, Field, FontContext, Header, IconButton, Money, Notice, Sheet, Spinner, Text, TextInput, type DropdownOption, type FontStatus } from '../ui';
-import { CityProvider, useCity } from '../city';
-import { categoryImage } from '../catImages';
-import { BottomBar } from '../ui';
-import { BookService } from '../booking';
-import { Checkout } from '../checkout';
-import { FavouritesProvider, useFavourites } from '../favourites';
-import { FeaturedStores, usePromotions, VipStores } from '../promotions';
-import { LegalScreen } from '../legal';
+/**
+ * Notifications. There is no separate inbox on the server, so updates are the buyer's own orders and
+ * bookings, newest first, each opening its tracking page. Reads the same cached lists as Orders and Bookings.
+ */
+import { useMemo } from 'react';
+import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { errorMessage, useMyBookings, useMyOrders } from '../data';
+import { dayTime, timeAgo } from '../format';
 import { Icon, type IconName } from '../icons';
-import { styles, nx, ex } from '../styles';
-import * as WebBrowser from 'expo-web-browser';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Image } from 'expo-image';
-import * as LocalAuthentication from 'expo-local-authentication';
-import * as SecureStore from 'expo-secure-store';
-import { tap, success } from '../haptics';
-
-export type Screen = 'welcome' | 'home' | 'browse' | 'cart' | 'account' | 'login' | 'register' | 'pin' | 'pinsetup' | 'forgot' | 'listing' | 'store' | 'checkout' | 'orders' | 'bookings' | 'track' | 'booking' | 'support' | 'saved' | 'notifications' | 'legal';
-export type Nav = { screen: Screen; params?: Record<string, any>; id?: number };
-
-const message = (error: any) => error instanceof ApiError ? error.message : error instanceof Error ? error.message : 'Something went wrong. Please try again.';
-const date = (value?: string | null) => value ? new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : 'To be arranged';
-const dateTime = (value?: string | null) => value ? new Date(value).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'To be arranged';
-const statusLabel = (value: string) => value.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
-
-export const ToastContext = createContext<{ show: (text: string, cartLink?: boolean) => void }>({ show: () => {} });
-export const useToast = () => useContext(ToastContext);
-
-import { Welcome } from './Welcome';
-import { Tabs } from './Tabs';
-import { Home } from './Home';
-import { TrustTile } from './TrustTile';
-import { SectionTitle } from './SectionTitle';
-import { ListingRail } from './ListingRail';
-import { ListingImage } from './ListingImage';
-import { ListingCard } from './ListingCard';
-import { Browse } from './Browse';
-import { Saved } from './Saved';
-import { AuthScaffold } from './AuthScaffold';
-import { Login } from './Login';
-import { Register } from './Register';
-import { Pin } from './Pin';
-import { Recovery } from './Recovery';
-import { ListingDetail } from './ListingDetail';
-import { DetailFact } from './DetailFact';
-import { StoreDetail } from './StoreDetail';
-import { Cart } from './Cart';
-import { Orders } from './Orders';
-import { Bookings } from './Bookings';
-import { Status } from './Status';
-import { Track } from './Track';
-import { Account } from './Account';
-import { AccountRow } from './AccountRow';
-import { Support } from './Support';
+import { AppBar, PageTitle, Panel, Screen, Tabs, bookingLook, orderLook, toneColors, type Tone } from '../kit';
+import type { NavProps } from '../nav';
+import { useAuth, useTheme } from '../providers';
+import { Button, EmptyState, Spinner, Text } from '../ui';
 import { GuestGate } from './GuestGate';
-import { WebOnlyAccount } from './WebOnlyAccount';export function Notifications({ go, back }: any) {
-  const { colors } = useTheme(); const { user } = useAuth();
-  type Note = { id: string; icon: IconName; title: string; text: string; at: string; onPress: () => void };
-  const [notes, setNotes] = useState<Note[]>([]); const [loading, setLoading] = useState(!!user); const [error, setError] = useState('');
-  
-  const load = useCallback(async () => {
-    if (!user) return; setLoading(true); setError('');
-    try {
-      const [orders, bookings] = await Promise.all([api.get<{ orders: Order[] }>('/orders/mine'), api.get<{ bookings: Booking[] }>('/bookings/mine')]);
-      const list: Note[] = [
-        ...orders.orders.map((o): Note => ({ id: `o-${o.id}`, icon: 'receipt-outline', title: `Order ${o.code}`, text: `${orderStatusLabel(o.status)} · ${o.business_name || o.vendor?.business_name || 'Seller'}`, at: o.created_at, onPress: () => go('track', { code: o.code, phone: user.phone }) })),
-        ...bookings.bookings.map((b): Note => ({ id: `b-${b.id}`, icon: 'calendar-outline', title: b.listing_title || `Booking ${b.code}`, text: `${statusLabel(b.status)} · ${dateTime(b.slot_starts_at || b.scheduled_at || b.preferred_at)}`, at: b.created_at, onPress: () => go('track', { bookingCode: b.code, phone: user.phone }) })),
-      ].sort((a, b) => +new Date(b.at) - +new Date(a.at));
-      setNotes(list);
-    } catch (e) { setError(message(e)); } finally { setLoading(false); }
-  }, [user, go]);
-  
-  useEffect(() => { void load(); }, [load]);
-  
+
+type Note = { id: string; icon: IconName; tone: Tone; title: string; text: string; at: string; open: () => void };
+
+export function Notifications({ go, back, tab }: NavProps) {
+  const { colors } = useTheme();
+  const { user } = useAuth();
+  const orders = useMyOrders();
+  const bookings = useMyBookings();
+
+  const notes = useMemo<Note[]>(() => {
+    const list: Note[] = [
+      ...(orders.data ?? []).map((o): Note => {
+        const look = orderLook(o.status, { pickup: o.fulfilment_mode === 'pickup', disputed: !!o.disputed_at });
+        return { id: `o-${o.id}`, icon: look.icon, tone: look.tone, title: `Order #${o.code}`, text: `${look.label} · ${o.business_name || 'Seller'}`, at: o.updated_at || o.created_at, open: () => go('track', { code: o.code, phone: o.contact_phone }) };
+      }),
+      ...(bookings.data ?? []).map((b): Note => {
+        const look = bookingLook(b.status);
+        const when = b.slot_starts_at || b.scheduled_at || b.preferred_at;
+        return { id: `b-${b.id}`, icon: 'calendar', tone: look.tone, title: b.listing_title || `Booking #${b.code}`, text: `${look.label}${when ? ` · ${dayTime(when)}` : ''}`, at: b.created_at, open: () => go('track', { bookingCode: b.code, phone: user?.phone }) };
+      }),
+    ];
+    return list.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+  }, [orders.data, bookings.data, go, user?.phone]);
+
   if (!user) return <GuestGate heading="Notifications" title="Sign in for updates" text="Order and booking updates appear here once you have a buyer account." go={go} back={back} />;
-  
-  return <View style={styles.page}>
-    <Header title="Notifications" back={back} />
-    {loading ? <Spinner label="Checking for updates…" /> : error ? <EmptyState icon="cloud-offline-outline" title="Could not load updates" text={error} action={<Button style={{ marginTop: 8 }} onPress={() => void load()}>Try again</Button>} /> :
-      <FlatList data={notes} keyExtractor={(n) => n.id} contentContainerStyle={{ padding: 16, paddingBottom: 40 }} refreshControl={<RefreshControl refreshing={false} onRefresh={() => void load()} tintColor={colors.primary} />}
-        renderItem={({ item }) => (
-          <Pressable accessibilityRole="button" onPress={item.onPress} style={({pressed}) => ({ opacity: pressed ? 0.8 : 1 })}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, marginBottom: 12, backgroundColor: colors.surface, borderRadius: 16, elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 5 }}>
-              <View style={{ width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primarySoft }}>
-                <Icon name={item.icon} size={22} color={colors.primary} />
+  const loading = orders.isLoading || bookings.isLoading;
+  const error = orders.error || bookings.error;
+  const refresh = () => { void orders.refetch(); void bookings.refetch(); };
+
+  return (
+    <Screen>
+      <AppBar go={go} tab={tab} />
+      {loading ? (
+        <View style={{ flex: 1 }}><PageTitle title="Notifications" back={back} /><Spinner label="Checking for updates…" /></View>
+      ) : (
+        <FlatList
+          data={notes} keyExtractor={(n) => n.id} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 56 }} ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+          ListHeaderComponent={<View style={{ marginBottom: 16 }}><PageTitle title="Notifications" back={back} subtitle={notes.length ? 'The latest on your orders and bookings.' : undefined} /></View>}
+          refreshControl={<RefreshControl refreshing={orders.isRefetching || bookings.isRefetching} onRefresh={refresh} tintColor={colors.primary} />}
+          renderItem={({ item }) => {
+            const tone = toneColors(colors, item.tone);
+            return (
+              <View style={{ paddingHorizontal: 16 }}>
+                <Panel onPress={item.open} label={`${item.title}. ${item.text}`} style={s.row}>
+                  <View style={[s.icon, { backgroundColor: tone.bg }]}><Icon name={item.icon} solid={false} size={22} color={tone.fg} /></View>
+                  <View style={{ flex: 1 }}>
+                    <Text numberOfLines={1} style={{ fontSize: 15.5, fontWeight: '800', color: colors.text }}>{item.title}</Text>
+                    <Text numberOfLines={2} style={{ fontSize: 13.5, lineHeight: 19, color: colors.text2, marginTop: 2, fontWeight: '500' }}>{item.text}</Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end', gap: 6 }}>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: colors.muted }}>{timeAgo(item.at)}</Text>
+                    <Icon name="chevron-forward" size={16} color={colors.muted} />
+                  </View>
+                </Panel>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 15, fontWeight: '800', color: colors.text, marginBottom: 4 }}>{item.title}</Text>
-                <Text style={{ fontSize: 13, color: colors.text2, lineHeight: 18 }}>{item.text}</Text>
-              </View>
-              <Text style={{ fontSize: 12, color: colors.muted, alignSelf: 'flex-start' }}>{date(item.at)}</Text>
-            </View>
-          </Pressable>
-        )}
-        ListEmptyComponent={<EmptyState icon="notifications-outline" title="You're all caught up" text="When you order or book, every status change will show up here." />} />}
-  </View>;
+            );
+          }}
+          ListEmptyComponent={error ? (
+            <EmptyState icon="cloud-offline-outline" title="Could not load updates" text={errorMessage(error)} action={<Button style={{ marginTop: 8 }} onPress={refresh}>Try again</Button>} />
+          ) : (
+            <EmptyState icon="notifications-outline" title="You're all caught up" text="When you order or book, every status change will show up here." action={<Button style={{ marginTop: 10 }} onPress={() => tab('browse')}>Explore the market</Button>} />
+          )}
+        />
+      )}
+      <Tabs active="none" tab={tab} />
+    </Screen>
+  );
 }
 
-
-
-
+const s = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14 },
+  icon: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+});
