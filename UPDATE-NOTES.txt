@@ -1,0 +1,25 @@
+SOKONI DRIVER — COLOUR + ALERT SOUND UPDATE
+
+ANDROID PREVIEW
+1. Extract this bundle.
+2. In the driver folder run: npm ci
+3. Start an Android emulator, then run: npm run android
+   You can also open driver/android in Android Studio and press Run.
+4. Rebuild the native app before testing; the new sound is a native resource.
+
+REQUIRED FOR REAL BACKGROUND JOB ALERTS
+Copy the included api/src/push.ts over the same file in your existing API,
+then build/restart the API. This only changes the driver job-alert channel and
+sound. Buyer and vendor notification behaviour is unchanged.
+
+TEST THE SOUND
+Use the bell on Home, or Settings > Delivery alerts > Test alert sound.
+A clearly labelled local test notification arrives after 2 seconds.
+Allow notification permission and check the device notification volume.
+Android's Delivery job alerts channel must not be silent or blocked.
+
+VALIDATION COMPLETED
+- Driver TypeScript
+- Expo Android bundle
+- Expo web bundle
+- API TypeScript build

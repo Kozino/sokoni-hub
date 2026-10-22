@@ -14,6 +14,8 @@ export interface PushMessage {
   data?: Record<string, unknown>;
   /** Android notification channel on the device. Must match the driver app's channel id. */
   channelId?: string;
+  /** Bundled sound filename, or 'default'. Driver jobs use delivery_alert.wav. */
+  sound?: string;
 }
 
 export async function sendPushToUsers(userIds: Array<string | null | undefined>, msg: PushMessage): Promise<void> {
@@ -31,7 +33,7 @@ export async function sendPushToUsers(userIds: Array<string | null | undefined>,
         title: msg.title,
         body: msg.body,
         data: msg.data ?? {},
-        sound: 'default',
+        sound: msg.sound ?? 'default',
         channelId: msg.channelId,
         priority: 'high',
       }));
@@ -57,7 +59,7 @@ export async function notifyOnlineDrivers(msg: PushMessage): Promise<void> {
   const rows = await query<{ user_id: string }>(
     `select user_id from drivers where status = 'approved' and is_online = true`,
   );
-  await sendPushToUsers(rows.map((r) => r.user_id), { ...msg, channelId: 'delivery-jobs' });
+  await sendPushToUsers(rows.map((r) => r.user_id), { ...msg, channelId: 'delivery-jobs-v2', sound: 'delivery_alert.wav' });
 }
 
 /** The vendor's owner account, for a given order. Uses the vendor alert channel (sound on the vendor app). */
