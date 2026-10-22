@@ -1,17 +1,18 @@
 
 import { styles, nx, ex } from './src/styles';
 import { OfflineBar } from './src/ui';
-import { ToastContext } from './src/screens/Welcome';
+import { ToastContext } from './src/toast';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from 'react-error-boundary';
 import { usePushNotifications } from './src/usePushNotifications';
 import { Platform } from 'react-native';
-import { NavigationContainer, useNavigation } from '@react-navigation/native';
+import { createNavigationContainerRef, DarkTheme, DefaultTheme, NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 const Stack = createNativeStackNavigator();
 
 const queryClient = new QueryClient();
+const navigationRef = createNavigationContainerRef<any>();
 
 function AppRouter({ seenWelcome, finishWelcome }: any) {
   const navigation = useNavigation<any>();
@@ -32,6 +33,7 @@ function AppRouter({ seenWelcome, finishWelcome }: any) {
         <Stack.Screen name="welcome">{(props) => <Welcome onDone={(screen) => { finishWelcome(); if (screen && screen !== 'welcome') { navigation.reset({ index: 0, routes: [{ name: screen }] }); } else { navigation.reset({ index: 0, routes: [{ name: 'home' }] }); } }} />}</Stack.Screen>
         <Stack.Screen name="home">{(props) => <Home {...common} />}</Stack.Screen>
         <Stack.Screen name="browse">{(props) => <Browse {...common} initial={props.route.params} />}</Stack.Screen>
+        <Stack.Screen name="services">{(props) => <Services {...common} initial={props.route.params} />}</Stack.Screen>
         <Stack.Screen name="cart">{(props) => <Cart {...common} />}</Stack.Screen>
         <Stack.Screen name="account">{(props) => <Account {...common} />}</Stack.Screen>
         <Stack.Screen name="login">{(props) => <Login {...common} />}</Stack.Screen>
@@ -39,7 +41,7 @@ function AppRouter({ seenWelcome, finishWelcome }: any) {
         <Stack.Screen name="pin">{(props) => <Pin {...common} setup={false} />}</Stack.Screen>
         <Stack.Screen name="pinsetup">{(props) => <Pin {...common} setup />}</Stack.Screen>
         <Stack.Screen name="forgot">{(props) => <Recovery {...common} params={props.route.params} />}</Stack.Screen>
-        <Stack.Screen name="listing">{(props) => <ListingDetail {...common} id={(props.route.params as any)?.id} />}</Stack.Screen>
+        <Stack.Screen name="listing">{(props) => <ListingDetail {...common} id={(props.route.params as any)?.id} writeReview={!!(props.route.params as any)?.writeReview} />}</Stack.Screen>
         <Stack.Screen name="store">{(props) => <StoreDetail {...common} slug={(props.route.params as any)?.slug} />}</Stack.Screen>
         <Stack.Screen name="checkout">{(props) => <Checkout {...common} />}</Stack.Screen>
         <Stack.Screen name="orders">{(props) => <Orders {...common} />}</Stack.Screen>
@@ -69,6 +71,7 @@ function ErrorFallback({ error }: any) {
 import { Welcome } from './src/screens/Welcome';
 import { Tabs } from './src/screens/Tabs';
 import { Home } from './src/screens/Home';
+import { Services } from './src/screens/Services';
 import { TrustTile } from './src/screens/TrustTile';
 import { SectionTitle } from './src/screens/SectionTitle';
 import { ListingRail } from './src/screens/ListingRail';
@@ -121,7 +124,7 @@ import { FeaturedStores, usePromotions, VipStores } from './src/promotions';
 import { LegalScreen } from './src/legal';
 
 const WELCOME_KEY = 'sokoni_mobile_welcome_complete';
-type Screen = 'welcome' | 'home' | 'browse' | 'cart' | 'account' | 'login' | 'register' | 'pin' | 'pinsetup' | 'forgot' | 'listing' | 'store' | 'checkout' | 'orders' | 'bookings' | 'track' | 'booking' | 'support' | 'saved' | 'notifications' | 'legal';
+type Screen = 'welcome' | 'home' | 'browse' | 'services' | 'cart' | 'account' | 'login' | 'register' | 'pin' | 'pinsetup' | 'forgot' | 'listing' | 'store' | 'checkout' | 'orders' | 'bookings' | 'track' | 'booking' | 'support' | 'saved' | 'notifications' | 'legal';
 type Nav = { screen: Screen; params?: Record<string, any>; id?: number };
 const message = (error: unknown) => error instanceof ApiError ? error.message : error instanceof Error ? error.message : 'Something went wrong. Please try again.';
 const date = (value?: string | null) => value ? new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : 'To be arranged';
@@ -154,20 +157,31 @@ export function Marketplace() {
   const [toast, setToast] = useState<{ text: string; cart: boolean; id: number } | null>(null);
   const showToast = useCallback((text: string, cart = false) => setToast({ text, cart, id: ++counter.current }), []);
   const toastApi = useMemo(() => ({ show: showToast }), [showToast]);
-  useEffect(() => { if (!toast) return undefined; const t = setTimeout(() => setToast(null), 2800); return () => clearTimeout(t); }, [toast]);
+  useEffect(() => { if (!toast) return undefined; const t = setTimeout(() => setToast(null), toast.cart ? 3800 : 2600); return () => clearTimeout(t); }, [toast]);
   useEffect(() => { AsyncStorage.getItem(WELCOME_KEY).then((value) => { setSeenWelcome(value === 'yes'); setWelcomeLoaded(true); }).catch(() => setWelcomeLoaded(true)); }, []);
   useEffect(() => { if (welcomeLoaded && !auth.loading && fonts !== 'loading') void SplashScreen.hideAsync().catch(() => {}); }, [welcomeLoaded, auth.loading, fonts]);
   useEffect(() => { const t = setTimeout(() => { void SplashScreen.hideAsync().catch(() => {}); }, 8000); return () => clearTimeout(t); }, []);
   
+  // Every screen sits on the app's own page colour (the navigator default is a flat grey, and wrong in dark mode).
+  const navTheme = useMemo(() => {
+    const base = theme === 'dark' ? DarkTheme : DefaultTheme;
+    return { ...base, colors: { ...base.colors, background: colors.bg, card: colors.surface, text: colors.text, border: colors.border, primary: colors.primary } };
+  }, [theme, colors]);
   const finishWelcome = useCallback(async () => { await AsyncStorage.setItem(WELCOME_KEY, 'yes'); setSeenWelcome(true); }, []);
 
   if (!welcomeLoaded || auth.loading) return <SafeAreaView edges={['top']} style={[styles.app, { backgroundColor: colors.bg }]}><Spinner label="Preparing Sokoni Hub…" /></SafeAreaView>;
 
   return <ToastContext.Provider value={toastApi}><SafeAreaView edges={['top']} style={[styles.app, { backgroundColor: colors.bg }]}><StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef} theme={navTheme}>
       {auth.user && auth.user.role !== 'buyer' ? <WebOnlyAccount onSignOut={auth.logout} /> : <AppRouter seenWelcome={seenWelcome} finishWelcome={finishWelcome} />}
     </NavigationContainer>
-    {toast ? <View pointerEvents="box-none" style={[nx.toastWrap, { bottom: 62 + insets.bottom + 10 }]}><View style={nx.toast}><Icon name="checkmark-circle" size={18} color="#7CE0BB" /><Text style={nx.toastText}>{toast.text}</Text></View></View> : null}
+    {toast ? <View pointerEvents="box-none" style={{ position: 'absolute', left: 16, right: 16, bottom: 64 + Math.max(insets.bottom, 6) + 22, alignItems: 'center', zIndex: 60 }}>
+      <View accessibilityLiveRegion="polite" style={{ flexDirection: 'row', alignItems: 'center', gap: 10, maxWidth: 560, paddingLeft: 16, paddingRight: toast.cart ? 8 : 18, minHeight: 50, borderRadius: 25, backgroundColor: colors.deep, shadowColor: '#000', shadowOpacity: 0.28, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 14 }}>
+        <Icon name="checkmark-circle" size={20} color="#7CE0BB" />
+        <Text numberOfLines={2} style={{ flexShrink: 1, color: colors.onDeep, fontSize: 14, fontWeight: '700', paddingVertical: 12 }}>{toast.text}</Text>
+        {toast.cart ? <Pressable accessibilityRole="button" accessibilityLabel="View cart" onPress={() => { setToast(null); navigationRef.isReady() && navigationRef.reset({ index: 0, routes: [{ name: 'cart' }] }); }} style={{ backgroundColor: colors.orange, borderRadius: 18, paddingHorizontal: 14, height: 36, justifyContent: 'center' }}><Text style={{ color: colors.onOrange, fontSize: 13.5, fontWeight: '800' }}>View cart</Text></Pressable> : null}
+      </View>
+    </View> : null}
   </SafeAreaView></ToastContext.Provider>;
 }
 

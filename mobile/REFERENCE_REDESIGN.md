@@ -22,3 +22,47 @@ The screen language is inspired by the references, but the app deliberately does
 - buyer account, secure session storage, password/PIN recovery, theme and support.
 
 The existing platform does not currently provide a wallet, OTP by WhatsApp/SMS, biometric login, promo-code engine, buyer-seller escrow, instant WhatsApp checkout, merchant selling controls or automatic dispatch estimates. Those are therefore not represented as working promises in the redesigned app. They should only be added after matching backend schemas, payment/communications integrations and security design have been approved.
+
+## Sokoni Hub 2 revision (eight reference screens)
+
+A second set of eight references is now the visual direction: Explore, Services, My Cart, My Orders, Track Order, My Bookings, Saved Items and Profile. The pages that were not drawn (listing, store, checkout, booking form, notifications, help, legal, welcome) reuse the same layout language. The rule above still applies: take the layout from the reference, take every value from the API, and leave out anything the platform cannot back up.
+
+### Reference element and where its real value comes from
+
+| Reference element | Source in the app |
+| --- | --- |
+| Explore search, filters, city, sort, grid and list views | `useMarket` calls `GET /listings` (q, kind, category, city, min, max, sort, paging). Cities come from `GET /listings/cities`. |
+| Shop by category tiles and category pills | `GET /meta/categories`, limited to categories that have listings. |
+| VIP and Featured stores, labelled Sponsored | `GET /promotions`. Impressions and clicks go to `/promotions/track`. |
+| "Sell on Sokoni Hub" seller count, quality guarantee banner | `GET /meta/stats`. |
+| Services spotlight, rows, "Book Now" | `GET /listings?kind=service`. Seller logos come from `GET /vendors`. |
+| Product and service ratings | The listing's own rating when it has reviews, otherwise its seller's rating (`ratingOf` in `src/format.ts`). Hidden when nobody has rated. |
+| Cart free-delivery progress | The seller's `free_delivery_over` from `POST /orders/quote`. |
+| Delivery or pick-up choice and fees | The quote's per-seller `delivery_fee`, `offers_pickup` and `offers_delivery`. |
+| Orders: status, items, totals, actions | `GET /orders/mine`, with `GET /orders/track` for the details sheet. |
+| Track: rider position and distance | The driver and destination coordinates returned by `GET /orders/track`. |
+| Bookings: date, duration, price, address | `GET /bookings/mine` and `GET /bookings/track`. |
+| Saved: current price and availability | Local favourites refreshed from `GET /listings` pages. |
+| Profile: name, phone, member since, counts | `GET /auth/me`, plus the orders and bookings lists. |
+
+### Reference elements that are intentionally not shown
+
+The platform has no data or endpoint behind these, so the app does not draw them:
+
+- promo-code field and discount line;
+- escrow or "buyer protection" claims;
+- Standard versus Express delivery (the app offers Delivery or Pick up, priced by each seller);
+- delivery PIN (the order code is shown and can be shared instead);
+- delivery ETA in minutes (the app shows the rider's live distance);
+- driver photo and rating;
+- price-drop alerts banner;
+- Currency and Language rows (the app is QAR only);
+- "Diaspora Member" and "Sokoni Club" labels.
+
+Add any of these only after the matching backend fields, payment or communications integration and security review exist.
+
+### Behaviour notes
+
+- "Top rated" sorting runs on the phone over up to 60 results, because `GET /listings` cannot sort by rating.
+- Reschedule hands the request to the seller on WhatsApp, because the API has no buyer-side reschedule endpoint (buyers can create, track and cancel bookings).
+- Push notifications use the existing registration code and were not re-tested in this revision.

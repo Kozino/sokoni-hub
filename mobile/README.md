@@ -102,3 +102,56 @@ Never add those values to this app, GitHub source, or an `EXPO_PUBLIC_*` variabl
 - Also: saved items (heart), a notifications screen built from order/booking status, sign-in returns you to where you were.
 
 No API or database change is required.
+
+## Sokoni Hub 2 interface (design system)
+
+The buyer app was restyled to the "Sokoni Hub 2" reference designs: lavender canvas, emerald headers, orange action colour, white rounded cards, a raised orange Services button in the bottom bar, and a dark theme that follows the same palette. **Only the presentation layer changed.** The API, database, cart and checkout payloads, authentication and navigation model are the ones described above. Every name, price, image, rating, date and status on screen is read from the API. When the API has no value for something, that row is hidden rather than filled with placeholder content.
+
+### Where things live
+
+| File | Purpose |
+| --- | --- |
+| `src/providers.tsx` | Light and dark colour palette (`primary`, `deep`, `orange`, `brown`, `lav2`, `onPrimary`, ...), theme, cart and auth providers. Change colours here only. |
+| `src/kit.tsx` | Layout building blocks: `AppBar`, `Tabs`, `PageTitle`, `SubBar`, `SearchBar`, `PillRow`, `SegTabs`, `Pill` / `StatusPill` (`orderLook` and `bookingLook` turn API statuses into a label, icon and colour), `RatingChip`, `Price`, `QtyStepper`, `SortPill`, `ViewToggle`, `ModeCard`, `SectionHead`, `TrustBanner`, `InfoLine`, `Skeleton`, `Panel`, `Thumb`, `Avatar`, and `Screen` (centres the app in a 640 px column on wide displays). |
+| `src/cards.tsx` | `ProductCard`, `ProductRow`, `ServiceRow`, `ServiceSpotlight`, `CategoryTile`, `SellCard`, `VendorChip`, `HeartButton`, `useQuickAdd`. |
+| `src/data.ts` | React Query hooks for server data: `useCategories`, `useActiveCategories`, `useStats`, `useCityList`, `useVendorDirectory`, `usePromoSet`, `useMyOrders`, `useMyBookings`, `useOrderDetail`, `useBookingDetail`, `useCartQuote`, and `useMarket` (paged, debounced search with filters and sorting). It also remembers listing thumbnails so order lists can show product pictures. |
+| `src/format.ts` | Qatar-time (UTC+3) dates and times, QAR formatting, phone and WhatsApp helpers, distance labels, `ratingOf`. |
+| `src/checkoutDraft.ts` | Remembers the buyer's last delivery mode, address, map pin and note. |
+| `src/toast.ts`, `src/nav.ts` | The one shared toast context, and the shared navigation prop types. |
+| `src/screens/*.tsx` | One file per screen (see below). |
+| `assets/logo-mark.png` | The bag symbol cropped from `logo.png`, used in the app bar, sign-in and welcome screens. |
+
+### Screens
+
+Explore, Categories, Services, Cart, Checkout, Orders, Track, Bookings, Book a service, Saved, Profile, Listing, Store, Notifications, Help and support, Terms and privacy, Welcome, and the sign-in, registration, PIN and recovery screens (restyled with the same primitives). The Track screen draws the rider on a live map on iOS and Android (`TrackMap.tsx`); the web build shows a simple placeholder with the coordinates (`TrackMap.web.tsx`).
+
+### Conventions for new screens
+
+1. Wrap the screen in `Screen`. Screens reached from the tab bar put `AppBar` at the top and `Tabs` at the bottom, and sub-pages add a `PageTitle` (title, subtitle and back arrow). Immersive pages (Listing, Store, Help and support) draw their own header.
+2. Fetch data with a hook from `src/data.ts` (add one there if needed). Do not copy sample data into a screen.
+3. Take colours from `useTheme().colors` so dark mode works. Avoid hex literals for text and surfaces.
+4. Read optional API fields defensively and hide the row when empty (see `cleanCity`, `ratingOf`, `durationLabel` in `src/format.ts`).
+5. Show toasts with `useToast()` from `src/toast.ts`. Do not create another `ToastContext`.
+
+### Checks
+
+```bash
+cd mobile
+npx tsc --noEmit                       # must stay clean
+CI=1 npx expo export --platform web    # smoke-test the bundle without a device
+```
+
+## Mobile QA pass 2 (interface refresh)
+
+Fixes made while moving the app to the new interface. No API or database change is required.
+
+- **Toasts now appear.** Each screen file had its own private `ToastContext`, so "added to cart" messages never reached the provider. There is now one shared `src/toast.ts`, and the cart toast carries a "View cart" action.
+- **Products with sizes can be ordered.** Quote and checkout requests did not send the chosen `option`, which the API rejects for products that have options. It is sent now, and cart lines are keyed by `listing_id::option`, so two sizes of one product stay separate. The quick "+" on a card opens the listing instead when a size must be chosen.
+- **Track an order in one step.** Opening Track from Orders loads the order straight away, using the order's own `contact_phone`, instead of asking for a manual "Track status" tap.
+- **Cleaner filters.** Any category whose name contains "(BANNED)" is hidden, and categories with no listings are hidden while the whole catalogue fits in one page (60 listings). Cities that differ only by trailing spaces ("Doha" and "Doha ") are merged, and the city filter matches them all.
+- **Consistent backgrounds.** The navigator now uses the app palette, which removes the grey background on older screens and fixes dark mode.
+- **Brand mark.** The sign-in and header logos showed a cropped wordmark; they now use the symbol.
+- **Support and legal links.** "Customer website" opened vendor legal text; it now opens the website. Terms, Privacy and Customer policy open the matching pages.
+- **Listing page.** The "More to explore" rail was blank. The page now has the gallery with dots, size options, quantity, seller and related rails, a review summary with eligibility-aware "write a review", and WhatsApp contact.
+- **Saved items stay current.** Saved listings are refreshed against the live catalogue, and listings that were removed are flagged.
+- **Orders and bookings have real actions.** Reorder, Review, Details with a shareable receipt, Add to calendar, Cancel, and Reschedule through WhatsApp.
