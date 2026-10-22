@@ -23,7 +23,7 @@ export function Card({ children, style, padded = true }: { children: ReactNode; 
 }
 
 export function Pill({ label, tone = 'slate', icon }: { label: string; tone?: Tone; icon?: IconName }) {
-  const t = TONES[tone];
+  const t = TONES[tone] ?? TONES.slate;
   return (
     <View style={[styles.pill, { backgroundColor: t.bg }]} accessibilityLabel={label}>
       {icon ? <Icon name={icon} size={13} color={t.fg} solid /> : null}
@@ -151,7 +151,7 @@ export function StatRow({ children, style }: { children: ReactNode; style?: View
 
 /** Small stat tile: label, big figure, and a short line underneath. */
 export function StatTile({ label, value, sub, tone = 'brand', icon }: { label: string; value: string; sub?: string; tone?: Tone; icon?: IconName }) {
-  const t = TONES[tone];
+  const t = TONES[tone] ?? TONES.slate;
   return (
     <View style={[styles.stat, { backgroundColor: t.bg, borderColor: 'transparent' }]} accessibilityLabel={`${label} ${value}${sub ? `, ${sub}` : ''}`}>
       <View style={styles.statTop}>
@@ -203,7 +203,7 @@ export function Row({
   onPress?: () => void;
   danger?: boolean;
 }) {
-  const t = TONES[tone];
+  const t = TONES[tone] ?? TONES.slate;
   const body = (
     <View style={styles.row}>
       <View style={[styles.iconTile, { backgroundColor: t.bg }]}>
@@ -363,7 +363,7 @@ const styles = StyleSheet.create({
   pageActionRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingBottom: 9 },
   pageTitle: { fontSize: 25, ...fw('800'), color: C.text, letterSpacing: -0.6 },
   pageSub: { fontSize: 12, color: C.muted, marginTop: 3, lineHeight: 20 },
-  stat: { flex: 1, minWidth: 0, backgroundColor: C.surface, borderRadius: 14, borderWidth: 1, borderColor: C.border, padding: 9, gap: 3, minHeight: 88 },
+  stat: { alignSelf: 'stretch', minWidth: 0, backgroundColor: C.surface, borderRadius: 14, borderWidth: 1, borderColor: C.border, padding: 9, gap: 3, minHeight: 88 },
   statRow: { flexDirection: 'row', alignItems: 'stretch', flexShrink: 0, gap: 6, paddingHorizontal: 12, paddingTop: 2 },
   statCell: { flex: 1, flexBasis: 0, minWidth: 0, flexShrink: 0 },
   statTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 3 },

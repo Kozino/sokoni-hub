@@ -93,8 +93,8 @@ export function WalletCard({ wallet, error, onWithdraw }: { wallet: Wallet | nul
           </View>
         </View>
       ) : null}
-      <Pressable accessibilityRole="button" accessibilityLabel="Withdraw on the website" onPress={onWithdraw} style={({ pressed }) => [styles.withdraw, { opacity: pressed ? 0.85 : 1 }]}>
-        <Text style={styles.withdrawText}>Withdraw on the website</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel="Withdraw to your bank" onPress={onWithdraw} style={({ pressed }) => [styles.withdraw, { opacity: pressed ? 0.85 : 1 }]}>
+        <Text style={styles.withdrawText}>Withdraw to bank</Text>
         <Icon name="arrow-up-right" size={15} color="#005A48" />
       </Pressable>
     </LinearGradient>
@@ -134,8 +134,10 @@ export function AccountPages({
   walletError,
   transactions,
   transactionsError,
+  onWithdraw,
 }: {
   page: 'store' | 'services' | 'earnings';
+  onWithdraw: () => void;
   onBack: () => void;
   vendor: Vendor | null;
   wallet: Wallet | null;
@@ -150,7 +152,7 @@ export function AccountPages({
       {page === 'store' ? <StoreDetails vendor={vendor} /> : null}
       {page === 'services' ? <Catalogue /> : null}
       {page === 'earnings' ? (
-        <Earnings wallet={wallet} walletError={walletError} transactions={transactions} transactionsError={transactionsError} />
+        <Earnings wallet={wallet} walletError={walletError} transactions={transactions} transactionsError={transactionsError} onWithdraw={onWithdraw} />
       ) : null}
     </View>
   );
@@ -237,7 +239,9 @@ function Earnings({
   walletError,
   transactions,
   transactionsError,
+  onWithdraw,
 }: {
+  onWithdraw: () => void;
   wallet: Wallet | null;
   walletError: string;
   transactions: Transaction[] | null;
@@ -245,7 +249,7 @@ function Earnings({
 }) {
   return (
     <ScrollView contentContainerStyle={styles.body}>
-      <WalletCard wallet={wallet} error={walletError} onWithdraw={() => Linking.openURL(WEB_URL)} />
+      <WalletCard wallet={wallet} error={walletError} onWithdraw={onWithdraw} />
       <Text style={styles.sectionLabel}>All transactions</Text>
       {transactionsError ? <Banner tone="error">{transactionsError}</Banner> : null}
       {!transactions && !transactionsError ? <ActivityIndicator color={C.primary} /> : null}

@@ -119,40 +119,48 @@ export function Bookings() {
         }
       />
 
-      <View style={styles.pulse}>
-        <View style={styles.pulseHead}>
-          <Text style={styles.pulseTitle}>APPOINTMENT PULSE</Text>
-          <Text style={styles.pulseHint}>Refreshes every 30 s</Text>
-        </View>
-        <StatRow style={{ paddingHorizontal: 0, paddingTop: 0 }}>
-          <StatTile label="Today" value={String(pulse.todayCount)} sub={pulse.todayCount === 1 ? '1 appointment' : `${pulse.todayCount} appointments`} tone="brand" />
-          <StatTile label="Next 7 days" value={String(pulse.nextWeek)} sub="booked" tone="violet" />
-          <StatTile label="Waiting" value={String(pulse.waiting)} sub={pulse.waiting ? 'to reply' : 'all replied'} tone="amber" />
-        </StatRow>
-      </View>
-
-      <Chips items={BOOKING_FILTERS.map((f) => ({ key: f.key, label: f.label, count: counts[f.key] || undefined }))} value={filter} onChange={(k) => setFilter(k)} />
-
-      {error ? (
-        <View style={styles.pad}>
-          <Banner tone="error">{error}</Banner>
-        </View>
-      ) : null}
-
-      {loading ? (
-        <ActivityIndicator color={C.primary} style={{ marginTop: 40 }} />
-      ) : (
-        <ScrollView style={styles.frame} contentContainerStyle={[styles.list, wide && styles.listWide]} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={C.primary} />}>
-          {visible.length === 0 ? (
-            <EmptyState icon="calendar-days" title={filter === 'new' ? 'No new bookings' : 'No bookings here'} body="Booking requests appear here and ring on your phone." />
-          ) : null}
-          {visible.map((b) => (
-            <View key={b.id} style={{ width: wide ? '49%' : '100%' }}>
-              <BookingCard booking={b} busy={busyId === b.id} onOpen={() => setSelected(b)} onStep={(status) => runStep(b, status)} />
+      <ScrollView
+        style={styles.frame}
+        contentContainerStyle={[styles.list, wide && styles.listWide]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={C.primary} />}
+      >
+        {/* Pulse, filters and errors sit inside the same scroll view as the cards, so nothing can overlap them. */}
+        <View style={[styles.fullWidth, wide && styles.fullWide]}>
+          <View style={styles.pulse}>
+            <View style={styles.pulseHead}>
+              <Text style={styles.pulseTitle}>APPOINTMENT PULSE</Text>
+              <Text style={styles.pulseHint}>Refreshes every 30 s</Text>
             </View>
-          ))}
-        </ScrollView>
-      )}
+            <StatRow style={{ paddingHorizontal: 0, paddingTop: 0 }}>
+              <StatTile label="Today" value={String(pulse.todayCount)} sub={pulse.todayCount === 1 ? '1 appointment' : `${pulse.todayCount} appointments`} tone="brand" />
+              <StatTile label="Next 7 days" value={String(pulse.nextWeek)} sub="booked" tone="violet" />
+              <StatTile label="Waiting" value={String(pulse.waiting)} sub={pulse.waiting ? 'to reply' : 'all replied'} tone="amber" />
+            </StatRow>
+          </View>
+
+          <Chips items={BOOKING_FILTERS.map((f) => ({ key: f.key, label: f.label, count: counts[f.key] || undefined }))} value={filter} onChange={(k) => setFilter(k)} />
+
+          {error ? (
+            <View style={styles.pad}>
+              <Banner tone="error">{error}</Banner>
+            </View>
+          ) : null}
+        </View>
+
+        {loading ? <ActivityIndicator color={C.primary} style={{ marginTop: 40 }} /> : null}
+
+        {!loading && visible.length === 0 ? (
+          <EmptyState icon="calendar-days" title={filter === 'new' ? 'No new bookings' : 'No bookings here'} body="Booking requests appear here and ring on your phone." />
+        ) : null}
+
+        {!loading
+          ? visible.map((b) => (
+              <View key={b.id} style={{ width: wide ? '49%' : '100%' }}>
+                <BookingCard booking={b} busy={busyId === b.id} onOpen={() => setSelected(b)} onStep={(status) => runStep(b, status)} />
+              </View>
+            ))
+          : null}
+      </ScrollView>
 
       <BookingSheet
         booking={selected}
@@ -402,6 +410,8 @@ const styles = StyleSheet.create({
   listWide: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start' },
   pad: { paddingHorizontal: 12, paddingTop: 6 },
   list: { paddingHorizontal: 12, paddingTop: 6, paddingBottom: 24, gap: 9 },
+  fullWidth: { marginHorizontal: -12 },
+  fullWide: { width: '100%', marginHorizontal: 0 },
   calendarBtn: { height: 34, paddingHorizontal: 9, borderRadius: 11, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface, flexDirection: 'row', alignItems: 'center', gap: 4 },
   calendarText: { fontSize: 11, ...fw('800'), color: C.primaryDeep },
   pulse: { flexShrink: 0, marginHorizontal: 12, marginBottom: 9, padding: 10, borderRadius: 18, backgroundColor: C.primarySoft, borderWidth: 1, borderColor: C.primaryLine, gap: 9 },

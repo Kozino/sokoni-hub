@@ -10,6 +10,7 @@ import { fw } from '../ui/type';
 import { useVendor, Vendor } from '../providers/VendorContext';
 import { initialsOf, qar } from '../format';
 import { AccountPages, Transaction, TxList, Wallet, WalletCard } from './AccountPages';
+import { WithdrawSheet } from './WithdrawSheet';
 import { Support } from './Support';
 import { LegalDoc } from './LegalDoc';
 import { PRIVACY, TERMS } from '../legal/content';
@@ -34,12 +35,17 @@ export function Account({ onSignOut }: { onSignOut: () => void }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [push, setPush] = useState<PushState | null>(null);
+  const [showWithdraw, setShowWithdraw] = useState(false);
+  const [notice, setNotice] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     void checkPush().then(setPush).catch(() => {});
   }, []);
 
   useEffect(() => {
+    setWalletError('');
+    setTransactionsError('');
     api.get<{ wallet: Wallet }>('/wallet')
       .then((r) => setWallet(r.wallet))
       .catch((e: any) => setWalletError(e?.message || 'Could not load your balance.'));
@@ -49,7 +55,24 @@ export function Account({ onSignOut }: { onSignOut: () => void }) {
     api.get<{ listings: { kind: string; status: string }[] }>('/listings/mine/all')
       .then((r) => setListings(r.listings))
       .catch(() => setListings([]));
-  }, []);
+  }, [reloadKey]);
+
+  const afterPayout = (message: string) => {
+    setShowWithdraw(false);
+    setNotice(message);
+    setReloadKey((k) => k + 1);
+  };
+
+  const withdrawSheet = (
+    <WithdrawSheet
+      visible={showWithdraw}
+      available={Number(wallet?.wallet_available || 0)}
+      hasBank={!!wallet?.bank_iban}
+      bankLabel={[wallet?.bank_name, wallet?.bank_iban ? `•••• ${wallet.bank_iban.replace(/\s/g, '').slice(-4)}` : ''].filter(Boolean).join(' · ')}
+      onClose={() => setShowWithdraw(false)}
+      onDone={afterPayout}
+    />
+  );
 
   const fixPush = async () => {
     if (push?.canOpenSettings) return openNotificationSettings();
@@ -107,7 +130,9 @@ export function Account({ onSignOut }: { onSignOut: () => void }) {
           walletError={walletError}
           transactions={transactions}
           transactionsError={transactionsError}
+          onWithdraw={() => setShowWithdraw(true)}
         />
+        {withdrawSheet}
       </View>
     );
   }
@@ -155,7 +180,8 @@ export function Account({ onSignOut }: { onSignOut: () => void }) {
           </View>
         </Card>
 
-        <WalletCard wallet={wallet} error={walletError} onWithdraw={() => Linking.openURL(WEB_URL)} />
+        {notice ? <Banner tone="success" icon="check-badge">{notice}</Banner> : null}
+        <WalletCard wallet={wallet} error={walletError} onWithdraw={() => { setNotice(''); setShowWithdraw(true); }} />
 
         <View style={styles.sectionHead}>
           <Text style={styles.sectionLabel}>Recent transactions</Text>
@@ -213,6 +239,7 @@ export function Account({ onSignOut }: { onSignOut: () => void }) {
         <Btn label="Sign out" variant="danger" icon="arrow-right-on-rectangle" onPress={confirmSignOut} />
         <Text style={styles.footer}>Sokoni Hub vendor app · {version}</Text>
       </ScrollView>
+      {withdrawSheet}
     </View>
   );
 }

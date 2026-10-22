@@ -119,59 +119,63 @@ export function Orders() {
         }
       />
 
-      <StatRow style={{ paddingHorizontal: 16, paddingTop: 2 }}>
-        <StatTile label="Today" value={String(today.count)} sub={today.count === 1 ? 'order today' : 'orders today'} icon="shopping-bag" tone="brand" />
-        <StatTile label="New" value={String(counts.pending)} sub={counts.pending ? 'to accept' : 'all caught up'} icon="clock" tone="amber" />
-        <StatTile label="Sales today" value={qar(today.sales).replace('QAR ', '')} sub="QAR, not cancelled" icon="banknotes" tone="violet" />
-      </StatRow>
+      <ScrollView
+        style={styles.frame}
+        contentContainerStyle={[styles.list, wide && styles.listWide]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={C.primary} />}
+      >
+        {/* Stats, filters, search and errors sit inside the same scroll view as the cards, so nothing can overlap them. */}
+        <View style={[styles.fullWidth, wide && styles.fullWide]}>
+          <StatRow style={{ paddingTop: 4 }}>
+            <StatTile label="Today" value={String(today.count)} sub={today.count === 1 ? 'order today' : 'orders today'} icon="shopping-bag" tone="brand" />
+            <StatTile label="New" value={String(counts.pending)} sub={counts.pending ? 'to accept' : 'all caught up'} icon="clock" tone="amber" />
+            <StatTile label="Sales today" value={qar(today.sales).replace('QAR ', '')} sub="QAR, not cancelled" icon="banknotes" tone="violet" />
+          </StatRow>
 
-      <Chips items={ORDER_FILTERS.map((f) => ({ key: f.key, label: f.label, count: counts[f.key] || undefined }))} value={filter} onChange={(k) => setFilter(k)} />
+          <Chips items={ORDER_FILTERS.map((f) => ({ key: f.key, label: f.label, count: counts[f.key] || undefined }))} value={filter} onChange={(k) => setFilter(k)} />
 
-      {searching ? (
-        <View style={styles.searchWrap}>
-          <Icon name="magnifying-glass" size={18} color={C.muted} />
-          <TextInput
-            accessibilityLabel="Search orders"
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Search code, customer, phone or item"
-            placeholderTextColor={C.muted}
-            style={styles.searchInput}
-            autoCapitalize="none"
-            autoFocus
-            returnKeyType="search"
-          />
-        </View>
-      ) : null}
-
-      {error ? (
-        <View style={styles.pad}>
-          <Banner tone="error">{error}</Banner>
-        </View>
-      ) : null}
-
-      {loading ? (
-        <ActivityIndicator color={C.primary} style={{ marginTop: 40 }} />
-      ) : (
-        <ScrollView
-          style={styles.frame}
-          contentContainerStyle={[styles.list, wide && styles.listWide]}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={C.primary} />}
-        >
-          {visible.length === 0 ? (
-            <EmptyState
-              icon="shopping-bag"
-              title={query ? 'No matching orders' : filter === 'pending' ? 'No new orders' : 'No orders here'}
-              body={query ? 'Try a different code, name or item.' : 'New orders appear here and ring on your phone.'}
-            />
-          ) : null}
-          {visible.map((o) => (
-            <View key={o.id} style={{ width: wide ? '49%' : '100%' }}>
-              <OrderCard order={o} busy={busyId === o.id} onOpen={() => setSelected(o)} onAdvance={(status) => advance(o, status)} />
+          {searching ? (
+            <View style={styles.searchWrap}>
+              <Icon name="magnifying-glass" size={18} color={C.muted} />
+              <TextInput
+                accessibilityLabel="Search orders"
+                value={query}
+                onChangeText={setQuery}
+                placeholder="Search code, customer, phone or item"
+                placeholderTextColor={C.muted}
+                style={styles.searchInput}
+                autoCapitalize="none"
+                autoFocus
+                returnKeyType="search"
+              />
             </View>
-          ))}
-        </ScrollView>
-      )}
+          ) : null}
+
+          {error ? (
+            <View style={styles.pad}>
+              <Banner tone="error">{error}</Banner>
+            </View>
+          ) : null}
+        </View>
+
+        {loading ? <ActivityIndicator color={C.primary} style={{ marginTop: 40 }} /> : null}
+
+        {!loading && visible.length === 0 ? (
+          <EmptyState
+            icon="shopping-bag"
+            title={query ? 'No matching orders' : filter === 'pending' ? 'No new orders' : 'No orders here'}
+            body={query ? 'Try a different code, name or item.' : 'New orders appear here and ring on your phone.'}
+          />
+        ) : null}
+
+        {!loading
+          ? visible.map((o) => (
+              <View key={o.id} style={{ width: wide ? '49%' : '100%' }}>
+                <OrderCard order={o} busy={busyId === o.id} onOpen={() => setSelected(o)} onAdvance={(status) => advance(o, status)} />
+              </View>
+            ))
+          : null}
+      </ScrollView>
 
       <OrderSheet
         order={selected}
@@ -431,6 +435,8 @@ const styles = StyleSheet.create({
   listWide: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start' },
   pad: { paddingHorizontal: 12, paddingTop: 6 },
   list: { paddingHorizontal: 12, paddingTop: 6, paddingBottom: 24, gap: 9 },
+  fullWidth: { marginHorizontal: -12 },
+  fullWide: { width: '100%', marginHorizontal: 0 },
   searchBtn: { width: 34, height: 34, borderRadius: 16, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center' },
   statRow: { flexDirection: 'row', gap: 6, paddingHorizontal: 12, paddingTop: 2 },
   searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 12, marginTop: 6, paddingHorizontal: 10, height: 39, borderRadius: 11, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface },

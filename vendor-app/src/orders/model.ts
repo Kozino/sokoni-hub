@@ -2,12 +2,27 @@
 import { Tone } from '../theme';
 import { qar } from '../format';
 
+/** Every status the API can return. The driver stages come after 'dispatched'. */
+export type OrderStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'dispatched'
+  | 'dispatched_to_driver'
+  | 'driver_arrived'
+  | 'out_for_delivery'
+  | 'delivered_pending_verification'
+  | 'delivered'
+  | 'cancelled';
+
+/** Orders a rider has taken on. They count as "On the way" for the vendor. */
+const RIDER_STAGES: OrderStatus[] = ['dispatched_to_driver', 'driver_arrived', 'out_for_delivery'];
+
 export type OrderItem = { title: string; qty: number; unit_price?: number | string; line_total?: number | string };
 
 export type VendorOrder = {
   id: string;
   code: string;
-  status: 'pending' | 'confirmed' | 'dispatched' | 'delivered_pending_verification' | 'delivered' | 'cancelled';
+  status: OrderStatus;
   total: number | string;
   delivery_fee?: number | string;
   delivery_address?: string | null;
@@ -38,19 +53,25 @@ export const ORDER_FILTERS: { key: OrderFilter; label: string }[] = [
 /** Reasons the API asks for when an order is cancelled. "Other" needs at least five characters. */
 export const CANCEL_REASONS = ['Out of stock', 'Cannot deliver to this area', 'Buyer asked to cancel', 'Price or listing error', 'Other'];
 
-export const ORDER_STATUS_LABEL: Record<VendorOrder['status'], string> = {
+export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   pending: 'New',
   confirmed: 'Preparing',
   dispatched: 'On the way',
+  dispatched_to_driver: 'Rider assigned',
+  driver_arrived: 'Rider arrived',
+  out_for_delivery: 'Out for delivery',
   delivered_pending_verification: 'Delivered',
   delivered: 'Completed',
   cancelled: 'Cancelled',
 };
 
-export const ORDER_TONE: Record<VendorOrder['status'], Tone> = {
+export const ORDER_TONE: Record<OrderStatus, Tone> = {
   pending: 'amber',
   confirmed: 'blue',
   dispatched: 'violet',
+  dispatched_to_driver: 'violet',
+  driver_arrived: 'violet',
+  out_for_delivery: 'violet',
   delivered_pending_verification: 'green',
   delivered: 'green',
   cancelled: 'red',
@@ -60,6 +81,7 @@ export function matchesFilter(o: VendorOrder, f: OrderFilter): boolean {
   switch (f) {
     case 'all': return true;
     case 'completed': return o.status === 'delivered' || o.status === 'delivered_pending_verification';
+    case 'dispatched': return o.status === 'dispatched' || RIDER_STAGES.includes(o.status);
     default: return o.status === f;
   }
 }
