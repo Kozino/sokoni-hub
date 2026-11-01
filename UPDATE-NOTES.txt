@@ -1,16 +1,41 @@
-SOKONI DRIVER — COLOUR + ALERT SOUND UPDATE
+SOKONI DRIVER — PLAY API 36 + R8 UPDATE
 
-ANDROID PREVIEW
-1. Extract this bundle.
-2. In the driver folder run: npm ci
-3. Start an Android emulator, then run: npm run android
-   You can also open driver/android in Android Studio and press Run.
-4. Rebuild the native app before testing; the new sound is a native resource.
+This archive includes the complete driver redesign, colour refinements, audible
+job alerts, and the Google Play target API/deobfuscation update. It also includes
+the required api/src/push.ts server change.
+
+PLAY CONSOLE CHANGES
+- Android compile SDK and target SDK: 36
+- Android build tools: 36.0.0
+- Driver version: 1.0.1 (versionCode 2)
+- Release R8/ProGuard minification: enabled
+- Release resource shrinking: enabled
+- delivery_alert.wav is explicitly retained during resource shrinking
+
+BUILD AND UPLOAD
+1. Extract this archive and run npm ci in the driver folder.
+2. In Android Studio SDK Manager, install Android 16 / API 36 and Build-Tools 36.0.0.
+3. Open driver/android in Android Studio.
+4. Choose Build > Generate Signed App Bundle / APK > Android App Bundle > release.
+5. Sign with your normal upload key and upload the generated app-release.aab.
+
+AAB output:
+driver/android/app/build/outputs/bundle/release/app-release.aab
+
+DEOBFUSCATION FILE
+After that exact release build, upload this file in the release's Deobfuscation
+files section in Play Console:
+
+driver/android/app/build/outputs/mapping/release/mapping.txt
+
+The mapping file is generated during the release build and is not included in
+this source archive. Always upload the mapping from the same build as the AAB;
+never reuse an older mapping. See driver/PLAY-STORE.md for the full checklist.
 
 REQUIRED FOR REAL BACKGROUND JOB ALERTS
-Copy the included api/src/push.ts over the same file in your existing API,
-then build/restart the API. This only changes the driver job-alert channel and
-sound. Buyer and vendor notification behaviour is unchanged.
+Copy the included api/src/push.ts over the same file in your existing API, then
+build/restart the API. This changes only the driver job-alert channel and sound.
+Buyer and vendor notification behaviour is unchanged.
 
 TEST THE SOUND
 Use the bell on Home, or Settings > Delivery alerts > Test alert sound.
@@ -20,6 +45,13 @@ Android's Delivery job alerts channel must not be silent or blocked.
 
 VALIDATION COMPLETED
 - Driver TypeScript
-- Expo Android bundle
-- Expo web bundle
+- Clean Expo Android prebuild and generated API 36/R8 settings
+- Expo Android, iOS, and web bundles
 - API TypeScript build
+- Android manifest/resource XML and PCM WAV checks
+- Git diff whitespace check
+
+NOT PERFORMED IN THIS ENVIRONMENT
+A signed native Android release build was not run because no Android SDK is
+available here. Generate and verify the AAB and mapping.txt in Android Studio.
+Test the release build's notification audio on a real device before rollout.
