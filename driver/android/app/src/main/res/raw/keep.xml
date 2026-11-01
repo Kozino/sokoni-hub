@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Keep the dynamically loaded delivery alert when release resource shrinking is enabled. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/delivery_alert" />
