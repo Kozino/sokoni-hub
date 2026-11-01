@@ -1,6 +1,6 @@
 {
   "name": "sokoni-driver",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
     "start": "expo start",
@@ -12,6 +12,7 @@
     "@expo/metro-runtime": "~3.2.3",
     "@react-native-async-storage/async-storage": "1.23.1",
     "expo": "~51.0.28",
+    "expo-build-properties": "~0.12.5",
     "expo-camera": "~15.0.16",
     "expo-constants": "~16.0.2",
     "expo-device": "~6.0.2",
