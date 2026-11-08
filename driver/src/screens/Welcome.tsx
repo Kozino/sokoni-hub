@@ -25,7 +25,7 @@ export function Welcome({ onNav }: { onNav: (s: 'login' | 'register') => void })
       <StatusBar style="light" />
       <View style={styles.overlay}>
         <View style={styles.top}>
-          <Image source={require('../../assets/icon.png')} style={styles.logo} resizeMode="contain" />
+          <Image source={require('../../assets/brand-mark.png')} style={styles.logo} resizeMode="contain" />
           <Text style={styles.brand}>Sokoni <Text style={{ color: '#FF9A2E' }}>Driver</Text></Text>
         </View>
 

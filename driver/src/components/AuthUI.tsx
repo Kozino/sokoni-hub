@@ -20,7 +20,7 @@ export function Topbar({ onBack }: { onBack?: () => void }) {
         </Pressable>
       ) : <View style={s.back} />}
       <View style={s.brandSmall}>
-        <Image source={require('../../assets/icon.png')} style={s.logoSmall} />
+        <Image source={require('../../assets/brand-mark.png')} style={s.logoSmall} />
         <Text style={s.brandSmallText}>Sokoni <Text style={{ color: C.primary }}>Driver</Text></Text>
       </View>
       <View style={s.currency}><Text style={s.currencyText}>QATAR · QAR</Text></View>
@@ -31,7 +31,7 @@ export function Topbar({ onBack }: { onBack?: () => void }) {
 export function BrandBlock({ title, subtitle, intro }: { title: string; subtitle?: string; intro?: string }) {
   return (
     <View style={s.brandBlock}>
-      <View style={s.logoCircle}><Image source={require('../../assets/icon.png')} style={s.logo} resizeMode="contain" /></View>
+      <View style={s.logoCircle}><Image source={require('../../assets/brand-mark.png')} style={s.logo} resizeMode="contain" /></View>
       <Text style={s.welcome}>{title}</Text>
       {subtitle ? <Text style={s.language}>{subtitle}</Text> : null}
       {intro ? <Text style={s.intro}>{intro}</Text> : null}
