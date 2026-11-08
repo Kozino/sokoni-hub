@@ -179,6 +179,16 @@
 .marketplace-app .lcard-cart svg { width: 13px; height: 13px; }
 .marketplace-app .lcard-cart:hover { background: var(--market-teal); color: #fff; }
 .marketplace-app .lcard-cart.added { background: var(--market-teal); color: #fff; }
+/* Icon-only product button: a filled teal circle beside the product name —
+   the card's primary action, so it is solid rather than a pale tint. */
+.marketplace-app .lcard-cart.lcard-cart--icon {
+  width: 40px; height: 40px; min-height: 40px; padding: 0; gap: 0; border-radius: 50%;
+  background: var(--market-teal); color: #fff;
+  box-shadow: 0 4px 12px rgba(0, 78, 64, .26);
+}
+.marketplace-app .lcard-cart.lcard-cart--icon svg { width: 20px; height: 20px; }
+.marketplace-app .lcard-cart.lcard-cart--icon:hover { background: var(--market-teal-deep); color: #fff; }
+.marketplace-app .lcard-cart.lcard-cart--icon.added { background: #0f8a63; color: #fff; }
 
 /* --------------------------------------------------------------------------
    Public catalog, store, detail, cart and checkout surfaces
@@ -244,6 +254,9 @@
 .marketplace-app .footer-payments { border-top-color: rgba(255,255,255,.16); }
 .marketplace-app .footer-bottom { border-top-color: rgba(255,255,255,.16); color: rgba(255,255,255,.68); }
 .marketplace-app .footer-bottom a { color: rgba(255,255,255,.82); display: inline; padding: 0; }
+.marketplace-app .footer-bottom .footer-legal button { color: rgba(255,255,255,.82); }
+.marketplace-app .footer-legal a:hover,
+.marketplace-app .footer-legal button:hover { color: #ffb15f; }
 
 /* Keep the page body tall enough that the footer always sits at the bottom, below the content. */
 .marketplace-app { min-height: 100%; }
@@ -271,6 +284,8 @@
   .marketplace-app .lp-cat-ico { border-radius: 14px; }
   .marketplace-app .lcard-body { padding: 10px 10px 8px; }
   .marketplace-app .lcard-actions { padding: 0 10px 10px; }
+  .marketplace-app .lcard-cart.lcard-cart--icon { width: 36px; height: 36px; min-height: 36px; }
+  .marketplace-app .lcard-cart.lcard-cart--icon svg { width: 17px; height: 17px; }
   .marketplace-app .lcard-title { font-size: 12px; }
   .marketplace-app .lcard-price { font-size: 14px; }
 }

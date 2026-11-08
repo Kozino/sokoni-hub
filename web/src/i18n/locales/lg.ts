@@ -302,6 +302,7 @@ const lg: Record<string, string> = {
   'stores.listingsCount': 'Ebintu {{count}}',
   'footer.chatSupport': 'Yogera n\'obuyambi',
   'footer.rightsLine': '© {{year}} Sokoni Hub. Eddembe lyonna ttwale.',
+  'footer.legal': 'Amateeka',
   'pay.cash_on_delivery': 'Sasula nga bituuse',
   'pay.bank_transfer': 'Okusindika kwa bbanka',
   'auth.login.sub': 'Yingira ofuge edduuka lyo oba ogoberere ebiragiro byo.',

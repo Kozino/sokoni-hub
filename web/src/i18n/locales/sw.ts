@@ -309,7 +309,7 @@ const sw: Record<string, string> = {
   'footer.blurb': 'Duka halisi kwa wafanyabiashara wa vyakula vya Kiafrika na watoa huduma — ili biashara yako ipatikane, badala ya kuzikwa katika machapisho ya saa 24.',
   'footer.chatSupport': 'Ongea na msaada',
   'footer.rightsLine': '© {{year}} Sokoni Hub. Haki zote zimehifadhiwa.',
-  'footer.promise': 'Lipa unapopokea. Agiza mtandaoni. Kila duka hukaguliwa kabla halijaanza.',
+  'footer.legal': 'Kisheria',
   'pay.cash_on_delivery': 'Lipa ukipokea',
   'pay.bank_transfer': 'Uhamisho wa benki',
   'auth.login.sub': 'Ingia kusimamia duka lako au kufuatilia oda zako.',

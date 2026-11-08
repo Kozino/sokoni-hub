@@ -255,11 +255,6 @@ export function Footer() {
             <h4>{t('footer.help')}</h4>
             <Link to="/support">Contact &amp; Support</Link>
             <Link to="/faq">FAQ</Link>
-            <Link to="/terms">Terms of Use</Link>
-            <Link to="/privacy">Privacy Policy</Link>
-            <Link to="/cookies">Cookie settings</Link>
-            {analyticsConfigured && <button type="button" className="footer-cookie-link" onClick={openSettings}>Change analytics choice</button>}
-            <Link to="/delete-account">Account deletion</Link>
             <Link to="/support#track">{t('footer.trackComplaint')}</Link>
             <Link to="/policy">{t('footer.prohibited')}</Link>
             <a
@@ -272,9 +267,18 @@ export function Footer() {
           </div>
         </div>
 
+        {/* The legal links ride on the copyright line as one continuous
+            strip instead of forming a fifth column — they are housekeeping,
+            not navigation, and the footer already carries four link groups. */}
         <div className="footer-bottom">
-          <span>{t('footer.rightsLine', { year: new Date().getFullYear() })}</span>
-          <span>{t('footer.promise')}</span>
+          <span className="footer-rights">{t('footer.rightsLine', { year: new Date().getFullYear() })}</span>
+          <nav className="footer-legal" aria-label={t('footer.legal')}>
+            <Link to="/terms">Terms of Use</Link>
+            <Link to="/privacy">Privacy Policy</Link>
+            <Link to="/cookies">Cookie settings</Link>
+            {analyticsConfigured && <button type="button" className="footer-cookie-link" onClick={openSettings}>Change analytics choice</button>}
+            <Link to="/delete-account">Account deletion</Link>
+          </nav>
         </div>
       </div>
     </footer>

@@ -345,7 +345,7 @@ const en: Record<string, string> = {
   'footer.blurb': 'A proper storefront for African food-stuff traders and service providers — so your business is searchable, not buried in a 24-hour feed.',
   'footer.chatSupport': 'Chat with support',
   'footer.rightsLine': '© {{year}} Sokoni Hub. All rights reserved.',
-  'footer.promise': 'Pay on delivery. Order online. Every store is checked before it goes live.',
+  'footer.legal': 'Legal',
   'pay.cash_on_delivery': 'Cash on delivery',
   'pay.bank_transfer': 'Bank transfer',
   'auth.login.sub': 'Log in to manage your store or track your orders.',

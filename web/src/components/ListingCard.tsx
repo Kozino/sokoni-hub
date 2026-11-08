@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import type { Listing } from '../types';
@@ -30,7 +30,9 @@ export default function ListingCard({ l, showAction = false }: Props) {
   const img = Array.isArray(l.images) ? l.images[0] : undefined;
   const hasRating = typeof l.rating_avg === 'number' && (l.rating_count ?? 0) > 0;
 
-  const body = (
+  /* `action` is the product card's cart button, which lives in the title row
+     beside the product name. Services pass nothing and keep their pill below. */
+  const renderBody = (action?: ReactNode) => (
     <>
       <div className="lcard-img">
         {img ? <img src={img} alt={l.title} loading="lazy" /> : <div className="ph">{l.kind === 'service' ? '💇' : '🛍️'}</div>}
@@ -39,7 +41,10 @@ export default function ListingCard({ l, showAction = false }: Props) {
         </span>
       </div>
       <div className="lcard-body">
-        <div className="lcard-title">{l.title}</div>
+        <div className="lcard-titlerow">
+          <div className="lcard-title">{l.title}</div>
+          {action}
+        </div>
         <div className="lcard-meta">{l.category_name}</div>
         {hasRating && (
           <div className="lcard-rating">
@@ -59,7 +64,7 @@ export default function ListingCard({ l, showAction = false }: Props) {
 
   // Default card: the whole thing is one link, exactly as before.
   if (!showAction) {
-    return <Link to={`/listing/${l.id}`} className="lcard">{body}</Link>;
+    return <Link to={`/listing/${l.id}`} className="lcard">{renderBody()}</Link>;
   }
 
   // Service: "Book now" opens the booking request. The modal is portalled to
@@ -68,7 +73,7 @@ export default function ListingCard({ l, showAction = false }: Props) {
   if (l.kind === 'service') {
     return (
       <div className="lcard lcard-has-cart">
-        <Link to={`/listing/${l.id}`} className="lcard-link">{body}</Link>
+        <Link to={`/listing/${l.id}`} className="lcard-link">{renderBody()}</Link>
         <div className="lcard-actions">
           <button type="button" className="lcard-cart" onClick={() => setBooking(true)} aria-label={`${t('listing.bookNow')}: ${l.title}`}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -116,28 +121,36 @@ export default function ListingCard({ l, showAction = false }: Props) {
     timer.current = window.setTimeout(() => setJustAdded(false), 1500);
   };
 
+  /* The cart button rides in the title row (top right), so the card ends at the
+     store line and the action is the first thing the eye lands on. The whole
+     card stays tappable through a full-bleed cover link that sits behind the
+     button — an <a> may not wrap a <button>, so the button is lifted above it. */
+  const cartButton = (
+    <button
+      type="button"
+      className={`lcard-cart lcard-cart--icon${justAdded ? ' added' : ''}`}
+      onClick={addToCart}
+      disabled={outOfStock}
+      aria-label={`${outOfStock ? t('listing.outOfStock') : t('listing.addToCart')}: ${l.title}`}
+      title={outOfStock ? t('listing.outOfStock') : t('listing.addToCart')}
+    >
+      {justAdded ? (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5" /></svg>
+      ) : (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <circle cx="8" cy="21" r="1.4" /><circle cx="19" cy="21" r="1.4" />
+          <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+        </svg>
+      )}
+    </button>
+  );
+
   return (
-    <div className="lcard lcard-has-cart">
-      <Link to={`/listing/${l.id}`} className="lcard-link">{body}</Link>
-      <div className="lcard-actions">
-        <button
-          type="button"
-          className={`lcard-cart${justAdded ? ' added' : ''}`}
-          onClick={addToCart}
-          disabled={outOfStock}
-          aria-label={`${t('listing.addToCart')}: ${l.title}`}
-        >
-          {justAdded ? (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5" /></svg>
-          ) : (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <circle cx="8" cy="21" r="1.4" /><circle cx="19" cy="21" r="1.4" />
-              <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
-            </svg>
-          )}
-          <span>{outOfStock ? t('listing.outOfStock') : t('listing.addToCart')}</span>
-        </button>
-      </div>
+    <div className="lcard lcard-has-cart lcard--buy">
+      <Link to={`/listing/${l.id}`} className="lcard-cover">
+        <span className="sr-only">{l.title}</span>
+      </Link>
+      {renderBody(cartButton)}
     </div>
   );
 }

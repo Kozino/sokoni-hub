@@ -223,7 +223,20 @@ export default function ListingDetail() {
                       <QtyInput value={qty} min={1} max={l.quantity ?? 99} onChange={setQty} />
                       <span style={{ color: 'var(--muted)', fontSize: '.85rem' }}>= {money(unitPrice * qty, l.currency)}</span>
                     </div>
-                    <button className="btn btn-primary btn-block mt-2" onClick={addToCart}>{t('listing.addToCart')}</button>
+                    {/* Icon-only, matching the product cards: the cart glyph carries
+                        the action, the label stays available to screen readers. */}
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-block ld-add-cart mt-2"
+                      onClick={addToCart}
+                      aria-label={`${t('listing.addToCart')}: ${l.title}`}
+                      title={t('listing.addToCart')}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <circle cx="8" cy="21" r="1.4" /><circle cx="19" cy="21" r="1.4" />
+                        <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+                      </svg>
+                    </button>
                   </>
                 )}
                 

@@ -303,6 +303,7 @@ const tw: Record<string, string> = {
   'stores.listingsCount': 'Nneɛma {{count}}',
   'footer.chatSupport': 'Kasa kyerɛ mmoa',
   'footer.rightsLine': '© {{year}} Sokoni Hub. Hokyerɛ nyinaa yɛ yɛn dea.',
+  'footer.legal': 'Mmara',
   'pay.cash_on_delivery': 'Tua ka bere a wonsa ka',
   'pay.bank_transfer': 'Banks so sika',
   'auth.login.sub': 'Bra mu na hwɛ wo sotɔɔ so anaa di wo nneɛma akyi.',

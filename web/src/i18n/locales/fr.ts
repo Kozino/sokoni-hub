@@ -309,7 +309,7 @@ const fr: Record<string, string> = {
   'footer.blurb': 'Une vraie vitrine pour les commerçants de produits africains et les prestataires de services — pour que votre activité soit trouvable, et non enterrée dans un fil de publications de 24 heures.',
   'footer.chatSupport': 'Contacter l\'assistance',
   'footer.rightsLine': '© {{year}} Sokoni Hub. Tous droits réservés.',
-  'footer.promise': 'Payez à la livraison. Commandez en ligne. Chaque boutique est vérifiée avant sa mise en ligne.',
+  'footer.legal': 'Mentions légales',
   'pay.cash_on_delivery': 'Paiement à la livraison',
   'pay.bank_transfer': 'Virement bancaire',
   'auth.login.sub': 'Connectez-vous pour gérer votre boutique ou suivre vos commandes.',
