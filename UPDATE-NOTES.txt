@@ -1,57 +1,97 @@
-SOKONI DRIVER — PLAY API 36 + R8 UPDATE
+SOKONI DRIVER — 1.0.2 STARTUP HANG FIX
+
+The Play Store build could open to "Preparing your driver portal…" and stay there.
+That screen is the app's session-restore step, and in 1.0.1 it could wait forever:
+reading the saved session from the Android keystore was not guarded, and the
+/auth/me check had no timeout. Either one throwing or hanging left the loading
+state on permanently.
+
+FIXED IN THIS ARCHIVE
+- Session restore always finishes: unreadable/absent secure-store entry -> opens
+  signed out; the entry is cleared so the next launch is clean.
+- Every API request has a deadline (25 s; 120 s for photo uploads), so a slow or
+  cold server shows a retry screen instead of a dead spinner.
+- A connection failure no longer deletes the saved session; a "Cannot reach
+  Sokoni" screen offers Try again / Sign in again.
+- Android auto-backup disabled (allowBackup=false) so a Play reinstall cannot
+  restore a keystore-encrypted session that the new install cannot decrypt.
+- Last-resort 30 s guard clears the loading state.
+- Version 1.0.2, Android versionCode 3 (Play already used 2).
+
+APP ICON
+- The supplied Sokoni Hub Driver artwork is now the launcher icon on phones.
+- driver/assets/brand/sokoni-driver-icon-512.jpg is the source.
+- python3 tools/make-icons.py regenerates every size plus store/play-icon-512.png.
+- Because this project commits android/, the mipmap-* files are written directly;
+  changing app.json alone would not change the installed icon.
+- Adaptive icons use the scooter + pin mark on white, since launchers mask the
+  lettering on round/squircle shapes. Legacy, iOS and the Play listing icon use
+  the full badge exactly as supplied.
+
+IF A 1.0.1 INSTALL IS STUCK ON THAT SCREEN
+Settings > Apps > Sokoni Driver > Storage > Clear data, then reopen. It should
+reach the Welcome screen. Rebuilding with this archive is the permanent fix.
+
+To capture the real error on a USB device:
+  adb logcat -c && adb logcat ReactNativeJS:V ReactNative:V AndroidRuntime:E *:S
+
+See driver/PLAY-STORE.md section 6 for details.
+
+===========================================================================
+
+SOKONI DRIVER — EAS API 36 + R8 UPDATE
 
 This archive includes the complete driver redesign, colour refinements, audible
-job alerts, and the Google Play target API/deobfuscation update. It also includes
+job alerts, Google Play target API/deobfuscation configuration, and the Expo
+SDK 51 compatibility fix for newer Android SDK compilation. It also includes
 the required api/src/push.ts server change.
 
-PLAY CONSOLE CHANGES
+PLAY/EAS CHANGES
 - Android compile SDK and target SDK: 36
 - Android build tools: 36.0.0
-- Driver version: 1.0.1 (versionCode 2)
-- Release R8/ProGuard minification: enabled
-- Release resource shrinking: enabled
+- Driver version: 1.0.1 (local versionCode 2; EAS may manage versions remotely)
+- Release R8/ProGuard minification and resource shrinking: enabled
 - delivery_alert.wav is explicitly retained during resource shrinking
+- Expo's reflectively loaded RNHeadlessAppLoader is retained for background tasks
+- eas.json saves mapping.txt as an additional production build artifact
+- A patch-package postinstall fixes expo-modules-core PermissionsService.kt
+  null-safety when compiling SDK 51 against newer Android platforms
 
-BUILD AND UPLOAD
+BUILD WITH EAS
 1. Extract this archive and run npm ci in the driver folder.
-2. In Android Studio SDK Manager, install Android 16 / API 36 and Build-Tools 36.0.0.
-3. Open driver/android in Android Studio.
-4. Choose Build > Generate Signed App Bundle / APK > Android App Bundle > release.
-5. Sign with your normal upload key and upload the generated app-release.aab.
+2. Keep the patches directory and the postinstall package script.
+3. Run: eas build --platform android --profile production
+4. On the successful build's Expo page, download the AAB normally.
+5. Choose Download artifacts and extract the additional artifacts archive.
 
-AAB output:
-driver/android/app/build/outputs/bundle/release/app-release.aab
+Mapping file inside the extracted artifacts:
+android/app/build/outputs/mapping/release/mapping.txt
 
-DEOBFUSCATION FILE
-After that exact release build, upload this file in the release's Deobfuscation
-files section in Play Console:
-
-driver/android/app/build/outputs/mapping/release/mapping.txt
-
-The mapping file is generated during the release build and is not included in
-this source archive. Always upload the mapping from the same build as the AAB;
-never reuse an older mapping. See driver/PLAY-STORE.md for the full checklist.
+Upload that mapping.txt as the ReTrace/deobfuscation file for the exact same
+AAB/version in Play Console. Never reuse a mapping from another build.
+See driver/PLAY-STORE.md for the complete checklist.
 
 REQUIRED FOR REAL BACKGROUND JOB ALERTS
 Copy the included api/src/push.ts over the same file in your existing API, then
 build/restart the API. This changes only the driver job-alert channel and sound.
 Buyer and vendor notification behaviour is unchanged.
 
-TEST THE SOUND
+TEST THE RELEASE
 Use the bell on Home, or Settings > Delivery alerts > Test alert sound.
-A clearly labelled local test notification arrives after 2 seconds.
 Allow notification permission and check the device notification volume.
-Android's Delivery job alerts channel must not be silent or blocked.
+Also test background/closed-app delivery alerts and the complete delivery flow.
 
 VALIDATION COMPLETED
+- Clean npm ci automatically applied the expo-modules-core patch
 - Driver TypeScript
 - Clean Expo Android prebuild and generated API 36/R8 settings
-- Expo Android, iOS, and web bundles
+- Expo Android, iOS, and web bundles (before this native-only compatibility fix)
 - API TypeScript build
 - Android manifest/resource XML and PCM WAV checks
-- Git diff whitespace check
+- EAS JSON, patch, and ZIP integrity checks
 
-NOT PERFORMED IN THIS ENVIRONMENT
-A signed native Android release build was not run because no Android SDK is
-available here. Generate and verify the AAB and mapping.txt in Android Studio.
-Test the release build's notification audio on a real device before rollout.
+NATIVE BUILD STATUS
+The supplied EAS log failed at expo-modules-core compileReleaseKotlin because
+requestedPermissions was nullable. The included patch fixes that exact line.
+Run a new EAS production build to verify the complete native build; no AAB or
+mapping.txt can be produced by the failed build.
