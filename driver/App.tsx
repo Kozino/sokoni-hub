@@ -27,7 +27,7 @@ type Tab = 'home' | 'earnings' | 'settings';
 type DriverState = 'checking' | 'approved' | 'pending' | 'suspended' | 'error';
 
 function Router() {
-  const { user, loading, login, logout } = useAuth();
+  const { user, loading, offline, retry, login, logout } = useAuth();
   const insets = useSafeAreaInsets();
   const [publicScreen, setPublicScreen] = useState<PublicScreen>('welcome');
   const [stage, setStage] = useState<Stage | null>(null);
@@ -88,6 +88,20 @@ function Router() {
       <View style={styles.center}>
         <ActivityIndicator size="large" color={C.primary} />
         <Text style={styles.loadingText}>Preparing your driver portal…</Text>
+      </View>
+    );
+  }
+
+  // A saved session that could not be confirmed (no signal, server asleep). Never a dead loader.
+  if (!user && offline) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.errorTitle}>Cannot reach Sokoni</Text>
+        <Text style={styles.errorText}>We could not confirm your saved session. Check your internet connection and try again.</Text>
+        <Button title="Try again" onPress={retry} style={styles.retry} />
+        <Pressable onPress={signOut} accessibilityRole="button" style={styles.signOut}>
+          <Text style={styles.link}>Sign in again</Text>
+        </Pressable>
       </View>
     );
   }

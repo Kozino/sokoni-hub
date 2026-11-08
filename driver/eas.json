@@ -18,18 +18,17 @@
       }
     },
     "production": {
-  "channel": "production",
-  "autoIncrement": true,
-  "android": {
-    "buildType": "app-bundle",
-    "buildArtifactPaths": [
-      "android/app/build/outputs/mapping/release/mapping.txt"
-    ]
-  },
-  "ios": {
-    "simulator": false
-  }
-}
+      "channel": "production",
+      "android": {
+        "buildType": "app-bundle",
+        "buildArtifactPaths": [
+          "android/app/build/outputs/mapping/release/mapping.txt"
+        ]
+      },
+      "ios": {
+        "simulator": false
+      }
+    }
   },
   "submit": {
     "production": {}

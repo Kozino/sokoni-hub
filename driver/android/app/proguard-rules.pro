@@ -11,4 +11,8 @@
 -keep class com.swmansion.reanimated.** { *; }
 -keep class com.facebook.react.turbomodule.** { *; }
 
+# Expo TaskManager loads this class by reflection when the app is closed.
+# Keep it when R8 is enabled so background delivery tasks can still start React.
+-keep class expo.modules.adapters.react.apploader.RNHeadlessAppLoader { *; }
+
 # Add any project specific keep options here:
