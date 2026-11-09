@@ -7,11 +7,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#033B2A"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "qa.sokonihub.vendor",
@@ -30,10 +25,18 @@
       "permissions": [
         "POST_NOTIFICATIONS",
         "VIBRATE"
-      ]
+      ],
+      "predictiveBackGestureEnabled": false
     },
     "plugins": [
-      "expo-splash-screen",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#033B2A"
+        }
+      ],
       [
         "expo-notifications",
         {
@@ -47,7 +50,10 @@
         "expo-build-properties",
         {
           "android": {
-            "minSdkVersion": 24
+            "minSdkVersion": 24,
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36,
+            "enableProguardInReleaseBuilds": true
           }
         }
       ],

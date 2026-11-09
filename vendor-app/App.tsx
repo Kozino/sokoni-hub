@@ -1,4 +1,3 @@
-import { registerRootComponent } from 'expo';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -85,5 +84,3 @@ export default function App() {
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bg },
 });
-
-registerRootComponent(App);
