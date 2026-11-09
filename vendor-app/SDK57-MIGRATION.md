@@ -64,5 +64,18 @@ eas submit -p android --profile production
   `usePushToken` reports "Alerts are not set up in this app build yet".
 - **Android FCM credentials** for SDK 57 are FCM v1 only — make sure the EAS
   project has the Google service account key uploaded.
-- **versionCode**: `appVersionSource: remote` in `eas.json`, so EAS owns it.
-  Confirm the next build increments past the version already on Play.
+- **versionCode**: Play rejected `1` because it is already published. The cause
+  was `appVersionSource: "remote"` with no `autoIncrement` on the production
+  profile: the remote counter initialized to `1` (app config had no
+  `versionCode`) and every build reused it. Fixed by `android.versionCode: 2`
+  in `app.json` (the floor used if the counter is ever re-initialized) and
+  `build.production.autoIncrement: true` in `eas.json`.
+  The remote counter **wins over app config**, so align it once:
+
+  ```bash
+  eas build:version:get -p android     # shows the number EAS will use
+  eas build:version:set -p android     # enter the last code used on Play (1)
+  ```
+
+  The next production build then carries `versionCode 2` and each one after
+  increments. The AAB already built as `1` cannot be reused — rebuild.

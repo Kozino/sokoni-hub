@@ -18,6 +18,7 @@
     },
     "android": {
       "package": "qa.sokonihub.vendor",
+      "versionCode": 2,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundColor": "#033B2A"
