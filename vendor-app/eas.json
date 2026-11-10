@@ -9,7 +9,10 @@
       "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "android": {
+        "image": "latest"
+      }
     },
     "simulator": {
       "distribution": "internal",
@@ -21,7 +24,8 @@
       "autoIncrement": true,
       "channel": "production",
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "app-bundle",
+        "image": "latest"
       },
       "ios": {
         "simulator": false

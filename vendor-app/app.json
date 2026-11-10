@@ -18,6 +18,7 @@
     },
     "android": {
       "package": "qa.sokonihub.vendor",
+      "googleServicesFile": "./google-services.json",
       "versionCode": 2,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -59,6 +60,11 @@
         }
       ],
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "0131c3ed-cc38-438f-bed2-d428a78a5e97"
+      }
+    }
   }
 }

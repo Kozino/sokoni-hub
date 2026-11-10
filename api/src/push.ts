@@ -8,6 +8,14 @@ import { query } from './db';
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 const TOKEN_RE = /^(Expo|Exponent)PushToken\[.+\]$/;
 
+/**
+ * Android channel ids must match what the app creates, character for character.
+ * If they do not, Android posts to the fallback channel and the loud alarm tone
+ * never plays. Vendor: vendor-app/src/usePushToken.ts. Driver: driver/src/usePushToken.ts.
+ */
+const VENDOR_CHANNEL_ID = 'vendor-alerts-loud';
+const VENDOR_SOUND = 'order_alert.wav';
+
 export interface PushMessage {
   title: string;
   body: string;
@@ -68,7 +76,7 @@ export async function notifyVendorOfOrder(orderId: string, msg: PushMessage): Pr
     `select v.user_id from orders o join vendors v on v.id = o.vendor_id where o.id = $1 and v.alerts_enabled`,
     [orderId],
   );
-  await sendPushToUsers(rows.map((r) => r.user_id), { ...msg, channelId: 'vendor-alerts' });
+  await sendPushToUsers(rows.map((r) => r.user_id), { ...msg, channelId: VENDOR_CHANNEL_ID, sound: VENDOR_SOUND });
 }
 
 /** The vendor's owner account, for a given service booking. */
@@ -77,7 +85,7 @@ export async function notifyVendorOfBooking(bookingId: string, msg: PushMessage)
     `select v.user_id from service_bookings b join vendors v on v.id = b.vendor_id where b.id = $1 and v.alerts_enabled`,
     [bookingId],
   );
-  await sendPushToUsers(rows.map((r) => r.user_id), { ...msg, channelId: 'vendor-alerts' });
+  await sendPushToUsers(rows.map((r) => r.user_id), { ...msg, channelId: VENDOR_CHANNEL_ID, sound: VENDOR_SOUND });
 }
 
 /** The buyer, if the order was placed by a signed-in account (guest orders have no account). */
