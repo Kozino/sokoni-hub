@@ -220,7 +220,7 @@ export function Account({ onSignOut }: { onSignOut: () => void }) {
             icon="bell-alert"
             tone={push && push.state === 'ready' ? 'green' : 'red'}
             title="Phone notifications"
-            subtitle={push ? push.message : 'Checking this phone…'}
+            subtitle={push ? (push.detail ? `${push.message}\n${push.detail}` : push.message) : 'Checking this phone…'}
             onPress={push && push.state !== 'ready' ? fixPush : undefined}
             right={push && push.state !== 'ready' ? <Text style={styles.fix}>{push.canOpenSettings ? 'Settings' : 'Retry'}</Text> : undefined}
           />

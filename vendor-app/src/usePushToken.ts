@@ -32,9 +32,21 @@ export type PushState = {
   message: string;
   canOpenSettings: boolean;
   token: string;
+  /**
+   * The raw reason, shown under the friendly message. Vendors cannot read a
+   * console from the phone, so the technical text has to reach the screen —
+   * a screenshot of this line is enough to diagnose a failed registration.
+   */
+  detail: string;
 };
 
-const state = (s: PushState['state'], message: string, canOpenSettings = false, token = ''): PushState => ({ state: s, message, canOpenSettings, token });
+const state = (
+  s: PushState['state'],
+  message: string,
+  canOpenSettings = false,
+  token = '',
+  detail = '',
+): PushState => ({ state: s, message, canOpenSettings, token, detail });
 
 /** Creates the loud alert channel. Safe to call every time the app starts. */
 export async function ensureAlertChannel(): Promise<void> {
@@ -60,22 +72,28 @@ export async function ensureAlertChannel(): Promise<void> {
 async function fetchToken(): Promise<PushState> {
   const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
   if (!projectId) {
-    return state('unavailable', 'Alerts are not set up in this app build yet. Ask the Sokoni Hub team to finish push setup.');
+    return state(
+      'unavailable',
+      'Alerts are not set up in this app build yet. Ask the Sokoni Hub team to finish push setup.',
+      false, '', 'No projectId in app.json (extra.eas.projectId).',
+    );
   }
   try {
     const res = await Notifications.getExpoPushTokenAsync({ projectId });
     await AsyncStorage.setItem(PUSH_TOKEN_KEY, res.data);
     return state('ready', 'Alerts are on for this phone.', false, res.data);
   } catch (e: any) {
-    // Keep the native detail in the log for developers. Vendors see a plain message.
+    // Keep the native detail in the log for developers, and on screen for the
+    // vendor — the message is the only diagnostic channel a phone build has.
     console.warn('[push] token registration failed:', e?.message ?? e);
-    return state('unavailable', 'Could not turn on alerts on this phone. Tap to retry. If it keeps failing, this app build needs its push setup.');
+    const detail = `projectId ${projectId.slice(0, 8)}… · ${String(e?.message ?? e).slice(0, 180)}`;
+    return state('unavailable', 'Could not turn on alerts on this phone. Tap to retry.', false, '', detail);
   }
 }
 
 /** Reads the current state without asking the user anything. */
 export async function checkPush(): Promise<PushState> {
-  if (!Device.isDevice) return state('unavailable', 'Alerts need a real phone. Simulators cannot receive them.');
+  if (!Device.isDevice) return state('unavailable', 'Alerts need a real phone. Simulators cannot receive them.', false, '', 'Device.isDevice = false');
   await ensureAlertChannel();
   const { status, canAskAgain } = await Notifications.getPermissionsAsync();
   if (status !== 'granted') {
@@ -86,7 +104,7 @@ export async function checkPush(): Promise<PushState> {
 
 /** Asks for permission if the app can, then registers the phone. */
 export async function enablePush(): Promise<PushState> {
-  if (!Device.isDevice) return state('unavailable', 'Alerts need a real phone. Simulators cannot receive them.');
+  if (!Device.isDevice) return state('unavailable', 'Alerts need a real phone. Simulators cannot receive them.', false, '', 'Device.isDevice = false');
   await ensureAlertChannel();
   let perm = await Notifications.getPermissionsAsync();
   if (perm.status !== 'granted' && perm.canAskAgain) {
