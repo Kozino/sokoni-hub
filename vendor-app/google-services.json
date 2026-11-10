@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "616371732328",
+    "project_id": "niqa-21e87",
+    "storage_bucket": "niqa-21e87.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:616371732328:android:e947b1e67ab57a5590e0dd",
+        "android_client_info": {
+          "package_name": "qa.sokonihub.vendor"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAHbW-3DqGTBzeuAcP-EgG2fHBun1psSbE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
