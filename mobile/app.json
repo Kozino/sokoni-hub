@@ -31,9 +31,10 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "permissions": ["RECORD_AUDIO"]
+      "permissions": [
+        "RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -71,7 +72,15 @@
         }
       ],
       "expo-sharing",
-      "expo-av"
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Sokoni Hub records only while you hold the microphone in Ask Sokoni, to turn your words into a product search. Audio is discarded after transcription.",
+          "recordAudioAndroid": true,
+          "enableBackgroundRecording": false,
+          "enableBackgroundPlayback": false
+        }
+      ]
     ]
   }
 }

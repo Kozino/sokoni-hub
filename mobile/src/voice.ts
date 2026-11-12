@@ -1,7 +1,7 @@
 /**
  * Voice for Sokoni Assistant. Typing always works.
  * - Web: Web Speech API (no audio leaves the device until the transcript is sent as chat)
- * - Native: expo-av records while the button is held; audio is posted for STT then discarded
+ * - Native: expo-audio records while the button is held; audio is posted for STT then discarded
  * - TTS: expo-speech, on-device
  */
 import { Platform } from 'react-native';
@@ -48,19 +48,19 @@ export async function webListen(locale: LocaleCode): Promise<string | null> {
 export async function startNativeRecording(): Promise<RecordingHandle | null> {
   if (Platform.OS === 'web') return null;
   try {
-    const { Audio } = await import('expo-av');
-    const perm = await Audio.requestPermissionsAsync();
+    const { AudioModule, RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync } = await import('expo-audio');
+    const perm = await requestRecordingPermissionsAsync();
     if (!perm.granted) return null;
-    await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-    const recording = new Audio.Recording();
-    await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-    await recording.startAsync();
+    await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+    const recording = new AudioModule.AudioRecorder(RecordingPresets.HIGH_QUALITY);
+    await recording.prepareToRecordAsync();
+    recording.record();
     return {
       stop: async () => {
         try {
-          await recording.stopAndUnloadAsync();
-          await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
-          return recording.getURI();
+          await recording.stop();
+          await setAudioModeAsync({ allowsRecording: false });
+          return recording.uri;
         } catch { return null; }
       },
     };
