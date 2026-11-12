@@ -71,8 +71,7 @@
         }
       ],
       "expo-sharing",
-      "expo-av",
-      "expo-speech"
+      "expo-av"
     ]
   }
 }
