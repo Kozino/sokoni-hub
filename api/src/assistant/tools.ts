@@ -3,7 +3,7 @@ import { one, query } from '../db';
 import { publicListingColumns } from '../security';
 import { HttpError } from '../utils';
 import { searchCatalog, toAgentCard } from '../catalogSearch';
-import { quoteBuyerCart } from '../routes/orders';
+import { quoteBuyerCart } from '../quoteCart';
 
 export const TOOL_NAMES = ['search_listings', 'get_listing', 'quote_cart', 'get_offers', 'track_order', 'list_my_orders'] as const;
 export type ToolName = (typeof TOOL_NAMES)[number];
