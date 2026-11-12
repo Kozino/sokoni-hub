@@ -13,6 +13,7 @@ import { num } from './format';
 import { tap } from './haptics';
 import { Icon, type IconName } from './icons';
 import type { Go, TabTo } from './nav';
+import { useT } from './i18n';
 import { useAuth, useCart, useTheme, type Colors } from './providers';
 import { scaleFont } from './type';
 import { Chip, Dropdown, Text, TextInput } from './ui';
@@ -129,12 +130,13 @@ export function Tabs({ active, tab, kind }: { active: string; tab: TabTo; kind?:
   const { count } = useCart();
   const insets = useSafeInsetBottom();
   const current: TabKey | null = active === 'browse' ? (kind === 'service' ? 'services' : 'browse') : (['home', 'services', 'cart', 'account'] as string[]).includes(active) ? (active as TabKey) : null;
+  const t = useT();
   const items: { key: TabKey; label: string; icon: IconName }[] = [
-    { key: 'home', label: 'Explore', icon: 'compass' },
-    { key: 'browse', label: 'Categories', icon: 'grid' },
-    { key: 'services', label: 'Services', icon: 'service-bell' },
-    { key: 'cart', label: 'Cart', icon: 'bag-handle' },
-    { key: 'account', label: 'Profile', icon: 'person' },
+    { key: 'home', label: t('tabs.explore'), icon: 'compass' },
+    { key: 'browse', label: t('tabs.categories'), icon: 'grid' },
+    { key: 'services', label: t('tabs.services'), icon: 'service-bell' },
+    { key: 'cart', label: t('tabs.cart'), icon: 'bag-handle' },
+    { key: 'account', label: t('tabs.profile'), icon: 'person' },
   ];
   const press = (key: TabKey) => { tap(); tab(key); };
   return (
@@ -146,7 +148,7 @@ export function Tabs({ active, tab, kind }: { active: string; tab: TabTo; kind?:
             return (
               <Pressable key={item.key} accessibilityRole="button" accessibilityLabel="Services" accessibilityState={{ selected }} onPress={() => press('services')} style={kit.tabItem}>
                 <View style={{ height: 22 }} />
-                <Text style={[kit.tabLabel, { color: colors.brown, fontWeight: '700', marginTop: 1 }]}>Services</Text>
+                <Text style={[kit.tabLabel, { color: colors.brown, fontWeight: '700', marginTop: 1 }]}>{item.label}</Text>
               </Pressable>
             );
           }
@@ -221,20 +223,26 @@ export function SubBar({ title, eyebrow, back, right }: { title: string; eyebrow
 }
 
 /* ----------------------------------------------------------------------------- search */
-export function SearchBar({ value, onChangeText, onSubmit, placeholder, onFilter, filterCount = 0, inputRef, onFocus, style }: {
+export function SearchBar({ value, onChangeText, onSubmit, placeholder, onFilter, filterCount = 0, inputRef, onFocus, onAsk, askLabel, style }: {
   value: string; onChangeText: (text: string) => void; onSubmit?: () => void; placeholder: string; onFilter?: () => void; filterCount?: number;
-  inputRef?: Ref<TextInput>; onFocus?: () => void; style?: StyleProp<ViewStyle>;
+  inputRef?: Ref<TextInput>; onFocus?: () => void; onAsk?: () => void; askLabel?: string; style?: StyleProp<ViewStyle>;
 }) {
   const { colors } = useTheme();
+  const t = useT();
   return (
     <View style={[kit.searchRow, style]}>
       <View style={[kit.searchBox, { backgroundColor: colors.surface, borderColor: colors.border }, softShadow(colors.shadow)]}>
         <Icon name="search" solid={false} size={20} color={colors.text2} />
         <TextInput ref={inputRef} accessibilityLabel={placeholder} value={value} onChangeText={onChangeText} onFocus={onFocus} placeholder={placeholder} placeholderTextColor={colors.muted} returnKeyType="search" autoCorrect={false} onSubmitEditing={onSubmit} style={[kit.searchInput, { color: colors.text }]} />
-        {value ? <Pressable accessibilityRole="button" accessibilityLabel="Clear search" hitSlop={10} onPress={() => onChangeText('')}><Icon name="close-circle" size={19} color={colors.muted} /></Pressable> : null}
+        {value ? <Pressable accessibilityRole="button" accessibilityLabel={t('Clear search')} hitSlop={10} onPress={() => onChangeText('')}><Icon name="close-circle" size={19} color={colors.muted} /></Pressable> : null}
       </View>
+      {onAsk ? (
+        <Pressable accessibilityRole="button" accessibilityLabel={askLabel || t('home.askSokoni')} onPress={() => { tap(); onAsk(); }} style={[kit.filterButton, { backgroundColor: colors.orange }]}>
+          <Icon name="sparkles" solid={false} size={21} color={colors.onOrange} />
+        </Pressable>
+      ) : null}
       {onFilter ? (
-        <Pressable accessibilityRole="button" accessibilityLabel="Filters and sorting" onPress={() => { tap(); onFilter(); }} style={[kit.filterButton, { backgroundColor: colors.lav2 }]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t('Filters and sorting')} onPress={() => { tap(); onFilter(); }} style={[kit.filterButton, { backgroundColor: colors.lav2 }]}>
           <Icon name="tune" solid={false} size={21} color={colors.text} />
           {filterCount > 0 ? <View style={[kit.filterBadge, { backgroundColor: colors.orange, borderColor: colors.lav2 }]}><Text style={[kit.countText, { color: colors.onOrange }]}>{filterCount}</Text></View> : null}
         </Pressable>

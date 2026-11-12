@@ -17,6 +17,7 @@ import {
   PlusIcon,
   ReceiptPercentIcon,
   ShieldCheckIcon,
+  SparklesIcon,
   Squares2X2Icon,
   StarIcon,
   TableCellsIcon,
@@ -40,6 +41,7 @@ export const IconReceipt = icon(ReceiptPercentIcon);
 export const IconAlert = icon(ExclamationTriangleIcon);
 export const IconUsers = icon(UsersIcon);
 export const IconStar = icon(StarIcon);
+export const IconSparkles = icon(SparklesIcon);
 export const IconTag = icon(TagIcon);
 export const IconFolder = icon(FolderIcon);
 export const IconHistory = icon(ClockIcon);

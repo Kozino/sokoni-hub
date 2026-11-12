@@ -65,6 +65,7 @@ export function resolveLink(raw?: string | null): LinkTarget | null {
     case 'saved': return { screen: 'saved' };
     case 'notifications': return { screen: 'notifications' };
     case 'support': case 'help': return { screen: 'support' };
+    case 'assistant': case 'ask': return { screen: 'assistant' };
     case 'store': case 'shop': return slug ? { screen: 'store', params: { slug } } : null;
     case 'listing': case 'product': case 'item': return slug ? { screen: 'listing', params: { id: slug } } : null;
     default: return null;

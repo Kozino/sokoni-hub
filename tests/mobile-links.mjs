@@ -44,6 +44,7 @@ eq(resolveLink('sokonihub://browse?category=oils-condiments'),{screen:'browse',t
 eq(resolveLink('sokonihub://browse?q=palm+oil'),{screen:'browse',tab:true,params:{q:'palm oil'}},'a search');
 eq(resolveLink('sokonihub://services'),{screen:'services',tab:true},'the services tab');
 eq(resolveLink('sokonihub://cart?code=WELCOME10'),{screen:'cart',tab:true,applyCode:'WELCOME10'},'the cart, with a code to keep');
+eq(resolveLink('sokonihub://assistant'),{screen:'assistant'},'sokoni assistant');
 eq(resolveLink('/offers'),{screen:'offers'},'a plain path works (what the server may send)');
 eq(resolveLink('SOKONIHUB://Offers'),{screen:'offers'},'scheme and path are case-insensitive');
 eq(resolveLink('exp://192.168.1.5:8081/--/store/abc'),{screen:'store',params:{slug:'abc'}},'the Expo Go wrapper is understood');

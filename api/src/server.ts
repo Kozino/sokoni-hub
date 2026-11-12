@@ -29,6 +29,7 @@ import { driverRouter } from './routes/drivers';
 import { pushRouter } from './routes/push';
 import { offerRouter } from './routes/offers';
 import { guestPushRouter } from './routes/guestPush';
+import { assistantRouter, startAssistantRetentionSweep } from './routes/assistant';
 import { startServiceFeeBillScheduler } from './serviceFeeSchedule';
 
 const app = express();
@@ -90,6 +91,9 @@ app.use('/api/push', pushRouter);
 app.post('/api/guest-push/device', limit('guest-push', 40, 900));
 app.use('/api/guest-push', guestPushRouter);
 app.use('/api/offers', offerRouter);
+app.post('/api/assistant/chat', limit('assistant', 40, 900));
+app.post('/api/assistant/stt', limit('assistant-stt', 20, 900));
+app.use('/api/assistant', assistantRouter);
 app.use('/api/complaints', limit('complaints',30,900), complaintRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/uploads', limit('uploads',20,900), uploadRouter);
@@ -139,6 +143,7 @@ async function start() {
  });
  // Monthly service-fee bills: runs only when the admin has switched the schedule on.
  startServiceFeeBillScheduler();
+ startAssistantRetentionSweep();
  // Auto-complete delivered orders whose buyer window has passed (also run on every track lookup).
  setInterval(() => { finalizeDueOrders().catch((e) => console.error('[sweep] delivery verification failed', e?.message)); }, 5 * 60 * 1000).unref();
 }

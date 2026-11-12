@@ -8,6 +8,7 @@ import { money, plural } from './format';
 import { Icon, type IconName } from './icons';
 import { ModeCard, Panel, Price, Screen, Thumb, accentAt } from './kit';
 import { OrderPlaced } from './orderPlaced';
+import { useT } from './i18n';
 import { useAuth, useCart, useTheme } from './providers';
 import { ApiError, api } from './api';
 import type { CartItem, Order, PaymentMethod } from './types';
@@ -16,8 +17,9 @@ import { BottomBar, Button, EmptyState, Field, Header, Notice, Spinner, Text } f
 type Placed = { orders: Order[] };
 type Nav = { go: (screen: any, params?: any) => void; back: () => void; tab: (screen: any, params?: any) => void };
 
-export function Checkout({ go, back, tab }: Nav) {
+export function Checkout({ go, back, tab, fromAssistant = false }: Nav & { fromAssistant?: boolean }) {
   const { colors } = useTheme();
+  const t = useT();
   const { user } = useAuth();
   const cart = useCart();
   const [draft, setDraft] = useCheckoutDraft();
@@ -86,6 +88,7 @@ export function Checkout({ go, back, tab }: Nav) {
         city: form.city.trim() || 'Doha',
         country: form.country.trim() || 'Qatar',
         payment_method: form.payment_method,
+        ...(fromAssistant ? { channel: 'ai-assistant' } : {}),
         note: form.note.trim() || undefined,
         // The pin is sent only when an address is needed; collection orders have no delivery point.
         ...(needsAddress && pin ? { delivery_lat: pin.latitude, delivery_lng: pin.longitude } : {}),
@@ -119,6 +122,7 @@ export function Checkout({ go, back, tab }: Nav) {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <Header title="Checkout" back={back} />
         <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
+          {fromAssistant ? <View style={{ marginBottom: 8 }}><Notice type="warning">{t('checkout.fromAssistant')}</Notice></View> : null}
           {!user ? <View style={{ marginBottom: 8 }}><Notice type="warning">Sign in to place your order — your cart is saved on this phone.</Notice></View> : null}
           {banner ? <View style={{ gap: 8, marginBottom: 8 }}><Notice type="danger">{banner}</Notice><Button variant="secondary" onPress={() => void order()} loading={busy}>Try again</Button></View> : null}
 

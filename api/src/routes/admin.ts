@@ -10,6 +10,8 @@ import { moneyModel } from '../moneyModel';
 import { getServiceFeeSettings } from '../serviceFees';
 import { generateMonthlyBills } from '../serviceFeeBills';
 import { getSchedule, saveScheduleSettings } from '../serviceFeeSchedule';
+import { assistantSettings, saveAssistantSettings } from '../assistant/settings';
+import { config } from '../config';
 
 export const adminRouter = Router();
 adminRouter.param('id', validateUuidParam);
@@ -980,5 +982,40 @@ adminRouter.put('/service-fee-bills/schedule', async (req, res, next) => {
     const schedule = await saveScheduleSettings(b);
     await audit(req.user!, 'service_fee_bills.schedule', 'settings', 'service_fee_bill_schedule', b);
     res.json({ schedule });
+  } catch (e) { next(e); }
+});
+
+/* ------------------------------------------------------------------ */
+/* Ask Sokoni kill switch                                              */
+/* ------------------------------------------------------------------ */
+
+function assistantPublic(settings: Awaited<ReturnType<typeof assistantSettings>>) {
+  return {
+    ...settings,
+    llm_configured: !!config.assistantLlmKey,
+    stt_configured: !!config.assistantLlmKey,
+    llm_model: config.assistantLlmModel,
+    llm_base: config.assistantLlmBase,
+  };
+}
+
+adminRouter.get('/assistant', async (_req, res, next) => {
+  try {
+    res.json(assistantPublic(await assistantSettings()));
+  } catch (e) { next(e); }
+});
+
+const AssistantAdminSchema = z.object({
+  enabled: z.boolean(),
+  voice_enabled: z.boolean(),
+  retention_days: z.number().int().min(1).max(365),
+});
+
+adminRouter.put('/assistant', async (req, res, next) => {
+  try {
+    const b = AssistantAdminSchema.parse(req.body);
+    const settings = await saveAssistantSettings(b);
+    await audit(req.user!, 'assistant.update', 'system_settings', 'assistant', b);
+    res.json(assistantPublic(settings));
   } catch (e) { next(e); }
 });

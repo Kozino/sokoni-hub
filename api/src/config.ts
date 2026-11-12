@@ -63,6 +63,11 @@ export const config = {
   // Public website origin used only to generate transactional links. Keep this
   // server-only; it is not a browser VITE_ setting.
   appUrl: (process.env.APP_URL || process.env.CORS_ORIGINS?.split(',')[0] || 'http://localhost:5173').replace(/\/$/, ''),
+  // Sokoni Assistant. All optional: without a key the on-server helper still searches and quotes.
+  // Never put these in EXPO_PUBLIC_* or the web bundle.
+  assistantLlmKey: process.env.ASSISTANT_LLM_KEY || process.env.OPENAI_API_KEY || '',
+  assistantLlmBase: (process.env.ASSISTANT_LLM_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, ''),
+  assistantLlmModel: process.env.ASSISTANT_LLM_MODEL || 'gpt-4o-mini',
 };
 
 if (production && (!config.pgSsl || config.corsOrigins.some(o=>{try{return new URL(o).origin!==o || !o.startsWith('https://');}catch{return true;}}))) throw new Error('Production requires verified database TLS and exact HTTPS CORS origins');

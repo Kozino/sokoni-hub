@@ -2,6 +2,18 @@
 
 A native **consumer-only** Expo / React Native TypeScript application for Sokoni Hub. It shares the production API with the web marketplace but never embeds vendor or administrator dashboards.
 
+## Sokoni Assistant (Ask Sokoni)
+
+Optional shopping helper on the consumer app. It searches the live catalogue (including African foodstuff synonyms such as mchele → rice), can add products to the **existing** on-device cart, quotes with `POST /orders/quote`, and opens Checkout. **It never places an order.** The buyer confirms size, delivery pin and total. Cash on delivery is unchanged.
+
+- Entry: orange sparkles on Explore/Categories search, Profile, `sokonihub://assistant`
+- Languages: English, Kiswahili, Luganda, Twi, Arabic — picker on login, create account and Profile. The choice applies on every buyer screen (chrome, buttons, empty states, alerts). Catalogue titles, store names and prices stay as listed. Arabic uses RTL; close and reopen the app after switching direction.
+- Admin kill switch: **Admin → Ask Sokoni** (`/admin/assistant`). Turns chat and voice off immediately via `system_settings.assistant`.
+- Voice: hold-to-talk. Transcript is shown for edit before send. Audio is discarded after transcription.
+- Privacy: first-use consent, 90-day transcript retention, delete in Profile, wiped on account deletion. Qatar PDPPL. Set `ASSISTANT_LLM_KEY` on the API only (never in the app) for a hosted model + Whisper; without it the helper still searches and quotes on-server.
+
+Requires API migration `032_assistant.sql`.
+
 ## Included buyer experience
 
 - Classic three-slide, swipeable welcome experience using the established Sokoni Hub hero image and brand logo.

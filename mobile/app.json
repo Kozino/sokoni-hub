@@ -15,7 +15,8 @@
           "NSAllowsArbitraryLoads": false
         },
         "ITSAppUsesNonExemptEncryption": false,
-        "NSFaceIDUsageDescription": "Allow Sokoni Hub to use Face ID to authenticate you securely and quickly."
+        "NSFaceIDUsageDescription": "Allow Sokoni Hub to use Face ID to authenticate you securely and quickly.",
+        "NSMicrophoneUsageDescription": "Sokoni Hub records only while you hold the microphone in Ask Sokoni, to turn your words into a product search. Audio is discarded after transcription."
       }
     },
     "android": {
@@ -31,7 +32,8 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["RECORD_AUDIO"]
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -68,7 +70,9 @@
           "locationWhenInUsePermission": "Sokoni Hub uses your location to confirm where your order should be delivered and to show your rider on the map."
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      "expo-av",
+      "expo-speech"
     ]
   }
 }

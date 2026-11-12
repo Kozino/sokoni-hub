@@ -12,6 +12,7 @@ import { navigationRef } from './src/navRef';
 import { linkFromNotification } from './src/links';
 import { flushPendingLink, openAppLink, setLinksReady } from './src/openLink';
 import { Offers } from './src/screens/Offers';
+import { Assistant } from './src/screens/Assistant';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 const Stack = createNativeStackNavigator();
@@ -47,7 +48,8 @@ function AppRouter({ seenWelcome, finishWelcome }: any) {
         <Stack.Screen name="forgot">{(props) => <Recovery {...common} params={props.route.params} />}</Stack.Screen>
         <Stack.Screen name="listing">{(props) => <ListingDetail {...common} id={(props.route.params as any)?.id} writeReview={!!(props.route.params as any)?.writeReview} />}</Stack.Screen>
         <Stack.Screen name="store">{(props) => <StoreDetail {...common} slug={(props.route.params as any)?.slug} />}</Stack.Screen>
-        <Stack.Screen name="checkout">{(props) => <Checkout {...common} />}</Stack.Screen>
+        <Stack.Screen name="checkout">{(props) => <Checkout {...common} fromAssistant={!!(props.route.params as any)?.fromAssistant} />}</Stack.Screen>
+        <Stack.Screen name="assistant">{() => <Assistant {...common} />}</Stack.Screen>
         <Stack.Screen name="orders">{(props) => <Orders {...common} />}</Stack.Screen>
         <Stack.Screen name="bookings">{(props) => <Bookings {...common} />}</Stack.Screen>
         <Stack.Screen name="track">{(props) => <Track {...common} params={props.route.params} />}</Stack.Screen>
@@ -116,6 +118,7 @@ import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api, ApiError, query } from './src/api';
 import { SUPPORT_EMAIL, SUPPORT_WHATSAPP, WEB_URL } from './src/config';
+import { I18nProvider, useT } from './src/i18n';
 import { AuthProvider, CartProvider, ThemeProvider, useAuth, useCart, useTheme } from './src/providers';
 import type { Booking, CartItem, Category, Listing, Order, Review, Vendor } from './src/types';
 import { BrandMark, Button, Card, Chip, Divider, Dropdown, EmptyState, Field, FontContext, Header, IconButton, Money, Notice, Sheet, Spinner, Text, TextInput, type DropdownOption, type FontStatus } from './src/ui';
@@ -142,12 +145,13 @@ const useToast = () => useContext(ToastContext);
 export default function App() {
   const [loaded, error] = useFonts({ Inter_400Regular, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold });
   const fonts: FontStatus = loaded ? 'ready' : error ? 'failed' : 'loading';
-  return <ErrorBoundary FallbackComponent={ErrorFallback}><QueryClientProvider client={queryClient}><FontContext.Provider value={fonts}><SafeAreaProvider><ThemeProvider><AuthProvider><CartProvider><FavouritesProvider><CityProvider><Marketplace /></CityProvider></FavouritesProvider></CartProvider></AuthProvider></ThemeProvider></SafeAreaProvider></FontContext.Provider></QueryClientProvider></ErrorBoundary>;
+  return <ErrorBoundary FallbackComponent={ErrorFallback}><QueryClientProvider client={queryClient}><FontContext.Provider value={fonts}><SafeAreaProvider><ThemeProvider><I18nProvider><AuthProvider><CartProvider><FavouritesProvider><CityProvider><Marketplace /></CityProvider></FavouritesProvider></CartProvider></AuthProvider></I18nProvider></ThemeProvider></SafeAreaProvider></FontContext.Provider></QueryClientProvider></ErrorBoundary>;
 }
 
 
 export function Marketplace() {
   const { colors, theme } = useTheme();
+  const t = useT();
   const auth = useAuth();
   const fonts = useContext(FontContext);
   const [welcomeLoaded, setWelcomeLoaded] = useState(false);
@@ -202,7 +206,7 @@ export function Marketplace() {
       <View accessibilityLiveRegion="polite" style={{ flexDirection: 'row', alignItems: 'center', gap: 10, maxWidth: 560, paddingLeft: 16, paddingRight: toast.cart ? 8 : 18, minHeight: 50, borderRadius: 25, backgroundColor: colors.deep, shadowColor: '#000', shadowOpacity: 0.28, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 14 }}>
         <Icon name="checkmark-circle" size={20} color="#7CE0BB" />
         <Text numberOfLines={2} style={{ flexShrink: 1, color: colors.onDeep, fontSize: 12.5, fontWeight: '600', paddingVertical: 12 }}>{toast.text}</Text>
-        {toast.cart ? <Pressable accessibilityRole="button" accessibilityLabel="View cart" onPress={() => { setToast(null); navigationRef.isReady() && navigationRef.reset({ index: 0, routes: [{ name: 'cart' }] }); }} style={{ backgroundColor: colors.orange, borderRadius: 18, paddingHorizontal: 14, height: 36, justifyContent: 'center' }}><Text style={{ color: colors.onOrange, fontSize: 12, fontWeight: '700' }}>View cart</Text></Pressable> : null}
+        {toast.cart ? <Pressable accessibilityRole="button" accessibilityLabel={t('View cart')} onPress={() => { setToast(null); navigationRef.isReady() && navigationRef.reset({ index: 0, routes: [{ name: 'cart' }] }); }} style={{ backgroundColor: colors.orange, borderRadius: 18, paddingHorizontal: 14, height: 36, justifyContent: 'center' }}><Text style={{ color: colors.onOrange, fontSize: 12, fontWeight: '700' }}>View cart</Text></Pressable> : null}
       </View>
     </View> : null}
   </SafeAreaView></ToastContext.Provider>;

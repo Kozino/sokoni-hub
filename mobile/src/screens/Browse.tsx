@@ -11,6 +11,7 @@ import { Icon } from '../icons';
 import { AppBar, PageTitle, PillRow, Screen, SearchBar, SectionHead, SectionLabel, SortPill, Tabs, TrustBanner, ViewToggle, useGrid } from '../kit';
 import { useCity } from '../city';
 import type { NavProps } from '../nav';
+import { useT } from '../i18n';
 import { useTheme } from '../providers';
 import { Button, Chip, Divider, EmptyState, Field, Notice, Sheet, Spinner, Text, type TextInput } from '../ui';
 
@@ -20,6 +21,7 @@ type Kind = '' | 'product' | 'service';
 export function Browse({ go, back, tab, initial }: NavProps & { initial?: Record<string, any> }) {
   const params = initial ?? {};
   const { colors } = useTheme();
+  const t = useT();
   const { city, setCity, cities } = useCity();
   const grid = useGrid(150);
   const categories = useActiveCategories();
@@ -67,7 +69,7 @@ export function Browse({ go, back, tab, initial }: NavProps & { initial?: Record
   const header = (
     <View>
       {params.fromHome ? <PageTitle title={activeCategory?.name ?? (search ? 'Search' : 'Browse the market')} back={back} /> : null}
-      <SearchBar style={{ marginTop: 8 }} inputRef={inputRef} value={q} onChangeText={setQ} placeholder="Search products or services" onFilter={() => setSheet(true)} filterCount={filterCount} />
+      <SearchBar style={{ marginTop: 8 }} inputRef={inputRef} value={q} onChangeText={setQ} placeholder={t('home.searchPlaceholder')} onAsk={() => go('assistant')} askLabel={t('home.askSokoni')} onFilter={() => setSheet(true)} filterCount={filterCount} />
       <PillRow style={{ marginTop: 8 }} items={chips} active={category} onSelect={setCategory} />
       {!category && !search && shown.length ? (
         <>

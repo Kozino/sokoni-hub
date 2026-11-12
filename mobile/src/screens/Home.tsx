@@ -11,6 +11,7 @@ import { useCity } from '../city';
 import { plural } from '../format';
 import type { NavProps } from '../nav';
 import { FeaturedStores, usePromotions, VipStores } from '../promotions';
+import { useT } from '../i18n';
 import { useTheme } from '../providers';
 import { OffersRail } from '../offersUi';
 import { Button, EmptyState, Notice, Spinner, Text } from '../ui';
@@ -21,6 +22,7 @@ const SORTS: { value: SortKey; label: string }[] = (['popular', 'newest', 'price
 
 export function Home({ go, tab }: NavProps) {
   const { colors } = useTheme();
+  const t = useT();
   const { city } = useCity();
   const grid = useGrid(150);
   // On tablets list rows sit two across; on phones they are full width.
@@ -54,7 +56,7 @@ export function Home({ go, tab }: NavProps) {
         keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={colors.primary} />}
       >
-        <SearchBar style={{ marginTop: 10 }} value={text} onChangeText={setText} onSubmit={search} placeholder="Search products or services" onFilter={() => go('browse', { q: text.trim(), fromHome: true, openFilters: true })} />
+        <SearchBar style={{ marginTop: 10 }} value={text} onChangeText={setText} onSubmit={search} placeholder={t('home.searchPlaceholder')} onAsk={() => go('assistant')} askLabel={t('home.askSokoni')} onFilter={() => go('browse', { q: text.trim(), fromHome: true, openFilters: true })} />
         <PillRow style={{ marginTop: 10 }} items={chips} active={chip} onSelect={setChip} />
 
         <OffersRail onSeeAll={() => go('offers')} onOpen={() => go('offers')} />

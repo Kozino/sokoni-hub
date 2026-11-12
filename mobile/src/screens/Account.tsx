@@ -8,6 +8,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useState, type ReactNode } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { api, ApiError } from '../api';
+import { assistantApi } from '../assistant';
+import { LanguageCard } from '../i18n/LanguageCard';
+import { useI18n, useT } from '../i18n';
 import { SellCard } from '../cards';
 import { useCity } from '../city';
 import { useCheckoutDraft } from '../checkoutDraft';
@@ -25,7 +28,10 @@ const BUILD = Constants.expoConfig?.ios?.buildNumber ?? (Constants.expoConfig?.a
 
 export function Account({ go, tab }: NavProps) {
   const { colors, theme, toggleTheme } = useTheme();
+  const t = useT();
+  const { meta } = useI18n();
   const { user, logout, changePassword, changePin, updateUser } = useAuth();
+  const [langSheet, setLangSheet] = useState(false);
   const fav = useFavourites();
   const orders = useMyOrders();
   const offerCount = (useOffers().data ?? []).length;
@@ -101,16 +107,19 @@ export function Account({ go, tab }: NavProps) {
             <Text style={{ fontSize: 19, fontWeight: '700', color: '#FFFFFF', marginTop: 11, letterSpacing: -0.4 }}>Your Sokoni Hub profile</Text>
             <Text style={{ fontSize: 13, color: '#D3EEDF', textAlign: 'center', lineHeight: 19, marginTop: 8 }}>Sign in to place orders, book providers, keep your address handy and follow every request.</Text>
             <View style={{ alignSelf: 'stretch', gap: 8, marginTop: 16 }}>
-              <Button variant="gold" onPress={() => go('login')}>Sign in securely</Button>
-              <Button variant="tonal" onPress={() => go('register')}>Create a buyer account</Button>
+              <Button variant="gold" onPress={() => go('login')}>{t('account.signIn')}</Button>
+              <Button variant="tonal" onPress={() => go('register')}>{t('account.create')}</Button>
             </View>
           </LinearGradient>
           <Text style={[s.group, { color: colors.text2 }]}>EXPLORE</Text>
           <Panel style={{ padding: 6 }}>
             <Row icon="search" tint="mint" title="Browse the market" sub="Products, stalls and local services" onPress={() => tab('browse')} />
+            <Row icon="sparkles" tint="orange" title={t('assistant.title')} sub={t('home.askSokoni')} onPress={() => go('assistant')} />
             <Row icon="navigate" tint="lav" title="Track with a code" sub="Find an order or a booking" onPress={() => go('track')} />
             <Row icon="help-buoy" tint="mint" title="Help & support" sub="Contact the Sokoni Hub team" onPress={() => go('support')} last />
           </Panel>
+          <Text style={[s.group, { color: colors.text2 }]}>{t('common.language').toUpperCase()}</Text>
+          <View style={{ paddingHorizontal: 12 }}><LanguageCard /></View>
         </ScrollView>
         <Tabs active="account" tab={tab} />
       </Screen>
@@ -171,6 +180,7 @@ export function Account({ go, tab }: NavProps) {
         <Text style={[s.group, { color: colors.text2 }]}>PREFERENCES</Text>
         <Panel style={s.list}>
           <Dropdown value={city} options={cityOptions} onChange={setCity} menuWidth={240} renderTrigger={() => <Row icon="globe" tint="lav" title="City & Region" sub="Regional marketplace feed" value={city ? `${city}, Qatar` : 'All of Qatar'} />} />
+          <Row icon="language" tint="mint" title={t('account.language')} sub={t('account.languageSub')} value={meta.label} onPress={() => setLangSheet(true)} />
           <Row icon={theme === 'dark' ? 'moon' : 'sunny'} tint="lav" title="Dark mode" sub={theme === 'dark' ? 'On' : 'Off'} right={<Switch value={theme === 'dark'} onValueChange={toggleTheme} trackColor={{ false: colors.border, true: colors.primary }} thumbColor="#FFFFFF" />} />
           <Row icon="bell-alert" tint="lav" title="Notifications & Alerts" sub="Order and booking updates" onPress={() => go('notifications')} last />
         </Panel>
@@ -184,6 +194,13 @@ export function Account({ go, tab }: NavProps) {
 
         <Text style={[s.group, { color: colors.text2 }]}>SUPPORT & TRUST</Text>
         <Panel style={s.list}>
+          <Row icon="sparkles" tint="orange" title={t('assistant.title')} sub={t('assistant.subtitle')} onPress={() => go('assistant')} />
+          <Row icon="trash" tint="lav" title={t('account.deleteChats')} sub={t('account.deleteChatsSub')} onPress={() => {
+            Alert.alert(t('assistant.clearTitle'), t('assistant.clearBody'), [
+              { text: t('common.cancel'), style: 'cancel' },
+              { text: t('assistant.clear'), style: 'destructive', onPress: () => void assistantApi.clear().then(() => Alert.alert(t('account.chatsDeleted'), t('account.chatsDeletedBody'))).catch((e) => Alert.alert('Could not delete', errorMessage(e))) },
+            ]);
+          }} />
           <Row icon="chat" tint="mint" title="Help & WhatsApp Support" sub="Order, account and safety help" onPress={() => go('support')} />
           <Row icon="document-text" tint="lav" title="Terms & Privacy Policy" sub="Customer policies and marketplace rules" onPress={() => go('legal')} last />
         </Panel>
@@ -247,6 +264,11 @@ export function Account({ go, tab }: NavProps) {
           <Text style={{ flex: 1, fontSize: 11.5, color: colors.text, lineHeight: 17 }}>I understand my account will be deleted after review and cannot be undone.</Text>
         </Pressable>
         <Button variant="danger" onPress={submitDelete} loading={deleteBusy}>Request deletion</Button>
+      </Sheet>
+
+      <Sheet visible={langSheet} title={t('common.chooseLanguage')} onClose={() => setLangSheet(false)}>
+        <LanguageCard />
+        <Button style={{ marginTop: 8 }} onPress={() => setLangSheet(false)}>{t('common.save')}</Button>
       </Sheet>
     </Screen>
   );

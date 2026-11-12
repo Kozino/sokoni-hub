@@ -160,6 +160,10 @@ export const LEGAL_DOCS: LegalDoc[] = [
               {
                 "b": "Location:",
                 "text": "a city you select, or coordinates requested when you choose a location feature and grant browser permission. These support nearby-store discovery; home-service details you submit are handled as booking information."
+              },
+              {
+                "b": "Sokoni Assistant (optional):",
+                "text": "messages you type or dictate, your city, cart contents sent to price a quote, and a hashed guest-device id if you are not signed in. Voice is recorded only while you hold the microphone, converted to text, then discarded. Transcripts are stored to run the helper, not to train public AI models."
               }
             ]
           },
@@ -342,7 +346,32 @@ export const LEGAL_DOCS: LegalDoc[] = [
         ]
       },
       {
-        "title": "8. Optional analytics and cookies",
+        "title": "8. Sokoni Assistant",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Sokoni Assistant is optional. You can search, order and book without it. If you use it, we process your messages, city and cart context to search the live catalogue and suggest cart lines. It cannot place an order; you confirm in Checkout (size, delivery pin, total). Payment remains cash on delivery."
+          },
+          {
+            "t": "p",
+            "text": "Legal basis is your consent for this extra helper, and our need to run the marketplace once you ask it to search or quote. You can refuse or withdraw by not using Assistant and by deleting chats in Profile. Account deletion also removes Assistant threads."
+          },
+          {
+            "t": "p",
+            "text": "Transcripts are kept up to 90 days, then deleted automatically. They are not used to train public AI models. If an external language-model or speech provider is configured on the server, your message text (and a short voice clip for transcription only) is sent to that processor to produce a reply, under a contract that must not use it for their own training. Providers may be outside Qatar; we use this only where needed to run the helper you asked for."
+          },
+          {
+            "t": "p",
+            "text": "Voice: Qatar’s Penal Code treats recording private speech as requiring the parties’ consent. We only record while you hold the microphone after a separate microphone prompt. You can type instead. Audio is not stored after transcription."
+          },
+          {
+            "t": "p",
+            "text": "You may raise unresolved concerns with the competent authority under Qatar’s Personal Data Privacy Protection Law (Law No. 13 of 2016)."
+          }
+        ]
+      },
+      {
+        "title": "9. Optional analytics and cookies",
         "blocks": [
           {
             "t": "p",
@@ -355,7 +384,7 @@ export const LEGAL_DOCS: LegalDoc[] = [
         ]
       },
       {
-        "title": "9. Security and notice updates",
+        "title": "10. Security and notice updates",
         "blocks": [
           {
             "t": "p",

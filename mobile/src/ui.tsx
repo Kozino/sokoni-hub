@@ -3,6 +3,7 @@ import { createContext, forwardRef, useContext, useRef, useState, useSyncExterna
 import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text as RNText, TextInput as RNTextInput, useWindowDimensions, View, type ImageSourcePropType, type StyleProp, type TextInputProps, type TextProps, type TextStyle, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { connectivity } from './api';
+import { useI18n } from './i18n';
 import { useTheme } from './providers';
 import type { ReactNode } from 'react';
 import { tap } from './haptics';
@@ -28,12 +29,18 @@ function useInter(style: StyleProp<TextStyle>, nested: boolean): StyleProp<TextS
 export function Text(props: TextProps) {
   const nested = useContext(InsideText);
   const style = useInter(props.style, nested);
+  const { t } = useI18n();
+  const children = typeof props.children === 'string' ? t(props.children) : props.children;
+  const accessibilityLabel = typeof props.accessibilityLabel === 'string' ? t(props.accessibilityLabel) : props.accessibilityLabel;
   // Respect the phone's text-size setting, but cap it so fixed-height chips, tabs and buttons don't clip.
-  return <InsideText.Provider value><RNText maxFontSizeMultiplier={1.25} {...props} style={style} /></InsideText.Provider>;
+  return <InsideText.Provider value><RNText maxFontSizeMultiplier={1.25} {...props} accessibilityLabel={accessibilityLabel} style={style}>{children}</RNText></InsideText.Provider>;
 }
 export const TextInput = forwardRef<RNTextInput, TextInputProps>(function TextInput(props, ref) {
   const style = useInter(props.style as StyleProp<TextStyle>, false);
-  return <RNTextInput ref={ref} maxFontSizeMultiplier={1.25} {...props} style={style} />;
+  const { t } = useI18n();
+  const placeholder = typeof props.placeholder === 'string' ? t(props.placeholder) : props.placeholder;
+  const accessibilityLabel = typeof props.accessibilityLabel === 'string' ? t(props.accessibilityLabel) : props.accessibilityLabel;
+  return <RNTextInput ref={ref} maxFontSizeMultiplier={1.25} {...props} placeholder={placeholder} accessibilityLabel={accessibilityLabel} style={style} />;
 });
 export type TextInput = RNTextInput;
 
@@ -63,7 +70,8 @@ export function Button({ children, onPress, variant = 'primary', disabled, loadi
 
 export function IconButton({ icon, onPress, label, badge }: { icon: IconName; onPress: () => void; label: string; badge?: number }) {
   const { colors } = useTheme();
-  return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={() => { tap(); onPress(); }} hitSlop={10} style={[styles.iconButton, { borderColor: colors.border, backgroundColor: colors.surface }]}><Icon name={icon} size={20} color={colors.text} />{!!badge && <View style={[styles.badge, { backgroundColor: colors.gold }]}><Text style={styles.badgeText}>{badge > 9 ? '9+' : badge}</Text></View>}</Pressable>;
+  const { t } = useI18n();
+  return <Pressable accessibilityRole="button" accessibilityLabel={t(label)} onPress={() => { tap(); onPress(); }} hitSlop={10} style={[styles.iconButton, { borderColor: colors.border, backgroundColor: colors.surface }]}><Icon name={icon} size={20} color={colors.text} />{!!badge && <View style={[styles.badge, { backgroundColor: colors.gold }]}><Text style={styles.badgeText}>{badge > 9 ? '9+' : badge}</Text></View>}</Pressable>;
 }
 
 export function Field({ label, error, style, ...props }: TextInputProps & { label: string; error?: string; style?: ViewStyle }) {
@@ -81,8 +89,9 @@ export function EmptyState({ icon = 'basket-outline', title, text, action }: { i
 
 export function Header({ title, back, right }: { title: string; back?: () => void; right?: ReactNode }) {
   const { colors } = useTheme();
+  const { t } = useI18n();
   return <View style={[styles.header, { backgroundColor: colors.bg }]}>
-    {back ? <Pressable onPress={back} accessibilityRole="button" accessibilityLabel="Go back" style={[styles.backCircle, { backgroundColor: colors.surface, borderColor: colors.border }]}><Icon name="arrow-back" size={20} color={colors.text} /></Pressable> : <View style={styles.back} />}
+    {back ? <Pressable onPress={back} accessibilityRole="button" accessibilityLabel={t('Go back')} style={[styles.backCircle, { backgroundColor: colors.surface, borderColor: colors.border }]}><Icon name="arrow-back" size={20} color={colors.text} /></Pressable> : <View style={styles.back} />}
     <Text numberOfLines={1} style={[styles.headerTitle, { color: colors.text }]}>{title}</Text>
     <View style={styles.headerRight}>{right}</View>
   </View>;
@@ -92,7 +101,7 @@ export function Chip({ children, selected, onPress, image }: { children: ReactNo
 
 export function Notice({ type = 'info', children }: { type?: 'info' | 'warning' | 'success' | 'danger'; children: ReactNode }) { const { colors } = useTheme(); const values = type === 'warning' ? [colors.warningSoft, colors.warning, 'warning-outline'] : type === 'success' ? [colors.successSoft, colors.success, 'checkmark-circle-outline'] : type === 'danger' ? [colors.dangerSoft, colors.danger, 'alert-circle-outline'] : [colors.primarySoft, colors.primary, 'information-circle-outline']; return <View style={[styles.notice, { backgroundColor: values[0] as string }]}><Icon name={values[2] as IconName} size={19} color={values[1] as string}/><Text style={[styles.noticeText, { color: colors.text }]}>{children}</Text></View>; }
 
-export function Sheet({ visible, title, onClose, children }: { visible: boolean; title: string; onClose: () => void; children: ReactNode }) { const { colors } = useTheme(); const insets = useSafeAreaInsets(); return <Modal transparent statusBarTranslucent navigationBarTranslucent visible={visible} animationType="slide" onRequestClose={onClose}><Pressable accessibilityRole="button" accessibilityLabel="Close" style={[styles.modalBackdrop, { backgroundColor: colors.overlay }]} onPress={onClose}/><View style={[styles.sheet, { backgroundColor: colors.surface }]}><View style={[styles.sheetHandle, { backgroundColor: colors.border }]} /><View style={styles.sheetTop}><Text style={[styles.sheetTitle, { color: colors.text }]}>{title}</Text><Pressable accessibilityRole="button" accessibilityLabel="Close" hitSlop={10} onPress={onClose}><Icon name="close" size={22} color={colors.text}/></Pressable></View><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.sheetContent, { paddingBottom: 22 + insets.bottom }]}>{children}</ScrollView></View></Modal>; }
+export function Sheet({ visible, title, onClose, children }: { visible: boolean; title: string; onClose: () => void; children: ReactNode }) { const { colors } = useTheme(); const { t } = useI18n(); const insets = useSafeAreaInsets(); return <Modal transparent statusBarTranslucent navigationBarTranslucent visible={visible} animationType="slide" onRequestClose={onClose}><Pressable accessibilityRole="button" accessibilityLabel={t('Close')} style={[styles.modalBackdrop, { backgroundColor: colors.overlay }]} onPress={onClose}/><View style={[styles.sheet, { backgroundColor: colors.surface }]}><View style={[styles.sheetHandle, { backgroundColor: colors.border }]} /><View style={styles.sheetTop}><Text style={[styles.sheetTitle, { color: colors.text }]}>{title}</Text><Pressable accessibilityRole="button" accessibilityLabel={t('Close')} hitSlop={10} onPress={onClose}><Icon name="close" size={22} color={colors.text}/></Pressable></View><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.sheetContent, { paddingBottom: 22 + insets.bottom }]}>{children}</ScrollView></View></Modal>; }
 
 export type DropdownOption = { value: string; label: string; image?: ImageSourcePropType };
 /** A real dropdown: tapping the trigger opens a menu anchored right under it; choosing an option closes it. */

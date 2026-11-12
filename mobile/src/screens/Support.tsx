@@ -6,6 +6,7 @@ import { Icon, type IconName } from '../icons';
 import { Panel, Screen, accentAt } from '../kit';
 import type { NavProps } from '../nav';
 import { useTheme } from '../providers';
+import { useT } from '../i18n';
 import { Header, Notice, Text } from '../ui';
 
 /** How the app really behaves, in plain words. Kept next to the code that implements each rule. */
@@ -20,7 +21,9 @@ const FAQ: [string, string][] = [
 
 export function Support({ go, back }: NavProps) {
   const { colors } = useTheme();
+  const t = useT();
   const [open, setOpen] = useState<number | null>(null);
+  const questions: [string, string][] = [...FAQ, [t('support.assistantQ'), t('support.assistantA')]];
   const open_ = (url: string) => void Linking.openURL(url);
   return (
     <Screen>
@@ -44,10 +47,10 @@ export function Support({ go, back }: NavProps) {
 
         <Text style={{ fontSize: 13.5, fontWeight: '700', letterSpacing: -0.2, color: colors.text, marginTop: 6 }}>Common questions</Text>
         <Panel style={{ padding: 4 }}>
-          {FAQ.map(([q, a], index) => {
+          {questions.map(([q, a], index) => {
             const accent = accentAt(colors, index);
             return (
-              <View key={q} style={[index < FAQ.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}>
+              <View key={q} style={[index < questions.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}>
                 <Pressable accessibilityRole="button" accessibilityState={{ expanded: open === index }} onPress={() => setOpen(open === index ? null : index)} style={s.q}>
                   <View style={[s.qNo, { backgroundColor: accent.bg }]}><Text style={{ fontSize: 10.5, fontWeight: '700', color: accent.fg }}>{index + 1}</Text></View>
                   <Text style={{ flex: 1, fontSize: 12.5, fontWeight: '600', color: colors.text }}>{q}</Text>

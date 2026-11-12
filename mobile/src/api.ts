@@ -1,8 +1,11 @@
+import { randomUUID } from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
 import { API_URL } from './config';
 
 const TOKEN_KEY = 'sokoni_mobile_session';
+const GUEST_KEY = 'sokoni_assistant_guest';
 let memoryToken: string | null = null;
+let guestId: string | null = null;
 let onUnauthorized: (() => void) | null = null;
 
 export class ApiError extends Error {
@@ -27,6 +30,24 @@ export const authStorage = {
 
 export const setUnauthorizedHandler = (handler: (() => void) | null) => { onUnauthorized = handler; };
 
+/** Stable guest id for Sokoni Assistant transcripts (hashed on the server). Not an auth token. */
+export const assistantGuest = {
+  get id() { return guestId; },
+  async load() {
+    if (guestId) return guestId;
+    try {
+      guestId = await SecureStore.getItemAsync(GUEST_KEY);
+      if (!guestId) {
+        guestId = randomUUID();
+        await SecureStore.setItemAsync(GUEST_KEY, guestId, { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY }).catch(() => {});
+      }
+    } catch {
+      guestId = guestId || randomUUID();
+    }
+    return guestId;
+  },
+};
+
 // Connectivity is inferred from real requests: a failed fetch marks us offline, any response marks us online.
 let offline = false;
 const listeners = new Set<() => void>();
@@ -40,6 +61,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   if (!(init.body instanceof FormData) && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
   if (memoryToken) headers.set('Authorization', `Bearer ${memoryToken}`);
+  if (guestId) headers.set('X-Sokoni-Guest', guestId);
 
   let response: Response;
   try {
@@ -67,6 +89,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 export const api = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, body: unknown = {}) => request<T>(path, { method: 'POST', body: JSON.stringify(body) }),
+  postForm: <T>(path: string, body: FormData) => request<T>(path, { method: 'POST', body }),
   put: <T>(path: string, body: unknown = {}) => request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
   patch: <T>(path: string, body: unknown = {}) => request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
   del: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
