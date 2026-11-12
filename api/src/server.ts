@@ -27,6 +27,8 @@ import { reviewRouter } from './routes/reviews';
 import { wallet } from './routes/wallet';
 import { driverRouter } from './routes/drivers';
 import { pushRouter } from './routes/push';
+import { offerRouter } from './routes/offers';
+import { guestPushRouter } from './routes/guestPush';
 import { startServiceFeeBillScheduler } from './serviceFeeSchedule';
 
 const app = express();
@@ -84,6 +86,10 @@ app.use('/api/listings', listingRouter);
 app.post('/api/orders/checkout', limit('checkout',20,900));
 app.use('/api/orders', orderRouter);
 app.use('/api/push', pushRouter);
+// Offers (031): public list + admin controls. Guest devices may receive offer campaigns only; order alerts never use this.
+app.post('/api/guest-push/device', limit('guest-push', 40, 900));
+app.use('/api/guest-push', guestPushRouter);
+app.use('/api/offers', offerRouter);
 app.use('/api/complaints', limit('complaints',30,900), complaintRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/uploads', limit('uploads',20,900), uploadRouter);

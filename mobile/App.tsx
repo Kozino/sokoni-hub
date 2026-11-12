@@ -6,13 +6,17 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from 'react-error-boundary';
 import { usePushNotifications } from './src/usePushNotifications';
 import { Platform } from 'react-native';
-import { createNavigationContainerRef, DarkTheme, DefaultTheme, NavigationContainer, useNavigation } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, NavigationContainer, useNavigation } from '@react-navigation/native';
+import * as ExpoLinking from 'expo-linking';
+import { navigationRef } from './src/navRef';
+import { linkFromNotification } from './src/links';
+import { flushPendingLink, openAppLink, setLinksReady } from './src/openLink';
+import { Offers } from './src/screens/Offers';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 const Stack = createNativeStackNavigator();
 
 const queryClient = new QueryClient();
-const navigationRef = createNavigationContainerRef<any>();
 
 function AppRouter({ seenWelcome, finishWelcome }: any) {
   const navigation = useNavigation<any>();
@@ -50,6 +54,7 @@ function AppRouter({ seenWelcome, finishWelcome }: any) {
         <Stack.Screen name="booking">{(props) => <BookService {...common} listing={(props.route.params as any)?.listing} />}</Stack.Screen>
         <Stack.Screen name="saved">{(props) => <Saved {...common} />}</Stack.Screen>
         <Stack.Screen name="notifications">{(props) => <Notifications {...common} />}</Stack.Screen>
+        <Stack.Screen name="offers">{(props) => <Offers {...common} />}</Stack.Screen>
         <Stack.Screen name="legal">{(props) => <LegalScreen back={common.back} go={common.go} doc={(props.route.params as any)?.doc} />}</Stack.Screen>
         <Stack.Screen name="support">{(props) => <Support {...common} />}</Stack.Screen>
         <Stack.Screen name="web">{(props) => <WebOnlyAccount onSignOut={(props.route.params as any)?.onSignOut} />}</Stack.Screen>
@@ -125,7 +130,7 @@ import { LegalScreen } from './src/legal';
 import { TAB_CLEARANCE } from './src/kit';
 
 const WELCOME_KEY = 'sokoni_mobile_welcome_complete';
-type Screen = 'welcome' | 'home' | 'browse' | 'services' | 'cart' | 'account' | 'login' | 'register' | 'pin' | 'pinsetup' | 'forgot' | 'listing' | 'store' | 'checkout' | 'orders' | 'bookings' | 'track' | 'booking' | 'support' | 'saved' | 'notifications' | 'legal';
+type Screen = 'welcome' | 'home' | 'browse' | 'services' | 'cart' | 'account' | 'login' | 'register' | 'pin' | 'pinsetup' | 'forgot' | 'listing' | 'store' | 'checkout' | 'orders' | 'bookings' | 'track' | 'booking' | 'support' | 'saved' | 'notifications' | 'legal' | 'offers';
 type Nav = { screen: Screen; params?: Record<string, any>; id?: number };
 const message = (error: unknown) => error instanceof ApiError ? error.message : error instanceof Error ? error.message : 'Something went wrong. Please try again.';
 const date = (value?: string | null) => value ? new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : 'To be arranged';
@@ -147,18 +152,35 @@ export function Marketplace() {
   const fonts = useContext(FontContext);
   const [welcomeLoaded, setWelcomeLoaded] = useState(false);
   const [seenWelcome, setSeenWelcome] = useState(false);
-  const { expoPushToken } = usePushNotifications();
-  // Register this device for order alerts once someone is signed in.
+  // A tapped notification opens the screen it was about: an offer's link, or the orders list for an order update.
+  const { expoPushToken } = usePushNotifications((data) => { const link = linkFromNotification(data); if (link) openAppLink(link); });
+  // Register this device. Signed in: for order alerts (and offers). Not signed in: as a guest device, which only ever
+  // receives offer notifications, so people without an account can still hear about a free-delivery weekend.
   useEffect(() => {
-    if (!expoPushToken || !auth.user) return;
-    void api.post('/push/token', { token: expoPushToken, platform: Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'unknown' }).catch(() => {});
+    if (!expoPushToken) return;
+    const platform = Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'unknown';
+    if (auth.user) {
+      void api.post('/push/token', { token: expoPushToken, platform }).catch(() => {});
+      // Now it belongs to the account: drop the guest entry so the phone is not on both lists.
+      void api.del(`/guest-push/device/${encodeURIComponent(expoPushToken)}`).catch(() => {});
+    } else {
+      void api.post('/guest-push/device', { token: expoPushToken, platform }).catch(() => {});
+    }
   }, [expoPushToken, auth.user?.id]);
+  // sokonihub:// links: opened from outside the app, or while it is already running.
+  useEffect(() => {
+    void ExpoLinking.getInitialURL().then((url) => { if (url) openAppLink(url); }).catch(() => {});
+    const sub = ExpoLinking.addEventListener('url', (event) => { openAppLink(event.url); });
+    return () => sub.remove();
+  }, []);
   const insets = useSafeAreaInsets();
   const counter = useRef(0);
   const [toast, setToast] = useState<{ text: string; cart: boolean; id: number } | null>(null);
   const showToast = useCallback((text: string, cart = false) => setToast({ text, cart, id: ++counter.current }), []);
   const toastApi = useMemo(() => ({ show: showToast }), [showToast]);
   useEffect(() => { if (!toast) return undefined; const t = setTimeout(() => setToast(null), toast.cart ? 3800 : 2600); return () => clearTimeout(t); }, [toast]);
+  // Links and notification taps wait until the welcome pages are done and the account check has finished.
+  useEffect(() => { setLinksReady(welcomeLoaded && seenWelcome && !auth.loading); }, [welcomeLoaded, seenWelcome, auth.loading]);
   useEffect(() => { AsyncStorage.getItem(WELCOME_KEY).then((value) => { setSeenWelcome(value === 'yes'); setWelcomeLoaded(true); }).catch(() => setWelcomeLoaded(true)); }, []);
   useEffect(() => { if (welcomeLoaded && !auth.loading && fonts !== 'loading') void SplashScreen.hideAsync().catch(() => {}); }, [welcomeLoaded, auth.loading, fonts]);
   useEffect(() => { const t = setTimeout(() => { void SplashScreen.hideAsync().catch(() => {}); }, 8000); return () => clearTimeout(t); }, []);
@@ -173,7 +195,7 @@ export function Marketplace() {
   if (!welcomeLoaded || auth.loading) return <SafeAreaView edges={['top']} style={[styles.app, { backgroundColor: colors.bg }]}><Spinner label="Preparing Sokoni Hub…" /></SafeAreaView>;
 
   return <ToastContext.Provider value={toastApi}><SafeAreaView edges={['top']} style={[styles.app, { backgroundColor: colors.bg }]}><StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
-    <NavigationContainer ref={navigationRef} theme={navTheme}>
+    <NavigationContainer ref={navigationRef} theme={navTheme} onReady={flushPendingLink}>
       {auth.user && auth.user.role !== 'buyer' ? <WebOnlyAccount onSignOut={auth.logout} /> : <AppRouter seenWelcome={seenWelcome} finishWelcome={finishWelcome} />}
     </NavigationContainer>
     {toast ? <View pointerEvents="box-none" style={{ position: 'absolute', left: 16, right: 16, bottom: TAB_CLEARANCE + Math.max(insets.bottom, 6), alignItems: 'center', zIndex: 60 }}>

@@ -1,7 +1,7 @@
 /** Route names and the navigation callbacks `App.tsx` passes to every screen. */
 export type Screen =
   | 'welcome' | 'home' | 'browse' | 'services' | 'cart' | 'account' | 'login' | 'register' | 'pin' | 'pinsetup' | 'forgot'
-  | 'listing' | 'store' | 'checkout' | 'orders' | 'bookings' | 'track' | 'booking' | 'support' | 'saved' | 'notifications' | 'legal';
+  | 'listing' | 'store' | 'checkout' | 'orders' | 'bookings' | 'track' | 'booking' | 'support' | 'saved' | 'notifications' | 'legal' | 'offers';
 
 /** Push a screen on top of the current one (back returns here). */
 export type Go = (screen: Screen, params?: Record<string, any>) => void;

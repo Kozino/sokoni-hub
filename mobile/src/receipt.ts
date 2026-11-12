@@ -48,6 +48,8 @@ export function buildReceiptHtml(input: ReceiptInput): string {
   const cancelled = order.status === 'cancelled';
   const status = STATUS[order.status] ?? { label: order.status.replace(/_/g, ' '), fg: '#4B5563', bg: '#EEF0F6' };
   const fee = Number(order.delivery_fee || 0);
+  const discount = Number(order.discount || 0);
+  const deliveryDiscount = Number(order.delivery_discount || 0);
   const generated = fullDateTime((input.generatedAt ?? new Date()).toISOString());
   const stamp = cancelled
     ? { text: 'CANCELLED', fg: '#BA1A1A', bg: '#FDEBEC', note: 'No payment is due' }
@@ -117,6 +119,7 @@ export function buildReceiptHtml(input: ReceiptInput): string {
   .totals { margin-top: 12px; margin-left: auto; width: 260px; }
   .totals .line { display: flex; justify-content: space-between; padding: 4px 2px; color: #4B5563; }
   .totals .line b { color: #111827; font-weight: 600; }
+  .totals .line b.neg { color: #05663F; }
   .grand { margin-top: 6px; background: linear-gradient(135deg, #E1F7E9, #D2F1DE); border: 1px solid #BDE9CE; border-radius: 12px; padding: 10px 13px; display: flex; justify-content: space-between; align-items: center; }
   .grand span { font-size: 11px; font-weight: 700; color: #034D30; }
   .grand b { font-size: 20px; letter-spacing: -.4px; color: #05663F; }
@@ -156,6 +159,7 @@ export function buildReceiptHtml(input: ReceiptInput): string {
         ${order.delivered_at ? detail(pickup ? 'Collected' : 'Delivered', fullDateTime(order.delivered_at, true)) : ''}
         ${detail('Fulfilment', pickup ? 'Pick up from the store' : 'Home delivery')}
         ${detail('Payment', `Cash on delivery · ${paid ? 'Paid' : cancelled ? 'Not charged' : 'To pay'}`)}
+        ${order.promo_code ? detail('Promo code', order.promo_code) : ''}
         ${order.receipt_number ? detail('Receipt no.', order.receipt_number, true) : ''}
       </div>
       <div class="card">
@@ -173,7 +177,9 @@ export function buildReceiptHtml(input: ReceiptInput): string {
 
     <div class="totals">
       <div class="line"><span>Subtotal</span><b>${esc(money(order.subtotal, currency))}</b></div>
+      ${discount > 0 ? `<div class="line"><span>Discount${order.promo_code ? ` (${esc(order.promo_code)})` : ''}</span><b class="neg">− ${esc(money(discount, currency))}</b></div>` : ''}
       <div class="line"><span>${pickup ? 'Collection' : 'Delivery fee'}</span><b>${fee > 0 ? esc(money(fee, currency)) : 'Free'}</b></div>
+      ${deliveryDiscount > 0 ? `<div class="line"><span>Delivery discount</span><b class="neg">− ${esc(money(deliveryDiscount, currency))}</b></div>` : ''}
       <div class="grand"><span>Total</span><b>${esc(money(order.total, currency))}</b></div>
     </div>
 

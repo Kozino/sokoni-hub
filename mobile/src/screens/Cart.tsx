@@ -5,12 +5,14 @@
 import { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useCheckoutDraft } from '../checkoutDraft';
-import { cartLineKey, useCartQuote, useRememberedImage } from '../data';
+import { cartLineKey, checkPromoCode, cleanPromo, errorMessage, useCartQuote, useOffers, useRememberedImage } from '../data';
 import { money, num, plural } from '../format';
 import { Icon } from '../icons';
 import { AppBar, ModeCard, Panel, Price, QtyStepper, Screen, SectionHead, TAB_LIFT, Thumb, Tabs, softShadow } from '../kit';
 import type { NavProps } from '../nav';
+import { PromoCard } from '../offersUi';
 import { useCart, useTheme } from '../providers';
+import { useToast } from '../toast';
 import type { CartItem } from '../types';
 import { Button, EmptyState, Field, Notice, Sheet, Text } from '../ui';
 
@@ -20,11 +22,16 @@ export function Cart({ go, tab }: NavProps) {
   const [draft, setDraft] = useCheckoutDraft();
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState('');
+  const [promoBusy, setPromoBusy] = useState(false);
+  const [promoError, setPromoError] = useState('');
+  const toast = useToast();
+  const hasOffers = (useOffers().data ?? []).length > 0;
   const mode = draft.mode;
+  const promo = draft.promo;
 
-  // Both quotes are fetched so each delivery-mode card shows the real fee for that choice.
-  const delivery = useCartQuote(cart.items, 'delivery');
-  const pickup = useCartQuote(cart.items, 'pickup');
+  // Both quotes are fetched so each delivery-mode card shows the real fee for that choice. The promo code travels with both.
+  const delivery = useCartQuote(cart.items, 'delivery', promo);
+  const pickup = useCartQuote(cart.items, 'pickup', promo);
   const active = mode === 'delivery' ? delivery : pickup;
   const quote = active.quote;
 
@@ -47,7 +54,28 @@ export function Cart({ go, tab }: NavProps) {
 
   const pickupOnly = (delivery.quote?.vendors ?? []).filter((v) => v.mode === 'pickup' && !v.offers_delivery);
   const unavailable = (quote?.vendors ?? []).filter((v) => v.unavailable);
-  const deliveryFee = delivery.quote?.delivery_fee;
+  // What the buyer actually pays for delivery: the seller's fee less any Sokoni Hub offer (the fee itself is unchanged).
+  const deliveryFee = delivery.quote ? Math.max(0, delivery.quote.delivery_fee - (delivery.quote.delivery_discount ?? 0)) : undefined;
+  const discount = quote?.discount ?? 0;
+  const deliveryDiscount = quote?.delivery_discount ?? 0;
+  const payableFee = quote ? Math.max(0, quote.delivery_fee - deliveryDiscount) : 0;
+  // The seller's own free-delivery bar and a Sokoni Hub offer can both aim at "free delivery". Two different targets would
+  // puzzle the buyer, so only the nearer one is shown, and neither once delivery is already free.
+  const offerFree = (quote?.hints ?? []).find((h) => h.kind === 'free_delivery');
+  const sellerBarCloser = !!nudge && !nudge.done && (!offerFree || nudge.remaining <= offerFree.needed);
+  const alreadyFree = !!quote && quote.delivery_fee > 0 && payableFee === 0; // Sokoni Hub's offer already waived the fee
+  const showNudge = !!nudge && (nudge.done || (!alreadyFree && (!offerFree || sellerBarCloser)));
+
+  // A code is checked against the cart before it is kept, so a bad code never reaches checkout.
+  const applyPromo = async (raw: string) => {
+    const code = cleanPromo(raw);
+    if (code.length < 3) { setPromoError('Enter your promo code.'); return; }
+    setPromoBusy(true); setPromoError('');
+    try {
+      const result = await checkPromoCode(cart.items, mode, code);
+      if (result.ok) { setDraft({ promo: code }); toast.show(`Code ${code} applied`); } else setPromoError(result.message);
+    } catch (e) { setPromoError(errorMessage(e)); } finally { setPromoBusy(false); }
+  };
 
   const clear = () => Alert.alert('Clear your cart?', 'This removes every item from your cart.', [
     { text: 'Keep items', style: 'cancel' },
@@ -81,7 +109,7 @@ export function Cart({ go, tab }: NavProps) {
           </Pressable>
         </View>
 
-        {nudge ? (
+        {showNudge && nudge ? (
           <View style={[s.nudge, { backgroundColor: nudge.done ? colors.primarySoft : colors.orangeSoft, borderColor: nudge.done ? colors.primaryLine : colors.orangeLine }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
               <View style={[s.nudgeIcon, { backgroundColor: nudge.done ? colors.primary : colors.orange }]}><Icon name="car" solid={false} size={18} color="#FFFFFF" /></View>
@@ -145,13 +173,16 @@ export function Cart({ go, tab }: NavProps) {
           </View>
         </Panel>
 
+        <PromoCard applied={promo} quote={quote} checking={promoBusy} error={promoError} hasOffers={hasOffers} onApply={(code) => void applyPromo(code)} onRemove={() => { setDraft({ promo: '' }); setPromoError(''); }} onSeeOffers={() => go('offers')} skipFreeDeliveryHint={sellerBarCloser} />
+
         <Panel style={{ marginHorizontal: 12, marginTop: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <View style={[s.sumIcon, { backgroundColor: colors.skySoft }]}><Icon name="receipt" solid={false} size={16} color={colors.sky} /></View>
             <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>Order summary</Text>
           </View>
           <SummaryRow label="Subtotal" value={money(quote?.subtotal ?? localSubtotal, currency)} />
-          <SummaryRow label={mode === 'delivery' ? 'Delivery fee' : 'Collection'} value={!quote ? '—' : quote.delivery_fee > 0 ? money(quote.delivery_fee, currency) : 'Free'} good={!!quote && quote.delivery_fee === 0} />
+          {discount > 0 ? <SummaryRow label={`Discount${quote?.promo?.ok ? ` (${promo})` : ''}`} value={`−${money(discount, currency)}`} good /> : null}
+          <SummaryRow label={mode === 'delivery' ? 'Delivery fee' : 'Collection'} value={!quote ? '—' : payableFee > 0 ? money(payableFee, currency) : 'Free'} good={!!quote && payableFee === 0} was={deliveryDiscount > 0 && quote ? money(quote.delivery_fee, currency) : undefined} />
           <View style={[s.rule, { backgroundColor: colors.border }]} />
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 10 }}>
             <View style={{ flex: 1 }}>
@@ -219,12 +250,15 @@ function CartLine({ item }: { item: CartItem }) {
   );
 }
 
-function SummaryRow({ label, value, good }: { label: string; value: string; good?: boolean }) {
+function SummaryRow({ label, value, good, was }: { label: string; value: string; good?: boolean; was?: string }) {
   const { colors } = useTheme();
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
       <Text style={{ fontSize: 12, color: colors.text2, fontWeight: '500' }}>{label}</Text>
-      <Text style={{ fontSize: 12, fontWeight: '700', color: good ? colors.primary : colors.text }}>{value}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        {was ? <Text style={{ fontSize: 11, color: colors.muted, textDecorationLine: 'line-through' }}>{was}</Text> : null}
+        <Text style={{ fontSize: 12, fontWeight: '700', color: good ? colors.primary : colors.text }}>{value}</Text>
+      </View>
     </View>
   );
 }

@@ -9,7 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { api, ApiError, query } from './api';
 import { cityParam, phoneDigits, ratingOf, uniqueCities } from './format';
 import { useAuth } from './providers';
-import type { Booking, CartItem, CartQuote, Category, FulfilmentMode, Listing, Order } from './types';
+import type { Booking, CartItem, CartQuote, Category, FulfilmentMode, Listing, Offer, Order } from './types';
 
 export const errorMessage = (error: unknown) =>
   error instanceof ApiError || error instanceof Error ? error.message : 'Something went wrong. Please try again.';
@@ -222,8 +222,15 @@ export const cartLineKey = (item: Pick<CartItem, 'listing_id' | 'option'>) => `$
 /** Request body shared by /orders/quote and /orders/checkout. `option` is required for listings with sizes. */
 export const quoteItems = (items: CartItem[]) => items.map((i) => ({ listing_id: i.listing_id, qty: i.qty, ...(i.option ? { option: i.option } : {}) }));
 
-/** Server-priced quote (delivery fees, free-delivery threshold, availability) for the current cart. */
-export function useCartQuote(items: CartItem[], mode: FulfilmentMode) {
+/** The code the buyer typed, tidied the way the server reads it (any case, no spaces). */
+export const cleanPromo = (value?: string | null) => String(value ?? '').trim().toUpperCase().replace(/\s+/g, '');
+
+/**
+ * Server-priced quote (delivery fees, free-delivery threshold, availability, and any offers) for the current cart.
+ * The app always asks for offers: the server applies only what an admin has switched on, and answers with a
+ * `promo` result for the typed code and `hints` such as "Add 40 QAR more for FREE delivery".
+ */
+export function useCartQuote(items: CartItem[], mode: FulfilmentMode, promo = '') {
   const key = items.map((i) => `${cartLineKey(i)}:${i.qty}`).join(',');
   const [quote, setQuote] = useState<CartQuote | null>(null);
   const [error, setError] = useState('');
@@ -234,15 +241,33 @@ export function useCartQuote(items: CartItem[], mode: FulfilmentMode) {
     const mine = ++ticket.current;
     setLoading(true); setError('');
     try {
-      const result = await api.post<CartQuote>('/orders/quote', { items: quoteItems(items), fulfilment_mode: mode });
+      const result = await api.post<CartQuote>('/orders/quote', { items: quoteItems(items), fulfilment_mode: mode, offers: true, ...(promo ? { promo_code: promo } : {}) });
       if (mine === ticket.current) setQuote(result);
     } catch (e) {
       if (mine === ticket.current) { setQuote(null); setError(errorMessage(e)); }
     } finally { if (mine === ticket.current) setLoading(false); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, mode]);
+  }, [key, mode, promo]);
   useEffect(() => { void reload(); }, [reload]);
   return { quote, error, loading, reload };
+}
+
+/** One-off check of a typed code against the current cart (does not change what the Cart shows until the code is kept). */
+export async function checkPromoCode(items: CartItem[], mode: FulfilmentMode, code: string): Promise<{ ok: boolean; message: string; saving: number }> {
+  const result = await api.post<CartQuote>('/orders/quote', { items: quoteItems(items), fulfilment_mode: mode, offers: true, promo_code: code });
+  if (!result.promo) return { ok: false, message: 'Offers are not available right now. Please try again later.', saving: 0 };
+  return { ok: result.promo.ok, message: result.promo.message || (result.promo.ok ? 'Code applied' : 'That code could not be used.'), saving: (result.discount ?? 0) + (result.delivery_discount ?? 0) };
+}
+
+/** Offers listed in the app. Shared by the Explore rail, the Offers screen and the Profile badge. */
+export function useOffers() {
+  const { user } = useAuth();
+  return useQuery({
+    // The list depends on who is asking (a once-only offer you already used is hidden from you).
+    queryKey: ['offers', user?.id ?? 'guest'],
+    staleTime: 60_000,
+    queryFn: async () => (await api.get<{ offers: Offer[] }>('/offers')).offers,
+  });
 }
 
 /* ----------------------------------------------------------------------------- market listing */

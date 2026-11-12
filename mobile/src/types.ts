@@ -107,6 +107,32 @@ export interface CartQuoteVendor {
   pickup_address?: string | null;
   free_delivery_over?: number | null;
   unavailable?: string | null;
+  /** Offers (platform-funded). `delivery_fee` stays the full fee; `total` is what the buyer pays. */
+  discount?: number;
+  delivery_discount?: number;
+}
+
+export type OfferKind = 'percent_off' | 'amount_off' | 'free_delivery' | 'delivery_percent_off' | 'delivery_amount_off';
+export type OfferAccent = 'green' | 'orange' | 'violet' | 'sky' | 'rose' | 'amber';
+
+/** One offer that was applied to a quote or an order. */
+export interface AppliedOffer {
+  offer_id: string;
+  code: string | null;
+  title: string;
+  kind: OfferKind;
+  goods_discount: number;
+  delivery_discount: number;
+}
+/** "Add 40 QAR more for FREE delivery" */
+export interface QuoteHint {
+  offer_id: string;
+  kind: OfferKind;
+  title: string;
+  text: string;
+  needed: number;
+  /** 0..1 */
+  progress: number;
 }
 
 export interface CartQuote {
@@ -115,6 +141,36 @@ export interface CartQuote {
   delivery_fee: number;
   total: number;
   currency: string;
+  // Present when the app asks for offers and the server has them switched on.
+  discount?: number;
+  delivery_discount?: number;
+  applied_offers?: AppliedOffer[];
+  hints?: QuoteHint[];
+  /** The code the buyer typed: whether it works, and a message when it does not. */
+  promo?: { code: string; ok: boolean; message: string | null } | null;
+}
+
+/** An offer listed in the app (GET /offers). */
+export interface Offer {
+  id: string;
+  code: string | null;
+  /** True when nothing needs to be typed: it applies at checkout when the cart qualifies. */
+  auto: boolean;
+  title: string;
+  description: string | null;
+  kind: OfferKind;
+  value: number;
+  max_discount: number | null;
+  min_subtotal: number;
+  scope: 'all' | 'vendor' | 'category';
+  fulfilment: 'any' | 'delivery' | 'pickup';
+  first_order_only: boolean;
+  ends_at: string;
+  badge: string | null;
+  accent: OfferAccent;
+  target: { type: 'vendor' | 'category'; slug: string | null; name: string | null } | null;
+  /** In-app destination, e.g. sokonihub://store/oriaku-foods */
+  link: string;
 }
 
 export interface OrderLine {
@@ -145,6 +201,11 @@ export interface Order {
   subtotal: number | string;
   delivery_fee: number | string;
   total: number | string;
+  /** Platform-funded offers. Absent or 0 on an order placed without one. `total` is what the buyer pays. */
+  discount?: number | string | null;
+  delivery_discount?: number | string | null;
+  promo_code?: string | null;
+  offers_applied?: AppliedOffer[] | null;
   currency: string;
   contact_name: string;
   contact_phone: string;

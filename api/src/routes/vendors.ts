@@ -392,15 +392,18 @@ vendorRouter.get('/dashboard', requireAuth('vendor'), loadVendor, async (req, re
          (select count(*) from orders where vendor_id = $1)                                      as orders_total,
          (select count(*) from orders where vendor_id = $1 and status = 'pending')               as orders_pending,
          (select count(*) from orders where vendor_id = $1 and status = 'delivered')             as orders_delivered,
-         (select coalesce(sum(total),0) from orders where vendor_id = $1 and status = 'delivered') as revenue_delivered,
-         (select coalesce(sum(total),0) from orders where vendor_id = $1 and status not in ('cancelled')) as revenue_pipeline,
+         -- Revenue is the full order value (subtotal + delivery_fee), NOT orders.total. An order's total is what the buyer paid, which
+         -- is lower when Sokoni Hub funds an offer, and the vendor is still paid in full. For every order placed before offers
+         -- existed the two are equal, so existing figures do not move.
+         (select coalesce(sum(subtotal + delivery_fee),0) from orders where vendor_id = $1 and status = 'delivered') as revenue_delivered,
+         (select coalesce(sum(subtotal + delivery_fee),0) from orders where vendor_id = $1 and status not in ('cancelled')) as revenue_pipeline,
          (select count(*) from complaints where vendor_id = $1 and status in ('open','investigating')) as open_complaints`,
       [vid]
     );
 
     const salesTrend = await query<any>(
       `select to_char(d.day,'YYYY-MM-DD') as day,
-              coalesce(sum(o.total) filter (where o.status <> 'cancelled'),0)::float as revenue,
+              coalesce(sum(o.subtotal + o.delivery_fee) filter (where o.status <> 'cancelled'),0)::float as revenue,
               count(o.id) filter (where o.status <> 'cancelled')::int as orders
        from generate_series(current_date - interval '29 days', current_date, interval '1 day') d(day)
        left join orders o on o.vendor_id = $1 and date_trunc('day', o.created_at) = d.day

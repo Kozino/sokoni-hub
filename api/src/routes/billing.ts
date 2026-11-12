@@ -1,3 +1,4 @@
+import { offersReady } from '../offers';
 import { Request, Router } from 'express';
 import { z } from 'zod';
 import { one, query, tx } from '../db';
@@ -195,8 +196,10 @@ function resolvePeriod(b: z.infer<typeof periodSchema>) {
 
 /** Delivered, not-yet-settled orders in a period, grouped by vendor. */
 async function settleableOrders(from: string, to: string, vendorId?: string) {
+  // The discount column exists once migration 031 has run; before that every order has no discount.
+  const discountCol = (await offersReady()) ? 'o.discount' : '0::numeric as discount';
   const rows = await query<any>(
-    `select o.id, o.vendor_id, o.subtotal, o.delivery_fee, o.total, o.currency,
+    `select o.id, o.vendor_id, o.subtotal, o.delivery_fee, o.total, ${discountCol}, o.currency,
             o.funds_collected_by, v.business_name,
             -- Commission base: product lines only. Service work is never
             -- commissioned (service vendors pay a fee before approval), and
@@ -233,6 +236,7 @@ async function settleableOrders(from: string, to: string, vendorId?: string) {
       subtotal: Number(r.subtotal),
       delivery_fee: Number(r.delivery_fee),
       total: Number(r.total),
+      discount: Number(r.discount ?? 0),
       funds_collected_by: r.funds_collected_by,
       goods_subtotal: Number(r.goods_subtotal),
     });

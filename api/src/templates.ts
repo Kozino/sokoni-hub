@@ -132,6 +132,8 @@ export interface ReceiptOrder {
   created_at: string | Date; status: string; payment_method: string;
   fulfilment_mode: string; currency: string;
   subtotal: number | string; delivery_fee: number | string; total: number | string;
+  /** Platform-funded offers (migration 031). Absent or 0 on orders placed without one. */
+  discount?: number | string | null; delivery_discount?: number | string | null; promo_code?: string | null;
   contact_name: string; contact_phone: string; delivery_address: string;
   city: string; country: string; note?: string | null;
   business_name: string; vendor_whatsapp?: string | null; pickup_address?: string | null;
@@ -181,7 +183,9 @@ export function receiptEmailHtml(o: ReceiptOrder, s: PlatformSettings): string {
         </table>
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 4px">
           <tr><td style="padding:5px 0;color:#49645a">Subtotal</td><td style="padding:5px 0;text-align:right">${esc(formatMoney(o.subtotal, cur))}</td></tr>
+          ${Number(o.discount) > 0 ? `<tr><td style="padding:5px 0;color:#49645a">Discount${o.promo_code ? ` (${esc(o.promo_code)})` : ''}</td><td style="padding:5px 0;text-align:right;color:#006c56">− ${esc(formatMoney(Number(o.discount), cur))}</td></tr>` : ''}
           <tr><td style="padding:5px 0;color:#49645a">${esc(deliveryLabel)}</td><td style="padding:5px 0;text-align:right">${Number(o.delivery_fee) === 0 ? 'Free' : esc(formatMoney(o.delivery_fee, cur))}</td></tr>
+          ${Number(o.delivery_discount) > 0 ? `<tr><td style="padding:5px 0;color:#49645a">Delivery discount</td><td style="padding:5px 0;text-align:right;color:#006c56">− ${esc(formatMoney(Number(o.delivery_discount), cur))}</td></tr>` : ''}
           <tr><td style="padding:13px 0 4px;border-top:2px solid #006c56;font-size:17px;font-weight:800;color:#004e40">Total</td><td style="padding:13px 0 4px;border-top:2px solid #006c56;text-align:right;font-size:17px;font-weight:800;color:#004e40">${esc(formatMoney(o.total, cur))}</td></tr>
         </table>
         <p style="margin:24px 0 0;color:#6d7e76;font-size:12px;line-height:1.5">Payment is made directly to the vendor. This receipt confirms that the order was marked delivered.</p>
@@ -237,6 +241,8 @@ export function receiptHtml(o: ReceiptOrder, s: PlatformSettings): string {
       <tr><td>Subtotal</td><td class="r">${esc(formatMoney(o.subtotal, cur))}</td></tr>
       <tr><td>${o.fulfilment_mode === 'pickup' ? 'Collection' : 'Delivery'}</td>
           <td class="r">${Number(o.delivery_fee) === 0 ? 'Free' : esc(formatMoney(o.delivery_fee, cur))}</td></tr>
+      ${Number(o.discount) > 0 ? `<tr><td>Discount${o.promo_code ? ` (${esc(o.promo_code)})` : ''}</td><td class="r">− ${esc(formatMoney(Number(o.discount), cur))}</td></tr>` : ''}
+      ${Number(o.delivery_discount) > 0 ? `<tr><td>Delivery discount</td><td class="r">− ${esc(formatMoney(Number(o.delivery_discount), cur))}</td></tr>` : ''}
       <tr class="grand"><td>Total</td><td class="r">${esc(formatMoney(o.total, cur))}</td></tr>
     </table>
 
@@ -265,6 +271,11 @@ export interface StatementDoc {
   payment_reference?: string | null; notes?: string | null;
   business_name: string; vendor_city?: string | null; vendor_whatsapp?: string | null;
   orders: { code: string; created_at: string | Date; total: number | string; commission_amount: number | string }[];
+}
+
+/** What Sokoni Hub offers lowered the cash buyers paid, within this statement. Zero for any statement written before offers existed. */
+export function statementPromotions(st: StatementDoc): number {
+  return Math.round((Number(st.gross_sales) - Number(st.collected_by_vendor) - Number(st.collected_by_platform)) * 100) / 100;
 }
 
 export function statementHtml(st: StatementDoc, s: PlatformSettings): string {
@@ -334,6 +345,7 @@ export function statementHtml(st: StatementDoc, s: PlatformSettings): string {
       <tr><td>Commission @ ${esc(ratePct)}%</td><td class="r">− ${esc(formatMoney(st.commission_amount, cur))}</td></tr>
       <tr><td>Collected by vendor</td><td class="r">${esc(formatMoney(st.collected_by_vendor, cur))}</td></tr>
       ${Number(st.collected_by_platform) > 0 ? `<tr><td>Collected by platform</td><td class="r">${esc(formatMoney(st.collected_by_platform, cur))}</td></tr>` : ''}
+      ${statementPromotions(st) > 0.004 ? `<tr><td>Sokoni Hub offers <span class="muted">(buyers paid less; credited to you)</span></td><td class="r">${esc(formatMoney(statementPromotions(st), cur))}</td></tr>` : ''}
       ${settlement}
     </table>
 

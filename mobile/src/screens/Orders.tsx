@@ -268,7 +268,9 @@ function OrderSheet({ order, onClose, onTrack }: { order: Order | null; onClose:
       )}
       <View style={{ marginTop: 11, gap: 9 }}>
         <Row label="Subtotal" value={money(full.subtotal, full.currency)} />
+        {Number(full.discount) > 0 ? <Row label={`Discount${full.promo_code ? ` (${full.promo_code})` : ''}`} value={`−${money(full.discount, full.currency)}`} good /> : null}
         <Row label={pickup ? 'Collection' : 'Delivery'} value={Number(full.delivery_fee) > 0 ? money(full.delivery_fee, full.currency) : 'Free'} />
+        {Number(full.delivery_discount) > 0 ? <Row label="Delivery discount" value={`−${money(full.delivery_discount, full.currency)}`} good /> : null}
         <Row label="Total" value={money(full.total, full.currency)} bold />
         <Row label="Payment" value={`Cash on delivery · ${paid ? 'Paid' : full.status === 'cancelled' ? 'Not charged' : pickup ? 'Pay at the store' : 'Pay the rider'}`} />
         <Row label={pickup ? 'Pick up' : 'Deliver to'} value={pickup ? 'Collect from the store' : [full.delivery_address, full.city].filter(Boolean).join(', ')} />
@@ -287,12 +289,12 @@ function OrderSheet({ order, onClose, onTrack }: { order: Order | null; onClose:
   );
 }
 
-function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+function Row({ label, value, bold, good }: { label: string; value: string; bold?: boolean; good?: boolean }) {
   const { colors } = useTheme();
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 11 }}>
       <Text style={{ fontSize: 12.5, color: colors.text2, fontWeight: '500' }}>{label}</Text>
-      <Text style={{ flex: 1, textAlign: 'right', fontSize: bold ? 14.5 : 12, color: colors.text, fontWeight: bold ? '700' : '600' }}>{value}</Text>
+      <Text style={{ flex: 1, textAlign: 'right', fontSize: bold ? 14.5 : 12, color: good ? colors.primary : colors.text, fontWeight: bold ? '700' : '600' }}>{value}</Text>
     </View>
   );
 }

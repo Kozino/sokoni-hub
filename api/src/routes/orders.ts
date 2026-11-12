@@ -3,7 +3,7 @@ import { createHash } from 'crypto';
 import { PoolClient } from 'pg';
 import { Router } from 'express';
 import { z } from 'zod';
-import { one, query, tx } from '../db';
+import { one, pool, query, tx } from '../db';
 import { requireAuth, optionalAuth, loadVendor } from '../auth';
 import { HttpError, audit, randomCode, validateUuidParam } from '../utils';
 import { sendMailAsync } from '../mailer';
@@ -18,6 +18,7 @@ import { attributionSchema, resolveOrderSource } from '../lib/attribution';
 import { verificationSettings, distanceMetres } from '../deliveryVerification';
 import { restoreOrderStock } from '../orderRecovery';
 import { releaseVendorFunds } from '../walletSettlement';
+import { CODE_NOT_VALID, CODE_THROTTLED, normalizeCode, offeredQuoteResponse, offersReady, phoneKey, priceWithOffers, promoLockedOut, recordPromoMiss, type OfferedPricing } from '../offers';
 
 export const orderRouter = Router();
 orderRouter.param('id', validateUuidParam);
@@ -46,6 +47,12 @@ const checkoutSchema = z.object({
   fulfilment_mode: z.enum(['pickup', 'delivery']).default('delivery'),
   note: z.string().max(500).optional(),
   attribution: attributionSchema,
+  // Offers are opt-in: only clients that can show discount lines send these, so the web storefront
+  // and older app builds are priced exactly as before.
+  offers: z.boolean().optional(),
+  promo_code: z.string().trim().max(40).optional(),
+  // The total the buyer was shown. If it no longer matches (a price or an offer changed), checkout asks them to review it.
+  expected_total: z.number().min(0).max(10_000_000).optional(),
 });
 
 /**
@@ -196,11 +203,26 @@ orderRouter.post('/quote', async (req, res, next) => {
     const b = z.object({
       items: cartSchema,
       fulfilment_mode: z.enum(['pickup', 'delivery']).default('delivery'),
+      // Opt-in, see checkoutSchema. `contact_phone` lets a guest's per-customer limits be checked before checkout.
+      offers: z.boolean().optional(),
+      promo_code: z.string().trim().max(40).optional(),
+      contact_phone: z.string().min(7).max(20).optional(),
     }).parse(req.body);
 
     const byVendor = await loadCart(b.items);
     const priced = priceCart(byVendor, b.items, b.fulfilment_mode);
     const quotes = priced.map((p) => p.quote);
+    if ((b.offers === true || b.promo_code) && (await offersReady())) {
+      // Guessing codes is the only way to abuse this lookup (see promoLockedOut). Over the limit, the code is ignored and the
+      // answer is the same whether it was right or wrong; the cart is still priced, just without it.
+      const identity = String(req.user?.id || req.ip);
+      const locked = !!b.promo_code && (await promoLockedOut(identity));
+      const offered = await priceWithOffers(pool, priced, { code: locked ? undefined : b.promo_code, userId: req.user?.id ?? null, phone: b.contact_phone ?? req.user?.phone ?? null });
+      const response = offeredQuoteResponse(quotes, offered);
+      if (locked) response.promo = { code: normalizeCode(b.promo_code) ?? '', ok: false, message: CODE_THROTTLED };
+      else if (offered.evaluation.promo && !offered.evaluation.promo.ok && offered.evaluation.promo.message === CODE_NOT_VALID) await recordPromoMiss(identity);
+      return res.json(response);
+    }
     res.json({ vendors: quotes, ...cartTotals(quotes) });
   } catch (e) {
     next(e);
@@ -217,6 +239,8 @@ orderRouter.post('/checkout', optionalAuth, async (req, res, next) => {
     if ((b.delivery_lat === undefined) !== (b.delivery_lng === undefined)) {
       throw new HttpError(422, 'Confirm the delivery location on the map before placing your order.');
     }
+    // Same rule as the quote: someone guessing codes cannot use checkout to find out which guesses were right.
+    if (b.promo_code && (await promoLockedOut(String(req.user?.id || req.ip)))) throw new HttpError(429, CODE_THROTTLED);
     const fingerprint=createHash('sha256').update(JSON.stringify({body:b,buyer:req.user?.id??null})).digest('hex');
     const created = await tx(async (c) => {
       await c.query('select pg_advisory_xact_lock(hashtextextended($1,0))',['checkout:'+b.request_id]);
@@ -234,6 +258,19 @@ orderRouter.post('/checkout', optionalAuth, async (req, res, next) => {
           if (problem) throw new HttpError(422, problem);
         }
       }
+      // Offers (opt-in). Evaluated here, inside the transaction and with the limited offers locked, so a
+      // code can never be used past its limit or budget, and the figure is the one that gets charged.
+      let offered: OfferedPricing | null = null;
+      if ((b.offers === true || b.promo_code) && (await offersReady())) {
+        offered = await priceWithOffers(c, priced, { code: b.promo_code, userId: req.user?.id ?? null, phone: b.contact_phone, lock: true });
+        const promo = offered.evaluation.promo;
+        // A code the buyer typed must work or stop the order, never be silently dropped: they were shown a total that included it.
+        if (b.promo_code && promo && !promo.ok) throw new HttpError(409, promo.message || 'This promo code can no longer be used.');
+      }
+      const payable = offered ? offered.totals.total : cartTotals(priced.map((p) => p.quote)).total;
+      if (b.expected_total !== undefined && Math.abs(b.expected_total - payable) > 0.009) {
+        throw new HttpError(409, 'Your total changed. Please review it and try again.');
+      }
       // Snapshot the address supplied at checkout. A guest can opt in, while a
       // signed-in buyer falls back to their verified account email.
       const accountEmail = req.user?.id
@@ -249,20 +286,45 @@ orderRouter.post('/checkout', optionalAuth, async (req, res, next) => {
         // link/QR only counts for the vendor it names — every other vendor in
         // a multi-vendor cart still gets 'marketplace'.
         const source = resolveOrderSource(b.attribution, vItems[0].vendor_slug);
-        // total is written explicitly as subtotal + delivery_fee. A CHECK
-        // constraint on the table enforces this, so a regression fails loudly.
+        // total is written explicitly as subtotal + delivery_fee - discount - delivery_discount. A CHECK
+        // constraint on the table enforces this, so a regression fails loudly. subtotal and delivery_fee stay the
+        // FULL amounts (vendor wallet credit and rider pay are computed from them); a platform-funded discount
+        // only lowers what the buyer pays.
+        const adj = offered?.byVendor.get(quote.vendor_id);
+        const discount = adj?.discount ?? 0;
+        const deliveryDiscount = adj?.delivery_discount ?? 0;
+        const discounted = discount > 0 || deliveryDiscount > 0;
+        const orderTotal = round2(quote.subtotal + quote.delivery_fee - discount - deliveryDiscount);
+        const appliedHere = discounted && offered
+          ? (adj?.pieces ?? []).map((piece) => {
+              const meta = offered.evaluation.applied.find((a) => a.offer_id === piece.offer_id);
+              return { offer_id: piece.offer_id, code: meta?.code ?? null, title: meta?.title ?? '', kind: meta?.kind ?? null, goods_discount: piece.goods, delivery_discount: piece.delivery };
+            })
+          : [];
+        const promoUsed = appliedHere.find((a) => a.code)?.code ?? null;
         const { rows: [order] } = await c.query(
           `insert into orders (code, buyer_id, vendor_id, payment_method, subtotal, delivery_fee, total, currency,
              contact_name, contact_phone, contact_email, delivery_address, city, country, note, fulfilment_mode, source,
-             delivery_lat, delivery_lng)
-           values ($1,$2,$3,$4::payment_method,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16::fulfilment_mode,$17,$18,$19) returning *`,
+             delivery_lat, delivery_lng${discounted ? ', discount, delivery_discount, promo_code, offers_applied' : ''})
+           values ($1,$2,$3,$4::payment_method,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16::fulfilment_mode,$17,$18,$19${discounted ? ',$20,$21,$22,$23::jsonb' : ''}) returning *`,
           [code, req.user?.id ?? null, quote.vendor_id, b.payment_method,
-           quote.subtotal, quote.delivery_fee, quote.total, quote.currency,
+           quote.subtotal, quote.delivery_fee, orderTotal, quote.currency,
            b.contact_name, b.contact_phone, contactEmail,
            b.delivery_address, b.city, b.country, b.note || null, quote.mode, source,
            quote.mode === 'delivery' ? (b.delivery_lat ?? null) : null,
-           quote.mode === 'delivery' ? (b.delivery_lng ?? null) : null]
+           quote.mode === 'delivery' ? (b.delivery_lng ?? null) : null,
+           ...(discounted ? [discount, deliveryDiscount, promoUsed, JSON.stringify(appliedHere)] : [])]
         );
+        // One redemption row per offer per order: the ledger behind usage limits, budgets and the admin report.
+        if (discounted && adj) {
+          for (const piece of adj.pieces) {
+            await c.query(
+              `insert into offer_redemptions (offer_id, order_id, checkout_key, user_id, phone_key, goods_discount, delivery_discount)
+               values ($1,$2,$3,$4,$5,$6,$7)`,
+              [piece.offer_id, order.id, b.request_id, req.user?.id ?? null, phoneKey(b.contact_phone), piece.goods, piece.delivery]
+            );
+          }
+        }
         for (const { r, qty, line } of lines) {
           await c.query(
             // kind is snapshotted like title and unit_price: it decides whether
@@ -298,7 +360,9 @@ orderRouter.post('/checkout', optionalAuth, async (req, res, next) => {
         out.push({ ...order,
           // pg returns numeric columns as strings; coerce so the checkout
           // response has the same shape/types as the quote response.
-          subtotal: quote.subtotal, delivery_fee: quote.delivery_fee, total: quote.total,
+          subtotal: quote.subtotal, delivery_fee: quote.delivery_fee, total: orderTotal,
+          // numbers, like the other money fields in this response (pg returns numeric columns as strings)
+          discount, delivery_discount: deliveryDiscount,
           items: lines.map(({ r, qty, line }) => ({ title: r.title, qty, line_total: line })),
           vendor: { business_name: vItems[0].business_name } });
       }
@@ -321,13 +385,15 @@ orderRouter.get('/track', async (req, res, next) => {
     await finalizeDueOrders().catch(() => 0);
     const code = String(req.query.code || '');
     const phone = String(req.query.phone || '');
+    // The offer columns exist once migration 031 has run; until then the query is exactly what it was.
+    const offerCols = (await offersReady()) ? ', o.discount, o.delivery_discount, o.promo_code, o.offers_applied' : '';
     const order = await one<any>(
       `select o.id, o.code, o.vendor_id, o.status, o.payment_method, o.subtotal,
               o.delivery_fee, o.total, o.currency, o.contact_name, o.contact_phone, o.payment_status, o.paid_at,
               o.delivery_address, o.city, o.country, o.note, o.fulfilment_mode,
               o.driver_lat, o.driver_lng, o.delivery_proof_url, o.delivery_lat, o.delivery_lng, o.driver_id,
               o.verify_by, o.disputed_at, o.dispute_reason, o.delivered_at, o.completed_by,
-              o.created_at, o.updated_at, v.business_name, v.whatsapp
+              o.created_at, o.updated_at, v.business_name, v.whatsapp${offerCols}
          from orders o join vendors v on v.id = o.vendor_id
         where o.code = $1 and regexp_replace(o.contact_phone,'\\D','','g') = regexp_replace($2,'\\D','','g')`,
       [code, phone]

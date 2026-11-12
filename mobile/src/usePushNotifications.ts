@@ -18,8 +18,14 @@ Notifications.setNotificationHandler({
   }),
 });
 
-export function usePushNotifications() {
+/**
+ * Registers for push and reports taps. `onOpen` receives the data a tapped notification carried (an offer's `link`,
+ * or an order's `status`), including the tap that launched the app from closed.
+ */
+export function usePushNotifications(onOpen?: (data: unknown) => void) {
   const [expoPushToken, setExpoPushToken] = useState('');
+  const open = useRef(onOpen);
+  open.current = onOpen;
   const [notification, setNotification] = useState<Notifications.Notification | null>(null);
   const notificationListener = useRef<any>(null);
   const responseListener = useRef<any>(null);
@@ -36,8 +42,16 @@ export function usePushNotifications() {
       setNotification(notification);
     });
 
-    // Tapping a notification needs no extra work here yet.
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(() => {});
+    // A tap while the app is open or in the background.
+    responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
+      open.current?.(response.notification.request.content.data);
+    });
+    // The tap that launched the app from closed. The opener holds it until the app is ready to show it.
+    try {
+      void Promise.resolve(Notifications.getLastNotificationResponseAsync?.()).then((response) => {
+        if (response) open.current?.(response.notification.request.content.data);
+      }).catch(() => {});
+    } catch { /* not available on this platform (the web preview): nothing to open */ }
 
     return () => {
       if (notificationListener.current) {
@@ -60,6 +74,12 @@ async function registerForPushNotificationsAsync() {
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#FF231F7C',
+    });
+    // Offer campaigns use their own channel so they can be switched off in system settings without silencing order updates.
+    await Notifications.setNotificationChannelAsync('offers', {
+      name: 'Offers & updates',
+      importance: Notifications.AndroidImportance.DEFAULT,
+      lightColor: '#05663F',
     });
   }
 

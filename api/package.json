@@ -18,7 +18,10 @@
     "documents:migrate:prod": "node dist/scripts/migrateDocuments.js",
     "test:security": "node ../tests/security.mjs",
     "test:bookings": "node ../tests/run-bookings.mjs",
-    "test:money": "node ../tests/money-wallet.mjs"
+    "test:money": "node ../tests/money-wallet.mjs",
+    "test:offers": "node ../tests/offers.mjs",
+    "test:offers-engine": "node ../tests/offers-engine.mjs",
+    "test:mobile-links": "node ../tests/mobile-links.mjs"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

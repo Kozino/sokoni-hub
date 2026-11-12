@@ -121,6 +121,8 @@ The buyer app was restyled to the "Sokoni Hub 2" reference designs: lavender can
 | `src/orderPlaced.tsx` | The "Order placed" confirmation: gradient hero, stat tiles, one card per seller order, and a "what happens next" timeline. |
 | `src/legal.tsx`, `src/legalText.ts` | The in-app Terms of use, Privacy policy and Marketplace policy reader. `legalText.ts` holds the website's wording (see "Legal pages" below). |
 | `scripts/convert_legal.py` | Regenerates `src/legalText.ts` from the website's legal pages. |
+| `src/offersUi.tsx`, `src/screens/Offers.tsx` | Offer cards (Explore rail and list), the Cart's promo-code card, and the Offers screen. Every title, amount, code and hint comes from the API. |
+| `src/links.ts`, `src/openLink.ts`, `src/navRef.ts` | `sokonihub://` links and notification taps: `resolveLink` (pure, refuses anything outside the app), `openAppLink` (holds a link until the app is ready), and the shared navigation handle. |
 | `src/receipt.ts`, `src/receiptShare.ts`, `src/receiptLogo.ts` | PDF order receipt: the HTML template, the create-and-share step, and the embedded logo. |
 | `src/toast.ts`, `src/nav.ts` | The one shared toast context, and the shared navigation prop types. |
 | `src/screens/*.tsx` | One file per screen (see below). |
@@ -212,3 +214,34 @@ Fixes made while moving the app to the new interface. No API or database change 
 - **New Services icon.** The scissors were replaced with a service bell in the tab bar and in every image placeholder.
 - **Screen sizes.** Layouts were checked at 360, 400, 768 and 1024 px wide, in light and dark mode. Tablets get wider grids and two-up list rows.
 - **Dark mode.** Hero gradients stay deep green so white text is always readable.
+
+## Offers, promo codes and links (mobile QA pass 4)
+
+Sokoni Hub funds every discount and free delivery. Vendors are still paid the full goods value and riders the full delivery fee; the
+order's `total` is what the buyer pays (and the rider collects). Offers are created and switched on by an admin, and the app only
+displays what the server returns, so a new campaign needs no app update. Full guide: `docs/OFFERS.md`.
+
+- **Explore** shows an "Offers for you" rail (two complete cards across, three on tablets). **Profile, Offers & coupons** opens the full list.
+- **Cart** has a Promo code card. A code is checked against the cart first (`checkPromoCode`) and only kept if it works. The summary shows
+  "Discount (CODE)" and the delivery line with the original fee struck through when Sokoni Hub waived it. Hints such as
+  "Add 5 QAR more for FREE delivery" come from the quote.
+- **Checkout** sends `offers: true`, the code (only if the server accepted it) and `expected_total`. If the total changed since the buyer saw it,
+  checkout asks them to review it instead of charging something different.
+- **Order placed, order details and the PDF receipt** show the discount lines and "You saved X".
+- **Notifications and links.** Tapping a notification opens the screen it was about. Offer notifications carry a link; order updates open the
+  orders list. People who are not signed in register as guest devices and can receive offer notifications (never order alerts).
+
+Links the app understands (anything else, including every `https:` address, is refused):
+
+| Link | Opens |
+| --- | --- |
+| `sokonihub://offers` | Offers screen |
+| `sokonihub://store/<slug>` | A store |
+| `sokonihub://listing/<id>` | A product or service |
+| `sokonihub://browse?category=<slug>` | A category (also `?q=search words`) |
+| `sokonihub://services` | Services |
+| `sokonihub://cart?code=WELCOME10` | The cart, keeping that code |
+| `sokonihub://orders`, `bookings`, `saved`, `notifications`, `support`, `account`, `home` | That screen |
+
+New native modules are not needed for this part (`expo-linking` and `expo-notifications` were already installed). The PDF receipt from the previous
+round still needs a new EAS build.

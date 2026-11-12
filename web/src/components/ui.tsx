@@ -58,8 +58,8 @@ export function Stat({ label, value, sub, accent, icon }: { label: string; value
   );
 }
 
-export function Modal({ open, title, onClose, children, footer }: {
-  open: boolean; title: string; onClose: () => void; children: ReactNode; footer?: ReactNode;
+export function Modal({ open, title, onClose, children, footer, wide = false }: {
+  open: boolean; title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean;
 }) {
   const dialog = useRef<HTMLDivElement>(null);
   const close = useRef(onClose); close.current = onClose;
@@ -90,7 +90,7 @@ export function Modal({ open, title, onClose, children, footer }: {
   return createPortal(
     <div className={`modal-portal${scope}`}>
       <div className="modal-backdrop" onClick={onClose}>
-        <div ref={dialog} className="modal" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onClick={e=>e.stopPropagation()}>
+        <div ref={dialog} className={wide ? 'modal modal-wide' : 'modal'} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onClick={e=>e.stopPropagation()}>
           <div className="modal-head"><h3 id={titleId}>{title}</h3><button className="x-btn" type="button" onClick={onClose} aria-label="Close">×</button></div>
           <div className="modal-body">{children}</div>
           {footer && <div className="modal-foot">{footer}</div>}

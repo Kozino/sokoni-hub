@@ -22,7 +22,7 @@ export function Checkout({ go, back, tab }: Nav) {
   const cart = useCart();
   const [draft, setDraft] = useCheckoutDraft();
   const mode = draft.mode;
-  const { quote, error: quoteError, reload: loadQuote } = useCartQuote(cart.items, mode);
+  const { quote, error: quoteError, reload: loadQuote } = useCartQuote(cart.items, mode, draft.promo);
   const [busy, setBusy] = useState(false);
   const [placed, setPlaced] = useState<Placed | null>(null);
   const [touched, setTouched] = useState(false);
@@ -89,12 +89,17 @@ export function Checkout({ go, back, tab }: Nav) {
         note: form.note.trim() || undefined,
         // The pin is sent only when an address is needed; collection orders have no delivery point.
         ...(needsAddress && pin ? { delivery_lat: pin.latitude, delivery_lng: pin.longitude } : {}),
+        // Offers. The code goes only if the server accepted it for this cart, and `expected_total` makes the server refuse
+        // (for review) any order whose total no longer matches what the buyer was shown.
+        offers: true,
+        ...(draft.promo && quote.promo?.ok ? { promo_code: draft.promo } : {}),
+        expected_total: quote.total,
       };
       const key = JSON.stringify(body);
       if (!attempt.current || attempt.current.key !== key) attempt.current = { key, id: randomUUID() };
       const result = await api.post<Placed>('/orders/checkout', { request_id: attempt.current.id, ...body });
       finished.current = true;
-      setDraft({ note: '', address: needsAddress ? form.delivery_address.trim() : draft.address, city: form.city.trim() || draft.city, lat: pin?.latitude ?? draft.lat, lng: pin?.longitude ?? draft.lng });
+      setDraft({ note: '', promo: '', address: needsAddress ? form.delivery_address.trim() : draft.address, city: form.city.trim() || draft.city, lat: pin?.latitude ?? draft.lat, lng: pin?.longitude ?? draft.lng });
       cart.clear();
       setPlaced(result);
     } catch (e) {
@@ -173,12 +178,20 @@ export function Checkout({ go, back, tab }: Nav) {
               </View>)}
               <View style={[s.rule, { backgroundColor: colors.border }]} />
               <View style={[s.between, { marginTop: 6 }]}><Text style={[s.sumLabel, { color: colors.text2 }]}>Subtotal</Text><Text style={[s.sumValue, { color: colors.text }]}>{money(quote.subtotal, quote.currency)}</Text></View>
-              <View style={[s.between, { marginTop: 6 }]}><Text style={[s.sumLabel, { color: colors.text2 }]}>{allPickup ? 'Collection' : 'Delivery'}</Text>{quote.delivery_fee > 0 ? <Text style={[s.sumValue, { color: colors.text }]}>{money(quote.delivery_fee, quote.currency)}</Text> : <Text style={{ color: colors.success, fontWeight: '700', fontSize: 12 }}>Free</Text>}</View>
+              {(quote.discount ?? 0) > 0 ? <View style={[s.between, { marginTop: 6 }]}><Text style={[s.sumLabel, { color: colors.text2 }]}>Discount{quote.promo?.ok ? ` (${draft.promo})` : ''}</Text><Text style={{ color: colors.success, fontWeight: '700', fontSize: 12 }}>−{money(quote.discount ?? 0, quote.currency)}</Text></View> : null}
+              <View style={[s.between, { marginTop: 6 }]}>
+                <Text style={[s.sumLabel, { color: colors.text2 }]}>{allPickup ? 'Collection' : 'Delivery'}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  {(quote.delivery_discount ?? 0) > 0 ? <Text style={{ fontSize: 11, color: colors.muted, textDecorationLine: 'line-through' }}>{money(quote.delivery_fee, quote.currency)}</Text> : null}
+                  {quote.delivery_fee - (quote.delivery_discount ?? 0) > 0 ? <Text style={[s.sumValue, { color: colors.text }]}>{money(quote.delivery_fee - (quote.delivery_discount ?? 0), quote.currency)}</Text> : <Text style={{ color: colors.success, fontWeight: '700', fontSize: 12 }}>Free</Text>}
+                </View>
+              </View>
               <View style={[s.totalBox, { backgroundColor: colors.primarySoft }]}>
                 <Text style={[s.totalText, { color: colors.text }]}>Total</Text>
                 <Price value={quote.total} currency={quote.currency} size={22} />
               </View>
               {vendors > 1 ? <Text style={{ fontSize: 10.5, color: colors.text2, marginTop: 8, lineHeight: 15 }}>Placed as {plural(vendors, 'order')}, one per seller.</Text> : null}
+              {draft.promo && quote.promo && !quote.promo.ok ? <View style={{ marginTop: 8 }}><Notice type="warning">Code {draft.promo} was left out: {quote.promo.message}</Notice></View> : null}
             </> : quoteError ? <EmptyState icon="alert-circle-outline" title="Cart changed" text={quoteError} action={<View style={{ gap: 8, marginTop: 8 }}><Button onPress={() => void loadQuote()}>Try again</Button><Button variant="secondary" onPress={back}>Review cart</Button></View>} /> : <Spinner label="Confirming current prices…" />}
           </Section>
           <Text style={[s.fine, { color: colors.muted }]}>Final prices and availability are confirmed securely by the server when you place the order.</Text>

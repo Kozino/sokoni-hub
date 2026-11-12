@@ -21,7 +21,7 @@ The screen language is inspired by the references, but the app deliberately does
 - real product order tracking and service-booking tracking;
 - buyer account, secure session storage, password/PIN recovery, theme and support.
 
-The existing platform does not currently provide a wallet, OTP by WhatsApp/SMS, biometric login, promo-code engine, buyer-seller escrow, instant WhatsApp checkout, merchant selling controls or automatic dispatch estimates. Those are therefore not represented as working promises in the redesigned app. They should only be added after matching backend schemas, payment/communications integrations and security design have been approved.
+The existing platform does not currently provide a wallet, OTP by WhatsApp/SMS, biometric login, buyer-seller escrow, instant WhatsApp checkout, merchant selling controls or automatic dispatch estimates. Those are therefore not represented as working promises in the redesigned app. They should only be added after matching backend schemas, payment/communications integrations and security design have been approved.
 
 ## Sokoni Hub 2 revision (eight reference screens)
 
@@ -49,7 +49,6 @@ A second set of eight references is now the visual direction: Explore, Services,
 
 The platform has no data or endpoint behind these, so the app does not draw them:
 
-- promo-code field and discount line;
 - escrow or "buyer protection" claims;
 - Standard versus Express delivery (the app offers Delivery or Pick up, priced by each seller);
 - delivery PIN (the order code is shown and can be shared instead);
@@ -77,4 +76,18 @@ A follow-up pass kept the same reference layouts but made the app denser and mor
 - **Explore category row.** The reference tiles became small round icons so ten or more categories fit in one scrolling row.
 - **Order placed.** The reference set had no confirmation screen. The new one reuses the Profile header language (gradient, tinted tiles) and shows only data the API returns for the new orders.
 - **Documents.** Terms, Privacy and the marketplace policy are read in the app. Share receipt produces a PDF.
-- **Still not shown** (no backend data): promo codes, escrow, Express delivery, delivery PIN, ETA minutes, driver rating, price-drop alerts, Currency and Language rows.
+- **Still not shown** (no backend data): escrow, Express delivery, delivery PIN, ETA minutes, driver rating, price-drop alerts, Currency and Language rows.
+
+## Offers revision (promo code, discounts, free delivery)
+
+The promo-code row and discount line from the reference designs are now built, because the backend now has an offers engine
+(`db/migrations/031_offers.sql`, `api/src/offers.ts`). Sokoni Hub funds every offer; vendors and riders are paid in full.
+
+- **Promo code.** The Cart has a "Promo code" card. A code is checked against the cart before it is kept, so a bad code never reaches checkout.
+- **Discount lines** appear in the Cart summary, Checkout summary, the order-placed page, order details and the PDF receipt. The order's total is what the buyer pays in cash.
+- **Offers for you** is a rail on Explore and a full Offers screen (Profile, Offers & coupons). Both list only what an admin has switched on.
+- **"Add X QAR more for FREE delivery"** hints come from the server, so the numbers always match the live offer.
+- **Notifications** about an offer open the right screen (`sokonihub://offers`, a store, a category). People who are not signed in can receive them too.
+- Everything is data: a new campaign needs no app update. Only a new *kind* of offer or a new screen would.
+
+See `docs/OFFERS.md` for the admin guide, the money model and the API.

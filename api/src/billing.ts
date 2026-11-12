@@ -34,6 +34,12 @@ export interface SettleableOrder {
    * historical orders placed before that.
    */
   goods_subtotal: number;
+  /**
+   * Platform-funded discount on the goods (orders.discount). The buyer paid this much less in cash, so the
+   * vendor collected `subtotal - discount`, while the vendor is still owed the full subtotal. Optional and
+   * zero for every order placed without an offer, which leaves existing statements unchanged.
+   */
+  discount?: number;
 }
 
 export interface StatementTotals {
@@ -89,8 +95,11 @@ export function computeStatement(orders: SettleableOrder[], commissionRate: numb
     base = round2(base + commissionable);
     delivery = round2(delivery + Number(o.delivery_fee));
     gross = round2(gross + Number(o.subtotal));
-    if (o.funds_collected_by === 'platform') byPlatform = round2(byPlatform + Number(o.subtotal));
-    else byVendor = round2(byVendor + Number(o.subtotal));
+    // Cash actually collected for the goods. A platform-funded discount means the buyer paid less than the
+    // subtotal, so whoever held the cash holds less; the vendor is still credited the full subtotal above.
+    const cashForGoods = round2(Math.max(0, Number(o.subtotal) - Number(o.discount ?? 0)));
+    if (o.funds_collected_by === 'platform') byPlatform = round2(byPlatform + cashForGoods);
+    else byVendor = round2(byVendor + cashForGoods);
 
     lines.push({
       order_id: o.id,

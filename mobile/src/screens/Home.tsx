@@ -12,6 +12,7 @@ import { plural } from '../format';
 import type { NavProps } from '../nav';
 import { FeaturedStores, usePromotions, VipStores } from '../promotions';
 import { useTheme } from '../providers';
+import { OffersRail } from '../offersUi';
 import { Button, EmptyState, Notice, Spinner, Text } from '../ui';
 
 export type { Screen } from '../nav';
@@ -55,6 +56,8 @@ export function Home({ go, tab }: NavProps) {
       >
         <SearchBar style={{ marginTop: 10 }} value={text} onChangeText={setText} onSubmit={search} placeholder="Search products or services" onFilter={() => go('browse', { q: text.trim(), fromHome: true, openFilters: true })} />
         <PillRow style={{ marginTop: 10 }} items={chips} active={chip} onSelect={setChip} />
+
+        <OffersRail onSeeAll={() => go('offers')} onOpen={() => go('offers')} />
 
         {productCategories.length ? (
           <>

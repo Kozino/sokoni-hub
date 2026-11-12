@@ -4,7 +4,7 @@ import { Header } from '../../components/Layout';
 import DashShell, { DashLink, DashNotification } from '../../components/DashShell';
 import { useAuth } from '../../state/AuthContext';
 import { api } from '../../lib/api';
-import { IconChart, IconShield, IconBox, IconAlert, IconReceipt, IconUsers, IconFolder, IconHistory, IconStar } from '../../components/icons';
+import { IconChart, IconShield, IconBox, IconAlert, IconReceipt, IconUsers, IconFolder, IconHistory, IconStar, IconTag } from '../../components/icons';
 import { EnglishScope } from '../../i18n';
 import './admin-classic.css';
 
@@ -37,6 +37,7 @@ export default function AdminLayout() {
     { to: '/admin/plan-limits', ico: IconFolder, label: 'Plan Limits', group: 'Configuration' },
     { to: '/admin/bookings', ico: IconHistory, label: 'Service bookings', group: 'Commerce' },
     { to: '/admin/promotions', ico: IconStar, label: 'Placements', group: 'Commerce' },
+    { to: '/admin/offers', ico: IconTag, label: 'Offers & coupons', group: 'Commerce' },
     { to: '/admin/categories', ico: IconFolder, label: 'Categories', group: 'Configuration' },
     { to: '/admin/deletion', ico: IconShield, label: 'Privacy requests', group: 'Moderation' },
     { to: '/admin/audit', ico: IconHistory, label: 'Activity log', group: 'Configuration' },

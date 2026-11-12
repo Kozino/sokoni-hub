@@ -17,9 +17,11 @@ export type CheckoutDraft = {
   note: string;
   lat: number | null;
   lng: number | null;
+  /** A promo code the buyer applied in the Cart (kept until the order is placed or they remove it). */
+  promo: string;
 };
 
-const EMPTY: CheckoutDraft = { mode: 'delivery', address: '', city: '', country: 'Qatar', note: '', lat: null, lng: null };
+const EMPTY: CheckoutDraft = { mode: 'delivery', address: '', city: '', country: 'Qatar', note: '', lat: null, lng: null, promo: '' };
 let draft: CheckoutDraft = EMPTY;
 let loaded = false;
 const listeners = new Set<() => void>();

@@ -130,6 +130,9 @@ export function renderStatementPdf(st: StatementDoc & { business_name: string; v
   rows.push([`Commission @ ${ratePct(st.commission_rate)}%`, `- ${formatMoney(st.commission_amount, cur)}`]);
   rows.push(['Collected by vendor', formatMoney(st.collected_by_vendor, cur)]);
   if (Number(st.collected_by_platform) > 0) rows.push(['Collected by platform', formatMoney(st.collected_by_platform, cur)]);
+  // Buyers paid less than the goods value when Sokoni Hub funded an offer. Derived, so older statements show nothing here.
+  const promotions = Math.round((Number(st.gross_sales) - Number(st.collected_by_vendor) - Number(st.collected_by_platform)) * 100) / 100;
+  if (promotions > 0.004) rows.push(['Sokoni Hub offers (buyers paid less; credited to you)', formatMoney(promotions, cur)]);
 
   const settleLabel =
     direction === 'to_platform' ? `Due to ${s.business_name}`

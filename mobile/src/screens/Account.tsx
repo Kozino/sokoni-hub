@@ -11,7 +11,7 @@ import { api, ApiError } from '../api';
 import { SellCard } from '../cards';
 import { useCity } from '../city';
 import { useCheckoutDraft } from '../checkoutDraft';
-import { bookingTime, errorMessage, isActiveOrder, isUpcomingBooking, useMyBookings, useMyOrders } from '../data';
+import { bookingTime, errorMessage, isActiveOrder, isUpcomingBooking, useMyBookings, useMyOrders, useOffers } from '../data';
 import { useFavourites } from '../favourites';
 import { cleanCity, longDate, plural, shortDate, time24 } from '../format';
 import { Icon, type IconName } from '../icons';
@@ -28,6 +28,7 @@ export function Account({ go, tab }: NavProps) {
   const { user, logout, changePassword, changePin, updateUser } = useAuth();
   const fav = useFavourites();
   const orders = useMyOrders();
+  const offerCount = (useOffers().data ?? []).length;
   const bookings = useMyBookings();
   const { city, setCity, cities } = useCity();
   const [draft, setDraft] = useCheckoutDraft();
@@ -159,6 +160,7 @@ export function Account({ go, tab }: NavProps) {
 
         <Text style={[s.group, { color: colors.text2 }]}>ACCOUNT</Text>
         <Panel style={s.list}>
+          <Row icon="ticket" tint="orange" title="Offers & coupons" sub={offerCount ? `${offerCount} available now` : 'Discounts and free delivery'} dot={offerCount > 0} onPress={() => go('offers')} />
           <Row icon="car" tint="mint" title="Order History & Tracking" sub={nextOrder ? `${nextOrder.business_name || 'Order'} · ${orderLook(nextOrder.status, { pickup: nextOrder.fulfilment_mode === 'pickup' }).label}` : orders.data?.length ? `${plural(orders.data.length, 'order')} placed` : 'No orders yet'} dot={!!nextOrder} onPress={() => go('orders')} />
           <Row icon="calendar" tint="lav" title="Service Appointments" sub={nextBooking ? `${nextBooking.listing_title || 'Booking'}, ${bookingTime(nextBooking) ? `${longDate(bookingTime(nextBooking)).split(',')[0].slice(0, 3)} ${time24(bookingTime(nextBooking))}` : 'time to be arranged'}` : 'No upcoming appointments'} onPress={() => go('bookings')} />
           <Row icon="location" tint="lav" title="Delivery Address" sub={addressLine || 'Saved when you place an order'} onPress={() => setAddressSheet(true)} last />

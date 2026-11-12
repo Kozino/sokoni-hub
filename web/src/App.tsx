@@ -49,6 +49,7 @@ import AdminBilling from './pages/admin/AdminBilling';
 import { AdminMoneyModelPage } from './pages/admin/AdminMoneyModel';
 import AdminBookings from './pages/admin/AdminBookings';
 import AdminPromotions from './pages/admin/AdminPromotions';
+import AdminOffers from './pages/admin/AdminOffers';
 import AdminSubscriptions from './pages/admin/AdminSubscriptions';
 import AdminPlanLimits from './pages/admin/AdminPlanLimits';
 import { AdminPayouts } from './pages/admin/AdminPayouts';
@@ -141,6 +142,7 @@ export default function App() {
                 <Route path="money-model" element={<AdminMoneyModelPage />} />
                 <Route path="bookings" element={<AdminBookings />} />
                 <Route path="promotions" element={<AdminPromotions />} />
+                <Route path="offers" element={<AdminOffers />} />
                 <Route path="subscriptions" element={<AdminSubscriptions />} />
                 <Route path="drivers" element={<AdminDrivers />} />
                 <Route path="disputes" element={<AdminDisputes />} />

@@ -42,6 +42,8 @@ export function OrderPlaced({ orders, name, phone, go, tab }: { orders: Order[];
   const itemCount = orders.reduce((n, o) => n + (o.items ?? []).reduce((m, l) => m + Number(l.qty || 0), 0), 0);
   const currency = orders[0]?.currency || 'QAR';
   const totalSum = orders.reduce((sum, o) => sum + Number(o.total || 0), 0);
+  // What Sokoni Hub's offers took off, across every order in the checkout.
+  const saved = orders.reduce((sum, o) => sum + Number(o.discount || 0) + Number(o.delivery_discount || 0), 0);
   const allPickup = orders.every((o) => o.fulfilment_mode === 'pickup');
   const ringScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.9] });
   const ringOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0] });
@@ -73,6 +75,7 @@ export function OrderPlaced({ orders, name, phone, go, tab }: { orders: Order[];
           </View>
           <Text style={s.heroTitle}>Order placed!</Text>
           <Text style={s.heroText}>Thank you, {first}. {orders.length === 1 ? 'Your order has' : `Your ${orders.length} orders have`} been sent to the seller.</Text>
+          {saved > 0 ? <View style={s.savedPill}><Icon name="sparkles" size={13} color="#FFD166" /><Text style={s.savedText}>You saved {money(saved, currency)}</Text></View> : null}
         </LinearGradient>
 
         <View style={s.stats}>
@@ -167,6 +170,20 @@ function OrderCard({ order, index, phone, logo, go }: { order: Order; index: num
             <Text style={{ fontSize: 11.5, fontWeight: '600', color: colors.text }}>{money(line.line_total, order.currency)}</Text>
           </View>
         ))}
+        {Number(order.discount) > 0 ? (
+          <View style={s.line}>
+            <View style={[s.qty, { backgroundColor: colors.primarySoft }]}><Icon name="ticket" solid={false} size={11} color={colors.primary} /></View>
+            <Text numberOfLines={1} style={{ flex: 1, fontSize: 11.5, color: colors.primary, fontWeight: '600' }}>Discount{order.promo_code ? ` (${order.promo_code})` : ''}</Text>
+            <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.primary }}>−{money(order.discount, order.currency)}</Text>
+          </View>
+        ) : null}
+        {Number(order.delivery_discount) > 0 ? (
+          <View style={s.line}>
+            <View style={[s.qty, { backgroundColor: colors.orangeSoft }]}><Icon name="car" solid={false} size={11} color={colors.orange} /></View>
+            <Text numberOfLines={1} style={{ flex: 1, fontSize: 11.5, color: colors.brown, fontWeight: '600' }}>Delivery discount</Text>
+            <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.brown }}>−{money(order.delivery_discount, order.currency)}</Text>
+          </View>
+        ) : null}
 
         <View style={[s.rule, { backgroundColor: colors.border }]} />
         <View style={s.rowBetween}>
@@ -206,6 +223,8 @@ const s = StyleSheet.create({
   badgeInner: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
   heroTitle: { color: '#FFFFFF', fontSize: 21, fontWeight: '700', letterSpacing: -0.4, marginTop: 10 },
   heroText: { color: '#D3EEDF', fontSize: 12, lineHeight: 17, textAlign: 'center', marginTop: 4, maxWidth: 300 },
+  savedPill: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8, height: 26, borderRadius: 13, paddingHorizontal: 12, backgroundColor: 'rgba(255,255,255,0.18)' },
+  savedText: { color: '#FFFFFF', fontSize: 11.5, fontWeight: '700' },
   stats: { flexDirection: 'row', gap: 8, marginHorizontal: 12, marginTop: -30 },
   stat: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 7, padding: 8, borderRadius: 14 },
   statIcon: { width: 28, height: 28, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
