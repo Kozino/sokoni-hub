@@ -22,7 +22,7 @@ export type AssistantAction =
   | { type: 'add_to_cart'; listing_id: string; qty: number; option?: string; title: string; price: number; currency: string; vendor_id: string; vendor_name: string; image?: string; kind: 'product'; unit?: string | null; max?: number }
   | { type: 'open_listing'; id: string }
   | { type: 'open_booking'; id: string }
-  | { type: 'open_checkout' }
+  | { type: 'open_checkout'; vendor_id?: string }
   | { type: 'choose_option'; listing_id: string; title: string; options: { name: string; price?: number }[] };
 
 export type ChatMessage = {

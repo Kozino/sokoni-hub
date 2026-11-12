@@ -193,7 +193,11 @@ export function Assistant({ go, back }: NavProps) {
                 toast.show(t('assistant.add'), true);
               }} />)}</View> : null}
               {m.proposed_checkout || m.actions?.some((a) => a.type === 'open_checkout') ? (
-                <Button style={{ marginTop: 8, alignSelf: 'stretch' }} onPress={() => go('checkout', { fromAssistant: true })}>{t('assistant.reviewOrder')}</Button>
+                <Button style={{ marginTop: 8, alignSelf: 'stretch' }} onPress={() => {
+                  const named = m.actions?.find((a): a is Extract<AssistantAction, { type: 'open_checkout' }> => a.type === 'open_checkout')?.vendor_id;
+                  const quoted = Array.isArray(m.quote?.vendors) ? m.quote.vendors[0]?.vendor_id : undefined;
+                  go('checkout', { fromAssistant: true, vendorId: named || quoted });
+                }}>{t('assistant.reviewOrder')}</Button>
               ) : null}
             </View>
           ))}

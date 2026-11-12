@@ -2,10 +2,11 @@
  * My Cart. Items live on the phone; delivery fees, the free-delivery threshold and availability come from the
  * server quote (`POST /orders/quote`) so every figure on this screen is the one checkout will charge.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { api } from '../api';
 import { useCheckoutDraft } from '../checkoutDraft';
-import { cartLineKey, checkPromoCode, cleanPromo, errorMessage, useCartQuote, useOffers, useRememberedImage } from '../data';
+import { cartLineKey, checkPromoCode, cleanPromo, errorMessage, quoteItems, useCartQuote, useOffers, useRememberedImage } from '../data';
 import { money, num, plural } from '../format';
 import { Icon } from '../icons';
 import { AppBar, ModeCard, Panel, Price, QtyStepper, Screen, SectionHead, TAB_LIFT, Thumb, Tabs, softShadow } from '../kit';
@@ -13,7 +14,7 @@ import type { NavProps } from '../nav';
 import { PromoCard } from '../offersUi';
 import { useCart, useTheme } from '../providers';
 import { useToast } from '../toast';
-import type { CartItem } from '../types';
+import type { CartItem, CartQuote } from '../types';
 import { Button, EmptyState, Field, Notice, Sheet, Text } from '../ui';
 
 export function Cart({ go, tab }: NavProps) {
@@ -28,17 +29,42 @@ export function Cart({ go, tab }: NavProps) {
   const hasOffers = (useOffers().data ?? []).length > 0;
   const mode = draft.mode;
   const promo = draft.promo;
+  const groups = cart.byVendor;
+  const singleStore = groups.length <= 1;
 
-  // Both quotes are fetched so each delivery-mode card shows the real fee for that choice. The promo code travels with both.
-  const delivery = useCartQuote(cart.items, 'delivery', promo);
-  const pickup = useCartQuote(cart.items, 'pickup', promo);
+  // One-store quotes drive the summary. Mixed carts are quoted per shop so they never look like one delivery.
+  const delivery = useCartQuote(singleStore ? cart.items : [], 'delivery', promo);
+  const pickup = useCartQuote(singleStore ? cart.items : [], 'pickup', promo);
   const active = mode === 'delivery' ? delivery : pickup;
   const quote = active.quote;
+  const [storeQuotes, setStoreQuotes] = useState<Record<string, CartQuote>>({});
+  const groupKey = groups.map((g) => `${g.vendor_id}:${g.items.map((i) => `${cartLineKey(i)}:${i.qty}`).join(',')}`).join('|');
+  useEffect(() => {
+    if (singleStore) { setStoreQuotes({}); return; }
+    let cancelled = false;
+    void Promise.all(groups.map(async (g) => {
+      try {
+        const q = await api.post<CartQuote>('/orders/quote', {
+          items: quoteItems(g.items),
+          fulfilment_mode: mode,
+          offers: true,
+          ...(promo ? { promo_code: promo } : {}),
+        });
+        return [g.vendor_id, q] as const;
+      } catch {
+        return [g.vendor_id, null] as const;
+      }
+    })).then((rows) => {
+      if (!cancelled) setStoreQuotes(Object.fromEntries(rows.filter((entry): entry is [string, CartQuote] => entry[1] != null)));
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [singleStore, groupKey, mode, promo]);
 
-  const sorted = useMemo(() => [...cart.items].sort((a, b) => a.vendor_name.localeCompare(b.vendor_name)), [cart.items]);
-  const vendors = new Set(cart.items.map((i) => i.vendor_id)).size;
+  const vendors = groups.length;
   const localSubtotal = cart.items.reduce((sum, item) => sum + item.price * item.qty, 0);
-  const currency = quote?.currency || cart.items[0]?.currency || 'QAR';
+  const currency = quote?.currency || groups[0]?.items[0]?.currency || cart.items[0]?.currency || 'QAR';
+  const checkoutStore = (vendorId: string) => go('checkout', { vendorId });
 
   // Free-delivery progress: the delivering seller who is closest to their free-delivery threshold.
   const nudge = useMemo(() => {
@@ -72,8 +98,15 @@ export function Cart({ go, tab }: NavProps) {
     if (code.length < 3) { setPromoError('Enter your promo code.'); return; }
     setPromoBusy(true); setPromoError('');
     try {
-      const result = await checkPromoCode(cart.items, mode, code);
-      if (result.ok) { setDraft({ promo: code }); toast.show(`Code ${code} applied`); } else setPromoError(result.message);
+      const baskets = groups.length ? groups.map((g) => g.items) : [cart.items];
+      let accepted = false;
+      let message = '';
+      for (const basket of baskets) {
+        const result = await checkPromoCode(basket, mode, code);
+        if (result.ok) { accepted = true; break; }
+        message = result.message;
+      }
+      if (accepted) { setDraft({ promo: code }); toast.show(`Code ${code} applied`); } else setPromoError(message);
     } catch (e) { setPromoError(errorMessage(e)); } finally { setPromoBusy(false); }
   };
 
@@ -124,21 +157,48 @@ export function Cart({ go, tab }: NavProps) {
           </View>
         ) : null}
 
-        <View style={s.labelRow}>
-          <Text style={[s.label, { color: colors.text2 }]}>ITEMS FROM VERIFIED SELLERS</Text>
-          {vendors > 1 ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}><Icon name="check-badge" size={16} color={colors.success} /><Text style={{ fontSize: 12, fontWeight: '700', color: colors.success }}>{vendors} sellers</Text></View> : null}
-        </View>
+        {vendors > 1 ? (
+          <View style={{ marginHorizontal: 12, marginTop: 12 }}>
+            <Notice>Each store is its own order, delivery fee and rider. Checkout one shop — the others stay in your cart.</Notice>
+          </View>
+        ) : null}
 
-        <View style={{ gap: 8, paddingHorizontal: 12 }}>
-          {sorted.map((item) => <CartLine key={cartLineKey(item)} item={item} />)}
-        </View>
+        {groups.map((g) => {
+          const storeQuote = singleStore ? quote : storeQuotes[g.vendor_id];
+          const storeFee = storeQuote ? Math.max(0, storeQuote.delivery_fee - (storeQuote.delivery_discount ?? 0)) : undefined;
+          const storeTotal = storeQuote?.total ?? g.subtotal;
+          return (
+            <View key={g.vendor_id} style={{ marginTop: 8 }}>
+              <View style={s.labelRow}>
+                <Text style={[s.label, { color: colors.text2 }]}>{g.vendor_name.toUpperCase()}</Text>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>{money(g.subtotal, currency)}</Text>
+              </View>
+              <View style={{ gap: 8, paddingHorizontal: 12 }}>
+                {g.items.map((item) => <CartLine key={cartLineKey(item)} item={item} />)}
+                {vendors > 1 ? (
+                  <Panel>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <Text style={{ fontSize: 12, color: colors.text2 }}>Delivery</Text>
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>{storeFee === undefined ? '…' : storeFee > 0 ? money(storeFee, storeQuote?.currency || currency) : 'Free'}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>Store total</Text>
+                      <Price value={storeTotal} currency={storeQuote?.currency || currency} size={18} />
+                    </View>
+                    <Button variant="deep" onPress={() => checkoutStore(g.vendor_id)}>Checkout {g.vendor_name}</Button>
+                  </Panel>
+                ) : null}
+              </View>
+            </View>
+          );
+        })}
 
         {unavailable.map((v) => <View key={v.vendor_id} style={{ marginHorizontal: 12, marginTop: 12 }}><Notice type="warning">{v.vendor_name}: {v.unavailable}</Notice></View>)}
         {active.error && !quote ? <View style={{ marginHorizontal: 12, marginTop: 12, gap: 8 }}><Notice type="danger">{active.error}</Notice><Button variant="secondary" onPress={() => { void delivery.reload(); void pickup.reload(); }}>Check again</Button></View> : null}
 
         <SectionHead title="Delivery Mode" right={<Text style={{ color: colors.brown, fontSize: 10.5, fontWeight: '700' }}>Fees set by each seller</Text>} style={{ marginTop: 16 }} />
         <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 12 }}>
-          <ModeCard selected={mode === 'delivery'} icon="car" title="Delivery" sub="Brought to your door" price={deliveryFee === undefined ? '…' : deliveryFee > 0 ? money(deliveryFee, currency) : 'Free'} onPress={() => setDraft({ mode: 'delivery' })} />
+          <ModeCard selected={mode === 'delivery'} icon="car" title="Delivery" sub="Brought to your door" price={vendors > 1 ? 'Per store' : deliveryFee === undefined ? '…' : deliveryFee > 0 ? money(deliveryFee, currency) : 'Free'} onPress={() => setDraft({ mode: 'delivery' })} />
           <ModeCard selected={mode === 'pickup'} icon="storefront" title="Pick up" sub="Collect from the seller" price="Free" onPress={() => setDraft({ mode: 'pickup' })} />
         </View>
         {mode === 'delivery' && pickupOnly.length ? <View style={{ marginHorizontal: 12, marginTop: 12 }}><Notice>{pickupOnly.map((v) => v.vendor_name).join(', ')} {pickupOnly.length === 1 ? 'offers' : 'offer'} pick-up only, so that part of your order will be collected from the store.</Notice></View> : null}
@@ -175,7 +235,7 @@ export function Cart({ go, tab }: NavProps) {
 
         <PromoCard applied={promo} quote={quote} checking={promoBusy} error={promoError} hasOffers={hasOffers} onApply={(code) => void applyPromo(code)} onRemove={() => { setDraft({ promo: '' }); setPromoError(''); }} onSeeOffers={() => go('offers')} skipFreeDeliveryHint={sellerBarCloser} />
 
-        <Panel style={{ marginHorizontal: 12, marginTop: 10 }}>
+        {singleStore ? <Panel style={{ marginHorizontal: 12, marginTop: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <View style={[s.sumIcon, { backgroundColor: colors.skySoft }]}><Icon name="receipt" solid={false} size={16} color={colors.sky} /></View>
             <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>Order summary</Text>
@@ -187,7 +247,7 @@ export function Cart({ go, tab }: NavProps) {
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 10 }}>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>Estimated total</Text>
-              <Text style={{ fontSize: 10.5, fontWeight: '500', color: colors.text2, marginTop: 2, lineHeight: 14 }}>Pay in cash when you receive or collect. {vendors > 1 ? `Placed as ${vendors} orders, one per seller.` : 'Final prices are confirmed when you order.'}</Text>
+              <Text style={{ fontSize: 10.5, fontWeight: '500', color: colors.text2, marginTop: 2, lineHeight: 14 }}>Pay in cash when you receive or collect. {vendors > 1 ? 'Each store is a separate order and delivery.' : 'Final prices are confirmed when you order.'}</Text>
             </View>
             <Price value={total} currency={currency} size={24} />
           </View>
@@ -195,17 +255,19 @@ export function Cart({ go, tab }: NavProps) {
             <View style={[s.assureItem, { backgroundColor: colors.primarySoft }]}><Icon name="shield-checkmark" solid={false} size={14} color={colors.primary} /><Text style={[s.assureText, { color: colors.primary }]}>Verified sellers</Text></View>
             <View style={[s.assureItem, { backgroundColor: colors.orangeSoft }]}><Icon name="cash" solid={false} size={14} color={colors.brown} /><Text style={[s.assureText, { color: colors.brown }]}>Pay on delivery</Text></View>
           </View>
-        </Panel>
+        </Panel> : null}
       </ScrollView>
 
+      {singleStore ? (
       <View style={[s.bar, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: TAB_LIFT + 8 }, softShadow(colors.shadow)]}>
         <View>
           <Text style={[s.eyebrow, { color: colors.text2 }]}>TOTAL</Text>
           <Price value={total} currency={currency} size={21} />
           <Text style={{ fontSize: 10, fontWeight: '600', color: colors.brown }}>Cash on delivery</Text>
         </View>
-        <Button variant="deep" icon="arrow-forward" style={{ flex: 1, minHeight: 44 }} onPress={() => go('checkout')}>Proceed to checkout</Button>
+        <Button variant="deep" icon="arrow-forward" style={{ flex: 1, minHeight: 44 }} onPress={() => checkoutStore(groups[0].vendor_id)}>Proceed to checkout</Button>
       </View>
+      ) : null}
       <Tabs active="cart" tab={tab} />
 
       <Sheet visible={noteOpen} title="Note for the seller" onClose={() => setNoteOpen(false)}>

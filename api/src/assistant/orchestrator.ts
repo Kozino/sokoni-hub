@@ -9,7 +9,7 @@ export type AssistantAction =
   | { type: 'add_to_cart'; listing_id: string; qty: number; option?: string; title: string; price: number; currency: string; vendor_id: string; vendor_name: string; image?: string; kind: 'product'; unit?: string | null; max?: number }
   | { type: 'open_listing'; id: string }
   | { type: 'open_booking'; id: string }
-  | { type: 'open_checkout' }
+  | { type: 'open_checkout'; vendor_id?: string }
   | { type: 'choose_option'; listing_id: string; title: string; options: { name: string; price?: number }[] };
 
 export type AssistantTurn = {
@@ -69,14 +69,16 @@ function copy(locale: Locale, key: string, vars: Record<string, string | number>
       cartEmpty: 'Your cart is empty. Tell me what you want (for example “palm oil 5 litre”).',
       quoteFail: 'I could not price the cart: {{error}}',
       quoteOk: 'Your cart is {{total}} {{currency}} (items {{subtotal}}, delivery {{delivery}}). Review it in Checkout to confirm your pin and pay cash on delivery.',
+      quoteStores: 'You have items from {{count}} stores. Each store is its own order, delivery fee and rider: {{list}}. Checkout one store at a time — other shops stay in your cart.',
       checkout: 'I cannot place the order for you. Review it in Checkout — check the size, delivery pin and total, then tap Place order.',
+      checkoutStore: 'I cannot place the order for you. Opening Checkout for {{store}} — one store, one delivery. Your other shops stay in the cart.',
       trackNeed: 'Send the order code (ORD-…) and the phone number used at checkout, and I will look it up.',
       trackOk: 'Order {{code}} from {{store}} is {{status}}. Total {{total}} {{currency}}.',
       trackFail: '{{error}}',
       ordersGuest: 'Sign in to see your orders. I can still help you search the market as a guest.',
       offersEmpty: 'There are no live offers I can show right now.',
       offers: 'Current offers:\n{{list}}\nI never invent a code — these came from Sokoni Hub.',
-      help: 'Orders are cash on delivery. You can cancel until a rider accepts. Services are booked with a date, not checked out. I can search, fill your cart and open Checkout — you always confirm.',
+      help: 'Orders are cash on delivery. You can cancel until a rider accepts. Services are booked with a date, not checked out. One store is one order and one delivery — I never combine shops. I can search, fill your cart and open Checkout — you always confirm.',
       signIn: 'Sign in (and your PIN) before placing an order. Your cart stays on this phone.',
     },
     sw: {
@@ -90,14 +92,16 @@ function copy(locale: Locale, key: string, vars: Record<string, string | number>
       cartEmpty: 'Kikapu ni tupu. Niambie unachotaka.',
       quoteFail: 'Sikuweza kupima bei: {{error}}',
       quoteOk: 'Kikapu ni {{total}} {{currency}} (bidhaa {{subtotal}}, delivery {{delivery}}). Kagua Checkout kuthibitisha pini na kulipa cash on delivery.',
+      quoteStores: 'Una bidhaa kutoka maduka {{count}}. Kila duka ni oda, ada na rider wake: {{list}}. Lipa duka moja baada ya jingine — mengine yanabaki kikapuni.',
       checkout: 'Siwezi kuweka oda mwenyewe. Kagua Checkout — kipimo, pini na jumla — kisha gusa Place order.',
+      checkoutStore: 'Siwezi kuweka oda mwenyewe. Nafungua Checkout kwa {{store}} — duka moja, delivery moja. Maduka mengine yanabaki kikapuni.',
       trackNeed: 'Tuma namba ya oda (ORD-…) na simu uliyotumia checkout.',
       trackOk: 'Oda {{code}} kutoka {{store}} ni {{status}}. Jumla {{total}} {{currency}}.',
       trackFail: '{{error}}',
       ordersGuest: 'Ingia ili uone oda zako. Bado naweza kutafuta sokoni.',
       offersEmpty: 'Hakuna ofa hai kwa sasa.',
       offers: 'Ofa:\n{{list}}',
-      help: 'Malipo ni cash on delivery. Unaweza kughairi kabla rider hajapokea. Huduma zina nafasi, si checkout. Mimi natafuta na kujaza kikapu — wewe unathibitisha.',
+      help: 'Malipo ni cash on delivery. Unaweza kughairi kabla rider hajapokea. Huduma zina nafasi, si checkout. Duka moja ni oda moja na delivery moja. Mimi natafuta na kujaza kikapu — wewe unathibitisha.',
       signIn: 'Ingia na PIN kabla ya kuweka oda. Kikapu kinabaki simuni.',
     },
     lg: {
@@ -111,7 +115,9 @@ function copy(locale: Locale, key: string, vars: Record<string, string | number>
       cartEmpty: 'Akasawo kaggwa. Mbuulira ky’oyagala.',
       quoteFail: 'Tesobose kusiima: {{error}}',
       quoteOk: 'Akasawo {{total}} {{currency}}. Kebeleza Checkout.',
+      quoteStores: 'Olina ebyokugula okuva mu maduka {{count}}. Duka limu ye order emu: {{list}}. Checkout duka limu; amalala gasigala mu kasawo.',
       checkout: 'Sisobola kuteeka order. Kebeleza Checkout, oluvannyuma Place order.',
+      checkoutStore: 'Sisobola kuteeka order. Checkout ya {{store}} — duka limu, delivery emu. Amaduka amalala gasigala mu kasawo.',
       trackNeed: 'Wereza koodi ORD- n’essimu gy’okozesezza.',
       trackOk: 'Order {{code}} okuva {{store}} {{status}}. {{total}} {{currency}}.',
       trackFail: '{{error}}',
@@ -132,7 +138,9 @@ function copy(locale: Locale, key: string, vars: Record<string, string | number>
       cartEmpty: 'Kɛtɛ no da hɔ. Ka deɛ wopɛ.',
       quoteFail: 'Antumi ankan: {{error}}',
       quoteOk: 'Kɛtɛ no yɛ {{total}} {{currency}}. Hwɛ Checkout.',
+      quoteStores: 'Wɔn nneɛma fi nkuw {{count}}. Kuw biara yɛ order ne delivery nko: {{list}}. Checkout kuw baako — nkae no wɔ kɛtɛ no mu.',
       checkout: 'Mentumi mfa order. Hwɛ Checkout na Place order.',
+      checkoutStore: 'Mentumi mfa order. Me bue Checkout ma {{store}} — kuw baako, delivery baako. Nkuw foforo wɔ kɛtɛ no mu.',
       trackNeed: 'Mane ORD- kood ne telefon a wode yɛɛ checkout.',
       trackOk: 'Order {{code}} fi {{store}} yɛ {{status}}. {{total}} {{currency}}.',
       trackFail: '{{error}}',
@@ -153,7 +161,9 @@ function copy(locale: Locale, key: string, vars: Record<string, string | number>
       cartEmpty: 'السلة فارغة. قل لي شو تبي.',
       quoteFail: 'ما قدرت أحسب السلة: {{error}}',
       quoteOk: 'السلة {{total}} {{currency}}. راجع الدفع لتأكيد الموقع والدفع كاش عند الاستلام.',
+      quoteStores: 'عندك أغراض من {{count}} متاجر. كل متجر طلب وتوصيل لحاله: {{list}}. ادفع متجر واحد — الباقي يبقى في السلة.',
       checkout: 'ما أقدر أتمم الطلب عنك. راجع الدفع ثم Place order.',
+      checkoutStore: 'ما أقدر أتمم الطلب عنك. أفتح الدفع لـ {{store}} — متجر واحد، توصيلة واحدة. المتاجر الثانية تبقى في السلة.',
       trackNeed: 'أرسل رمز الطلب ORD- ورقم الجوال المستخدم عند الدفع.',
       trackOk: 'الطلب {{code}} من {{store}} حالته {{status}}. {{total}} {{currency}}.',
       trackFail: '{{error}}',
@@ -167,6 +177,36 @@ function copy(locale: Locale, key: string, vars: Record<string, string | number>
   let text = table[locale][key] || table.en[key] || key;
   for (const [k, v] of Object.entries(vars)) text = text.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), String(v));
   return text;
+}
+
+type QuotedVendor = { vendor_id: string; vendor_name: string; total: number; currency?: string; subtotal?: number; delivery_fee?: number };
+
+function vendorsOfQuote(quote: unknown): QuotedVendor[] {
+  const vendors = (quote as { vendors?: QuotedVendor[] } | null)?.vendors;
+  return Array.isArray(vendors) ? vendors.filter((v) => v?.vendor_id) : [];
+}
+
+function openCheckoutAction(quote: unknown): AssistantAction {
+  const vendorId = vendorsOfQuote(quote)[0]?.vendor_id;
+  return vendorId ? { type: 'open_checkout', vendor_id: vendorId } : { type: 'open_checkout' };
+}
+
+function quoteText(locale: Locale, quote: unknown): string {
+  const q = quote as { error?: string; empty?: boolean; total?: number; currency?: string; subtotal?: number; delivery_fee?: number };
+  if (q?.error) return copy(locale, 'quoteFail', { error: q.error });
+  if (q?.empty) return copy(locale, 'cartEmpty');
+  const vendors = vendorsOfQuote(quote);
+  if (vendors.length > 1) {
+    const list = vendors.map((v) => `${v.vendor_name}: ${v.total} ${v.currency || 'QAR'}`).join('; ');
+    return copy(locale, 'quoteStores', { count: vendors.length, list });
+  }
+  return copy(locale, 'quoteOk', { total: q.total ?? 0, currency: q.currency || 'QAR', subtotal: q.subtotal ?? 0, delivery: q.delivery_fee ?? 0 });
+}
+
+function checkoutText(locale: Locale, quote: unknown): string {
+  const vendors = vendorsOfQuote(quote);
+  if (vendors.length > 1) return copy(locale, 'checkoutStore', { store: vendors[0].vendor_name });
+  return copy(locale, 'checkout');
 }
 
 async function localTurn(message: string, localeHint: Locale, ctx: ToolCtx, lastCards: any[]): Promise<AssistantTurn> {
@@ -209,10 +249,7 @@ async function localTurn(message: string, localeHint: Locale, ctx: ToolCtx, last
       if (!ctx.cart.length) { text = copy(locale, 'cartEmpty'); break; }
       toolsCalled.push('quote_cart');
       quote = await runTool('quote_cart', { fulfilment_mode: ctx.fulfilment_mode }, ctx);
-      const q = quote as any;
-      if (q?.error) text = copy(locale, 'quoteFail', { error: q.error });
-      else if (q?.empty) text = copy(locale, 'cartEmpty');
-      else text = copy(locale, 'quoteOk', { total: q.total, currency: q.currency || 'QAR', subtotal: q.subtotal, delivery: q.delivery_fee });
+      text = quoteText(locale, quote);
       break;
     }
     case 'checkout': {
@@ -221,8 +258,8 @@ async function localTurn(message: string, localeHint: Locale, ctx: ToolCtx, last
         toolsCalled.push('quote_cart');
         quote = await runTool('quote_cart', { fulfilment_mode: ctx.fulfilment_mode }, ctx);
       }
-      actions.push({ type: 'open_checkout' });
-      text = copy(locale, 'checkout');
+      actions.push(openCheckoutAction(quote));
+      text = checkoutText(locale, quote);
       break;
     }
     case 'track': {
@@ -352,7 +389,7 @@ async function llmTurn(message: string, locale: Locale, ctx: ToolCtx, history: H
     const lower = text.toLowerCase();
     if (/\b(checkout|place order|review (the )?order|malizia)\b/.test(lower) && ctx.cart.length) {
       proposedCheckout = true;
-      actions.push({ type: 'open_checkout' });
+      actions.push(openCheckoutAction(quote));
     }
     return {
       text: text || copy(locale, 'greet'),

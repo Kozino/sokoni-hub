@@ -25,7 +25,7 @@ const CONFETTI: [string, number, number, string, 'dot' | 'bar' | 'box', number][
   ['13%', 118, 6, '#FFFFFF', 'box', 15], ['86%', 124, 8, '#FFB36B', 'bar', 55], ['5%', 160, 7, '#86CBFF', 'dot', 0], ['94%', 164, 6, '#B9AFFF', 'box', -20],
 ];
 
-export function OrderPlaced({ orders, name, phone, go, tab }: { orders: Order[]; name: string; phone: string } & Nav) {
+export function OrderPlaced({ orders, name, phone, go, tab, remaining = 0 }: { orders: Order[]; name: string; phone: string; remaining?: number } & Nav) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const directory = useVendorDirectory();
@@ -84,7 +84,7 @@ export function OrderPlaced({ orders, name, phone, go, tab }: { orders: Order[];
           <Stat icon="cash" accent={1} value={money(totalSum, currency)} label="To pay in cash" wide />
         </View>
 
-        {orders.length > 1 ? <Text style={[s.note, { color: colors.text2 }]}>Your cart was split into {plural(orders.length, 'order')}, one per seller.</Text> : null}
+        {remaining > 0 ? <Text style={[s.note, { color: colors.text2 }]}>Items from {plural(remaining, 'other store')} are still in your cart.</Text> : null}
 
         <View style={{ gap: 10, paddingHorizontal: 12, marginTop: 10 }}>
           {orders.map((order, index) => (
@@ -112,7 +112,8 @@ export function OrderPlaced({ orders, name, phone, go, tab }: { orders: Order[];
         </Panel>
 
         <View style={{ gap: 8, paddingHorizontal: 12, marginTop: 14 }}>
-          <Button variant="deep" icon="arrow-forward" onPress={() => go('orders')}>View my orders</Button>
+          {remaining > 0 ? <Button variant="deep" icon="arrow-forward" onPress={() => tab('cart')}>Checkout other stores</Button> : null}
+          <Button variant={remaining > 0 ? 'tonal' : 'deep'} icon="arrow-forward" onPress={() => go('orders')}>View my orders</Button>
           <Button variant="tonal" onPress={() => tab('home')}>Continue shopping</Button>
         </View>
       </ScrollView>

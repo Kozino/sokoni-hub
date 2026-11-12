@@ -166,9 +166,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+export type CartVendorGroup = { vendor_id: string; vendor_name: string; items: CartItem[]; subtotal: number };
+
 const CartContext = createContext<{
   items: CartItem[]; count: number; add: (item: CartItem) => void; setQty: (id: string, qty: number, opt?: string) => void;
-  remove: (id: string, opt?: string) => void; clear: () => void;
+  remove: (id: string, opt?: string) => void; clear: () => void; clearVendor: (vendorId: string) => void;
+  byVendor: CartVendorGroup[];
 }>(null as never);
 export const useCart = () => useContext(CartContext);
 
@@ -187,6 +190,23 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const setQty = useCallback((id: string, qty: number, opt?: string) => update(items.map((item) => item.listing_id === id && item.option === opt ? { ...item, qty: Math.max(1, Math.min(qty, item.max ?? Infinity)) } : item)), [items, update]);
   const remove = useCallback((id: string, opt?: string) => update(items.filter((item) => !(item.listing_id === id && item.option === opt))), [items, update]);
   const clear = useCallback(() => update([]), [update]);
-  const value = useMemo(() => ({ items, count: items.reduce((total, item) => total + item.qty, 0), add, setQty, remove, clear }), [items, add, setQty, remove, clear]);
+  const clearVendor = useCallback((vendorId: string) => {
+    setItems((current) => {
+      const next = current.filter((item) => item.vendor_id !== vendorId);
+      void AsyncStorage.setItem(CART_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+  const byVendor = useMemo<CartVendorGroup[]>(() => {
+    const groups = new Map<string, CartVendorGroup>();
+    for (const item of items) {
+      const group = groups.get(item.vendor_id) ?? { vendor_id: item.vendor_id, vendor_name: item.vendor_name, items: [], subtotal: 0 };
+      group.items.push(item);
+      group.subtotal += item.price * item.qty;
+      groups.set(item.vendor_id, group);
+    }
+    return [...groups.values()];
+  }, [items]);
+  const value = useMemo(() => ({ items, count: items.reduce((total, item) => total + item.qty, 0), add, setQty, remove, clear, clearVendor, byVendor }), [items, add, setQty, remove, clear, clearVendor, byVendor]);
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

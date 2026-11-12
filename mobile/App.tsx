@@ -48,7 +48,7 @@ function AppRouter({ seenWelcome, finishWelcome }: any) {
         <Stack.Screen name="forgot">{(props) => <Recovery {...common} params={props.route.params} />}</Stack.Screen>
         <Stack.Screen name="listing">{(props) => <ListingDetail {...common} id={(props.route.params as any)?.id} writeReview={!!(props.route.params as any)?.writeReview} />}</Stack.Screen>
         <Stack.Screen name="store">{(props) => <StoreDetail {...common} slug={(props.route.params as any)?.slug} />}</Stack.Screen>
-        <Stack.Screen name="checkout">{(props) => <Checkout {...common} fromAssistant={!!(props.route.params as any)?.fromAssistant} />}</Stack.Screen>
+        <Stack.Screen name="checkout">{(props) => <Checkout {...common} fromAssistant={!!(props.route.params as any)?.fromAssistant} vendorId={(props.route.params as any)?.vendorId} />}</Stack.Screen>
         <Stack.Screen name="assistant">{() => <Assistant {...common} />}</Stack.Screen>
         <Stack.Screen name="orders">{(props) => <Orders {...common} />}</Stack.Screen>
         <Stack.Screen name="bookings">{(props) => <Bookings {...common} />}</Stack.Screen>

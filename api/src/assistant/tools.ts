@@ -38,7 +38,7 @@ export const OPENAI_TOOLS = [
     type: 'function',
     function: {
       name: 'quote_cart',
-      description: 'Server-priced quote for the current cart. The only source of totals, delivery fees and offers.',
+      description: 'Server-priced quote for the current cart. The only source of totals, delivery fees and offers. vendors[] is one entry per store — each store is its own order and delivery; never present mixed shops as one delivery.',
       parameters: {
         type: 'object',
         properties: {

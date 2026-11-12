@@ -258,20 +258,21 @@ try{
   const expectedRevenue=num((await one(`select coalesce(sum(subtotal+delivery_fee),0) s from orders where vendor_id=$1 and status not in ('cancelled')`,[vendorA.id])).s);
   eq(num(stats.revenue_pipeline),expectedRevenue,'VENDOR: dashboard revenue counts the full order value (70), unaffected by the discount');
 
-  // ================================================================== 6. free delivery: the rider is still paid in full
+  // ================================================================== 6. one store per checkout; free delivery still pays the rider in full
   await resetLimits();
   const buyer2=await mkUser('buyer','Second buyer');
-  const co2=await checkout(buyer2.token,{items:cartAB,tel:buyer2.phone,expected:100});
-  eq(co2.status,201,'a two-store cart with automatic free delivery is placed');
-  eq(co2.body.orders.length,2,'it becomes one order per store');
-  const oA=co2.body.orders.find((o)=>o.vendor_id===vendorA.id);
-  const oB=co2.body.orders.find((o)=>o.vendor_id===vendorB.id);
-  ok(oA.total===60&&oA.delivery_discount===10&&oA.delivery_fee===10&&oB.total===40&&oB.delivery_discount===10,'each order: full fee recorded, delivery discount 10, buyer pays 60 and 40');
+  const mixed=await checkout(buyer2.token,{items:cartAB,tel:buyer2.phone,expected:100});
+  eq(mixed.status,422,'a mixed-store cart cannot be placed as one checkout');
+  const co2=await checkout(buyer2.token,{items:[{listing_id:A1,qty:2}],tel:buyer2.phone,expected:120});
+  eq(co2.status,201,'a single-store cart that meets free delivery is placed');
+  eq(co2.body.orders.length,1,'one store is one order');
+  const oA=co2.body.orders[0];
+  ok(oA.vendor_id===vendorA.id&&oA.total===120&&oA.delivery_discount===10&&oA.delivery_fee===10,'full fee recorded, delivery discount 10, buyer pays 120');
   const feeOffer=await one(`select count(*)::int rows, count(distinct checkout_key)::int uses from offer_redemptions where offer_id=$1`,[freeDel.id]);
-  ok(feeOffer.rows===2&&feeOffer.uses===1,'two orders from one checkout use the offer once');
+  ok(feeOffer.rows===1&&feeOffer.uses===1,'the free-delivery offer is used once on that order');
   const doneA=await deliverByRider(oA.id,vendorA,rider);
   eq(doneA.status,200,'the rider completes the free-delivery order');
-  eq(await ledger(oA.id,'cash_collected'),60,'RIDER: collected 60 (the buyer paid no delivery)');
+  eq(await ledger(oA.id,'cash_collected'),120,'RIDER: collected 120 (the buyer paid no delivery)');
   eq(await ledger(oA.id,'fee_earned'),10,'RIDER: earned the full 10 even though delivery was free for the buyer');
   await call('POST','/api/orders/track/confirm',null,{code:(await orderRow(oA.id)).code,phone:buyer2.phone});
   const walletA3=await wallet(vendorA.id);

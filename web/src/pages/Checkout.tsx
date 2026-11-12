@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { api, ApiError } from '../lib/api';
 import { useCart } from '../state/CartContext';
 import { useAuth } from '../state/AuthContext';
@@ -14,7 +14,18 @@ export default function Checkout() {
   const t = useT();
   const formRef = useRef<HTMLFormElement>(null);
   const [fieldErrs, setFieldErrs] = useState<Record<string, string>>({});
-  const { items, byVendor, subtotal, currency, clear } = useCart();
+  const { items: allItems, byVendor: allByVendor, currency, clearVendor } = useCart();
+  const [params] = useSearchParams();
+  const requestedVendor = params.get('vendor') || '';
+  const vendorIds = [...new Set(allItems.map((i) => i.vendor_id))];
+  const vendorId = requestedVendor && vendorIds.includes(requestedVendor)
+    ? requestedVendor
+    : (vendorIds.length === 1 ? vendorIds[0] : '');
+  const items = vendorId ? allItems.filter((i) => i.vendor_id === vendorId) : [];
+  const byVendor = allByVendor.filter((g) => g.vendor_id === vendorId);
+  const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
+  const storeName = byVendor[0]?.vendor_name || '';
+  const leftoverCount = allItems.filter((i) => i.vendor_id !== vendorId).length;
   const { user } = useAuth();
   const [mode, setMode] = useState<FulfilmentMode>('delivery');
   const [form, setForm] = useState({
@@ -25,6 +36,7 @@ export default function Checkout() {
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<Order[] | null>(null);
+  const [leftover, setLeftover] = useState(0);
   // Where the rider should deliver. Required whenever a vendor delivers this cart.
   const [pin, setPin] = useState<PinValue | null>(null);
   const [pinErr, setPinErr] = useState('');
@@ -122,8 +134,9 @@ export default function Checkout() {
       sessionStorage.setItem('sokoni_checkout_retry', JSON.stringify({ signature, key }));
       const r = await api.post<{ orders: Order[] }>('/orders/checkout', { ...payload, request_id: key });
       sessionStorage.removeItem('sokoni_checkout_retry');
+      setLeftover(leftoverCount);
       setDone(r.orders);
-      clear();
+      if (vendorId) clearVendor(vendorId);
       clearAttribution();
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : t('co.failed'));
@@ -166,7 +179,11 @@ export default function Checkout() {
             <a className="btn btn-primary" target="_blank" rel="noopener noreferrer" href={`https://wa.me/?text=${encodeURIComponent(msg)}`}>{t('co.sendWhatsApp')}</a>
             <a className="btn btn-outline" href={`mailto:${form.contact_email || ''}?subject=${encodeURIComponent('Sokoni Hub')}&body=${encodeURIComponent(msg)}`}>{t('co.sendEmail')}</a>
           </div>
+          {leftover > 0 && (
+            <p className="muted mt-2" style={{ fontSize: '.9rem' }}>{t('co.remaining')}</p>
+          )}
           <div className="row mt-2" style={{ justifyContent: 'center' }}>
+            {leftover > 0 && <Link to="/cart" className="btn btn-primary">{t('co.checkoutOthers')}</Link>}
             <Link to="/track" className="btn btn-outline">{t('co.track')}</Link>
             <Link to="/browse" className="btn btn-ghost">{t('co.continue')}</Link>
           </div>
@@ -177,9 +194,10 @@ export default function Checkout() {
 
   return (
     <div className="container">
-      <h1>{t('co.title')}</h1>
+      <h1>{t('co.title')}{storeName ? ` · ${storeName}` : ''}</h1>
       <div className="checkout-layout">
         <form ref={formRef} className="card card-pad" onSubmit={submit} noValidate>
+          {storeName && leftoverCount > 0 && <div className="alert alert-info">{t('co.oneStore', { store: storeName })}</div>}
           <p className="muted">{t('co.privacy')} <a href="/privacy" target="_blank" rel="noopener noreferrer">{t('co.privacyLink')}</a>. {t('co.privacyWarn')}</p>
           <Alert kind="error">{err}</Alert>
 

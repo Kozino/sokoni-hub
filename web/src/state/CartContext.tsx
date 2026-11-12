@@ -9,6 +9,8 @@ interface CartState {
   setQty: (listing_id: string, qty: number, option?: string) => void;
   remove: (listing_id: string, option?: string) => void;
   clear: () => void;
+  /** Remove one store's basket. Other shops stay. */
+  clearVendor: (vendor_id: string) => void;
   count: number;
   subtotal: number;
   currency: string;
@@ -67,6 +69,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const clear = () => setItems([]);
 
+  const clearVendor = (vendor_id: string) =>
+    setItems((prev) => prev.filter((p) => p.vendor_id !== vendor_id));
+
   const value = useMemo<CartState>(() => {
     const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
     const groups = new Map<string, { vendor_id: string; vendor_name: string; items: CartItem[]; subtotal: number }>();
@@ -76,7 +81,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       groups.set(i.vendor_id, g);
     }
     return {
-      items, add, setQty, remove, clear,
+      items, add, setQty, remove, clear, clearVendor,
       count: items.reduce((s, i) => s + i.qty, 0),
       subtotal,
       currency: items[0]?.currency || 'QAR',

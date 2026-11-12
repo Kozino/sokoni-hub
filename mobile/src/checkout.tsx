@@ -17,16 +17,22 @@ import { BottomBar, Button, EmptyState, Field, Header, Notice, Spinner, Text } f
 type Placed = { orders: Order[] };
 type Nav = { go: (screen: any, params?: any) => void; back: () => void; tab: (screen: any, params?: any) => void };
 
-export function Checkout({ go, back, tab, fromAssistant = false }: Nav & { fromAssistant?: boolean }) {
+export function Checkout({ go, back, tab, fromAssistant = false, vendorId }: Nav & { fromAssistant?: boolean; vendorId?: string }) {
   const { colors } = useTheme();
   const t = useT();
   const { user } = useAuth();
   const cart = useCart();
+  const vendorIds = [...new Set(cart.items.map((item) => item.vendor_id))];
+  const activeVendorId = vendorId && vendorIds.includes(vendorId) ? vendorId : (vendorIds.length === 1 ? vendorIds[0] : undefined);
+  const basket = activeVendorId ? cart.items.filter((item) => item.vendor_id === activeVendorId) : [];
+  const leftoverCount = new Set(cart.items.filter((item) => item.vendor_id !== activeVendorId).map((item) => item.vendor_id)).size;
+  const storeName = basket[0]?.vendor_name;
   const [draft, setDraft] = useCheckoutDraft();
   const mode = draft.mode;
-  const { quote, error: quoteError, reload: loadQuote } = useCartQuote(cart.items, mode, draft.promo);
+  const { quote, error: quoteError, reload: loadQuote } = useCartQuote(basket, mode, draft.promo);
   const [busy, setBusy] = useState(false);
   const [placed, setPlaced] = useState<Placed | null>(null);
+  const [remaining, setRemaining] = useState(0);
   const [touched, setTouched] = useState(false);
   // Errors show inline with a Retry button instead of a blocking popup.
   const [banner, setBanner] = useState('');
@@ -53,8 +59,8 @@ export function Checkout({ go, back, tab, fromAssistant = false }: Nav & { fromA
 
   useEffect(() => {
     if (finished.current) return; // the cart is cleared on success; do not navigate away from the confirmation
-    if (!cart.items.length) back();
-  }, [cart.items.length, back]);
+    if (!cart.items.length || !activeVendorId) back();
+  }, [cart.items.length, activeVendorId, back]);
 
   // A store may only offer one mode; the quote tells us what will really happen per seller.
   const needsAddress = !quote || quote.vendors.some((vendor) => vendor.mode === 'delivery');
@@ -79,7 +85,7 @@ export function Checkout({ go, back, tab, fromAssistant = false }: Nav & { fromA
     try {
       const body = {
         // `option` must travel with the item: the API rejects a listing that has sizes unless one is chosen.
-        items: quoteItems(cart.items),
+        items: quoteItems(basket),
         fulfilment_mode: mode,
         contact_name: form.contact_name.trim(),
         contact_phone: form.contact_phone.trim(),
@@ -103,7 +109,8 @@ export function Checkout({ go, back, tab, fromAssistant = false }: Nav & { fromA
       const result = await api.post<Placed>('/orders/checkout', { request_id: attempt.current.id, ...body });
       finished.current = true;
       setDraft({ note: '', promo: '', address: needsAddress ? form.delivery_address.trim() : draft.address, city: form.city.trim() || draft.city, lat: pin?.latitude ?? draft.lat, lng: pin?.longitude ?? draft.lng });
-      cart.clear();
+      setRemaining(leftoverCount);
+      if (activeVendorId) cart.clearVendor(activeVendorId);
       setPlaced(result);
     } catch (e) {
       if (e instanceof ApiError && (e.status === 409 || e.status === 400)) void loadQuote();
@@ -112,22 +119,23 @@ export function Checkout({ go, back, tab, fromAssistant = false }: Nav & { fromA
   };
 
   /* ------------------------------------------------------------------------- confirmation */
-  if (placed) return <OrderPlaced orders={placed.orders} name={form.contact_name} phone={form.contact_phone} go={go} tab={tab} />;
+  if (placed) return <OrderPlaced orders={placed.orders} name={form.contact_name} phone={form.contact_phone} go={go} tab={tab} remaining={remaining} />;
 
   const fieldError = (key: keyof typeof errors) => (touched && errors[key]) || undefined;
-  const vendors = new Set(cart.items.map((i) => i.vendor_id)).size;
+  const basketCount = basket.reduce((n, item) => n + item.qty, 0);
 
   return (
     <Screen>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <Header title="Checkout" back={back} />
+        <Header title={storeName ? `Checkout · ${storeName}` : 'Checkout'} back={back} />
         <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
           {fromAssistant ? <View style={{ marginBottom: 8 }}><Notice type="warning">{t('checkout.fromAssistant')}</Notice></View> : null}
+          {leftoverCount > 0 && storeName ? <View style={{ marginBottom: 8 }}><Notice>This checkout is for {storeName} only. Other shops stay in your cart.</Notice></View> : null}
           {!user ? <View style={{ marginBottom: 8 }}><Notice type="warning">Sign in to place your order — your cart is saved on this phone.</Notice></View> : null}
           {banner ? <View style={{ gap: 8, marginBottom: 8 }}><Notice type="danger">{banner}</Notice><Button variant="secondary" onPress={() => void order()} loading={busy}>Try again</Button></View> : null}
 
-          <Section icon="bag-handle" accent={0} title="Your items" right={plural(cart.count, 'item')} flush>
-            {cart.items.map((item, index) => <Line key={cartLineKey(item)} item={item} divider={index > 0} />)}
+          <Section icon="bag-handle" accent={0} title="Your items" right={plural(basketCount, 'item')} flush>
+            {basket.map((item, index) => <Line key={cartLineKey(item)} item={item} divider={index > 0} />)}
           </Section>
 
           <Text style={[s.heading, { color: colors.text }]}>How do you want it?</Text>
@@ -194,7 +202,7 @@ export function Checkout({ go, back, tab, fromAssistant = false }: Nav & { fromA
                 <Text style={[s.totalText, { color: colors.text }]}>Total</Text>
                 <Price value={quote.total} currency={quote.currency} size={22} />
               </View>
-              {vendors > 1 ? <Text style={{ fontSize: 10.5, color: colors.text2, marginTop: 8, lineHeight: 15 }}>Placed as {plural(vendors, 'order')}, one per seller.</Text> : null}
+              {leftoverCount > 0 ? <Text style={{ fontSize: 10.5, color: colors.text2, marginTop: 8, lineHeight: 15 }}>Other shops stay in your cart after you place this order.</Text> : null}
               {draft.promo && quote.promo && !quote.promo.ok ? <View style={{ marginTop: 8 }}><Notice type="warning">Code {draft.promo} was left out: {quote.promo.message}</Notice></View> : null}
             </> : quoteError ? <EmptyState icon="alert-circle-outline" title="Cart changed" text={quoteError} action={<View style={{ gap: 8, marginTop: 8 }}><Button onPress={() => void loadQuote()}>Try again</Button><Button variant="secondary" onPress={back}>Review cart</Button></View>} /> : <Spinner label="Confirming current prices…" />}
           </Section>

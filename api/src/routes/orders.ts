@@ -53,6 +53,8 @@ const checkoutSchema = z.object({
   promo_code: z.string().trim().max(40).optional(),
   // The total the buyer was shown. If it no longer matches (a price or an offer changed), checkout asks them to review it.
   expected_total: z.number().min(0).max(10_000_000).optional(),
+  // Set by the consumer app when Checkout was opened from Sokoni Assistant.
+  channel: z.enum(['app', 'ai-assistant']).optional(),
 });
 
 /**
@@ -194,6 +196,36 @@ function priceCart(byVendor: Map<string, any[]>, items: { listing_id: string; qt
   return quotes;
 }
 
+/** Same pricing path as POST /orders/quote, for Sokoni Assistant tools. */
+export async function quoteBuyerCart(
+  items: { listing_id: string; qty: number; option?: string }[],
+  opts: {
+    fulfilment_mode?: FulfilmentMode;
+    offers?: boolean;
+    promo_code?: string;
+    userId?: string | null;
+    phone?: string | null;
+  } = {},
+) {
+  const mode = opts.fulfilment_mode || 'delivery';
+  const byVendor = await loadCart(items);
+  const priced = priceCart(byVendor, items, mode);
+  const quotes = priced.map((p) => p.quote);
+  if ((opts.offers === true || opts.promo_code) && (await offersReady())) {
+    const identity = String(opts.userId || 'assistant');
+    const locked = !!opts.promo_code && (await promoLockedOut(identity));
+    const offered = await priceWithOffers(pool, priced, {
+      code: locked ? undefined : opts.promo_code,
+      userId: opts.userId ?? null,
+      phone: opts.phone ?? null,
+    });
+    const response = offeredQuoteResponse(quotes, offered);
+    if (locked) response.promo = { code: normalizeCode(opts.promo_code) ?? '', ok: false, message: CODE_THROTTLED };
+    return response;
+  }
+  return { vendors: quotes, ...cartTotals(quotes) };
+}
+
 /**
  * POST /orders/quote — what the buyer will be charged, before committing.
  * Same code path as checkout, so the figures always agree.
@@ -230,8 +262,8 @@ orderRouter.post('/quote', async (req, res, next) => {
 });
 
 /**
- * Checkout. A cart may contain items from several vendors — we split into
- * one order per vendor (standard multi-vendor behaviour) and return them all.
+ * Checkout. One vendor = one order = one pickup = one delivery.
+ * Mixed-store carts stay in the basket; the client checks out one shop at a time.
  */
 orderRouter.post('/checkout', optionalAuth, async (req, res, next) => {
   try {
@@ -247,6 +279,9 @@ orderRouter.post('/checkout', optionalAuth, async (req, res, next) => {
       const prior=(await c.query('select fingerprint,response from checkout_requests where key=$1',[b.request_id])).rows[0];
       if(prior){if(prior.fingerprint!==fingerprint) throw new HttpError(409,'Checkout key already used for a different request');return prior.response as any[];}
       const byVendor=await loadCart(b.items,c);
+      if (byVendor.size > 1) {
+        throw new HttpError(422, 'Checkout one store at a time. Each store is its own order, delivery fee and rider. Other shops stay in your cart.');
+      }
       const priced=priceCart(byVendor,b.items,b.fulfilment_mode);
       const deliveryQuotes = priced.filter((p) => p.quote.mode === 'delivery');
       if (deliveryQuotes.length && b.delivery_lat === undefined) {
@@ -283,9 +318,8 @@ orderRouter.post('/checkout', optionalAuth, async (req, res, next) => {
         // still make a collision extraordinarily unlikely for order volume.
         const code = randomCode('ORD', 8);
         // Which channel actually brought this buyer to this vendor. A shared
-        // link/QR only counts for the vendor it names — every other vendor in
-        // a multi-vendor cart still gets 'marketplace'.
-        const source = resolveOrderSource(b.attribution, vItems[0].vendor_slug);
+        // link/QR only counts for the vendor it names.
+        const source = resolveOrderSource(b.attribution, vItems[0].vendor_slug, b.channel);
         // total is written explicitly as subtotal + delivery_fee - discount - delivery_discount. A CHECK
         // constraint on the table enforces this, so a regression fails loudly. subtotal and delivery_fee stay the
         // FULL amounts (vendor wallet credit and rider pay are computed from them); a platform-funded discount

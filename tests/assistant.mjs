@@ -75,6 +75,8 @@ ok(!/post<.*checkout|\/orders\/checkout/.test(orch), 'orchestrator does not POST
 const prompt = fs.readFileSync(path.join(root, 'api/src/assistant/prompt.ts'), 'utf8');
 ok(prompt.includes('cannot place an order'), 'system prompt forbids placing orders');
 ok(prompt.includes('untrusted data'), 'listing text is untrusted');
+ok(/one vendor is one order/i.test(prompt), 'system prompt one-store delivery rule');
+ok(orch.includes('openCheckoutAction'), 'checkout handoff names the store when the cart is mixed');
 
 const mig = fs.readFileSync(path.join(root, 'db/migrations/032_assistant.sql'), 'utf8');
 ok(mig.includes('ai-assistant'), 'order source includes ai-assistant');
