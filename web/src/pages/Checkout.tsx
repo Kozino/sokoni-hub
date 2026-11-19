@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { api, ApiError } from '../lib/api';
 import { useCart } from '../state/CartContext';
@@ -21,13 +21,20 @@ export default function Checkout() {
   const vendorId = requestedVendor && vendorIds.includes(requestedVendor)
     ? requestedVendor
     : (vendorIds.length === 1 ? vendorIds[0] : '');
-  const items = vendorId ? allItems.filter((i) => i.vendor_id === vendorId) : [];
-  const byVendor = allByVendor.filter((g) => g.vendor_id === vendorId);
+  const items = useMemo(
+    () => (vendorId ? allItems.filter((i) => i.vendor_id === vendorId) : []),
+    [allItems, vendorId],
+  );
+  const byVendor = useMemo(
+    () => allByVendor.filter((g) => g.vendor_id === vendorId),
+    [allByVendor, vendorId],
+  );
   const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
   const storeName = byVendor[0]?.vendor_name || '';
   const leftoverCount = allItems.filter((i) => i.vendor_id !== vendorId).length;
   const { user } = useAuth();
   const [mode, setMode] = useState<FulfilmentMode>('delivery');
+  const quoteKey = `${mode}|${items.map((i) => `${i.listing_id}:${i.qty}:${i.option || ''}`).join(',')}`;
   const [form, setForm] = useState({
     contact_name: user?.full_name || '', contact_phone: user?.phone || '', contact_email: user?.email || '',
     delivery_address: '', city: '', country: 'Qatar', note: '',
@@ -48,30 +55,54 @@ export default function Checkout() {
   const [quote, setQuote] = useState<CartQuote | null>(null);
   const [quoting, setQuoting] = useState(false);
   const [quoteErr, setQuoteErr] = useState('');
+  const [quoteRetry, setQuoteRetry] = useState(0);
 
   const lineItems = () =>
     items.map((i) => ({ listing_id: i.listing_id, qty: i.qty, option: i.option || undefined }));
 
+  /* Depend on quoteKey (a string), not the filtered `items` array. A new array
+     every render was cancelling the quote — the map pin re-renders checkout,
+     the request never landed, and the button stayed on “Calculating total…”. */
   useEffect(() => {
-    if (items.length === 0) { setQuote(null); return; }
-    let cancelled = false;
+    if (items.length === 0) {
+      setQuote(null);
+      setQuoting(false);
+      setQuoteErr('');
+      return;
+    }
+    let alive = true;
     setQuoting(true);
     setQuoteErr('');
+    const timer = window.setTimeout(() => {
+      if (!alive) return;
+      setQuoting(false);
+      setQuoteErr((prev) => prev || t('co.quoteTimeout'));
+    }, 25000);
     api
       .post<CartQuote>('/orders/quote', {
         items: lineItems(),
         fulfilment_mode: mode,
       })
-      .then((q) => { if (!cancelled) setQuote(q); })
-      .catch((e) => {
-        if (cancelled) return;
-        setQuote(null);
-        setQuoteErr(e instanceof ApiError ? e.message : 'Could not price this order.');
+      .then((q) => {
+        if (!alive) return;
+        setQuote(q);
+        setQuoteErr('');
       })
-      .finally(() => { if (!cancelled) setQuoting(false); });
-    return () => { cancelled = true; };
+      .catch((e) => {
+        if (!alive) return;
+        setQuote(null);
+        setQuoteErr(e instanceof ApiError ? e.message : t('co.quoteFailed'));
+      })
+      .finally(() => {
+        window.clearTimeout(timer);
+        if (alive) setQuoting(false);
+      });
+    return () => {
+      alive = false;
+      window.clearTimeout(timer);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, mode]);
+  }, [quoteKey, quoteRetry]);
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<any>) => {
     setForm({ ...form, [k]: e.target.value });
@@ -199,7 +230,12 @@ export default function Checkout() {
         <form ref={formRef} className="card card-pad" onSubmit={submit} noValidate>
           {storeName && leftoverCount > 0 && <div className="alert alert-info">{t('co.oneStore', { store: storeName })}</div>}
           <p className="muted">{t('co.privacy')} <a href="/privacy" target="_blank" rel="noopener noreferrer">{t('co.privacyLink')}</a>. {t('co.privacyWarn')}</p>
-          <Alert kind="error">{err}</Alert>
+          <Alert kind="error">{err || quoteErr}</Alert>
+          {quoteErr && !quoting && (
+            <button type="button" className="btn btn-outline btn-sm" onClick={() => setQuoteRetry((n) => n + 1)}>
+              {t('co.retryQuote')}
+            </button>
+          )}
 
           <h3>{t('co.receive')}</h3>
           <div className="col" style={{ gap: 10, marginBottom: 18 }}>
@@ -281,10 +317,10 @@ export default function Checkout() {
             </label>
           ))}
 
-          <button className="btn btn-primary btn-lg btn-block mt-2" disabled={busy || quoting || !quote}>
+          <button className="btn btn-primary btn-lg btn-block mt-2" disabled={busy || !quote}>
             {busy ? t('co.placing')
-              : quoting ? t('co.calculating')
               : quote ? t('co.placeWith', { total: money(quote.total, quote.currency) })
+              : quoting ? t('co.calculating')
               : t('co.place')}
           </button>
         </form>
@@ -342,7 +378,7 @@ export default function Checkout() {
           <div className="row-between" style={{ fontSize: '.9rem', padding: '3px 0' }}>
             <span style={{ color: 'var(--muted)' }}>{t('co.deliveryRow')}</span>
             <span>
-              {quoting ? '…' : (quote?.delivery_fee ?? 0) > 0 ? money(quote!.delivery_fee, quote!.currency) : t('co.free')}
+              {quoting && !quote ? '…' : (quote?.delivery_fee ?? 0) > 0 ? money(quote!.delivery_fee, quote!.currency) : t('co.free')}
             </span>
           </div>
           <hr />
