@@ -156,6 +156,7 @@ export interface VendorQuote {
   offers_pickup: boolean;
   offers_delivery: boolean;
   free_delivery_over: number | null;
+  delivery_radius_km: number | null;
   pickup_address: string | null;
   delivery_notes: string | null;
   /** Set when the requested mode isn't available from this vendor. */
@@ -206,6 +207,10 @@ export function quoteVendorOrder(input: {
       s.free_delivery_over === null || s.free_delivery_over === undefined
         ? null
         : num(s.free_delivery_over),
+    delivery_radius_km:
+      s.delivery_radius_km === null || s.delivery_radius_km === undefined
+        ? null
+        : num(s.delivery_radius_km),
     pickup_address: s.pickup_address,
     delivery_notes: s.delivery_notes,
     ...(unavailable ? { unavailable } : {}),

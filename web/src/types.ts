@@ -94,7 +94,7 @@ export interface CartItem {
   vendor_id: string; vendor_name: string; kind: ListingKind; max?: number | null; option?: string;
 }
 
-/** A vendor's self-managed delivery policy. The platform never sets these. */
+/** Vendor fulfilment flags and pickup address. Fee and radius are admin-owned. */
 export interface DeliverySettings {
   vendor_id?: string;
   offers_pickup: boolean;
@@ -113,6 +113,7 @@ export interface VendorQuote {
   mode: FulfilmentMode;
   offers_pickup: boolean; offers_delivery: boolean;
   free_delivery_over: number | null;
+  delivery_radius_km?: number | null;
   pickup_address: string | null; delivery_notes: string | null;
   /** Set when the chosen mode isn't available and was adjusted. */
   unavailable?: string;

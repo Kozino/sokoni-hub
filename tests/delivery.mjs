@@ -61,6 +61,7 @@ const quoted = delivery.quoteVendorOrder({
   settings: applied,
 });
 ok(quoted.delivery_fee === 15, 'checkout uses the admin fee');
+ok(quoted.delivery_radius_km === 12, 'checkout quote includes the admin radius');
 
 const free = delivery.quoteVendorOrder({
   vendor_id: 'v1',

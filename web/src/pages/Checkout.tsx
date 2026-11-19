@@ -37,7 +37,7 @@ export default function Checkout() {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<Order[] | null>(null);
   const [leftover, setLeftover] = useState(0);
-  // Where the rider should deliver. Required whenever a vendor delivers this cart.
+  // Where the Sokoni Hub rider should deliver.
   const [pin, setPin] = useState<PinValue | null>(null);
   const [pinErr, setPinErr] = useState('');
 
@@ -80,10 +80,10 @@ export default function Checkout() {
 
   if (items.length === 0 && !done) return <Navigate to="/cart" replace />;
 
-  // Any vendor actually delivering this cart? Drives whether we need an address.
   const needsAddress = !quote ? mode === 'delivery' : quote.vendors.some((v) => v.mode === 'delivery');
   const anyVendorDelivers = !quote || quote.vendors.some((v) => v.offers_delivery);
   const anyVendorPickup = !quote || quote.vendors.some((v) => v.offers_pickup);
+  const deliveryRadiusKm = quote?.vendors.find((v) => v.mode === 'delivery')?.delivery_radius_km ?? null;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -229,6 +229,13 @@ export default function Checkout() {
                 </span>
               </label>
             ))}
+            {mode === 'delivery' && anyVendorDelivers && (
+              <p className="muted" style={{ fontSize: '.85rem', margin: 0 }}>
+                {deliveryRadiusKm
+                  ? t('co.platformSetsRadius', { km: String(deliveryRadiusKm) })
+                  : t('co.platformSets')}
+              </p>
+            )}
           </div>
 
           <h3>{needsAddress ? t('co.detailsDelivery') : t('co.detailsYou')}</h3>
@@ -254,7 +261,7 @@ export default function Checkout() {
             <div className="mt-2">
               <strong>{t('co.pinTitle')}</strong>
               <p className="muted" style={{ fontSize: '.85rem', margin: '4px 0 10px' }}>
-                {t('co.pinHelp')}
+                {deliveryRadiusKm ? t('co.pinHelpRadius', { km: String(deliveryRadiusKm) }) : t('co.pinHelp')}
               </p>
               <DeliveryPin value={pin} onChange={(p) => { setPin(p); setPinErr(''); }} error={pinErr} />
             </div>
@@ -303,8 +310,11 @@ export default function Checkout() {
                 {vq && (
                   <div className="row-between" style={{ fontSize: '.83rem', padding: '4px 0', color: 'var(--muted)' }}>
                     <span>
-                      {vq.mode === 'pickup' ? t('co.collectionRow') : t('co.deliveryRow')}
-                      {vq.mode === 'delivery' && vq.delivery_fee === 0 && vq.free_delivery_over !== null ? ' (free)' : ''}
+                      {vq.mode === 'pickup'
+                        ? t('co.collectionRow')
+                        : (vq.delivery_radius_km
+                            ? t('co.deliveryRowRadius', { km: String(vq.delivery_radius_km) })
+                            : t('co.deliveryRow'))}
                     </span>
                     <span>{vq.delivery_fee > 0 ? money(vq.delivery_fee, vq.currency) : t('co.free')}</span>
                   </div>
@@ -314,11 +324,11 @@ export default function Checkout() {
                 )}
                 {vq?.mode === 'delivery' && vq.delivery_fee > 0 && vq.free_delivery_over !== null && (
                   <div style={{ fontSize: '.8rem', color: 'var(--muted)', padding: '2px 0' }}>
-                    Free delivery over {money(vq.free_delivery_over, vq.currency)}
+                    {t('co.freeOver', { amount: money(vq.free_delivery_over, vq.currency) })}
                   </div>
                 )}
                 {vq?.mode === 'pickup' && vq.pickup_address && (
-                  <div style={{ fontSize: '.8rem', color: 'var(--muted)', padding: '2px 0' }}>Collect from {vq.pickup_address}</div>
+                  <div style={{ fontSize: '.8rem', color: 'var(--muted)', padding: '2px 0' }}>{t('co.collectFrom', { address: vq.pickup_address })}</div>
                 )}
               </div>
             );
