@@ -2,7 +2,7 @@
  * Explore — the landing screen. Search, category chips, "shop by category", sponsored stores, market items,
  * popular services and trust messaging. Every list is live API data; a section with nothing to show is hidden.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, View } from 'react-native';
 import { CategoryTile, ProductCard, ProductRow, SellCard, ServiceRow } from '../cards';
 import { useActiveCategories, useMarket, SORT_LABELS, type SortKey } from '../data';
@@ -15,6 +15,7 @@ import { useT } from '../i18n';
 import { useTheme } from '../providers';
 import { OffersRail } from '../offersUi';
 import { Button, EmptyState, Notice, Spinner, Text } from '../ui';
+import { loadSiteContent } from '../siteContent';
 
 export type { Screen } from '../nav';
 
@@ -34,6 +35,8 @@ export function Home({ go, tab }: NavProps) {
   const [sort, setSort] = useState<SortKey>('popular');
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [refreshing, setRefreshing] = useState(false);
+  const [banner, setBanner] = useState<{ text: string; href: string | null } | null>(null);
+  useEffect(() => { void loadSiteContent().then((p) => setBanner(p.announcement)); }, []);
 
   const market = useMarket({ q: '', kind: 'product', category: chip, sort, min: '', max: '', city }, 8);
   const services = useMarket({ q: '', kind: 'service', category: '', sort: 'popular', min: '', max: '', city }, 3);
@@ -56,6 +59,11 @@ export function Home({ go, tab }: NavProps) {
         keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={colors.primary} />}
       >
+        {banner?.text ? (
+          <View style={{ marginHorizontal: 12, marginTop: 10 }}>
+            <Notice>{banner.text}</Notice>
+          </View>
+        ) : null}
         <SearchBar style={{ marginTop: 10 }} value={text} onChangeText={setText} onSubmit={search} placeholder={t('home.searchPlaceholder')} onAsk={() => go('assistant')} askLabel={t('home.askSokoni')} onFilter={() => go('browse', { q: text.trim(), fromHome: true, openFilters: true })} />
         <PillRow style={{ marginTop: 10 }} items={chips} active={chip} onSelect={setChip} />
 

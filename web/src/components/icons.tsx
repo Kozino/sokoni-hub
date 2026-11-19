@@ -10,6 +10,7 @@ import {
   ClockIcon,
   Cog6ToothIcon,
   CubeIcon,
+  DocumentTextIcon,
   ExclamationTriangleIcon,
   FolderIcon,
   InboxIcon,
@@ -42,6 +43,7 @@ export const IconAlert = icon(ExclamationTriangleIcon);
 export const IconUsers = icon(UsersIcon);
 export const IconStar = icon(StarIcon);
 export const IconSparkles = icon(SparklesIcon);
+export const IconDoc = icon(DocumentTextIcon);
 export const IconTag = icon(TagIcon);
 export const IconFolder = icon(FolderIcon);
 export const IconHistory = icon(ClockIcon);

@@ -12,6 +12,9 @@ import { generateMonthlyBills } from '../serviceFeeBills';
 import { getSchedule, saveScheduleSettings } from '../serviceFeeSchedule';
 import { assistantSettings, saveAssistantSettings } from '../assistant/settings';
 import { config } from '../config';
+import {
+  adminDocument, discardDraft, listPages, loadContact, parseSlug, publishPage, saveContact, saveDraft, siteContactSchema, pageDraftSchema,
+} from '../content';
 
 export const adminRouter = Router();
 adminRouter.param('id', validateUuidParam);
@@ -1017,5 +1020,59 @@ adminRouter.put('/assistant', async (req, res, next) => {
     const settings = await saveAssistantSettings(b);
     await audit(req.user!, 'assistant.update', 'system_settings', 'assistant', b);
     res.json(assistantPublic(settings));
+  } catch (e) { next(e); }
+});
+
+/* ------------------------------------------------------------------ */
+/* Site content (legal documents, contact, announcement)               */
+/* ------------------------------------------------------------------ */
+
+adminRouter.get('/content', async (_req, res, next) => {
+  try {
+    const contact = await loadContact();
+    const pages = await listPages();
+    res.json({ contact, pages: pages.map(adminDocument) });
+  } catch (e) { next(e); }
+});
+
+adminRouter.put('/content/site', async (req, res, next) => {
+  try {
+    const b = siteContactSchema.parse(req.body);
+    const contact = await saveContact(b);
+    await audit(req.user!, 'content.site_update', 'system_settings', 'site_content', {
+      announcementEnabled: b.announcementEnabled,
+    });
+    res.json({ contact });
+  } catch (e) { next(e); }
+});
+
+adminRouter.put('/content/pages/:slug', async (req, res, next) => {
+  try {
+    const slug = parseSlug(String(req.params.slug || ''));
+    const b = pageDraftSchema.parse(req.body);
+    const row = await saveDraft(slug, b, req.user!.id);
+    await audit(req.user!, 'content.draft', 'content_pages', slug);
+    res.json({ page: adminDocument(row) });
+  } catch (e) { next(e); }
+});
+
+adminRouter.post('/content/pages/:slug/publish', async (req, res, next) => {
+  try {
+    const slug = parseSlug(String(req.params.slug || ''));
+    const row = await publishPage(slug, req.user!.id);
+    await audit(req.user!, 'content.publish', 'content_pages', slug, {
+      version: row.published_version,
+      effective: row.published_effective,
+    });
+    res.json({ page: adminDocument(row) });
+  } catch (e) { next(e); }
+});
+
+adminRouter.post('/content/pages/:slug/discard', async (req, res, next) => {
+  try {
+    const slug = parseSlug(String(req.params.slug || ''));
+    const row = await discardDraft(slug, req.user!.id);
+    await audit(req.user!, 'content.discard', 'content_pages', slug);
+    res.json({ page: adminDocument(row) });
   } catch (e) { next(e); }
 });

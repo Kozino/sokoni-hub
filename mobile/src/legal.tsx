@@ -3,13 +3,14 @@
  * (see legalText.ts); nothing here opens a browser. Sections fold open one at a time so a long policy stays easy to scan.
  */
 import { LinearGradient } from 'expo-linear-gradient';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SUPPORT_EMAIL, SUPPORT_WHATSAPP } from './config';
+import { bundledDocs, docsFromContent, loadSiteContent, operatorFromContent } from './siteContent';
 import { tap } from './haptics';
 import { Icon, type IconName } from './icons';
 import { Panel, Screen, SegTabs, accentAt } from './kit';
-import { LEGAL_DOCS, LEGAL_OPERATOR, type LegalBlock, type LegalDoc } from './legalText';
+import { LEGAL_OPERATOR, type LegalBlock, type LegalDoc } from './legalText';
 import { useTheme } from './providers';
 import { Header, Text } from './ui';
 import type { ReactNode } from 'react';
@@ -51,9 +52,17 @@ function Blocks({ blocks }: { blocks: LegalBlock[] }) {
 
 export function LegalScreen({ back, go, doc }: { back: () => void; go: (screen: any, params?: any) => void; doc?: string }) {
   const { colors } = useTheme();
-  const initial = (LEGAL_DOCS.find((d) => d.key === doc)?.key ?? 'terms') as LegalDoc['key'];
+  const [docs, setDocs] = useState<LegalDoc[]>(bundledDocs);
+  const [operator, setOperator] = useState({ ...LEGAL_OPERATOR });
+  const initial = (docs.find((d) => d.key === doc)?.key ?? 'terms') as LegalDoc['key'];
   const [active, setActive] = useState<LegalDoc['key']>(initial);
-  const current = LEGAL_DOCS.find((d) => d.key === active) as LegalDoc;
+  useEffect(() => {
+    void loadSiteContent().then((payload) => {
+      setDocs(docsFromContent(payload));
+      setOperator(operatorFromContent(payload));
+    });
+  }, []);
+  const current = docs.find((d) => d.key === active) as LegalDoc;
   const [open, setOpen] = useState<Record<string, boolean>>({ [`${initial}-0`]: true });
   const allOpen = current.sections.every((_, i) => open[`${active}-${i}`]);
   const toggle = (i: number) => { tap(); setOpen((old) => ({ ...old, [`${active}-${i}`]: !old[`${active}-${i}`] })); };
@@ -64,7 +73,7 @@ export function LegalScreen({ back, go, doc }: { back: () => void; go: (screen: 
     <Screen>
       <Header title="Terms & privacy" back={back} />
       <View style={{ paddingHorizontal: 12, paddingBottom: 8 }}>
-        <SegTabs items={LEGAL_DOCS.map((d) => ({ key: d.key, label: TAB_LABEL[d.key] }))} active={active} onChange={(key) => setActive(key as LegalDoc['key'])} />
+        <SegTabs items={docs.map((d) => ({ key: d.key, label: TAB_LABEL[d.key] }))} active={active} onChange={(key) => setActive(key as LegalDoc['key'])} />
       </View>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 32, gap: 8 }}>
         <LinearGradient colors={[colors.heroA, colors.heroB]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.hero}>
@@ -74,8 +83,8 @@ export function LegalScreen({ back, go, doc }: { back: () => void; go: (screen: 
             <Text style={s.heroTitle}>{current.title}</Text>
             <Text style={s.heroText}>{current.subtitle}</Text>
             <View style={s.heroChips}>
-              <View style={s.heroChip}><Text style={s.heroChipText}>Version {LEGAL_OPERATOR.version}</Text></View>
-              <View style={s.heroChip}><Text style={s.heroChipText}>Effective {LEGAL_OPERATOR.effective}</Text></View>
+              <View style={s.heroChip}><Text style={s.heroChipText}>Version {operator.version}</Text></View>
+              <View style={s.heroChip}><Text style={s.heroChipText}>Effective {operator.effective}</Text></View>
             </View>
           </View>
         </LinearGradient>
@@ -86,11 +95,11 @@ export function LegalScreen({ back, go, doc }: { back: () => void; go: (screen: 
               <View style={[s.badge, { backgroundColor: colors.skySoft }]}><Icon name="building" solid={false} size={15} color={colors.sky} /></View>
               <Text style={[s.sectionTitle, { color: colors.text }]}>Who operates Sokoni Hub?</Text>
             </View>
-            <Text style={[s.p, { color: colors.text2 }]}><Text style={{ fontWeight: '700', color: colors.text }}>{LEGAL_OPERATOR.operatorName}</Text> · Commercial registration {LEGAL_OPERATOR.registration}</Text>
-            <Text style={[s.p, { color: colors.text2 }]}>Support hours: {LEGAL_OPERATOR.hours}. Typical response time: {LEGAL_OPERATOR.response}.</Text>
+            <Text style={[s.p, { color: colors.text2 }]}><Text style={{ fontWeight: '700', color: colors.text }}>{operator.operatorName}</Text> · Commercial registration {operator.registration}</Text>
+            <Text style={[s.p, { color: colors.text2 }]}>Support hours: {operator.hours}. Typical response time: {operator.response}.</Text>
             <View style={s.contactRow}>
-              <ContactButton icon="logo-whatsapp" label={LEGAL_OPERATOR.display} bg={colors.primarySoft} fg={colors.primary} onPress={() => void Linking.openURL(`https://wa.me/${SUPPORT_WHATSAPP}`)} />
-              <ContactButton icon="mail" label={SUPPORT_EMAIL} bg={colors.violetSoft} fg={colors.violet} onPress={() => void Linking.openURL(`mailto:${SUPPORT_EMAIL}`)} />
+              <ContactButton icon="logo-whatsapp" label={operator.display} bg={colors.primarySoft} fg={colors.primary} onPress={() => void Linking.openURL(`https://wa.me/${operator.whatsapp || SUPPORT_WHATSAPP}`)} />
+              <ContactButton icon="mail" label={operator.email || SUPPORT_EMAIL} bg={colors.violetSoft} fg={colors.violet} onPress={() => void Linking.openURL(`mailto:${operator.email || SUPPORT_EMAIL}`)} />
             </View>
           </Panel>
         ) : null}
@@ -120,7 +129,7 @@ export function LegalScreen({ back, go, doc }: { back: () => void; go: (screen: 
 
         <Panel style={{ alignItems: 'center', gap: 6 }}>
           <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>Questions about these documents?</Text>
-          <Text style={{ fontSize: 11, lineHeight: 16, color: colors.text2, textAlign: 'center' }}>Our team replies within {LEGAL_OPERATOR.response}. Never share your password, PIN or recovery code in a message.</Text>
+          <Text style={{ fontSize: 11, lineHeight: 16, color: colors.text2, textAlign: 'center' }}>Our team replies within {operator.response}. Never share your password, PIN or recovery code in a message.</Text>
           <Pressable accessibilityRole="button" onPress={() => go('support')} style={[s.supportBtn, { backgroundColor: colors.primarySoft }]}><Icon name="help-buoy" solid={false} size={15} color={colors.primary} /><Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary }}>Open Help & support</Text></Pressable>
         </Panel>
       </ScrollView>

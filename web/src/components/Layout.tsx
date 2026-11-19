@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../state/AuthContext';
 import { useCart } from '../state/CartContext';
@@ -7,6 +7,7 @@ import LanguageSwitcher from './LanguageSwitcher';
 import { useT } from '../i18n';
 import { useAnalyticsConsent } from '../analytics';
 import WhatsAppWidget from './WhatsAppWidget';
+import { useSiteContent } from '../state/ContentContext';
 import '../styles/MarketplaceTemplate.css';
 
 const initialsOf = (name?: string) =>
@@ -212,11 +213,25 @@ export function Header() {
   );
 }
 
+function SiteBanner() {
+  const { announcement } = useSiteContent();
+  if (!announcement?.text) return null;
+  const href = announcement.href || '';
+  const internal = href.startsWith('/');
+  const style: CSSProperties = {
+    background: '#123f39', color: '#fff', textAlign: 'center', padding: '8px 16px', fontSize: 13, fontWeight: 600,
+  };
+  if (internal) return <div style={style}><Link to={href} style={{ color: '#fff' }}>{announcement.text}</Link></div>;
+  if (href.startsWith('https://')) return <div style={style}><a href={href} style={{ color: '#fff' }} target="_blank" rel="noopener noreferrer">{announcement.text}</a></div>;
+  return <div style={style}>{announcement.text}</div>;
+}
+
 export function Footer() {
   const t = useT();
+  const { contact } = useSiteContent();
   const { configured: analyticsConfigured, openSettings } = useAnalyticsConsent();
 
-  const SUPPORT_WHATSAPP = '97466046431'; // no + or spaces — wa.me format
+  const SUPPORT_WHATSAPP = contact.supportWhatsApp || '97466046431';
   const supportMsg = encodeURIComponent('Hi, I need help with Sokoni Hub.');
 
   return (
@@ -295,6 +310,7 @@ export default function Layout() {
   return (
     <div className="app marketplace-app">
       <a className="skip-link" href="#main-content">{t('ui.skip')}</a>
+      <SiteBanner />
       <Header />
       <main id="main-content" tabIndex={-1} className="page"><Outlet /></main>
       {!isUserDashboard && <Footer />}
@@ -307,6 +323,7 @@ export default function Layout() {
 export function BareLayout() {
   return (
     <div className="app marketplace-app">
+      <SiteBanner />
       <Header />
       <main style={{ flex: 1 }}><Outlet /></main>
       <Footer />

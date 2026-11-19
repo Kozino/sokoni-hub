@@ -1,12 +1,15 @@
 import { legalConfig as c } from '../legalConfig';
+import { useSiteContent } from '../state/ContentContext';
 import './WhatsAppWidget.css';
 
 export default function WhatsAppWidget() {
-  if (!c.supportWhatsApp) return null;
+  const { contact } = useSiteContent();
+  const wa = contact.supportWhatsApp || c.supportWhatsApp;
+  if (!wa) return null;
 
   return (
     <a
-      href={`https://wa.me/${c.supportWhatsApp}?text=${encodeURIComponent("Hello Sokoni Hub, I need some help.")}`}
+      href={`https://wa.me/${wa}?text=${encodeURIComponent("Hello Sokoni Hub, I need some help.")}`}
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Chat with Support on WhatsApp"

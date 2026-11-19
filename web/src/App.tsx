@@ -24,6 +24,8 @@ import CookieSettings from './pages/CookieSettings';
 import DeleteAccount from './pages/DeleteAccount';
 import AdminDeletion from './pages/admin/AdminDeletion';
 import { AdminAssistant } from './pages/admin/AdminAssistant';
+import { AdminContent } from './pages/admin/AdminContent';
+import { ContentProvider } from './state/ContentContext';
 import { Sell, Policy, Support, TrackOrder, NotFound } from './pages/Static';
 import { AccountLayout, AccountProfile, AccountBookings, AccountOrders } from './pages/account/AccountDashboard';
 
@@ -68,6 +70,7 @@ export default function App() {
     <BrowserRouter>
       <AnalyticsProvider>
       <ThemeProvider>
+      <ContentProvider>
       <ToastProvider>
         <AuthProvider>
           <CartProvider>
@@ -152,6 +155,7 @@ export default function App() {
                 <Route path="categories" element={<AdminCategories />} />
                 <Route path="deletion" element={<AdminDeletion />} />
                 <Route path="assistant" element={<AdminAssistant />} />
+                <Route path="content" element={<AdminContent />} />
                 <Route path="audit" element={<AdminAudit />} />
                 <Route path="*" element={<Navigate to="/admin" replace />} />
               </Route>
@@ -160,6 +164,7 @@ export default function App() {
           </CartProvider>
         </AuthProvider>
       </ToastProvider>
+      </ContentProvider>
       </ThemeProvider>
       </AnalyticsProvider>
     </BrowserRouter>

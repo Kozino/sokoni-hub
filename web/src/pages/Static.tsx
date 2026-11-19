@@ -1,4 +1,6 @@
 import { legalConfig as c } from '../legalConfig';
+import { useSiteContent } from '../state/ContentContext';
+import { MarkdownDoc } from '../lib/markdown';
 import {qWhen} from '../lib/booking';
 import SessionManager from '../components/SessionManager';
 import { TrackBooking } from '../components/TrackBooking';
@@ -69,6 +71,20 @@ export function Sell() {
 
 /* ------------------------------------------------------------------ */
 export function Policy() {
+  const { documents } = useSiteContent();
+  const doc = documents.policy;
+  if (doc) {
+    return (
+      <div className="container container-narrow legal-content">
+        <h1>{doc.title}</h1>
+        <p className="muted">{doc.subtitle}{doc.version ? ` · Version ${doc.version}` : ''}{doc.effective ? ` · Effective ${doc.effective}` : ''}</p>
+        <div className="card card-pad">
+          <MarkdownDoc markdown={doc.markdown} />
+          <Link to="/support" className="btn btn-primary mt-2">File a complaint</Link>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="container container-narrow">
       <h1>Marketplace policy</h1>
@@ -95,6 +111,12 @@ export function Policy() {
 
 /* ------------------------------------------------------------------ */
 export function Support() {
+  const { contact } = useSiteContent();
+  const hours = contact.supportHours || c.supportHours;
+  const response = contact.responseTime || c.responseTime;
+  const email = contact.supportEmail || c.supportEmail;
+  const wa = contact.supportWhatsApp || c.supportWhatsApp;
+  const display = contact.supportDisplay || c.supportDisplay;
   const [params] = useSearchParams();
   const { user } = useAuth();
   const [f, setF] = useState({
@@ -134,10 +156,10 @@ export function Support() {
   return (
     <div className="container container-narrow">
       <h1>Contact &amp; Support</h1>
-      <p>We are here {c.supportHours}, and we aim to reply within {c.responseTime}. Choose whichever is easiest for you.</p>
+      <p>We are here {hours}, and we aim to reply within {response}. Choose whichever is easiest for you.</p>
       <div className="support-contacts">
-        <a className="card card-pad support-contact" href={`mailto:${c.supportEmail}`}><strong>Email</strong><span>{c.supportEmail}</span><small>Best for account, privacy and deletion requests</small></a>
-        <a className="card card-pad support-contact" href={`https://wa.me/${c.supportWhatsApp}`} target="_blank" rel="noopener noreferrer"><strong>WhatsApp</strong><span>{c.supportDisplay}</span><small>Quick help with orders and bookings</small></a>
+        <a className="card card-pad support-contact" href={`mailto:${email}`}><strong>Email</strong><span>{email}</span><small>Best for account, privacy and deletion requests</small></a>
+        <a className="card card-pad support-contact" href={`https://wa.me/${wa}`} target="_blank" rel="noopener noreferrer"><strong>WhatsApp</strong><span>{display}</span><small>Quick help with orders and bookings</small></a>
       </div>
       <p style={{ color: 'var(--muted)' }}>Problem with an order, a store or a listing? Use the form below — an admin reviews every report and you get a reference code to track it. Complaint details may be shared with the vendor involved. Never send passwords, PINs, MFA codes or unnecessary documents.</p>
       <p><Link to="/faq">FAQ</Link> · <Link to="/terms">Terms</Link> · <Link to="/privacy">Privacy Policy</Link> · <Link to="/cookies">Cookie Policy</Link> · <Link to="/delete-account">Account deletion</Link></p>

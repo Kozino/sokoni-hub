@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { EnglishScope } from '../i18n';
 import { legalConfig as c } from '../legalConfig';
 import { analyticsConfigured } from '../analytics';
+import { useSiteContent } from '../state/ContentContext';
+import { MarkdownDoc, MarkdownFaq } from '../lib/markdown';
 import './legal.css';
 
 export function HelpPage({ title, subtitle, children, draft = false }: { title: string; subtitle: string; children: ReactNode; draft?: boolean }) {
@@ -39,29 +41,42 @@ export function HelpPage({ title, subtitle, children, draft = false }: { title: 
   );
 }
 
-function Operator() {
+function Operator({ version, effective }: { version?: string; effective?: string }) {
+  const { contact } = useSiteContent();
   const pending = 'Registration in progress — this will be published once the Qatar company registration is complete.';
   return (
     <section>
       <h2>Who operates Sokoni Hub?</h2>
       <dl>
+        <dt>Operator</dt>
+        <dd>{contact.operatorName || c.operatorName}</dd>
         <dt>Commercial registration</dt>
-        <dd>{c.operatorCR || pending}</dd>
+        <dd>{contact.operatorCR || c.operatorCR || pending}</dd>
       </dl>
       <p>
         Contact us through the <Link to="/support">Support form</Link>, by email at{' '}
-        <a href={`mailto:${c.supportEmail}`}>{c.supportEmail}</a>, or on{' '}
-        <a href={`https://wa.me/${c.supportWhatsApp}`} target="_blank" rel="noopener noreferrer">WhatsApp {c.supportDisplay}</a>.
-        Support hours: {c.supportHours}. Typical response time: {c.responseTime}.
+        <a href={`mailto:${contact.supportEmail}`}>{contact.supportEmail}</a>, or on{' '}
+        <a href={`https://wa.me/${contact.supportWhatsApp}`} target="_blank" rel="noopener noreferrer">WhatsApp {contact.supportDisplay}</a>.
+        Support hours: {contact.supportHours}. Typical response time: {contact.responseTime}.
       </p>
       <p className="muted">
-        Version: {c.version} · {c.effectiveDate ? `Effective date: ${c.effectiveDate}` : 'No effective date — draft only.'}
+        Version: {version || c.version} · {effective || c.effectiveDate ? `Effective date: ${effective || c.effectiveDate}` : 'No effective date — draft only.'}
       </p>
     </section>
   );
 }
 
 export function Terms() {
+  const { documents } = useSiteContent();
+  const doc = documents.terms;
+  if (doc) {
+    return (
+      <HelpPage title={doc.title} subtitle={doc.subtitle}>
+        <Operator version={doc.version} effective={doc.effective} />
+        <MarkdownDoc markdown={doc.markdown} />
+      </HelpPage>
+    );
+  }
   return (
     <HelpPage title="Terms of Use" subtitle="How the marketplace works, and what buyers and vendors can expect." draft={c.draft}>
       <Operator />
@@ -110,6 +125,19 @@ export function Terms() {
 }
 
 export function Privacy() {
+  const { documents, contact } = useSiteContent();
+  const doc = documents.privacy;
+  if (doc) {
+    return (
+      <HelpPage title={doc.title} subtitle={doc.subtitle}>
+        <Operator version={doc.version} effective={doc.effective} />
+        <MarkdownDoc markdown={doc.markdown} />
+        <section>
+          <p>Account deletion: <Link to="/delete-account">submit a request</Link>. Cookie settings: <Link to="/cookies">Cookie settings</Link>. Support: <Link to="/support">Contact</Link> or {contact.supportEmail}.</p>
+        </section>
+      </HelpPage>
+    );
+  }
   return (
     <HelpPage title="Privacy Policy" subtitle="The information used to run your account, store, orders and service bookings." draft={c.draft}>
       <Operator />
@@ -205,16 +233,23 @@ const faqs: [string, string][] = [
 ];
 
 export function FAQ() {
+  const { documents, contact } = useSiteContent();
+  const doc = documents.faq;
+  const items = doc
+    ? null
+    : faqs.map(([q, a]) => [q, a.replace(c.supportEmail, contact.supportEmail).replace(c.supportDisplay, contact.supportDisplay)] as [string, string]);
   return (
-    <HelpPage title="Frequently asked questions" subtitle="Quick answers about buying, selling, verification and account support.">
+    <HelpPage title={doc?.title || 'Frequently asked questions'} subtitle={doc?.subtitle || 'Quick answers about buying, selling, verification and account support.'}>
+      {doc ? <MarkdownFaq markdown={doc.markdown} /> : (
       <div className="faq-list">
-        {faqs.map(([q, a]) => (
+        {(items || faqs).map(([q, a]) => (
           <details key={q}>
             <summary>{q}</summary>
             <p>{a}</p>
           </details>
         ))}
       </div>
+      )}
       <section>
         <h2>Still need help?</h2>
         <p><Link className="btn btn-primary" to="/support">Open Contact &amp; Support</Link></p>

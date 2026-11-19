@@ -1,7 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SUPPORT_EMAIL, SUPPORT_WHATSAPP, WEB_URL } from '../config';
+import { loadSiteContent } from '../siteContent';
 import { Icon, type IconName } from '../icons';
 import { Panel, Screen, accentAt } from '../kit';
 import type { NavProps } from '../nav';
@@ -23,6 +24,14 @@ export function Support({ go, back }: NavProps) {
   const { colors } = useTheme();
   const t = useT();
   const [open, setOpen] = useState<number | null>(null);
+  const [email, setEmail] = useState(SUPPORT_EMAIL);
+  const [whatsapp, setWhatsapp] = useState(SUPPORT_WHATSAPP);
+  useEffect(() => {
+    void loadSiteContent().then((p) => {
+      if (p.contact.supportEmail) setEmail(p.contact.supportEmail);
+      if (p.contact.supportWhatsApp) setWhatsapp(p.contact.supportWhatsApp);
+    });
+  }, []);
   const questions: [string, string][] = [...FAQ, [t('support.assistantQ'), t('support.assistantA')]];
   const open_ = (url: string) => void Linking.openURL(url);
   return (
@@ -39,8 +48,8 @@ export function Support({ go, back }: NavProps) {
         </LinearGradient>
 
         <View style={s.grid}>
-          <Contact icon="logo-whatsapp" title="WhatsApp" sub="Message our team" accent={0} onPress={() => open_(`https://wa.me/${SUPPORT_WHATSAPP}`)} />
-          <Contact icon="mail" title="Email" sub={SUPPORT_EMAIL} accent={2} onPress={() => open_(`mailto:${SUPPORT_EMAIL}`)} />
+          <Contact icon="logo-whatsapp" title="WhatsApp" sub="Message our team" accent={0} onPress={() => open_(`https://wa.me/${whatsapp}`)} />
+          <Contact icon="mail" title="Email" sub={email} accent={2} onPress={() => open_(`mailto:${email}`)} />
           <Contact icon="globe" title="Website" sub="More help and info" accent={3} onPress={() => open_(WEB_URL)} />
           <Contact icon="document-text" title="Terms & privacy" sub="Read them in the app" accent={1} onPress={() => go('legal')} />
         </View>
