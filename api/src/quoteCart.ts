@@ -5,6 +5,7 @@
 import { pool, query } from './db';
 import {
   quoteVendorOrder, cartTotals, round2, DEFAULT_CURRENCY,
+  overlayPlatformOnRow, platformDelivery,
   type FulfilmentMode, type VendorDeliverySettings,
 } from './delivery';
 import { HttpError } from './utils';
@@ -28,6 +29,9 @@ async function loadCart(items: QuoteCartItem[]) {
     [ids],
   );
   if (rows.length !== ids.length) throw new HttpError(400, 'One or more items are no longer available');
+
+  const platform = await platformDelivery();
+  for (const r of rows) overlayPlatformOnRow(r, platform);
 
   for (const r of rows) {
     if (r.kind === 'service')

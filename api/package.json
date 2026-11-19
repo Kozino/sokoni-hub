@@ -22,7 +22,8 @@
     "test:offers": "node ../tests/offers.mjs",
     "test:offers-engine": "node ../tests/offers-engine.mjs",
     "test:mobile-links": "node ../tests/mobile-links.mjs",
-    "test:content": "node ../tests/content.mjs"
+    "test:content": "node ../tests/content.mjs",
+    "test:delivery": "node ../tests/delivery.mjs"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

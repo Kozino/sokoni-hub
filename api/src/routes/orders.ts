@@ -12,6 +12,7 @@ import { orderCustomerEmail, orderVendorEmail } from '../transactionalEmail';
 import { config } from '../config';
 import {
   quoteVendorOrder, cartTotals, round2, DEFAULT_CURRENCY,
+  overlayPlatformOnRow, platformDelivery,
   type FulfilmentMode, type VendorDeliverySettings,
 } from '../delivery';
 import { attributionSchema, resolveOrderSource } from '../lib/attribution';
@@ -80,6 +81,9 @@ async function loadCart(items: { listing_id: string; qty: number; option?: strin
   );
   if (rows.length !== ids.length) throw new HttpError(400, 'One or more items are no longer available');
 
+  const platform = await platformDelivery();
+  for (const r of rows) overlayPlatformOnRow(r, platform);
+
   for (const r of rows) {
     // Services are booked through /bookings, not ordered. Rejecting them here
     // is what keeps them out of the orders table, and therefore out of
@@ -107,7 +111,7 @@ async function loadCart(items: { listing_id: string; qty: number; option?: strin
 }
 
 /**
- * Delivery radius (item 6). The store sets a radius in km; a delivery pin beyond it is refused.
+ * Delivery radius. Admin sets one radius for Sokoni Hub; a pin beyond it is refused.
  * Returns the message to show the buyer, or null when the pin is in range (or no radius is set).
  */
 function outsideDeliveryRadius(r: any, pin: { lat: number; lng: number }): string | null {
@@ -118,7 +122,7 @@ function outsideDeliveryRadius(r: any, pin: { lat: number; lng: number }): strin
   }
   const metres = distanceMetres({ lat: Number(r.vlat), lng: Number(r.vlng) }, pin);
   if (metres > radiusKm * 1000) {
-    return `${r.business_name} delivers within ${radiusKm} km. Your delivery point is about ${(metres / 1000).toFixed(1)} km away. Choose collection or a closer address.`;
+    return `Sokoni Hub delivers within ${radiusKm} km of the store. Your delivery point is about ${(metres / 1000).toFixed(1)} km away. Choose collection or a closer address.`;
   }
   return null;
 }

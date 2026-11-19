@@ -24,6 +24,7 @@ import {
   TableCellsIcon,
   TagIcon,
   TrashIcon,
+  TruckIcon,
   UsersIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
@@ -44,6 +45,7 @@ export const IconUsers = icon(UsersIcon);
 export const IconStar = icon(StarIcon);
 export const IconSparkles = icon(SparklesIcon);
 export const IconDoc = icon(DocumentTextIcon);
+export const IconTruck = icon(TruckIcon);
 export const IconTag = icon(TagIcon);
 export const IconFolder = icon(FolderIcon);
 export const IconHistory = icon(ClockIcon);

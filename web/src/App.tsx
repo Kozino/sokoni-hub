@@ -25,6 +25,7 @@ import DeleteAccount from './pages/DeleteAccount';
 import AdminDeletion from './pages/admin/AdminDeletion';
 import { AdminAssistant } from './pages/admin/AdminAssistant';
 import { AdminContent } from './pages/admin/AdminContent';
+import { AdminDelivery } from './pages/admin/AdminDelivery';
 import { ContentProvider } from './state/ContentContext';
 import { Sell, Policy, Support, TrackOrder, NotFound } from './pages/Static';
 import { AccountLayout, AccountProfile, AccountBookings, AccountOrders } from './pages/account/AccountDashboard';
@@ -156,6 +157,7 @@ export default function App() {
                 <Route path="deletion" element={<AdminDeletion />} />
                 <Route path="assistant" element={<AdminAssistant />} />
                 <Route path="content" element={<AdminContent />} />
+                <Route path="delivery" element={<AdminDelivery />} />
                 <Route path="audit" element={<AdminAudit />} />
                 <Route path="*" element={<Navigate to="/admin" replace />} />
               </Route>

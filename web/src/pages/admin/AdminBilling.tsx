@@ -494,7 +494,7 @@ function BillingSettings() {
   return (
     <div className="card card-pad" style={{ maxWidth: 640 }}>
       <Field label="Commission rate (%)"
-        hint="Charged on goods only, never on the vendor's delivery fee. 0 means statements are produced with no charge — useful for tracking volume before you start billing.">
+        hint="Charged on goods only, never on the delivery fee. 0 means statements are produced with no charge — useful for tracking volume before you start billing.">
         <input type="number" min={0} max={100} step={0.5} value={ratePct}
           onChange={(e) => setRatePct(e.target.value)} />
       </Field>

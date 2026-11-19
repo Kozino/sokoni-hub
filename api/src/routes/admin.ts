@@ -12,6 +12,7 @@ import { generateMonthlyBills } from '../serviceFeeBills';
 import { getSchedule, saveScheduleSettings } from '../serviceFeeSchedule';
 import { assistantSettings, saveAssistantSettings } from '../assistant/settings';
 import { config } from '../config';
+import { platformDelivery, savePlatformDelivery } from '../delivery';
 import {
   adminDocument, discardDraft, listPages, loadContact, parseSlug, publishPage, saveContact, saveDraft, siteContactSchema, pageDraftSchema,
 } from '../content';
@@ -1074,5 +1075,30 @@ adminRouter.post('/content/pages/:slug/discard', async (req, res, next) => {
     const row = await discardDraft(slug, req.user!.id);
     await audit(req.user!, 'content.discard', 'content_pages', slug);
     res.json({ page: adminDocument(row) });
+  } catch (e) { next(e); }
+});
+
+/* ------------------------------------------------------------------ */
+/* Platform delivery (fee + radius). Sokoni Hub handles delivery.      */
+/* ------------------------------------------------------------------ */
+
+const PlatformDeliverySchema = z.object({
+  delivery_fee: z.number().min(0).max(100000),
+  delivery_radius_km: z.number().positive().max(500).nullable(),
+  free_delivery_over: z.number().min(0).max(1000000).nullable(),
+});
+
+adminRouter.get('/delivery', async (_req, res, next) => {
+  try {
+    res.json(await platformDelivery());
+  } catch (e) { next(e); }
+});
+
+adminRouter.put('/delivery', async (req, res, next) => {
+  try {
+    const b = PlatformDeliverySchema.parse(req.body);
+    const saved = await savePlatformDelivery(b);
+    await audit(req.user!, 'delivery.update', 'system_settings', 'delivery', saved);
+    res.json(saved);
   } catch (e) { next(e); }
 });

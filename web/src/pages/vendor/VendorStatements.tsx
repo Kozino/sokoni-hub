@@ -62,7 +62,7 @@ export default function VendorStatements() {
       <h1 style={{ marginBottom: 4 }}>Statements</h1>
       <p style={{ color: 'var(--muted)', marginTop: 0 }}>
         A statement covers your completed orders for a period. Commission is charged on
-        goods only — never on the delivery fee you set.
+        goods only — never on the delivery fee.
       </p>
 
       {owedToPlatform > 0 && (

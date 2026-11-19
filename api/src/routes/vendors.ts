@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { one, query } from '../db';
 import { requireAuth, loadVendor, requireVerifiedVendor, blockImpersonation } from '../auth';
 import { HttpError, audit, slugify, screenProhibited, normalizePhone } from '../utils';
-import { distanceKmSql } from '../delivery';
+import { applyPlatformDelivery, distanceKmSql, platformDelivery } from '../delivery';
 import { moneyModel } from '../moneyModel';
 import { getServiceFeeSettings } from '../serviceFees';
 
@@ -290,14 +290,12 @@ vendorRouter.patch('/me', requireAuth('vendor'), loadVendor, async (req, res, ne
 });
 
 /* ------------------------------------------------------------------ */
-/* Delivery settings — the vendor owns their own fee                   */
+/* Delivery settings — Sokoni Hub sets fee and radius; vendor chooses  */
+/* collection vs Sokoni delivery, and their pickup address.            */
 /* ------------------------------------------------------------------ */
 const deliverySchema = z.object({
   offers_pickup: z.boolean(),
   offers_delivery: z.boolean(),
-  delivery_fee: z.number().min(0).max(100000),
-  free_delivery_over: z.number().min(0).max(1000000).nullable().optional(),
-  delivery_radius_km: z.number().positive().max(500).nullable().optional(),
   pickup_address: z.string().max(300).nullable().optional(),
   delivery_notes: z.string().max(500).nullable().optional(),
 }).refine((v) => v.offers_pickup || v.offers_delivery, {
@@ -310,7 +308,8 @@ vendorRouter.get('/me/delivery', requireAuth('vendor'), loadVendor, async (req, 
     let s = await one('select * from vendor_delivery_settings where vendor_id = $1', [req.vendor!.id]);
     if (!s) s = await one(
       'insert into vendor_delivery_settings (vendor_id) values ($1) returning *', [req.vendor!.id]);
-    res.json({ delivery: s });
+    const platform = await platformDelivery();
+    res.json({ delivery: applyPlatformDelivery(s as any, platform), platform });
   } catch (e) { next(e); }
 });
 
@@ -348,25 +347,21 @@ vendorRouter.put('/me/delivery', requireAuth('vendor'), loadVendor, async (req, 
     const b = deliverySchema.parse(req.body);
     const s = await one(
       `insert into vendor_delivery_settings
-         (vendor_id, offers_pickup, offers_delivery, delivery_fee, free_delivery_over,
-          delivery_radius_km, pickup_address, delivery_notes, updated_at)
-       values ($1,$2,$3,$4,$5,$6,$7,$8, now())
+         (vendor_id, offers_pickup, offers_delivery, pickup_address, delivery_notes, updated_at)
+       values ($1,$2,$3,$4,$5, now())
        on conflict (vendor_id) do update set
          offers_pickup = excluded.offers_pickup,
          offers_delivery = excluded.offers_delivery,
-         delivery_fee = excluded.delivery_fee,
-         free_delivery_over = excluded.free_delivery_over,
-         delivery_radius_km = excluded.delivery_radius_km,
          pickup_address = excluded.pickup_address,
          delivery_notes = excluded.delivery_notes,
          updated_at = now()
        returning *`,
-      [req.vendor!.id, b.offers_pickup, b.offers_delivery, b.delivery_fee,
-       b.free_delivery_over ?? null, b.delivery_radius_km ?? null,
+      [req.vendor!.id, b.offers_pickup, b.offers_delivery,
        b.pickup_address || null, b.delivery_notes || null]
     );
     await audit(req.user!, 'vendor.delivery', 'vendor', req.vendor!.id);
-    res.json({ delivery: s });
+    const platform = await platformDelivery();
+    res.json({ delivery: applyPlatformDelivery(s as any, platform), platform });
   } catch (e) { next(e); }
 });
 
@@ -484,6 +479,7 @@ vendorRouter.get('/', async (req, res, next) => {
     const params: any[] = [q, city, limit, offset];
     if (hasGeo) params.push(lat, lng);
 
+    const platform = await platformDelivery();
     const rows = await query<any>(
       `select * from (
          select v.id, v.business_name, v.slug, v.description, v.city, v.country, v.logo_url,
@@ -506,7 +502,14 @@ vendorRouter.get('/', async (req, res, next) => {
        limit $3 offset $4`,
       params
     );
-    res.json({ vendors: rows, near: hasGeo });
+    res.json({
+      vendors: rows.map((v) => ({
+        ...v,
+        delivery_fee: platform.delivery_fee,
+        free_delivery_over: platform.free_delivery_over,
+      })),
+      near: hasGeo,
+    });
   } catch (e) {
     next(e);
   }
@@ -527,6 +530,9 @@ vendorRouter.get('/:slug', async (req, res, next) => {
       [req.params.slug]
     );
     if (!vendor) throw new HttpError(404, 'Store not found');
+    const platform = await platformDelivery();
+    vendor.delivery_fee = platform.delivery_fee;
+    vendor.free_delivery_over = platform.free_delivery_over;
     const listings = await query(
       `select ${publicListingColumns()} from listings l join categories c on c.id=l.category_id where l.vendor_id = $1 and l.status = 'active' and c.is_banned=false order by l.created_at desc`,
       [vendor.id]
