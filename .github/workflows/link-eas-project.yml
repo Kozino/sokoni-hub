@@ -1,0 +1,62 @@
+name: Link EAS project (once)
+
+# Browser-only: GitHub → Actions → this workflow → Run workflow.
+# Creates/links the Expo EAS project and commits extra.eas.projectId to app.json.
+# Needs secret EXPO_TOKEN. Safe to re-run: it does nothing if a projectId is already present.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  link:
+    name: Link Expo EAS
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - name: Require Expo token
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "Add GitHub Actions secret EXPO_TOKEN from https://expo.dev/settings/access-tokens"
+            exit 1
+          fi
+      - name: Install locked dependencies
+        working-directory: mobile
+        run: npm ci
+      - name: Confirm Expo account
+        working-directory: mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx eas-cli@latest whoami
+      - name: Create or link EAS project
+        working-directory: mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if grep -Eq '"projectId":[[:space:]]*"[0-9a-f-]{36}"' app.json; then
+            echo "EAS projectId already in app.json — nothing to do."
+            exit 0
+          fi
+          npx eas-cli@latest init --non-interactive --force
+      - name: Commit projectId
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mobile/app.json
+          if git diff --cached --quiet; then
+            echo "No app.json change to commit."
+            exit 0
+          fi
+          git commit -m "chore(mobile): link EAS projectId for iOS production builds"
+          git push
