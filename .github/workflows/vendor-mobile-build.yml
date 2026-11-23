@@ -15,6 +15,11 @@ on:
         default: preview
         type: choice
         options: [development, preview, simulator, production]
+      auto_submit:
+        description: After the build finishes, upload a production binary to App Store Connect / Play (needs Apple credentials on Expo)
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -33,15 +38,39 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: vendor-app/package-lock.json
+      - name: Require Expo token
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "Add GitHub Actions secret EXPO_TOKEN from https://expo.dev/settings/access-tokens"
+            exit 1
+          fi
       - name: Install locked dependencies
         run: npm ci
-      - name: Link the Expo project if needed
-        # On a first run, EAS creates/links the Expo project from the app slug.
-        # Later runs simply confirm the existing association.
-        run: npx eas-cli@latest init --non-interactive --force
+      - name: Confirm Expo account
+        run: npx eas-cli@latest whoami
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      - name: Require linked EAS project
+        run: |
+          if grep -Eq '"projectId":[[:space:]]*"[0-9a-f-]{36}"' app.json; then
+            echo "EAS projectId is set in app.json"
+          else
+            echo "vendor-app/app.json is missing extra.eas.projectId."
+            echo "Open expo.dev project sokoni-vendor, copy Project ID, paste it, commit, re-run."
+            exit 1
+          fi
+      - name: Check expo config
+        run: npx expo config --type public >/tmp/expo-config.txt 2>&1 || { echo "expo config failed:"; cat /tmp/expo-config.txt; exit 1; }
       - name: Submit cloud build
-        run: npx eas-cli@latest build --platform "${{ inputs.platform }}" --profile "${{ inputs.profile }}" --non-interactive --no-wait
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          extra=""
+          if [ "${{ inputs.auto_submit }}" = "true" ]; then
+            extra="--auto-submit"
+          else
+            extra="--no-wait"
+          fi
+          npx eas-cli@latest build --platform "${{ inputs.platform }}" --profile "${{ inputs.profile }}" --non-interactive $extra
