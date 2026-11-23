@@ -1,7 +1,8 @@
 {
   "cli": {
     "version": ">= 18.0.0",
-    "appVersionSource": "remote"
+    "appVersionSource": "remote",
+    "promptToConfigurePushNotifications": false
   },
   "build": {
     "development": {
@@ -37,6 +38,12 @@
     },
     "production": {
       "autoIncrement": true,
+      "channel": "production",
+      "distribution": "store",
+      "ios": {
+        "simulator": false,
+        "resourceClass": "m-medium"
+      },
       "android": {
         "buildType": "app-bundle"
       },
@@ -48,6 +55,9 @@
   },
   "submit": {
     "production": {
+      "ios": {
+        "companyName": "Sokoni Hub"
+      },
       "android": {
         "track": "internal",
         "releaseStatus": "draft"

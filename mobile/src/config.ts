@@ -5,7 +5,7 @@
  */
 export const API_URL = (process.env.EXPO_PUBLIC_API_URL || 'https://sokoni-hub.onrender.com').replace(/\/$/, '');
 
-/** The existing Netlify site is used for legal/support pages during rollout. */
+/** Public website for legal/support links. */
 export const WEB_URL = (process.env.EXPO_PUBLIC_WEB_URL || 'https://sokonihub.qa').replace(/\/$/, '');
 
 export const SUPPORT_WHATSAPP = '97466046431';
