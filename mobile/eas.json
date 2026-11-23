@@ -12,7 +12,7 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://sokoni-hub.onrender.com",
-        "EXPO_PUBLIC_WEB_URL": "https://sokoni-hub.netlify.app"
+        "EXPO_PUBLIC_WEB_URL": "https://sokonihub.qa"
       }
     },
     "preview": {
@@ -22,7 +22,7 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://sokoni-hub.onrender.com",
-        "EXPO_PUBLIC_WEB_URL": "https://sokoni-hub.netlify.app"
+        "EXPO_PUBLIC_WEB_URL": "https://sokonihub.qa"
       }
     },
     "simulator": {
@@ -32,7 +32,7 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://sokoni-hub.onrender.com",
-        "EXPO_PUBLIC_WEB_URL": "https://sokoni-hub.netlify.app"
+        "EXPO_PUBLIC_WEB_URL": "https://sokonihub.qa"
       }
     },
     "production": {
@@ -42,7 +42,7 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://sokoni-hub.onrender.com",
-        "EXPO_PUBLIC_WEB_URL": "https://sokoni-hub.netlify.app"
+        "EXPO_PUBLIC_WEB_URL": "https://sokonihub.qa"
       }
     }
   },
