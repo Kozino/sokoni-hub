@@ -10,7 +10,8 @@ import { signToken, requireAuth, blockImpersonation } from '../auth';
 import { config } from '../config';
 import { sendMailAsync } from '../mailer';
 import { verificationEmail } from '../transactionalEmail';
-import { HttpError, audit, normalizePhone, validateUuidParam } from '../utils';
+import { HttpError, audit, validateUuidParam } from '../utils';
+import { phoneLookupValues, requireQatarMobile } from '../phoneQa';
 import {
   hashPin, checkPin, weakPinReason, chargeAttempt, clearAttempts,
   signSetupToken, verifySetupToken, signChallengeToken, verifyChallengeToken,
@@ -124,7 +125,7 @@ authRouter.post('/verify-email/resend', async (req, res, next) => {
 /* ------------------------------------------------------------------ */
 const registerSchema = z.object({
   full_name: z.string().min(2).max(120),
-  phone: z.string().min(7).max(20),
+  phone: z.string().min(7).max(25),
   email: emailField,
   password: z.string().min(12).max(72).refine(s=>Buffer.byteLength(s,'utf8')<=72,'Password must be at most 72 UTF-8 bytes'),
   pin: pinField,
@@ -134,13 +135,13 @@ const registerSchema = z.object({
 authRouter.post('/register', async (req, res, next) => {
   try {
     const b = registerSchema.parse(req.body);
-    const phone = normalizePhone(b.phone);
+    const phone = requireQatarMobile(b.phone);
     const email = b.email.toLowerCase();
 
     const weak = weakPinReason(b.pin, phone);
     if (weak) throw new HttpError(422, weak);
 
-    if (await one('select id from users where phone = $1', [phone]))
+    if (await one('select id from users where phone = $1 or phone = $2', [phone, phone.slice(3)]))
       throw new HttpError(409, 'An account with this phone number already exists');
     if (await one('select id from users where lower(email) = lower($1)', [email]))
       throw new HttpError(409, 'An account with this email already exists');
@@ -283,10 +284,10 @@ authRouter.post('/login', async (req, res, next) => {
   try {
     const b = loginSchema.parse(req.body);
     await charge('login:'+b.identifier.trim().toLowerCase(),20,900);
-    const phone = normalizePhone(b.identifier);
+    const phones = phoneLookupValues(b.identifier);
     const user = await one<any>(
-      `select * from users where phone = $1 or lower(email) = lower($2) limit 1`,
-      [phone, b.identifier.trim()]
+      `select * from users where (cardinality($1::text[]) > 0 and phone = any($1::text[])) or lower(email) = lower($2) limit 1`,
+      [phones, b.identifier.trim()]
     );
     if (!user) {
       await bcrypt.compare(b.password, DUMMY_HASH);

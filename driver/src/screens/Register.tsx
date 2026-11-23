@@ -22,7 +22,7 @@ export function Register({ onBack, onDone }: { onBack: () => void; onDone: () =>
   const submit = async () => {
     const digits = normalizeQatarPhone(phone);
     if (name.trim().length < 2) return Alert.alert('Full name', 'Enter your full name.');
-    if (digits.length !== 11) return Alert.alert('Phone number', 'Enter a valid 8-digit Qatar mobile number.');
+    if (!digits) return Alert.alert('Phone number', 'Use a Qatar mobile number (Ooredoo or Vodafone).');
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) return Alert.alert('Email', 'Enter a valid email address.');
     if (password.length < 12) return Alert.alert('Password', 'Your password must be at least 12 characters.');
     if (!/^\d{4}$/.test(pin)) return Alert.alert('PIN', 'Your PIN must be exactly four digits.');

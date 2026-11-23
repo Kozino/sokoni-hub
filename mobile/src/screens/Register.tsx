@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, View } from 'react-native';
 import { ApiError } from '../api';
 import { LanguageCard } from '../i18n/LanguageCard';
 import { useT } from '../i18n';
+import { canonicalQatarMobile } from '../phoneQa';
 import { useAuth, useTheme } from '../providers';
-import { styles } from '../styles';
-import { Button, Field, Notice, Text } from '../ui';
+import { styles, nx } from '../styles';
+import { Button, Field, Notice, Text, TextInput } from '../ui';
 import { AuthScaffold } from './AuthScaffold';
 
 const message = (error: unknown) => error instanceof ApiError ? error.message : error instanceof Error ? error.message : 'Something went wrong. Please try again.';
@@ -20,11 +21,13 @@ export function Register({ go, back, done }: any) {
 
   const submit = async () => {
     if (!form.full_name || !form.phone || !form.email || !form.password || !form.pin) return Alert.alert(t('auth.completeForm'), t('auth.everyField'));
+    const phone = canonicalQatarMobile(form.phone);
+    if (!phone) return Alert.alert(t('auth.phone'), t('auth.phoneInvalid'));
     if (form.password.length < 12) return Alert.alert(t('auth.longerPassword'), t('auth.passwordRule'));
     if (form.pin !== form.confirm) return Alert.alert(t('auth.pinMismatch'), t('auth.pinMismatchBody'));
     setBusy(true);
     try {
-      const stage = await auth.register(form);
+      const stage = await auth.register({ ...form, phone });
       if (stage.kind === 'pin') go('pin');
       else if (stage.kind === 'setup') go('pinsetup');
       else if (stage.kind === 'verification_required') {
@@ -37,7 +40,15 @@ export function Register({ go, back, done }: any) {
   return (
     <AuthScaffold title={t('auth.createTitle')} subtitle={t('auth.createSubtitle')} back={back} top={<LanguageCard />}>
       <Field label={t('auth.fullName')} value={form.full_name} onChangeText={set('full_name')} autoComplete="name" placeholder={t('auth.yourName')} />
-      <Field label={t('auth.phone')} value={form.phone} onChangeText={set('phone')} keyboardType="phone-pad" placeholder="+974…" />
+      <View style={styles.fieldHeader}>
+        <Text style={[styles.referenceFieldLabel, { color: colors.text }]}>{t('auth.mobileNumber')}</Text>
+        <Text style={[styles.networkLabel, { color: colors.text2 }]}>Ooredoo / Vodafone</Text>
+      </View>
+      <View style={[nx.phoneField, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
+        <View style={nx.phonePrefix}><Text style={styles.qatarFlag}>🇶🇦</Text><Text style={[styles.countryCodeText, { color: colors.text }]}>+974</Text></View>
+        <View style={[nx.phoneDivider, { backgroundColor: colors.border }]} />
+        <TextInput accessibilityLabel={t('auth.mobileNumber')} value={form.phone} onChangeText={set('phone')} keyboardType="phone-pad" autoComplete="tel" placeholder="5512 3456" placeholderTextColor={colors.muted} style={[nx.phoneInput, { color: colors.text }]} />
+      </View>
       <Field label={t('auth.emailAddress')} value={form.email} onChangeText={set('email')} autoCapitalize="none" keyboardType="email-address" autoComplete="email" placeholder="you@example.com" />
       <Field label={t('auth.password')} value={form.password} onChangeText={set('password')} secureTextEntry autoComplete="new-password" placeholder={t('auth.passwordRule')} />
       <Field label={t('auth.choosePin')} value={form.pin} onChangeText={set('pin')} secureTextEntry keyboardType="number-pad" maxLength={4} placeholder="••••" />

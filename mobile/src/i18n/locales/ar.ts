@@ -54,6 +54,7 @@ const ar: Record<string, string> = {
   'auth.createSubtitle': 'حساب المشتري يتيح طلب المواد الغذائية الأفريقية وحجز الخدمات والمتابعة.',
   'auth.fullName': 'الاسم الكامل',
   'auth.phone': 'رقم الجوال',
+  'auth.phoneInvalid': 'استخدم رقم جوال قطري (Ooredoo أو Vodafone)، مثال 5512 3456.',
   'auth.choosePin': 'اختر رمزاً من 4 أرقام',
   'auth.confirmPin': 'أكد الرمز',
   'auth.pinPrivate': 'أبقِ الرمز سرياً. لا تستخدم أرقام هاتفك.',

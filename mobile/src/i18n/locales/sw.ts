@@ -54,6 +54,7 @@ const sw: Record<string, string> = {
   'auth.createSubtitle': 'Akaunti ya mnunuzi inakuwezesha kuagiza vyakula vya Kiafrika, kuweka nafasi za huduma na kufuatilia.',
   'auth.fullName': 'Jina kamili',
   'auth.phone': 'Namba ya simu',
+  'auth.phoneInvalid': 'Tumia namba ya simu ya Qatar (Ooredoo au Vodafone), mfano 5512 3456.',
   'auth.choosePin': 'Chagua PIN ya tarakimu 4',
   'auth.confirmPin': 'Thibitisha PIN',
   'auth.pinPrivate': 'Weka PIN siri. Usitumie mfuatano rahisi au tarakimu za simu yako.',

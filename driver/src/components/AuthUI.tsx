@@ -3,12 +3,14 @@ import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, TextI
 import { ArrowLeftIcon } from 'react-native-heroicons/outline';
 import { C } from '../theme';
 
-/** Qatari numbers are stored as 974XXXXXXXX (same rule as the consumer app). */
+/** Qatari Ooredoo/Vodafone mobiles stored as 974XXXXXXXX (same rule as the API). */
 export function normalizeQatarPhone(input: string) {
   let digits = input.replace(/\D/g, '');
   if (digits.startsWith('00')) digits = digits.slice(2);
-  if (digits.length === 8) digits = `974${digits}`;
-  return digits;
+  if (digits.startsWith('974')) digits = digits.slice(3);
+  if (digits.length === 9 && digits.startsWith('0')) digits = digits.slice(1);
+  if (!/^[3567]\d{7}$/.test(digits)) return '';
+  return `974${digits}`;
 }
 
 export function Topbar({ onBack }: { onBack?: () => void }) {

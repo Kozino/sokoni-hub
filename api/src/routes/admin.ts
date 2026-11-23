@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { one, query, tx } from '../db';
 import { requireAuth, signToken } from '../auth';
 import { HttpError, audit, validateUuidParam } from '../utils';
+import { requireQatarMobile } from '../phoneQa';
 import { restoreOrderStock } from '../orderRecovery';
 import { notifyBuyerOfOrder, notifyOnlineDrivers, notifyVendorOfOrder } from '../push';
 import { moneyModel } from '../moneyModel';
@@ -422,6 +423,23 @@ adminRouter.get('/users', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+adminRouter.get('/users/:id', async (req, res, next) => {
+  try {
+    const u = await one(`
+      select u.id, u.full_name, u.phone, u.email, u.role, u.is_active, u.created_at,
+             u.email_verified_at, u.deleted_at,
+             v.business_name, v.status as vendor_status, v.whatsapp as vendor_whatsapp,
+             v.city as vendor_city, v.country as vendor_country, v.address as vendor_address,
+             d.status as driver_status, d.vehicle_type, d.license_plate
+        from users u
+        left join vendors v on v.user_id = u.id
+        left join drivers d on d.user_id = u.id
+       where u.id = $1`, [req.params.id]);
+    if (!u) throw new HttpError(404, 'User not found');
+    res.json({ user: u });
+  } catch (e) { next(e); }
+});
+
 adminRouter.patch('/users/:id', async (req, res, next) => {
   try {
     const b = z.object({ is_active: z.boolean().optional(), role: z.enum(['buyer','vendor','admin']).optional() }).parse(req.body);
@@ -470,14 +488,15 @@ adminRouter.post('/users/:id/impersonate', async (req, res, next) => {
 adminRouter.post('/users/admin', async (req, res, next) => {
   try {
     const b = z.object({
-      full_name: z.string().min(2), phone: z.string().min(7),
+      full_name: z.string().min(2), phone: z.string().min(7).max(25),
       email: z.string().email().optional(), password: z.string().min(12).max(72).refine(s=>Buffer.byteLength(s,'utf8')<=72,'Password must be at most 72 UTF-8 bytes'),
     }).parse(req.body);
+    const phone = requireQatarMobile(b.phone);
     const hash = await bcrypt.hash(b.password, 10);
     const u = await one(
       `insert into users (full_name, phone, email, password_hash, role) values ($1,$2,$3,$4,'admin')
        returning id, full_name, phone, email, role`,
-      [b.full_name, b.phone.replace(/\D/g, ''), b.email ?? null, hash]);
+      [b.full_name, phone, b.email ?? null, hash]);
     await audit(req.user!, 'user.create_admin', 'user', (u as any).id);
     res.status(201).json({ user: u });
   } catch (e) { next(e); }

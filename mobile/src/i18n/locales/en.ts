@@ -54,6 +54,7 @@ const en: Record<string, string> = {
   'auth.createSubtitle': 'A buyer account lets you order African foodstuffs, book services and track securely.',
   'auth.fullName': 'Full name',
   'auth.phone': 'Phone number',
+  'auth.phoneInvalid': 'Use a Qatar mobile number (Ooredoo or Vodafone), for example 5512 3456.',
   'auth.choosePin': 'Choose a 4-digit PIN',
   'auth.confirmPin': 'Confirm your PIN',
   'auth.pinPrivate': 'Keep your PIN private. Avoid simple sequences or digits from your phone number.',

@@ -6,6 +6,7 @@ import { ApiError } from '../lib/api';
 import { Field } from '../components/ui';
 import PinField from '../components/PinField';
 import { useT } from '../i18n';
+import { isQatarMobile } from '../lib/phoneQa';
 import type { User } from '../types';
 import { AuthShell } from './AuthShell'; // UI only – shared split-screen layout
 
@@ -285,6 +286,7 @@ export function Register() {
     if (f.password !== f.confirm) return showAlert('Passwords do not match');
     if (f.pin !== f.pinConfirm) return showAlert('The two PINs do not match');
     if (!f.agree) return showAlert('You must accept the marketplace rules');
+    if (!isQatarMobile(f.phone)) return showAlert(t('auth.phoneInvalid'));
 
     setBusy(true);
     try {

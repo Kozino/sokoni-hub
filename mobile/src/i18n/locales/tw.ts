@@ -54,6 +54,7 @@ const tw: Record<string, string> = {
   'auth.createSubtitle': 'Ɔtɔnfo akaunt ma wo tɔ Africa aduan, book services, na di akyi.',
   'auth.fullName': 'Wo din nyinaa',
   'auth.phone': 'Telefon nɔma',
+  'auth.phoneInvalid': 'Use a Qatar mobile number (Ooredoo or Vodafone), for example 5512 3456.',
   'auth.choosePin': 'Paw PIN nɔma 4',
   'auth.confirmPin': 'Si PIN pin',
   'auth.pinPrivate': 'Sie PIN. Mfa wo telefon nɔma nnyɛ PIN.',

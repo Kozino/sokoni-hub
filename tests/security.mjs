@@ -78,7 +78,7 @@ try {
  ok((await call('/auth/login/mfa','POST',{mfa_token:challenge.data.mfa_token,code})).status===400,'TOTP replay blocked');
  ok((await call('/auth/login/mfa','POST',{mfa_token:challenge.data.mfa_token,code:recovery})).status===200,'one-use recovery code accepted');
  ok((await call('/auth/login/mfa','POST',{mfa_token:challenge.data.mfa_token,code:recovery})).status===400,'used recovery code rejected');
-  const regBody={full_name:'Registered buyer',phone:'974'+Date.now().toString().slice(-8),email:randomUUID()+'@example.invalid',password,pin:'7391',role:'buyer'};
+  const regBody={full_name:'Registered buyer',phone:'97455'+(randomUUID().replace(/\D/g,'').slice(0,6).padEnd(6,'0')),email:randomUUID()+'@example.invalid',password,pin:'7391',role:'buyer'};
   const registration=await call('/auth/register','POST',regBody);
   ok(registration.status===201 && registration.data.verification_required===true && registration.data.email===regBody.email && !registration.data.token,'registration requires email verification and does not issue a session');
   const unverifiedLogin=await call('/auth/login','POST',{identifier:regBody.email,password});

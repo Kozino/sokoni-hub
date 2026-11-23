@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, ApiError, qs } from '../../lib/api';
 import { money, date, dateTime, timeAgo, compactReference } from '../../lib/format';
+import { formatQatarMobile, isQatarMobile, QA_MOBILE_ERROR } from '../../lib/phoneQa';
 import { Alert, Empty, Field, Modal, StatusBadge, Tabs, useConfirm } from '../../components/ui';
 import { orderStatusLabel } from '../../lib/orderStatus';
 import { DataTable, DTColumn } from '../../components/DataTable';
@@ -384,6 +385,29 @@ export function AdminOrders() {
 }
 
 /* ================= Users ================= */
+type UserDetail = User & {
+  email_verified_at?: string | null;
+  deleted_at?: string | null;
+  business_name?: string | null;
+  vendor_status?: string | null;
+  vendor_whatsapp?: string | null;
+  vendor_city?: string | null;
+  vendor_country?: string | null;
+  vendor_address?: string | null;
+  driver_status?: string | null;
+  vehicle_type?: string | null;
+  license_plate?: string | null;
+};
+
+function UserDetailRow({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <div className="row-between" style={{ padding: '8px 0', borderBottom: '1px solid var(--border)', gap: 16 }}>
+      <span style={{ color: 'var(--muted)', fontSize: '.82rem', flexShrink: 0 }}>{label}</span>
+      <span style={{ fontWeight: 600, textAlign: 'right', wordBreak: 'break-word' }}>{value || '—'}</span>
+    </div>
+  );
+}
+
 export function AdminUsers() {
   const [items, setItems] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -392,9 +416,17 @@ export function AdminUsers() {
   const [showNew, setShowNew] = useState(false);
   const [nf, setNf] = useState({ full_name: '', phone: '', email: '', password: '' });
   const [err, setErr] = useState('');
+  const [viewing, setViewing] = useState<UserDetail | null>(null);
   const { push } = useToast();
   const { confirm, dialog } = useConfirm();
   const { impersonate } = useAuth();
+
+  const openUser = (u: User) => {
+    setViewing(u);
+    api.get<{ user: UserDetail }>(`/admin/users/${u.id}`)
+      .then((r) => setViewing(r.user))
+      .catch(() => { /* keep the list row so the popup still shows name, phone, email */ });
+  };
 
   const load = () => {
     setLoading(true);
@@ -429,12 +461,22 @@ export function AdminUsers() {
 
   const createAdmin = async () => {
     setErr('');
+    if (!isQatarMobile(nf.phone)) { setErr(QA_MOBILE_ERROR); return; }
     try { await api.post('/admin/users/admin', { ...nf, email: nf.email || undefined }); push('Admin created', 'success'); setShowNew(false); setNf({ full_name: '', phone: '', email: '', password: '' }); load(); }
     catch (e) { setErr(e instanceof ApiError ? e.message : 'Failed'); }
   };
 
   const columns: DTColumn<User>[] = [
-    { key: 'name', header: 'Name', alwaysVisible: true, sortAccessor: (u) => u.full_name, render: (u) => <span className="td-strong">{u.full_name}</span> },
+    { key: 'name', header: 'Name', alwaysVisible: true, sortAccessor: (u) => u.full_name, render: (u) => (
+      <button
+        type="button"
+        className="td-strong"
+        onClick={() => openUser(u)}
+        style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', color: 'var(--terra-dark)', textDecoration: 'underline', textUnderlineOffset: 2 }}
+      >
+        {u.full_name}
+      </button>
+    ) },
     { key: 'phone', header: 'Phone', render: (u) => <span className="td-mono">{u.phone}</span> },
     { key: 'email', header: 'Email', defaultHidden: true, render: (u) => u.email || '—' },
     { key: 'role', header: 'Role', sortAccessor: (u) => u.role, render: (u) => <span className={`badge badge-${u.role === 'admin' ? 'red' : u.role === 'vendor' ? 'green' : 'grey'}`}>{u.role}</span> },
@@ -476,9 +518,42 @@ export function AdminUsers() {
         footer={<><button className="btn btn-ghost" onClick={() => setShowNew(false)}>Cancel</button><button className="btn btn-primary" onClick={createAdmin}>Create</button></>}>
         <Alert kind="error">{err}</Alert>
         <Field label="Full name"><input value={nf.full_name} onChange={(e) => setNf({ ...nf, full_name: e.target.value })} /></Field>
-        <Field label="Phone"><input value={nf.phone} onChange={(e) => setNf({ ...nf, phone: e.target.value })} /></Field>
+        <Field label="Phone" hint="Qatar mobile (Ooredoo or Vodafone), e.g. +974 5512 3456">
+          <input value={nf.phone} onChange={(e) => setNf({ ...nf, phone: e.target.value })} placeholder="+974 5512 3456" />
+        </Field>
         <Field label="Email (optional)"><input type="email" value={nf.email} onChange={(e) => setNf({ ...nf, email: e.target.value })} /></Field>
         <Field label="Password" hint="Minimum 12 characters"><input type="password" minLength={12} maxLength={72} value={nf.password} onChange={(e) => setNf({ ...nf, password: e.target.value })} /></Field>
+      </Modal>
+
+      <Modal
+        open={!!viewing}
+        title={viewing?.full_name || 'User'}
+        onClose={() => setViewing(null)}
+        footer={<button className="btn btn-ghost" type="button" onClick={() => setViewing(null)}>Close</button>}
+      >
+        <UserDetailRow label="Full name" value={viewing?.full_name} />
+        <UserDetailRow label="Phone" value={viewing?.phone ? formatQatarMobile(viewing.phone) : viewing?.phone} />
+        <UserDetailRow label="Email" value={viewing?.email} />
+        <UserDetailRow label="Role" value={viewing?.role} />
+        <UserDetailRow label="Status" value={viewing?.is_active === false ? 'Disabled' : viewing?.deleted_at ? 'Deleted' : 'Active'} />
+        <UserDetailRow label="Registered" value={date(viewing?.created_at)} />
+        <UserDetailRow label="Email verified" value={viewing?.email_verified_at ? date(viewing.email_verified_at) : (viewing?.email ? 'Not verified' : '—')} />
+        {viewing?.business_name && (
+          <>
+            <UserDetailRow label="Store" value={viewing.business_name} />
+            <UserDetailRow label="Store status" value={viewing.vendor_status} />
+            <UserDetailRow label="Store WhatsApp" value={viewing.vendor_whatsapp} />
+            <UserDetailRow label="Store city" value={[viewing.vendor_city, viewing.vendor_country].filter(Boolean).join(', ')} />
+            <UserDetailRow label="Store address" value={viewing.vendor_address} />
+          </>
+        )}
+        {viewing?.driver_status && (
+          <>
+            <UserDetailRow label="Driver status" value={viewing.driver_status} />
+            <UserDetailRow label="Vehicle" value={viewing.vehicle_type} />
+            <UserDetailRow label="Plate" value={viewing.license_plate} />
+          </>
+        )}
       </Modal>
       {dialog}
     </>

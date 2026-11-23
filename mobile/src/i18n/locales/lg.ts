@@ -54,6 +54,7 @@ const lg: Record<string, string> = {
   'auth.createSubtitle': 'Akawunti k’omuguzi kakusobozesa okugula ebyokulya eby’Afrika, okutereka services n’okugoberera.',
   'auth.fullName': 'Erinnya lyonna',
   'auth.phone': 'Namba y’essimu',
+  'auth.phoneInvalid': 'Use a Qatar mobile number (Ooredoo or Vodafone), for example 5512 3456.',
   'auth.choosePin': 'Londa PIN y’ennamba 4',
   'auth.confirmPin': 'Kakasa PIN',
   'auth.pinPrivate': 'Kuma PIN. Toyisa namba z’essimu yo.',
