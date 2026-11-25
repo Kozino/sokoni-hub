@@ -69,6 +69,12 @@ const lg: Record<string, string> = {
   'home.sell.stamp': 'Eri abatunzi',
   'home.sell.body': 'Weewandiise leero, okakasibwe, era otandike okufuna ebiragiro ebituufu — nga tolina mukutu, nga tolina kulanga, nga tosasula.',
   'home.sell.cta': 'Tandika okutunda — kya bwereere',
+  'home.download.stamp': 'Wanula pulogulamu',
+  'home.download.title': 'Gula ku Sokoni Hub ku ssimu yo',
+  'home.download.body':
+    'Laba amaduuka, sakira ebyokulya, era goberera okuteeka — ku iPhone ne Android.',
+  'home.download.appStore': 'Download on the App Store',
+  'home.download.playStore': 'Get it on Google Play',
   'promo.vip.eyebrow': 'Amaduuka ag\'oku ntikko',
   'promo.vip.title': 'Amaduuka ga VIP',
   'promo.vip.body': 'Amaduuka agaasasulira ekifo kino. Gapimibwa era gakakasibwa nga buli dduuka eddala ku Sokoni Hub.',

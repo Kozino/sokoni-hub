@@ -71,6 +71,12 @@ const fr: Record<string, string> = {
   'home.sell.title': 'Prêt à vendre au-delà des réseaux sociaux ?',
   'home.sell.body': 'Inscrivez-vous, faites-vous vérifier et recevez de vraies commandes — sans site web, sans publicité, sans frais d’annonce.',
   'home.sell.cta': 'Commencer à vendre — c’est gratuit',
+  'home.download.stamp': 'Télécharger l’application',
+  'home.download.title': 'Faites vos courses Sokoni Hub sur votre téléphone',
+  'home.download.body':
+    'Parcourez les boutiques, commandez et suivez vos livraisons — sur iPhone et Android.',
+  'home.download.appStore': 'Download on the App Store',
+  'home.download.playStore': 'Get it on Google Play',
   'promo.vip.eyebrow': 'Boutiques premium',
   'promo.vip.title': 'Boutiques VIP',
   'promo.vip.body': 'Des boutiques qui ont payé cet emplacement. Notées et vérifiées comme toutes les autres sur Sokoni Hub.',

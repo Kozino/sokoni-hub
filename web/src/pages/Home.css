@@ -220,6 +220,56 @@
 }
 
 /* ----------------------------------------------------------------------------
+   DOWNLOAD APP — official App Store / Google Play badges after the seller CTA
+   ------------------------------------------------------------------------- */
+.lp-download {
+  text-align: center;
+  padding: var(--s-10) var(--s-6);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  background: var(--bg-subtle);
+}
+.lp-download .lp-stamp {
+  color: var(--lp-teal);
+  border-color: rgba(11, 93, 74, .28);
+  background: rgba(11, 93, 74, .08);
+}
+:root[data-theme='dark'] .lp-download .lp-stamp {
+  color: #4FC9A4;
+  border-color: rgba(79, 201, 164, .35);
+  background: rgba(79, 201, 164, .1);
+}
+.lp-download h2 { margin: 0 0 var(--s-2); }
+.lp-download p {
+  margin: 0 auto var(--s-6);
+  max-width: 48ch;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+.lp-download-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 8px;
+}
+.lp-badge {
+  display: block;
+  line-height: 0;
+  border-radius: 8px;
+}
+.lp-badge img {
+  display: block;
+  height: 40px;
+  width: auto;
+}
+/* Official Play badge PNG includes extra transparent padding; scale so the
+   pill matches the App Store badge height without cropping the artwork. */
+.lp-badge-google img {
+  height: 58px;
+}
+
+/* ----------------------------------------------------------------------------
    RESPONSIVE
    ------------------------------------------------------------------------- */
 @media (max-width: 1024px) {

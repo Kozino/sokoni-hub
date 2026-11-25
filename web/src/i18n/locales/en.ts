@@ -85,6 +85,12 @@ const en: Record<string, string> = {
   'home.sell.body':
     'Register today, get verified, and start taking real orders — no website, no ads, no fees to list.',
   'home.sell.cta': "Start selling — it's free",
+  'home.download.stamp': 'Download the app',
+  'home.download.title': 'Shop Sokoni Hub on your phone',
+  'home.download.body':
+    'Browse vendors, order groceries, and track deliveries — on iPhone and Android.',
+  'home.download.appStore': 'Download on the App Store',
+  'home.download.playStore': 'Get it on Google Play',
 
   /* ------------------------------------------------------------- promotion */
   'promo.vip.eyebrow': 'Premium stores',

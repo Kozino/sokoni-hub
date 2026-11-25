@@ -70,6 +70,12 @@ const tw: Record<string, string> = {
   'home.sell.stamp': 'Ma atɔnfo',
   'home.sell.body': 'Kyerɛw wo din nnɛ, ma wɔnhwɛ wo so, na fi ase gye nneɛma ampa — sɛnea wonni wɛbsaet, wontɔ dawurubɔ, na wontua hwee.',
   'home.sell.cta': 'Fi ase tɔn — ɛyɛ kwa',
+  'home.download.stamp': 'Twe app no',
+  'home.download.title': 'Tɔ nneɛma wɔ Sokoni Hub so wɔ wo fon so',
+  'home.download.body':
+    'Hwehwɛ sotɔɔ, tɔ nneɛma, na hwɛ sɛnea wɔde brɛ wo — iPhone ne Android so.',
+  'home.download.appStore': 'Download on the App Store',
+  'home.download.playStore': 'Get it on Google Play',
   'promo.vip.eyebrow': 'Sotɔɔ atitiriw',
   'promo.vip.title': 'Sotɔɔ VIP',
   'promo.vip.body': 'Sotɔɔ a wɔatua sika de agye baabi yi. Wɔhwɛ wɔn so te sɛ sotɔɔ foforo biara wɔ Sokoni Hub so.',

@@ -71,6 +71,12 @@ const sw: Record<string, string> = {
   'home.sell.title': 'Uko tayari kuuza zaidi ya mitandao ya kijamii?',
   'home.sell.body': 'Jisajili leo, uhakikiwe, na uanze kupokea oda halisi — bila tovuti, bila matangazo, bila ada.',
   'home.sell.cta': 'Anza kuuza — ni bure',
+  'home.download.stamp': 'Pakua programu',
+  'home.download.title': 'Nunua Sokoni Hub kwenye simu yako',
+  'home.download.body':
+    'Vinjari maduka, agiza vyakula, na fuatilia uwasilishaji — kwenye iPhone na Android.',
+  'home.download.appStore': 'Download on the App Store',
+  'home.download.playStore': 'Get it on Google Play',
   'promo.vip.eyebrow': 'Maduka ya hadhi',
   'promo.vip.title': 'Maduka ya VIP',
   'promo.vip.body': 'Maduka yaliyolipia nafasi hii. Yanakadiriwa na kuhakikiwa kama duka lingine lolote kwenye Sokoni Hub.',

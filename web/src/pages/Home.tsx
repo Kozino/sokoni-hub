@@ -6,6 +6,7 @@ import type { Listing, Category } from '../types';
 import ListingCard from '../components/ListingCard';
 import FeaturedStores from '../components/FeaturedStores';
 import { useT } from '../i18n';
+import { CONSUMER_APP_STORE_URL, CONSUMER_PLAY_STORE_URL } from '../lib/storeLinks';
 import { useLocation as useBuyerLocation } from '../state/LocationContext';
 import './Home.css';
 
@@ -245,7 +246,7 @@ export default function Home() {
       </section>
 
       {/* ================================================= SELL CTA */}
-      <section className="lp-block lp-block-last">
+      <section className="lp-block">
         <div className="container">
           <div className="lp-sell">
             <div className="lp-sell-inner">
@@ -255,6 +256,47 @@ export default function Home() {
                 <p>{t('home.sell.body')}</p>
               </div>
               <Link to="/sell" className="btn btn-primary btn-lg">{t('home.sell.cta')}</Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ================================================= DOWNLOAD APP */}
+      <section className="lp-block lp-block-last" aria-labelledby="lp-download-title">
+        <div className="container">
+          <div className="lp-download">
+            <span className="lp-stamp">{t('home.download.stamp')}</span>
+            <h2 id="lp-download-title">{t('home.download.title')}</h2>
+            <p>{t('home.download.body')}</p>
+            <div className="lp-download-badges">
+              <a
+                className="lp-badge lp-badge-apple"
+                href={CONSUMER_APP_STORE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={t('home.download.appStore')}
+              >
+                <img
+                  src="/img/badges/app-store.svg"
+                  alt={t('home.download.appStore')}
+                  height={40}
+                  width={120}
+                />
+              </a>
+              <a
+                className="lp-badge lp-badge-google"
+                href={CONSUMER_PLAY_STORE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={t('home.download.playStore')}
+              >
+                <img
+                  src="/img/badges/google-play.png"
+                  alt={t('home.download.playStore')}
+                  height={58}
+                  width={155}
+                />
+              </a>
             </div>
           </div>
         </div>
