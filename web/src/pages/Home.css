@@ -502,7 +502,7 @@
 .lp .lp-market .lcard-price { font-size: 14px; font-weight: 800; color: var(--lp-link); }
 .lp .lp-market .lcard-rating { font-size: 11.5px; }
 .lp .lp-market .lcard-foot span:last-child { font-size: 11.5px; }
-.lp .lp-market .lcard-cart.lcard-cart--icon { width: 32px; height: 32px; min-height: 32px; flex: 0 0 32px; box-shadow: 0 3px 8px rgba(0,78,64,.22); }
+.lp .lp-market .lcard-cart.lcard-cart--icon { width: 32px; height: 32px; min-height: 32px; flex: 0 0 32px; box-shadow: 0 3px 8px rgba(255,122,0,.3); }
 .lp .lp-market .lcard-cart.lcard-cart--icon svg { width: 16px; height: 16px; }
 .lp .lp-market .lcard-actions { padding: 0 10px 10px; }
 .lp .lp-market .lcard-actions .lcard-cart { min-height: 28px; padding: 4px 10px; font-size: 12px; }

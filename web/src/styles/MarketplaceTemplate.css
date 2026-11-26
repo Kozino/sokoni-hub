@@ -175,19 +175,25 @@
 .marketplace-app .lcard-price { color: var(--market-teal-deep); font-size: 16px; font-weight: 800; }
 .marketplace-app .lcard-foot { border-top: 0; color: #718178; font-size: 12px; padding-top: 4px; margin-top: 1px; }
 .marketplace-app .lcard-actions { padding: 0 12px 12px; display: flex; justify-content: flex-start; }
-.marketplace-app .lcard-cart { width: auto; background: #edf8f3; border: 0; border-radius: 999px; color: var(--market-teal-deep); min-height: 30px; padding: 5px 12px; font-size: 12px; font-weight: 750; gap: 5px; }
+/* Card actions use the Sokoni gold (the orange swoosh in the logo, #ff7a00):
+   the product cart icon and the service "Book now" button, on every page
+   that shows listing cards (home, browse, stores, listing detail). */
+.marketplace-app .lcard-cart { width: auto; background: var(--market-orange); border: 0; border-radius: 999px; color: #fff; min-height: 30px; padding: 5px 12px; font-size: 12px; font-weight: 750; gap: 5px; box-shadow: 0 3px 10px rgba(255,122,0,.28); }
 .marketplace-app .lcard-cart svg { width: 13px; height: 13px; }
-.marketplace-app .lcard-cart:hover { background: var(--market-teal); color: #fff; }
-.marketplace-app .lcard-cart.added { background: var(--market-teal); color: #fff; }
-/* Icon-only product button: a filled teal circle beside the product name —
-   the card's primary action, so it is solid rather than a pale tint. */
+.marketplace-app .lcard-cart:hover:not(:disabled),
+:root[data-theme='dark'] .marketplace-app .lcard-cart:hover:not(:disabled) { background: var(--market-orange-deep); border-color: var(--market-orange-deep); color: #fff; }
+.marketplace-app .lcard-cart:focus-visible { outline: 2px solid var(--market-teal); outline-offset: 2px; }
+/* "Added" stays green so the buyer sees the cart confirmation. */
+.marketplace-app .lcard-cart.added { background: #0f8a63; color: #fff; box-shadow: none; }
+/* Icon-only product button: a filled gold circle beside the product name. */
 .marketplace-app .lcard-cart.lcard-cart--icon {
   width: 40px; height: 40px; min-height: 40px; padding: 0; gap: 0; border-radius: 50%;
-  background: var(--market-teal); color: #fff;
-  box-shadow: 0 4px 12px rgba(0, 78, 64, .26);
+  background: var(--market-orange); color: #fff;
+  box-shadow: 0 4px 12px rgba(255, 122, 0, .32);
 }
 .marketplace-app .lcard-cart.lcard-cart--icon svg { width: 20px; height: 20px; }
-.marketplace-app .lcard-cart.lcard-cart--icon:hover { background: var(--market-teal-deep); color: #fff; }
+.marketplace-app .lcard-cart.lcard-cart--icon:hover:not(:disabled),
+:root[data-theme='dark'] .marketplace-app .lcard-cart.lcard-cart--icon:hover:not(:disabled) { background: var(--market-orange-deep); color: #fff; }
 .marketplace-app .lcard-cart.lcard-cart--icon.added { background: #0f8a63; color: #fff; }
 
 /* --------------------------------------------------------------------------
