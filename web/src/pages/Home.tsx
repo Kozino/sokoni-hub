@@ -1,10 +1,11 @@
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import type { Listing, Category } from '../types';
 import ListingCard from '../components/ListingCard';
 import FeaturedStores from '../components/FeaturedStores';
+import HomeFilterSidebar from '../components/HomeFilterSidebar';
 import { useT } from '../i18n';
 import { CONSUMER_APP_STORE_URL, CONSUMER_PLAY_STORE_URL } from '../lib/storeLinks';
 import { useLocation as useBuyerLocation } from '../state/LocationContext';
@@ -54,11 +55,36 @@ function Icon({ name }: { name: keyof typeof ICONS }) {
 }
 
 /* Presentational only: takes listings the page already fetched.
-   scroll = swipeable row on phones; otherwise a 2-up grid. */
-function Shelf({ title, to, items, cols, scroll, tint }: {
-  title: string; to: string; items: Listing[]; cols: 4 | 6; scroll?: boolean; tint?: boolean;
+   scroll = one swipeable row (with prev/next arrows on desktop); otherwise a grid. */
+function Shelf({ title, to, items, scroll, tint }: {
+  title: string; to: string; items: Listing[]; scroll?: boolean; tint?: boolean;
 }) {
   const t = useT();
+  const rail = useRef<HTMLDivElement>(null);
+  const [edge, setEdge] = useState({ start: true, end: false });
+
+  // Track whether the row can scroll further either way (RTL-safe: uses magnitude).
+  const measure = useCallback(() => {
+    const el = rail.current;
+    if (!el) return;
+    const pos = Math.abs(el.scrollLeft);
+    setEdge({ start: pos < 4, end: pos + el.clientWidth >= el.scrollWidth - 4 });
+  }, []);
+
+  useEffect(() => {
+    if (!scroll) return;
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [scroll, items.length, measure]);
+
+  const step = (dir: 1 | -1) => {
+    const el = rail.current;
+    if (!el) return;
+    const rtl = getComputedStyle(el).direction === 'rtl';
+    el.scrollBy({ left: dir * (rtl ? -1 : 1) * el.clientWidth * 0.9, behavior: 'smooth' });
+  };
+
   if (items.length === 0) return null;
 
   return (
@@ -66,11 +92,23 @@ function Shelf({ title, to, items, cols, scroll, tint }: {
       <div className="container">
         <div className="lp-shelf-head">
           <h2>{title}</h2>
-          <Link to={to} className="lp-viewall">
-            {t('common.viewAll')} <span className="lp-arrow" aria-hidden="true">→</span>
-          </Link>
+          <div className="lp-shelf-tools">
+            {scroll && (
+              <div className="lp-rail-nav">
+                <button type="button" onClick={() => step(-1)} disabled={edge.start} aria-label="Previous">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+                </button>
+                <button type="button" onClick={() => step(1)} disabled={edge.end} aria-label="Next">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+                </button>
+              </div>
+            )}
+            <Link to={to} className="lp-viewall">
+              {t('common.viewAll')} <span className="lp-arrow" aria-hidden="true">→</span>
+            </Link>
+          </div>
         </div>
-        <div className={`lp-rail cols-${cols}${scroll ? ' is-scroll' : ''}`}>
+        <div ref={rail} onScroll={scroll ? measure : undefined} className={`lp-rail${scroll ? ' is-scroll' : ''}`}>
           {items.map((l) => <ListingCard key={l.id} l={l} showAction />)}
         </div>
       </div>
@@ -122,6 +160,11 @@ export default function Home() {
     { label: t('home.stat.orders'), value: stats.orders_delivered },
     { label: t('home.stat.cities'), value: stats.cities },
   ].filter((s) => Number(s.value) > 0);
+
+  const catName = useCallback(
+    (c: Category) => (CAT_SLUGS.has(c.slug) ? t(`cat.${c.slug}`) : c.name),
+    [t],
+  );
 
   const search = (e: React.FormEvent) => {
     e.preventDefault();
@@ -194,38 +237,46 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ================================================= CATEGORIES */}
-      {cats.length > 0 && (
-        <section className="lp-block">
-          <div className="container">
-            <div className="lp-shelf-head">
-              <h2>{t('home.categories.title')}</h2>
-              <Link to="/browse" className="lp-viewall">
-                {t('common.viewAll')} <span className="lp-arrow" aria-hidden="true">→</span>
-              </Link>
-            </div>
-            <div className="lp-cats">
-              {cats.map((c) => (
-                <Link key={c.id} to={`/browse?category=${c.slug}`} className="lp-cat">
-                  {/* alt="": the name is printed right below, so a screen
-                      reader would just say everything twice. */}
-                  <img className="lp-cat-ico" src={catImg(c)} alt="" width={76} height={76} loading="lazy" decoding="async" />
-                  <span className="lp-cat-label">{CAT_SLUGS.has(c.slug) ? t(`cat.${c.slug}`) : c.name}</span>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
+      {/* ================================================= MARKETPLACE BODY
+          Sidebar filter (left) + categories, paid placement and shelves (right).
+          The sidebar reuses the categories/cities fetched above — no extra calls. */}
+      <div className="container lp-market">
+        <HomeFilterSidebar cats={cats} cities={cities} defaultCity={city} catLabel={catName} catImg={catImg} />
+        <div className="lp-market-main">
+          {/* ================================================= CATEGORIES */}
+          {cats.length > 0 && (
+            <section className="lp-block">
+              <div className="container">
+                <div className="lp-shelf-head">
+                  <h2>{t('home.categories.title')}</h2>
+                  <Link to="/browse" className="lp-viewall">
+                    {t('common.viewAll')} <span className="lp-arrow" aria-hidden="true">→</span>
+                  </Link>
+                </div>
+                <div className="lp-cats">
+                  {cats.map((c) => (
+                    <Link key={c.id} to={`/browse?category=${c.slug}`} className="lp-cat">
+                      {/* alt="": the name is printed right below, so a screen
+                          reader would just say everything twice. */}
+                      <img className="lp-cat-ico" src={catImg(c)} alt="" width={76} height={76} loading="lazy" decoding="async" />
+                      <span className="lp-cat-label">{catName(c)}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
 
-      {/* Paid placement sits above the organic shelves, as before.
-          Renders nothing when no placement is sold. */}
-      <FeaturedStores />
+          {/* Paid placement sits above the organic shelves, as before.
+              Renders nothing when no placement is sold. */}
+          <FeaturedStores />
 
-      {/* ================================================= PRODUCT SHELVES */}
-      <Shelf title={t('home.trending.title')} to="/browse?sort=popular" items={trending} cols={4} scroll />
-      <Shelf title={t('home.new.title')} to="/browse" items={latest} cols={6} />
-      <Shelf title={t('home.services.title')} to="/browse?kind=service" items={services} cols={6} scroll tint />
+          {/* ================================================= PRODUCT SHELVES */}
+          <Shelf title={t('home.trending.title')} to="/browse?sort=popular" items={trending} scroll />
+          <Shelf title={t('home.new.title')} to="/browse" items={latest} />
+          <Shelf title={t('home.services.title')} to="/browse?kind=service" items={services} scroll tint />
+        </div>
+      </div>
 
       {/* ================================================= HOW IT WORKS */}
       <section className="lp-block">
